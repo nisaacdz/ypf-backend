@@ -16,7 +16,7 @@ const envSchema = z.object({
   serviceEmailer: z.email(),
   serviceEmailerPass: z.string(),
   serviceLogo: z.string(),
-  clientUrl: z.string(),
+  allowedOrigins: z.string(),
   apiKey: z.string(),
   year: z.string(),
   version: z.string(),
@@ -36,7 +36,7 @@ const variables = {
   serviceEmailerPass: process.env.SERVICE_EMAILER_PASS,
   serviceLogo: process.env.SERVICE_LOGO,
   clientUrl: process.env.CLIENT_URL,
-
+  allowedOrigins: process.env.ALLOWED_ORIGINS,
   apiKey: process.env.API_KEY,
   geminiApiKey: process.env.GEMINI_API_KEY,
 };
@@ -48,6 +48,8 @@ if (!parsedEnv.success) {
   throw parsedEnv.error;
 }
 
-const envConfig = parsedEnv.data;
+const { allowedOrigins, ...others } = parsedEnv.data;
+
+const envConfig = { ...others, allowedOrigins: allowedOrigins.split(",") };
 
 export default envConfig;

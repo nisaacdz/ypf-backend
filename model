@@ -1,0 +1,396 @@
+-- First, define all ENUM types for data integrity
+CREATE TYPE "MEDIA_TYPE" AS ENUM ('PICTURE', 'VIDEO');
+CREATE TYPE "CONTACT_TYPE" AS ENUM ('EMAIL', 'PHONE', 'WHATSAPP');
+CREATE TYPE "PROJECT_STATUS" AS ENUM ('PLANNING', 'IN_PROGRESS', 'COMPLETED', 'ON_HOLD', 'CANCELLED');
+CREATE TYPE "EVENT_STATUS" AS ENUM ('UPCOMING', 'ONGOING', 'COMPLETED', 'CANCELLED');
+CREATE TYPE "PAYMENT_METHOD" AS ENUM ('CREDIT_CARD', 'BANK_TRANSFER', 'MOBILE_MONEY', 'CASH');
+CREATE TYPE "TRANSACTION_TYPE" AS ENUM ('DONATION', 'DUES_PAYMENT');
+CREATE TYPE "TRANSACTION_STATUS" AS ENUM ('PENDING', 'COMPLETED', 'FAILED', 'REFUNDED');
+CREATE TYPE "ATTENDANCE_STATUS" AS ENUM ('INVITED', 'ACCEPTED', 'DECLINED', 'ATTENDED');
+
+-- Create all the schemas to logically group the tables
+CREATE SCHEMA IF NOT EXISTS app;
+CREATE SCHEMA IF NOT EXISTS core;
+CREATE SCHEMA IF NOT EXISTS auth;
+CREATE SCHEMA IF NOT EXISTS activities;
+CREATE SCHEMA IF NOT EXISTS finance;
+CREATE SCHEMA IF NOT EXISTS impact;
+CREATE SCHEMA IF NOT EXISTS communications;
+
+--------------------------------------------------
+-- Schema: App (Users, Otps)
+--------------------------------------------------
+
+CREATE TABLE app."User" (
+    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "email" VARCHAR(255) UNIQUE NOT NULL,
+    "password" TEXT, -- Hashed password
+    "username" TEXT UNIQUE,
+    "google_id" TEXT UNIQUE,
+    "apple_id" TEXT UNIQUE,
+    "facebook_id" TEXT UNIQUE,
+    "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE app."Otp" (
+    "id" SERIAL PRIMARY KEY,
+    "email" VARCHAR(255) NOT NULL,
+    "code" TEXT NOT NULL,
+    "payload" JSONB, -- Additional data if needed
+    "expires_at" TIMESTAMP WITH TIME ZONE NOT NULL,
+    "is_used" BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+CREATE TABLE app."Notification" (
+    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "user_id" UUID NOT NULL,
+    "title" TEXT,
+    "message" TEXT,
+    "announcement_id" UUID, -- Handle in app, when announcement is created or when you attempts to refresh
+    "is_read" BOOLEAN NOT NULL DEFAULT FALSE,
+    "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    FOREIGN KEY ("user_id") REFERENCES app."User"("id") ON DELETE CASCADE
+);
+
+--------------------------------------------------
+-- Schema: Core (Constituents, Chapters, and Memberships)
+--------------------------------------------------
+
+CREATE TABLE core."Constituent" (
+    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "user_id" UUID UNIQUE,
+    "first_name" TEXT NOT NULL,
+    "last_name" TEXT NOT NULL,
+    "preferred_name" TEXT,
+    "selfie_id" UUID,
+    "salutation" TEXT,
+    "date_of_birth" DATE,
+    "gender" TEXT,
+    "is_active" BOOLEAN NOT NULL DEFAULT TRUE,
+    "join_date" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+
+    FOREIGN KEY ("user_id") REFERENCES app."User"("id") ON DELETE SET NULL
+    -- SELFIE_ID FK is added below after Media table is created
+);
+
+CREATE TABLE core."Media" (
+    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "url" TEXT NOT NULL,
+    "media_type" "MEDIA_TYPE" NOT NULL,
+    "created_by" UUID,
+    "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+
+    FOREIGN KEY ("created_by") REFERENCES core."Constituent"("id") ON DELETE SET NULL
+);
+
+-- Add the selfie_id foreign key after Media table is created to avoid circular dependency
+ALTER TABLE core."Constituent" ADD FOREIGN KEY ("selfie_id") REFERENCES core."Media"("id") ON DELETE SET NULL;
+
+CREATE TABLE core."ContactInformation" (
+    "id" SERIAL PRIMARY KEY,
+    "constituent_id" UUID NOT NULL,
+    "contact_type" "CONTACT_TYPE" NOT NULL,
+    "value" TEXT NOT NULL,
+    "is_primary" BOOLEAN NOT NULL DEFAULT FALSE,
+    FOREIGN KEY ("constituent_id") REFERENCES core."Constituent"("id") ON DELETE CASCADE,
+    UNIQUE ("constituent_id", "contact_type", "value")
+);
+
+CREATE TABLE core."Membership" (
+    "id" SERIAL PRIMARY KEY,
+    "name" TEXT UNIQUE NOT NULL,
+    "description" TEXT
+);
+
+CREATE TABLE core."ConstituentMembership" (
+    "id" SERIAL PRIMARY KEY,
+    "constituent_id" UUID NOT NULL,
+    "membership_id" INTEGER NOT NULL,
+    "start_date" TIMESTAMP WITH TIME ZONE NOT NULL,
+    "end_date" TIMESTAMP WITH TIME ZONE,
+    "assigner_id" UUID,
+    FOREIGN KEY ("constituent_id") REFERENCES core."Constituent"("id") ON DELETE CASCADE,
+    FOREIGN KEY ("membership_id") REFERENCES core."Membership"("id") ON DELETE RESTRICT,
+    FOREIGN KEY ("assigner_id") REFERENCES core."Constituent"("id") ON DELETE SET NULL,
+    UNIQUE ("constituent_id", "membership_id")
+);
+
+CREATE TABLE core."Chapter" (
+    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "name" TEXT NOT NULL,
+    "country" TEXT NOT NULL,
+    "description" TEXT,
+    "founding_date" DATE NOT NULL,
+    "is_active" BOOLEAN NOT NULL DEFAULT TRUE,
+    "parent_id" UUID,
+    FOREIGN KEY ("parent_id") REFERENCES core."Chapter"("id") ON DELETE SET NULL
+);
+
+CREATE TABLE core."ChapterMembership" (
+    "id" SERIAL PRIMARY KEY,
+    "constituent_id" UUID NOT NULL,
+    "chapter_id" UUID NOT NULL,
+    "start_date" TIMESTAMP WITH TIME ZONE NOT NULL,
+    "end_date" TIMESTAMP WITH TIME ZONE,
+    "is_active" BOOLEAN NOT NULL DEFAULT TRUE,
+    FOREIGN KEY ("constituent_id") REFERENCES core."Constituent"("id") ON DELETE CASCADE,
+    FOREIGN KEY ("chapter_id") REFERENCES core."Chapter"("id") ON DELETE CASCADE,
+    UNIQUE ("constituent_id", "chapter_id")
+);
+
+CREATE TABLE core."Committee" (
+    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "name" TEXT UNIQUE NOT NULL,
+    "description" TEXT
+);
+
+CREATE TABLE core."CommitteeMembership" (
+    "id" SERIAL PRIMARY KEY,
+    "constituent_id" UUID NOT NULL,
+    "committee_id" UUID NOT NULL,
+    "start_date" TIMESTAMP WITH TIME ZONE NOT NULL,
+    "end_date" TIMESTAMP WITH TIME ZONE,
+    "is_active" BOOLEAN NOT NULL DEFAULT TRUE,
+    FOREIGN KEY ("constituent_id") REFERENCES core."Constituent"("id") ON DELETE CASCADE,
+    FOREIGN KEY ("committee_id") REFERENCES core."Committee"("id") ON DELETE CASCADE,
+    UNIQUE ("constituent_id", "committee_id")
+);
+
+CREATE TABLE core."Role" (
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT, -- Make roles are roughly in this order, i.e president.id = 0, good for sorting
+    "name" TEXT UNIQUE NOT NULL,
+    "description" TEXT
+);
+
+CREATE TABLE core."RoleAssignment" (
+    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "constituent_id" UUID NOT NULL,
+    "role_id" INTEGER NOT NULL,
+    "chapter_id" UUID, -- If not null, role is scoped to this chapter
+    "committee_id" UUID, -- If not null, role is scoped to this committee
+    FOREIGN KEY ("constituent_id") REFERENCES core."Constituent"("id") ON DELETE CASCADE,
+    FOREIGN KEY ("role_id") REFERENCES core."Role"("id") ON DELETE CASCADE,
+    FOREIGN KEY ("chapter_id") REFERENCES core."Chapter"("id") ON DELETE CASCADE,
+    FOREIGN KEY ("committee_id") REFERENCES core."Committee"("id") ON DELETE CASCADE
+);
+
+--------------------------------------------------
+-- Schema: Activities (Projects and Events)
+--------------------------------------------------
+
+CREATE TABLE activities."Project" (
+    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "chapter_id" UUID, -- NULL means organization-wide
+    "project_name" TEXT NOT NULL,
+    "project_objective" TEXT,
+    "start_date" TIMESTAMP WITH TIME ZONE NOT NULL,
+    "end_date" TIMESTAMP WITH TIME ZONE,
+    "budget" DECIMAL(12, 2),
+    "status" "PROJECT_STATUS" NOT NULL DEFAULT 'PLANNING',
+    FOREIGN KEY ("chapter_id") REFERENCES core."Chapter"("id") ON DELETE SET NULL
+);
+
+CREATE TABLE activities."Event" (
+    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "project_id" UUID, -- NULL means independent event
+    "event_name" TEXT NOT NULL,
+    "event_date" TIMESTAMP WITH TIME ZONE NOT NULL,
+    "event_location" TEXT,
+    "event_objectives" TEXT,
+    "status" "EVENT_STATUS" NOT NULL DEFAULT 'UPCOMING',
+    FOREIGN KEY ("project_id") REFERENCES activities."Project"("id") ON DELETE SET NULL
+);
+
+CREATE TABLE activities."EventParticipation" (
+    "id" SERIAL PRIMARY KEY,
+    "constituent_id" UUID NOT NULL,
+    "event_id" UUID NOT NULL,
+    "volunteer_hours" DECIMAL(5, 2),
+    "role_during_event" TEXT,
+    FOREIGN KEY ("constituent_id") REFERENCES core."Constituent"("id") ON DELETE CASCADE,
+    FOREIGN KEY ("event_id") REFERENCES activities."Event"("id") ON DELETE CASCADE,
+    UNIQUE("constituent_id", "event_id")
+);
+
+--------------------------------------------------
+-- Schema: Finance (Transactions, Donations, Dues)
+--------------------------------------------------
+
+CREATE TABLE finance."FinancialTransaction" (
+    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "amount" DECIMAL(10, 2) NOT NULL,
+    "currency" VARCHAR(3) NOT NULL,
+    "transaction_date" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    "payment_method" "PAYMENT_METHOD" NOT NULL,
+    "transaction_type" "TRANSACTION_TYPE" NOT NULL, -- redundant, inferable
+    "status" "TRANSACTION_STATUS" NOT NULL DEFAULT 'PENDING',
+    "external_ref" TEXT, -- e.g., Stripe charge ID
+);
+
+CREATE TABLE finance."Designation" (
+    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "name" TEXT UNIQUE NOT NULL,
+    "is_restricted" BOOLEAN NOT NULL DEFAULT FALSE,
+    "description" TEXT
+);
+
+CREATE TABLE finance."Donation" (
+    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "transaction_id" UUID UNIQUE NOT NULL,
+    "donor_id" UUID NOT NULL,
+    "is_recurring" BOOLEAN NOT NULL DEFAULT FALSE, -- delete
+    "project_id" UUID,
+    "event_id" UUID,
+    "designation_id" UUID,
+    "receipt_sent" BOOLEAN NOT NULL DEFAULT FALSE,
+    FOREIGN KEY ("transaction_id") REFERENCES finance."FinancialTransaction"("id") ON DELETE RESTRICT,
+    FOREIGN KEY ("donor_id") REFERENCES core."Constituent"("id") ON DELETE RESTRICT,
+    FOREIGN KEY ("project_id") REFERENCES activities."Project"("id") ON DELETE SET NULL,
+    FOREIGN KEY ("event_id") REFERENCES activities."Event"("id") ON DELETE SET NULL,
+    FOREIGN KEY ("designation_id") REFERENCES finance."Designation"("id") ON DELETE SET NULL
+);
+
+CREATE TABLE finance."Dues" (
+    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "membership_id" INTEGER NOT NULL,
+    "chapter_id" UUID, -- For chapter-specific dues
+    "amount" DECIMAL(10, 2) NOT NULL,
+    "currency" VARCHAR(3) NOT NULL,
+    "due_date" DATE NOT NULL,
+    "period_year" INTEGER NOT NULL,
+    FOREIGN KEY ("membership_id") REFERENCES core."Membership"("id") ON DELETE RESTRICT,
+    FOREIGN KEY ("chapter_id") REFERENCES core."Chapter"("id") ON DELETE SET NULL
+);
+
+CREATE TABLE finance."DuesPayment" (
+    "id" SERIAL PRIMARY KEY,
+    "transaction_id" UUID UNIQUE NOT NULL,
+    "dues_id" UUID NOT NULL,
+    "constituent_id" UUID NOT NULL,
+    FOREIGN KEY ("transaction_id") REFERENCES finance."FinancialTransaction"("id") ON DELETE RESTRICT,
+    FOREIGN KEY ("dues_id") REFERENCES finance."Dues"("id") ON DELETE RESTRICT,
+    FOREIGN KEY ("constituent_id") REFERENCES core."Constituent"("id") ON DELETE RESTRICT
+);
+
+CREATE TABLE finance."Vendor" (
+    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "name" TEXT UNIQUE NOT NULL
+);
+
+CREATE TABLE finance."Expenditure" (
+    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "expenditure_date" TIMESTAMP WITH TIME ZONE NOT NULL,
+    "amount" DECIMAL(12, 2) NOT NULL,
+    "currency" VARCHAR(3) NOT NULL,
+    "description" TEXT NOT NULL,
+    "category" TEXT,
+    "project_id" UUID,
+    "event_id" UUID,
+    "vendor_id" UUID,
+    "approved_by_id" UUID,
+    FOREIGN KEY ("project_id") REFERENCES activities."Project"("id") ON DELETE RESTRICT,
+    FOREIGN KEY ("event_id") REFERENCES activities."Event"("id") ON DELETE SET NULL,
+    FOREIGN KEY ("vendor_id") REFERENCES finance."Vendor"("id") ON DELETE SET NULL,
+    FOREIGN KEY ("approved_by_id") REFERENCES core."Constituent"("id") ON DELETE RESTRICT
+);
+
+--------------------------------------------------
+-- Schema: Impact (Reporting and Metrics)
+--------------------------------------------------
+
+CREATE TABLE impact."ImpactReport" (
+    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "project_id" UUID NOT NULL,
+    "report_title" TEXT NOT NULL,
+    "narrative" TEXT NOT NULL,
+    "date_created" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    "created_by_id" UUID NOT NULL,
+    FOREIGN KEY ("project_id") REFERENCES activities."Project"("id") ON DELETE RESTRICT,
+    FOREIGN KEY ("created_by_id") REFERENCES core."Constituent"("id") ON DELETE RESTRICT
+);
+
+CREATE TABLE impact."ImpactArea" (
+    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "area_name" TEXT UNIQUE NOT NULL,
+    "description" TEXT
+);
+
+CREATE TABLE impact."Outcome" (
+    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "impact_area_id" UUID NOT NULL,
+    "project_id" UUID NOT NULL,
+    "outcome_name" TEXT NOT NULL,
+    "target_value" DECIMAL(12, 2),
+    "is_quantitative" BOOLEAN NOT NULL,
+    FOREIGN KEY ("impact_area_id") REFERENCES impact."ImpactArea"("id") ON DELETE RESTRICT,
+    FOREIGN KEY ("project_id") REFERENCES activities."Project"("id") ON DELETE CASCADE
+);
+
+CREATE TABLE impact."Metric" (
+    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "outcome_id" UUID NOT NULL,
+    "measurement_date" DATE NOT NULL,
+    "value" DECIMAL(12, 2) NOT NULL,
+    "notes" TEXT,
+    "data_source" TEXT,
+    FOREIGN KEY ("outcome_id") REFERENCES impact."Outcome"("id") ON DELETE CASCADE
+);
+
+
+--------------------------------------------------
+-- Schema: Communications (Announcements, and Meetings)
+--------------------------------------------------
+
+CREATE TABLE communications."Announcement" (
+    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "title" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "created_by_id" UUID NOT NULL,
+    "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    "is_global" BOOLEAN NOT NULL DEFAULT FALSE, -- If true, sends to everyone
+
+    FOREIGN KEY ("created_by_id") REFERENCES core."Constituent"("id") ON DELETE RESTRICT
+);
+
+-- Alter Notifications table to reference "Announcement" as foreign key
+ALTER TABLE app."Notification" ADD FOREIGN KEY ("announcement_id") REFERENCES communications."Announcement"("id") ON DELETE SET NULL;
+
+-- Join tables to target announcements to specific groups
+CREATE TABLE communications."AnnouncementChapter" (
+    "announcement_id" UUID NOT NULL REFERENCES communications."Announcement"("id") ON DELETE CASCADE,
+    "chapter_id" UUID NOT NULL REFERENCES core."Chapter"("id") ON DELETE CASCADE,
+    PRIMARY KEY ("announcement_id", "chapter_id")
+);
+
+CREATE TABLE communications."AnnouncementCommittee" (
+    "announcement_id" UUID NOT NULL REFERENCES communications."Announcement"("id") ON DELETE CASCADE,
+    "committee_id" UUID NOT NULL REFERENCES core."Committee"("id") ON DELETE CASCADE,
+    PRIMARY KEY ("announcement_id", "committee_id")
+);
+
+-- Table for scheduling meetings
+CREATE TABLE communications."Meeting" (
+    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "title" TEXT NOT NULL,
+    "agenda" TEXT,
+    "start_time" TIMESTAMP WITH TIME ZONE NOT NULL,
+    "end_time" TIMESTAMP WITH TIME ZONE NOT NULL,
+    "location_url" TEXT, -- Can be a physical address or a video call link
+    "chapter_id" UUID REFERENCES core."Chapter"("id") ON DELETE CASCADE,
+    "committee_id" UUID REFERENCES core."Committee"("id") ON DELETE CASCADE,
+    "created_by_id" UUID NOT NULL REFERENCES core."Constituent"("id") ON DELETE RESTRICT,
+    "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE communications."MeetingAttendee" (
+    "id" SERIAL PRIMARY KEY,
+    "meeting_id" UUID NOT NULL REFERENCES communications."Meeting"("id") ON DELETE CASCADE,
+    "constituent_id" UUID NOT NULL REFERENCES core."Constituent"("id") ON DELETE CASCADE,
+    "status" "ATTENDANCE_STATUS" NOT NULL DEFAULT 'INVITED',
+    "is_required" BOOLEAN NOT NULL DEFAULT TRUE,
+    UNIQUE ("meeting_id", "constituent_id")
+);

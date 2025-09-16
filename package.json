@@ -1,7 +1,7 @@
 {
   "name": "ypf-core",
   "version": "1.0.0",
-  "description": "Backend service for NPQuest Labs marketing website.",
+  "description": "YPF App",
   "main": "server.ts",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only server.ts",
