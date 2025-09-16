@@ -1,0 +1,6 @@
+# ptype, roleId, resource_path, action, app_state, effect
+p, role_chapter_lead, /chapters/:id/projects, create:project, active, allow
+p, role_chapter_lead, /chapters/:id/projects/:projectId, view:details, active, allow
+p, role_treasurer, /chapters/:id/projects/:projectId, approve:budget, active, allow
+p, role_member, /chapters/:id/projects/:projectId, view:details, active, allow
+p, role_global_admin, /*, *, active, allow
