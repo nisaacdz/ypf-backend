@@ -1,31 +1,76 @@
-import { pgTable, uuid, text, timestamp, serial, varchar, jsonb, boolean } from "drizzle-orm/pg-core";
+import {
+  pgSchema,
+  uuid,
+  varchar,
+  text,
+  timestamp,
+  serial,
+  jsonb,
+  boolean,
+} from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
+import { Constituents } from "./core";
+import { Announcements } from "./communications";
 
-export const Users = pgTable("users", {
-    id: uuid().defaultRandom().primaryKey(),
-    email: varchar({ length: 55 }).notNull(),
-    username: varchar({ length: 55 }),
-    password: text(),
-    googleId: text("google_id").unique(),
-    facebookId: text("facebook_id").unique(),
-    appleId: text("apple_id").unique(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-})
+const app = pgSchema("app");
 
-export const Otps = pgTable("otps", {
-    id: serial().primaryKey(),
-    email: varchar({ length: 55 }).notNull(),
-    code: varchar({ length: 24 }).notNull(),
-    payload: jsonb(),
-    expiresAt: timestamp("expires_at").notNull(),
-    isUsed: boolean("is_used").notNull().default(false),
-})
+export const Users = app.table("users", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  password: text("password"),
+  username: text("username").unique(), // Initially set to Constituent.email
+  googleId: text("google_id").unique(),
+  appleId: text("apple_id").unique(),
+  facebookId: text("facebook_id").unique(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
 
-export const Notifications = pgTable("notifications", {
-    id: uuid().defaultRandom().primaryKey(),
-    userId: uuid().references(() => Users.id, { onDelete: 'cascade' }).notNull(),
-    title: text(),
-    message: text(),
-    announcementId: text("announcement_id"),
-    isRead: boolean("is_read").notNull().default(false),
-})
+export const Otps = app.table("otps", {
+  id: serial("id").primaryKey(),
+  email: varchar("email", { length: 255 }).notNull(),
+  code: text("code").notNull(),
+  payload: jsonb("payload"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  isUsed: boolean("is_used").default(false).notNull(),
+});
+
+export const Notifications = app.table("notifications", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => Users.id, { onDelete: "cascade" }),
+  title: text("title"),
+  message: text("message"),
+  announcementId: uuid("announcement_id").references(() => Announcements.id, {
+    onDelete: "set null",
+  }),
+  isRead: boolean("is_read").default(false).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+// === RELATIONS ===
+
+export const usersRelations = relations(Users, ({ one }) => ({
+  constituent: one(Constituents, {
+    fields: [Users.id],
+    references: [Constituents.userId],
+  }),
+}));
+
+export const notificationsRelations = relations(Notifications, ({ one }) => ({
+  user: one(Users, {
+    fields: [Notifications.userId],
+    references: [Users.id],
+  }),
+  announcement: one(Announcements, {
+    fields: [Notifications.announcementId],
+    references: [Announcements.id],
+  }),
+}));

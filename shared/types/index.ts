@@ -7,3 +7,9 @@ export class AppError extends Error {
     this.name = "AppError";
   }
 }
+
+export type ApiResponse<T> = {
+  success: boolean;
+  data: T;
+  message?: string;
+};

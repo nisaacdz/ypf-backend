@@ -7,8 +7,8 @@ const emailConfig = {
     port: envConfig.smtpPort,
     secure: true,
     auth: {
-      user: envConfig.serviceEmailer,
-      pass: envConfig.serviceEmailerPass,
+      user: envConfig.smtpUser,
+      pass: envConfig.smtpPass,
     },
   }),
 };

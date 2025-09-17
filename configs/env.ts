@@ -10,11 +10,11 @@ const envSchema = z.object({
   jwtSecret: z.uuid(),
   smtpPort: z.number(),
   smtpHost: z.string(),
+  smtpUser: z.string(),
+  smtpPass: z.string(),
+  emailer: z.email(), // will be changing this to allow different emailers for different scenarios
   databaseUrl: z.string(),
-  serviceName: z.string(),
-  serviceEmail: z.email(),
-  serviceEmailer: z.email(),
-  serviceEmailerPass: z.string(),
+  serviceName: z.string(), // will be changing this to allow different service names for different scenarios
   serviceLogo: z.string(),
   allowedOrigins: z.string(),
   apiKey: z.string(),
@@ -50,6 +50,10 @@ if (!parsedEnv.success) {
 
 const { allowedOrigins, ...others } = parsedEnv.data;
 
-const envConfig = { ...others, allowedOrigins: allowedOrigins.split(",") };
+const envConfig = {
+  ...others,
+  allowedOrigins: allowedOrigins.split(","),
+  isProduction: parsedEnv.data.environment === "production",
+};
 
 export default envConfig;

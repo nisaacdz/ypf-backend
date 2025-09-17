@@ -15,7 +15,7 @@ const app: Express = express();
 app.use(helmet());
 
 const corsOptions = {
-  origin: envConfig.clientUrl,
+  origin: envConfig.allowedOrigins,
   optionsSuccessStatus: 200,
   credentials: true,
 };
@@ -35,7 +35,7 @@ const server = http.createServer(app);
 
 const io = new SocketIOServer(server, {
   cors: {
-    origin: envConfig.clientUrl,
+    origin: envConfig.allowedOrigins,
     methods: ["GET", "POST"],
     credentials: true,
   },

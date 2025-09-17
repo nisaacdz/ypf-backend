@@ -1,11 +1,19 @@
-import { pgEnum } from "drizzle-orm/pg-core";
+import * as enums from "./enums";
+import * as app from "./app";
+import * as core from "./core";
+import * as activities from "./activities";
+import * as finance from "./finance";
+import * as impact from "./impact";
+import * as communications from "./communications";
 
-export const MediaType = pgEnum("media_type", ["PICTURE", "VIDEO"])
-export const ContactType = pgEnum("contact_type", ["EMAIL", "PHONE", "WHATSAPP"])
-export const ProjectStatus = pgEnum("project_status", ['PLANNING', 'IN_PROGRESS', 'COMPLETED', 'ON_HOLD', 'CANCELLED'])
-export const EventStatus = pgEnum("event_status", ['UPCOMING', 'ONGOING', 'COMPLETED', 'CANCELLED'])
-export const PaymentMethod = pgEnum("payment_method", ['CREDIT_CARD', 'BANK_TRANSFER', 'MOBILE_MONEY', 'CASH'])
-export const TransactionStatus = pgEnum("transaction_status", ['PENDING', 'COMPLETED', 'FAILED', 'REFUNDED'])
-export const AttendanceStatus = pgEnum("attendance_status", ['INVITED', 'ACCEPTED', 'DECLINED', 'ATTENDED'])
+const schema = {
+  ...enums,
+  ...app,
+  ...core,
+  ...activities,
+  ...finance,
+  ...impact,
+  ...communications,
+};
 
-export * from './app'
+export default schema;

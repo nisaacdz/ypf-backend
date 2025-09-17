@@ -1,4 +1,5 @@
 -- First, define all ENUM types for data integrity
+CREATE TYPE "MEMBERSHIP_TYPE" AS ENUM ('DONOR', 'MEMBER', 'VOLUNTEER', 'AUDITOR', 'ADMIN');
 CREATE TYPE "MEDIA_TYPE" AS ENUM ('PICTURE', 'VIDEO');
 CREATE TYPE "CONTACT_TYPE" AS ENUM ('EMAIL', 'PHONE', 'WHATSAPP');
 CREATE TYPE "PROJECT_STATUS" AS ENUM ('PLANNING', 'IN_PROGRESS', 'COMPLETED', 'ON_HOLD', 'CANCELLED');
@@ -102,21 +103,13 @@ CREATE TABLE core."ContactInformation" (
 
 CREATE TABLE core."Membership" (
     "id" SERIAL PRIMARY KEY,
-    "name" TEXT UNIQUE NOT NULL,
-    "description" TEXT
-);
-
-CREATE TABLE core."ConstituentMembership" (
-    "id" SERIAL PRIMARY KEY,
     "constituent_id" UUID NOT NULL,
-    "membership_id" INTEGER NOT NULL,
+    "type" "MEMBERSHIP_TYPE" NOT NULL,
     "start_date" TIMESTAMP WITH TIME ZONE NOT NULL,
     "end_date" TIMESTAMP WITH TIME ZONE,
     "assigner_id" UUID,
     FOREIGN KEY ("constituent_id") REFERENCES core."Constituent"("id") ON DELETE CASCADE,
-    FOREIGN KEY ("membership_id") REFERENCES core."Membership"("id") ON DELETE RESTRICT,
     FOREIGN KEY ("assigner_id") REFERENCES core."Constituent"("id") ON DELETE SET NULL,
-    UNIQUE ("constituent_id", "membership_id")
 );
 
 CREATE TABLE core."Chapter" (
@@ -172,6 +165,8 @@ CREATE TABLE core."RoleAssignment" (
     "role_id" INTEGER NOT NULL,
     "chapter_id" UUID, -- If not null, role is scoped to this chapter
     "committee_id" UUID, -- If not null, role is scoped to this committee
+    "started_at" TIMESTAMP WITH TIME ZONE NOT NULL,
+    "ended_at" TIMESTAMP WITH TIME ZONE,
     FOREIGN KEY ("constituent_id") REFERENCES core."Constituent"("id") ON DELETE CASCADE,
     FOREIGN KEY ("role_id") REFERENCES core."Role"("id") ON DELETE CASCADE,
     FOREIGN KEY ("chapter_id") REFERENCES core."Chapter"("id") ON DELETE CASCADE,
@@ -256,13 +251,12 @@ CREATE TABLE finance."Donation" (
 
 CREATE TABLE finance."Dues" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    "membership_id" INTEGER NOT NULL,
-    "chapter_id" UUID, -- For chapter-specific dues
+    "membership_type" "MEMBERSHIP_TYPE" NOT NULL,
+    "chapter_id" UUID, -- For chapter-specific dues, no committee dues 
     "amount" DECIMAL(10, 2) NOT NULL,
     "currency" VARCHAR(3) NOT NULL,
-    "due_date" DATE NOT NULL,
-    "period_year" INTEGER NOT NULL,
-    FOREIGN KEY ("membership_id") REFERENCES core."Membership"("id") ON DELETE RESTRICT,
+    "period_start" DATE NOT NULL,
+    "period_end" DATE NOT NULL,
     FOREIGN KEY ("chapter_id") REFERENCES core."Chapter"("id") ON DELETE SET NULL
 );
 

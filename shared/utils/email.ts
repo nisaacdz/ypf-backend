@@ -18,7 +18,7 @@ const colors = {
  */
 const generateBaseHtml = (subject: string, contentHtml: string): string => {
   const year = envConfig.year;
-  
+
   return "";
 };
 
@@ -33,7 +33,7 @@ export const sendEmail = async (
   textContent?: string,
 ): Promise<void> => {
   const mailOptions: nodemailer.SendMailOptions = {
-    from: `"${envConfig.serviceName}" <${envConfig.serviceEmail}>`,
+    from: `"${envConfig.serviceName}" <${envConfig.emailer}>`,
     to: to,
     subject: subject,
     html: htmlBody,
@@ -44,13 +44,12 @@ export const sendEmail = async (
 
   try {
     const info = await emailConfig.transporter.sendMail(mailOptions);
-    console.log(
-      `Email sent to ${to}. Message ID: ${info.messageId}`,
-    );
+    console.log(`Email sent to ${to}. Message ID: ${info.messageId}`);
   } catch (error) {
     console.error(`Error sending email to ${to}:`, error);
     throw new Error(
-      `Failed to send email: ${error instanceof Error ? error.message : String(error)
+      `Failed to send email: ${
+        error instanceof Error ? error.message : String(error)
       }`,
     );
   }

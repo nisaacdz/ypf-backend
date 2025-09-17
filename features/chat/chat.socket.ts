@@ -18,17 +18,21 @@ export const initializeChat = (io: SocketIOServer) => {
         if (Array.isArray(parsedMessages)) {
           messages = parsedMessages;
         } else {
-          console.warn("Parsed messages from handshake query is not an array:", parsedMessages);
+          console.warn(
+            "Parsed messages from handshake query is not an array:",
+            parsedMessages,
+          );
         }
       } catch (error) {
-        console.error("Failed to parse messages from handshake query:", messagesQueries, error);
+        console.error(
+          "Failed to parse messages from handshake query:",
+          messagesQueries,
+          error,
+        );
       }
     }
 
-    const chatHistoryWithContext = [
-      ...llmConfig.initialContext,
-      ...messages,
-    ];
+    const chatHistoryWithContext = [...llmConfig.initialContext, ...messages];
 
     const chat = llmConfig.model.startChat({
       generationConfig: llmConfig.generationConfig,
@@ -47,7 +51,9 @@ export const initializeChat = (io: SocketIOServer) => {
       return false;
     };
 
-    const initialResponse = await chat.sendMessage(`Infer if it is your turn to respond from the chat history.`);
+    const initialResponse = await chat.sendMessage(
+      `Infer if it is your turn to respond from the chat history.`,
+    );
     const initialResponseText = initialResponse.response.text();
 
     if (!isSilentBotResponse(initialResponseText)) {
@@ -87,7 +93,7 @@ export const initializeChat = (io: SocketIOServer) => {
             "Error calling Gemini API for socket",
             socket.id,
             ":",
-            error
+            error,
           );
           let errorMessage = "Sorry, I encountered an error.";
           if (error instanceof Error) {

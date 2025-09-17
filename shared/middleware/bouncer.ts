@@ -6,7 +6,7 @@ export default async function bouncer(
   next: (err?: Error | undefined) => void,
 ) {
   const clientKey = req.headers["x-client-key"];
-  
+
   if (envConfig.apiKey !== clientKey) {
     return next(new AppError("Unauthorized", 401));
   }
