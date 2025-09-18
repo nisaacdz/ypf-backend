@@ -1,3 +1,5 @@
+import { AuthenticatedUser } from "../validators";
+
 export class AppError extends Error {
   public statusCode: number;
 
@@ -13,3 +15,11 @@ export type ApiResponse<T> = {
   data: T;
   message?: string;
 };
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: AuthenticatedUser;
+    }
+  }
+}
