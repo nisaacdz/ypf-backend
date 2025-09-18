@@ -1,59 +1,88 @@
 import { z } from "zod";
 import dotenv from "dotenv";
 
+// Load environment variables from .env file
 dotenv.config();
 
-const envSchema = z.object({
-  environment: z.enum(["development", "production", "test"]),
-  host: z.string().default("localhost"),
-  port: z.coerce.number().default(3000),
-  jwtSecret: z.uuid(),
-  smtpPort: z.number(),
-  smtpHost: z.string(),
-  smtpUser: z.string(),
-  smtpPass: z.string(),
-  emailer: z.email(), // will be changing this to allow different emailers for different scenarios
-  databaseUrl: z.string(),
-  serviceName: z.string(), // will be changing this to allow different service names for different scenarios
-  serviceLogo: z.string(),
-  allowedOrigins: z.string(),
-  apiKey: z.string(),
-  year: z.string(),
-  version: z.string(),
-  geminiApiKey: z.string().min(1, { message: "Gemini API Key is required" }),
-});
+/**
+ * Schema for environment variables, matching the names in the .env file (UPPER_SNAKE_CASE).
+ * This schema validates the raw `process.env` object and then transforms it
+ * into a camelCase configuration object for application use.
+ */
+const envSchema = z
+  .object({
+    // Application Environment
+    NODE_ENV: z
+      .enum(["development", "production", "test"])
+      .default("development"),
+    HOST: z.string().default("localhost"),
+    PORT: z.coerce.number().positive().default(3000),
 
-const variables = {
-  environment: process.env.NODE_ENV || "development",
-  host: process.env.HOST,
-  port: process.env.PORT,
-  jwtSecret: process.env.JWT_SECRET,
-  sessionSecret: process.env.SESSION_SECRET,
-  databaseUrl: process.env.DATABASE_URL,
-  serviceName: process.env.SERVICE_NAME,
-  serviceEmail: process.env.SERVICE_EMAIL,
-  serviceEmailer: process.env.SERVICE_EMAILER,
-  serviceEmailerPass: process.env.SERVICE_EMAILER_PASS,
-  serviceLogo: process.env.SERVICE_LOGO,
-  clientUrl: process.env.CLIENT_URL,
-  allowedOrigins: process.env.ALLOWED_ORIGINS,
-  apiKey: process.env.API_KEY,
-  geminiApiKey: process.env.GEMINI_API_KEY,
-};
+    // Security and Authentication
+    JWT_SECRET: z
+      .string()
+      .min(32, "JWT_SECRET must be at least 32 characters long"),
 
-const parsedEnv = envSchema.safeParse(variables);
+    // Database
+    DATABASE_URL: z.url("A valid DATABASE_URL is required"),
+
+    // SMTP Email Configuration
+    SMTP_HOST: z.string().min(1, "SMTP_HOST is required"),
+    SMTP_PORT: z.coerce.number().positive(),
+    SMTP_USER: z.string().min(1, "SMTP_USER is required"),
+    SMTP_PASS: z.string().min(1, "SMTP_PASS is required"),
+    EMAILER: z.email("A valid sender email (EMAILER) is required"),
+
+    // External Services & CORS
+    GEMINI_API_KEY: z.string().min(1, "GEMINI_API_KEY is required"),
+    ALLOWED_ORIGINS: z
+      .string()
+      .min(1, "ALLOWED_ORIGINS is required")
+      .transform((val) => val.split(",").map((s) => s.trim())),
+
+    // Application Metadata
+    LOGO_URL: z.string().url("A valid LOGO_URL is required"),
+    YEAR: z.string().default(new Date().getFullYear().toString()),
+    VERSION: z.string().default("1.0.0"),
+  })
+  .transform((env) => ({
+    environment: env.NODE_ENV,
+    host: env.HOST,
+    port: env.PORT,
+    jwtSecret: env.JWT_SECRET,
+    databaseUrl: env.DATABASE_URL,
+    smtpHost: env.SMTP_HOST,
+    smtpPort: env.SMTP_PORT,
+    smtpUser: env.SMTP_USER,
+    smtpPass: env.SMTP_PASS,
+    emailer: env.EMAILER,
+    geminiApiKey: env.GEMINI_API_KEY,
+    allowedOrigins: env.ALLOWED_ORIGINS,
+    logoUrl: env.LOGO_URL,
+    year: env.YEAR,
+    version: env.VERSION,
+  }));
+
+// Validate process.env against the schema
+const parsedEnv = envSchema.safeParse(process.env);
 
 if (!parsedEnv.success) {
-  console.error("Invalid environment variables:", parsedEnv.error.format());
-  throw parsedEnv.error;
+  console.error(
+    "❌ Invalid environment variables:",
+    JSON.stringify(z.treeifyError(parsedEnv.error), null, 4),
+  );
+  // A configuration error is critical. Exit the process.
+  process.exit(1);
 }
 
-const { allowedOrigins, ...others } = parsedEnv.data;
+// Create the final config object, now with the correct camelCase keys from the transform
+const envData = parsedEnv.data;
 
+// Add any derived properties that depend on the validated config
 const envConfig = {
-  ...others,
-  allowedOrigins: allowedOrigins.split(","),
-  isProduction: parsedEnv.data.environment === "production",
+  ...envData,
+  isProduction: envData.environment === "production",
 };
 
+// Export the fully typed, validated, and correctly cased configuration
 export default envConfig;
