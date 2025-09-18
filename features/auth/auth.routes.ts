@@ -1,9 +1,9 @@
 import { Router } from "express";
 import * as loginController from "./auth.controller";
 
-const router = Router();
+const authRoutes = Router();
 
 // Define the login route
-router.post("/auth/login", loginController.naiveLogin);
+authRoutes.post("/login", loginController.naiveLogin);
 
-export default router;
+export default authRoutes;
