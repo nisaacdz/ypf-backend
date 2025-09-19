@@ -6,4 +6,6 @@ import schema from "@/db/schema";
 const connectionString = envConfig.databaseUrl;
 const client = postgres(connectionString);
 
-export const db = drizzle(client, { schema });
+const dbConfig = drizzle(client, { schema });
+
+export default dbConfig;

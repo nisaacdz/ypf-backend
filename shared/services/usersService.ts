@@ -1,5 +1,5 @@
 import { eq, getTableColumns } from "drizzle-orm";
-import { db } from "@/configs/db";
+import dbConfig from "@/configs/db";
 import schema from "../../db/schema";
 import { AppError } from "../../shared/types";
 import { User, Users } from "@/db/schema/app";
@@ -13,7 +13,7 @@ const columns = Object.fromEntries(
 ) as { [K in Exclude<keyof typeof allColumns, "password">]: true };
 
 export async function getUserById(userId: string): Promise<User> {
-  const user = await db.query.Users.findFirst({
+  const user = await dbConfig.query.Users.findFirst({
     columns,
     where: eq(schema.Users.id, userId),
   });
