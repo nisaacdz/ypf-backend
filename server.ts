@@ -7,7 +7,7 @@ import cors from "cors";
 import { initializeChat } from "@/features/chat/chat.socket";
 import { errorHandler } from "@/shared/middleware/errorHandler";
 import envConfig from "@/configs/env";
-import bounce from "@/shared/middleware/bounce";
+import { filter } from "./shared/middleware/auth";
 import policyConfig from "@/configs/policy";
 import emailConfig from "@/configs/email";
 import apiRouter from "@/features/api/v1";
@@ -25,7 +25,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 app.use((req, res, next) => {
-  bounce(req, next);
+  filter(req, next);
 });
 app.use(morgan("dev"));
 app.use(express.json());
@@ -43,7 +43,7 @@ const io = new SocketIOServer(server, {
   },
 });
 
-io.use((socket, next) => bounce(socket.handshake, next));
+io.use((socket, next) => filter(socket.handshake, next));
 
 initializeChat(io);
 

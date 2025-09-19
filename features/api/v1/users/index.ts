@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { Router } from "express";
 import * as usersHandler from "../users/usersHandler";
-import { authenticate } from "@/shared/middleware/authenticate";
+import { authenticate } from "@/shared/middleware/auth";
 
 const authRoutes = Router();
 

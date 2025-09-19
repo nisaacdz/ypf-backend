@@ -13,7 +13,7 @@ const allowedClients = [
   ...(envConfig.isProduction ? [] : ["postman"]),
 ];
 
-export default async function bounce(
+export async function filter(
   req: { headers: { [key: string]: unknown } },
   next: (err?: Error | undefined) => void,
 ) {
