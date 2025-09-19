@@ -20,6 +20,8 @@ declare global {
   namespace Express {
     interface Request {
       user?: AuthenticatedUser;
+      Body: any;
+      Query: any;
     }
   }
 }

@@ -30,3 +30,8 @@ export async function loginWithUsernameAndPassword({
     token,
   };
 }
+
+export async function loginWithGoogleAuthCode({ code }: { code: string }): Promise<{ response: ApiResponse<AuthenticatedUser>; token: string }> {
+  // todo
+  return "" as any
+}

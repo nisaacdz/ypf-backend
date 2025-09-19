@@ -13,7 +13,7 @@ export function encodeData<T extends object>(
   return token;
 }
 
-export function decodeData<T>(token: string, schema: z.ZodSchema<T>): T | null {
+export function decodeData<T>(token: string, schema: z.ZodType<T>): T | null {
   try {
     const decodedPayload = jwt.verify(token, envConfig.jwtSecret);
 

@@ -40,6 +40,14 @@ const envSchema = z
       .min(1, "ALLOWED_ORIGINS is required")
       .transform((val) => val.split(",").map((s) => s.trim())),
 
+    // Oauth
+    GOOGLE_AUTH_CLIENT_ID: z
+      .string()
+      .min(1, "GOOGLE_AUTH_CLIENT_ID is required"),
+    GOOGLE_AUTH_CLIENT_SECRET: z
+      .string()
+      .min(1, "GOOGLE_AUTH_CLIENT_SECRET is required"),
+
     // Application Metadata
     LOGO_URL: z.string().url("A valid LOGO_URL is required"),
     YEAR: z.string().default(new Date().getFullYear().toString()),
@@ -58,6 +66,8 @@ const envSchema = z
     emailer: env.EMAILER,
     geminiApiKey: env.GEMINI_API_KEY,
     allowedOrigins: env.ALLOWED_ORIGINS,
+    googleAuthClientId: env.GOOGLE_AUTH_CLIENT_ID,
+    googleAuthClientSecret: env.GOOGLE_AUTH_CLIENT_SECRET,
     logoUrl: env.LOGO_URL,
     year: env.YEAR,
     version: env.VERSION,
@@ -69,7 +79,7 @@ const parsedEnv = envSchema.safeParse(process.env);
 if (!parsedEnv.success) {
   console.error(
     "❌ Invalid environment variables:",
-    JSON.stringify(z.treeifyError(parsedEnv.error), null, 4),
+    JSON.stringify(z.treeifyError(parsedEnv.error), null, 4)
   );
   // A configuration error is critical. Exit the process.
   process.exit(1);

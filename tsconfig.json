@@ -9,6 +9,7 @@
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
+      "~middlewares": ["./shared/middleware"],
       "@/*": ["./*"]
     }
   },

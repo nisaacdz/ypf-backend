@@ -1,15 +1,13 @@
--- First, define all ENUM types for data integrity
-CREATE TYPE "MEMBERSHIP_TYPE" AS ENUM ('DONOR', 'MEMBER', 'VOLUNTEER', 'AUDITOR', 'ADMIN');
-CREATE TYPE "MEDIA_TYPE" AS ENUM ('PICTURE', 'VIDEO');
-CREATE TYPE "CONTACT_TYPE" AS ENUM ('EMAIL', 'PHONE', 'WHATSAPP');
-CREATE TYPE "PROJECT_STATUS" AS ENUM ('PLANNING', 'IN_PROGRESS', 'COMPLETED', 'ON_HOLD', 'CANCELLED');
-CREATE TYPE "EVENT_STATUS" AS ENUM ('UPCOMING', 'ONGOING', 'COMPLETED', 'CANCELLED');
-CREATE TYPE "PAYMENT_METHOD" AS ENUM ('CREDIT_CARD', 'BANK_TRANSFER', 'MOBILE_MONEY', 'CASH');
-CREATE TYPE "TRANSACTION_STATUS" AS ENUM ('PENDING', 'COMPLETED', 'FAILED', 'REFUNDED');
-CREATE TYPE "ATTENDANCE_STATUS" AS ENUM ('INVITED', 'ACCEPTED', 'DECLINED', 'ATTENDED');
-CREATE TYPE "GENDER" AS ENUM ('MALE', 'FEMALE', 'OTHER'); -- Added from enums file
+CREATE TYPE IF NOT EXISTS "MEMBERSHIP_TYPE" AS ENUM ('DONOR', 'MEMBER', 'VOLUNTEER', 'AUDITOR', 'ADMIN');
+CREATE TYPE IF NOT EXISTS "MEDIA_TYPE" AS ENUM ('PICTURE', 'VIDEO');
+CREATE TYPE IF NOT EXISTS "CONTACT_TYPE" AS ENUM ('EMAIL', 'PHONE', 'WHATSAPP');
+CREATE TYPE IF NOT EXISTS "PROJECT_STATUS" AS ENUM ('PLANNING', 'IN_PROGRESS', 'COMPLETED', 'ON_HOLD', 'CANCELLED');
+CREATE TYPE IF NOT EXISTS "EVENT_STATUS" AS ENUM ('UPCOMING', 'ONGOING', 'COMPLETED', 'CANCELLED');
+CREATE TYPE IF NOT EXISTS "PAYMENT_METHOD" AS ENUM ('CREDIT_CARD', 'BANK_TRANSFER', 'MOBILE_MONEY', 'CASH');
+CREATE TYPE IF NOT EXISTS "TRANSACTION_STATUS" AS ENUM ('PENDING', 'COMPLETED', 'FAILED', 'REFUNDED');
+CREATE TYPE IF NOT EXISTS "ATTENDANCE_STATUS" AS ENUM ('INVITED', 'ACCEPTED', 'DECLINED', 'ATTENDED');
+CREATE TYPE IF NOT EXISTS "GENDER" AS ENUM ('MALE', 'FEMALE', 'OTHER');
 
--- Create all the schemas to logically group the tables
 CREATE SCHEMA IF NOT EXISTS app;
 CREATE SCHEMA IF NOT EXISTS core;
 CREATE SCHEMA IF NOT EXISTS activities;
@@ -21,7 +19,7 @@ CREATE SCHEMA IF NOT EXISTS communications;
 -- Schema: app
 --------------------------------------------------
 
-CREATE TABLE app."users" (
+CREATE TABLE IF NOT EXISTS app."users" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "email" VARCHAR(255) UNIQUE NOT NULL,
     "password" TEXT,
@@ -33,7 +31,7 @@ CREATE TABLE app."users" (
     "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE app."otps" (
+CREATE TABLE IF NOT EXISTS app."otps" (
     "id" SERIAL PRIMARY KEY,
     "email" VARCHAR(255) NOT NULL,
     "code" TEXT NOT NULL,
@@ -42,7 +40,7 @@ CREATE TABLE app."otps" (
     "is_used" BOOLEAN NOT NULL DEFAULT FALSE
 );
 
-CREATE TABLE app."notifications" (
+CREATE TABLE IF NOT EXISTS app."notifications" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "user_id" UUID NOT NULL REFERENCES app."users"("id") ON DELETE CASCADE,
     "title" TEXT,
@@ -56,7 +54,7 @@ CREATE TABLE app."notifications" (
 -- Schema: core
 --------------------------------------------------
 
-CREATE TABLE core."media" (
+CREATE TABLE IF NOT EXISTS core."media" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "url" TEXT NOT NULL,
     "media_type" "MEDIA_TYPE" NOT NULL,
@@ -65,13 +63,13 @@ CREATE TABLE core."media" (
     "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE core."constituents" (
+CREATE TABLE IF NOT EXISTS core."constituents" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "user_id" UUID UNIQUE REFERENCES app."users"("id") ON DELETE SET NULL,
     "first_name" TEXT NOT NULL,
     "last_name" TEXT NOT NULL,
     "preferred_name" TEXT,
-    "selfie_id" UUID REFERENCES core."media"("id") ON DELETE SET NULL,
+    "photo" UUID REFERENCES core."media"("id") ON DELETE SET NULL,
     "salutation" TEXT,
     "date_of_birth" DATE,
     "gender" "GENDER",
@@ -83,7 +81,7 @@ CREATE TABLE core."constituents" (
 -- Add missing FK from media to constituents
 ALTER TABLE core."media" ADD FOREIGN KEY ("created_by") REFERENCES core."constituents"("id") ON DELETE SET NULL;
 
-CREATE TABLE core."contact_informations" (
+CREATE TABLE IF NOT EXISTS core."contact_informations" (
     "id" SERIAL PRIMARY KEY,
     "constituent_id" UUID NOT NULL REFERENCES core."constituents"("id") ON DELETE CASCADE,
     "contact_type" "CONTACT_TYPE" NOT NULL,
@@ -92,7 +90,7 @@ CREATE TABLE core."contact_informations" (
     UNIQUE ("constituent_id", "contact_type", "value")
 );
 
-CREATE TABLE core."memberships" (
+CREATE TABLE IF NOT EXISTS core."memberships" (
     "id" SERIAL PRIMARY KEY,
     "constituent_id" UUID NOT NULL REFERENCES core."constituents"("id") ON DELETE CASCADE,
     "type" "MEMBERSHIP_TYPE" NOT NULL,
@@ -101,7 +99,7 @@ CREATE TABLE core."memberships" (
     "assigner_id" UUID REFERENCES core."constituents"("id") ON DELETE SET NULL
 );
 
-CREATE TABLE core."chapters" (
+CREATE TABLE IF NOT EXISTS core."chapters" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "name" TEXT NOT NULL,
     "country" TEXT NOT NULL,
@@ -111,7 +109,7 @@ CREATE TABLE core."chapters" (
     "parent_id" UUID REFERENCES core."chapters"("id") ON DELETE SET NULL
 );
 
-CREATE TABLE core."chapter_memberships" (
+CREATE TABLE IF NOT EXISTS core."chapter_memberships" (
     "id" SERIAL PRIMARY KEY,
     "constituent_id" UUID NOT NULL REFERENCES core."constituents"("id") ON DELETE CASCADE,
     "chapter_id" UUID NOT NULL REFERENCES core."chapters"("id") ON DELETE CASCADE,
@@ -121,13 +119,13 @@ CREATE TABLE core."chapter_memberships" (
     UNIQUE ("constituent_id", "chapter_id")
 );
 
-CREATE TABLE core."committees" (
+CREATE TABLE IF NOT EXISTS core."committees" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "name" TEXT UNIQUE NOT NULL,
     "description" TEXT
 );
 
-CREATE TABLE core."committee_memberships" (
+CREATE TABLE IF NOT EXISTS core."committee_memberships" (
     "id" SERIAL PRIMARY KEY,
     "constituent_id" UUID NOT NULL REFERENCES core."constituents"("id") ON DELETE CASCADE,
     "committee_id" UUID NOT NULL REFERENCES core."committees"("id") ON DELETE CASCADE,
@@ -137,13 +135,13 @@ CREATE TABLE core."committee_memberships" (
     UNIQUE ("constituent_id", "committee_id")
 );
 
-CREATE TABLE core."roles" (
+CREATE TABLE IF NOT EXISTS core."roles" (
     "id" SERIAL PRIMARY KEY,
     "name" TEXT UNIQUE NOT NULL,
     "description" TEXT
 );
 
-CREATE TABLE core."role_assignments" (
+CREATE TABLE IF NOT EXISTS core."role_assignments" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "constituent_id" UUID NOT NULL REFERENCES core."constituents"("id") ON DELETE CASCADE,
     "role_id" INTEGER NOT NULL REFERENCES core."roles"("id") ON DELETE CASCADE,
@@ -157,7 +155,7 @@ CREATE TABLE core."role_assignments" (
 -- Schema: activities
 --------------------------------------------------
 
-CREATE TABLE activities."projects" (
+CREATE TABLE IF NOT EXISTS activities."projects" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "chapter_id" UUID REFERENCES core."chapters"("id") ON DELETE SET NULL,
     "project_name" TEXT NOT NULL,
@@ -168,7 +166,7 @@ CREATE TABLE activities."projects" (
     "status" "PROJECT_STATUS" NOT NULL DEFAULT 'PLANNING'
 );
 
-CREATE TABLE activities."events" (
+CREATE TABLE IF NOT EXISTS activities."events" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "project_id" UUID REFERENCES activities."projects"("id") ON DELETE SET NULL,
     "event_name" TEXT NOT NULL,
@@ -178,7 +176,7 @@ CREATE TABLE activities."events" (
     "status" "EVENT_STATUS" NOT NULL DEFAULT 'UPCOMING'
 );
 
-CREATE TABLE activities."event_participations" (
+CREATE TABLE IF NOT EXISTS activities."event_participations" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(), -- Changed to UUID from SERIAL
     "constituent_id" UUID NOT NULL REFERENCES core."constituents"("id") ON DELETE CASCADE,
     "event_id" UUID NOT NULL REFERENCES activities."events"("id") ON DELETE CASCADE,
@@ -191,7 +189,7 @@ CREATE TABLE activities."event_participations" (
 -- Schema: finance
 --------------------------------------------------
 
-CREATE TABLE finance."financial_transactions" (
+CREATE TABLE IF NOT EXISTS finance."financial_transactions" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "amount" DECIMAL(10, 2) NOT NULL,
     "currency" VARCHAR(3) NOT NULL,
@@ -201,14 +199,14 @@ CREATE TABLE finance."financial_transactions" (
     "external_ref" TEXT
 );
 
-CREATE TABLE finance."designations" (
+CREATE TABLE IF NOT EXISTS finance."designations" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "name" TEXT UNIQUE NOT NULL,
     "is_restricted" BOOLEAN NOT NULL DEFAULT FALSE,
     "description" TEXT
 );
 
-CREATE TABLE finance."donations" (
+CREATE TABLE IF NOT EXISTS finance."donations" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "transaction_id" UUID UNIQUE NOT NULL REFERENCES finance."financial_transactions"("id") ON DELETE RESTRICT,
     "donor_id" UUID NOT NULL REFERENCES core."constituents"("id") ON DELETE RESTRICT,
@@ -218,7 +216,7 @@ CREATE TABLE finance."donations" (
     "receipt_sent" BOOLEAN NOT NULL DEFAULT FALSE
 );
 
-CREATE TABLE finance."dues" (
+CREATE TABLE IF NOT EXISTS finance."dues" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "membership_type" "MEMBERSHIP_TYPE" NOT NULL,
     "chapter_id" UUID REFERENCES core."chapters"("id") ON DELETE SET NULL,
@@ -228,19 +226,19 @@ CREATE TABLE finance."dues" (
     "period_end" DATE NOT NULL
 );
 
-CREATE TABLE finance."dues_payments" (
+CREATE TABLE IF NOT EXISTS finance."dues_payments" (
     "id" SERIAL PRIMARY KEY,
     "transaction_id" UUID UNIQUE NOT NULL REFERENCES finance."financial_transactions"("id") ON DELETE RESTRICT,
     "dues_id" UUID NOT NULL REFERENCES finance."dues"("id") ON DELETE RESTRICT,
     "constituent_id" UUID NOT NULL REFERENCES core."constituents"("id") ON DELETE RESTRICT
 );
 
-CREATE TABLE finance."vendors" (
+CREATE TABLE IF NOT EXISTS finance."vendors" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "name" TEXT UNIQUE NOT NULL
 );
 
-CREATE TABLE finance."expenditures" (
+CREATE TABLE IF NOT EXISTS finance."expenditures" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "expenditure_date" TIMESTAMP WITH TIME ZONE NOT NULL,
     "amount" DECIMAL(12, 2) NOT NULL,
@@ -257,13 +255,13 @@ CREATE TABLE finance."expenditures" (
 -- Schema: impact
 --------------------------------------------------
 
-CREATE TABLE impact."impact_areas" (
+CREATE TABLE IF NOT EXISTS impact."impact_areas" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "area_name" TEXT UNIQUE NOT NULL,
     "description" TEXT
 );
 
-CREATE TABLE impact."impact_reports" (
+CREATE TABLE IF NOT EXISTS impact."impact_reports" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "project_id" UUID NOT NULL REFERENCES activities."projects"("id") ON DELETE RESTRICT,
     "report_title" TEXT NOT NULL,
@@ -272,7 +270,7 @@ CREATE TABLE impact."impact_reports" (
     "created_by_id" UUID NOT NULL REFERENCES core."constituents"("id") ON DELETE RESTRICT
 );
 
-CREATE TABLE impact."outcomes" (
+CREATE TABLE IF NOT EXISTS impact."outcomes" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "impact_area_id" UUID NOT NULL REFERENCES impact."impact_areas"("id") ON DELETE RESTRICT,
     "project_id" UUID NOT NULL REFERENCES activities."projects"("id") ON DELETE CASCADE,
@@ -281,7 +279,7 @@ CREATE TABLE impact."outcomes" (
     "is_quantitative" BOOLEAN NOT NULL
 );
 
-CREATE TABLE impact."metrics" (
+CREATE TABLE IF NOT EXISTS impact."metrics" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "outcome_id" UUID NOT NULL REFERENCES impact."outcomes"("id") ON DELETE CASCADE,
     "measurement_date" DATE NOT NULL,
@@ -294,7 +292,7 @@ CREATE TABLE impact."metrics" (
 -- Schema: communications
 --------------------------------------------------
 
-CREATE TABLE communications."announcements" (
+CREATE TABLE IF NOT EXISTS communications."announcements" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "title" TEXT NOT NULL,
     "content" TEXT NOT NULL,
@@ -306,19 +304,19 @@ CREATE TABLE communications."announcements" (
 -- Alter Notifications to add the FK reference now that announcements exists
 ALTER TABLE app."notifications" ADD FOREIGN KEY ("announcement_id") REFERENCES communications."announcements"("id") ON DELETE SET NULL;
 
-CREATE TABLE communications."announcements_chapters" (
+CREATE TABLE IF NOT EXISTS communications."announcements_chapters" (
     "announcement_id" UUID NOT NULL REFERENCES communications."announcements"("id") ON DELETE CASCADE,
     "chapter_id" UUID NOT NULL REFERENCES core."chapters"("id") ON DELETE CASCADE,
     PRIMARY KEY ("announcement_id", "chapter_id")
 );
 
-CREATE TABLE communications."announcements_committees" (
+CREATE TABLE IF NOT EXISTS communications."announcements_committees" (
     "announcement_id" UUID NOT NULL REFERENCES communications."announcements"("id") ON DELETE CASCADE,
     "committee_id" UUID NOT NULL REFERENCES core."committees"("id") ON DELETE CASCADE,
     PRIMARY KEY ("announcement_id", "committee_id")
 );
 
-CREATE TABLE communications."meetings" (
+CREATE TABLE IF NOT EXISTS communications."meetings" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "title" TEXT NOT NULL,
     "agenda" TEXT,
@@ -331,7 +329,7 @@ CREATE TABLE communications."meetings" (
     "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE communications."meeting_attendees" (
+CREATE TABLE IF NOT EXISTS communications."meeting_attendees" (
     "id" SERIAL PRIMARY KEY,
     "meeting_id" UUID NOT NULL REFERENCES communications."meetings"("id") ON DELETE CASCADE,
     "constituent_id" UUID NOT NULL REFERENCES core."constituents"("id") ON DELETE CASCADE,

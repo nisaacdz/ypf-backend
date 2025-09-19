@@ -2,6 +2,8 @@
   "name": "ypf-core",
   "version": "1.0.0",
   "description": "YPF App",
+  "author": "",
+  "license": "ISC",
   "main": "server.ts",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only server.ts",
@@ -11,16 +13,6 @@
     "db:migrate": "ts-node ./scripts/migrate.ts",
     "db:studio": "drizzle-kit studio"
   },
-  "keywords": [
-    "nodejs",
-    "expressjs",
-    "supabase",
-    "drizzle-orm",
-    "zod",
-    "socket.io"
-  ],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "@google/generative-ai": "0.24.1",
     "bcryptjs": "3.0.2",
@@ -29,7 +21,6 @@
     "dotenv": "17.2.2",
     "drizzle-orm": "0.44.5",
     "express": "5.1.0",
-    "express-session": "1.18.2",
     "helmet": "8.1.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "1.10.1",
@@ -42,7 +33,6 @@
   "devDependencies": {
     "@types/cors": "2.8.19",
     "@types/express": "5.0.3",
-    "@types/express-session": "1.18.2",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/morgan": "1.9.10",
     "@types/node": "24.5.0",

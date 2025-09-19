@@ -1,15 +1,13 @@
 import { NextFunction, Request, Response } from "express";
 import { AppError } from "../types";
 import { decodeData } from "../utils/jwt";
-import { AuthTokenValidationSchema } from "../validators";
+import { AuthenticatedUserSchema } from "../validators";
 import policyConfig from "@/configs/policy";
 import envConfig from "@/configs/env";
 
 const allowedClients = [
   "dashboard",
   "website",
-  "tool",
-  "mobile",
   ...(envConfig.isProduction ? [] : ["postman"]),
 ];
 
@@ -52,7 +50,7 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
     );
   }
 
-  const decodedUser = decodeData(token, AuthTokenValidationSchema);
+  const decodedUser = decodeData(token, AuthenticatedUserSchema);
 
   if (!decodedUser) {
     return next(new AppError("Invalid token. Please log in again.", 401));

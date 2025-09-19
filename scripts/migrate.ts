@@ -7,7 +7,6 @@ dotenv.config();
 async function runMigrations() {
   console.log("Starting migrations...");
   try {
-    // This command now expects the path to the migrations folder
     await migrate(dbConfig, { migrationsFolder: "./db/migrations" });
     console.log("Migrations applied successfully!");
     process.exit(0);

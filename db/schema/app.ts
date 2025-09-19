@@ -19,6 +19,7 @@ export const Users = app.table("users", {
   email: varchar("email", { length: 255 }).notNull().unique(),
   password: text("password"),
   username: text("username").unique(), // Initially set to Constituent.email
+  avatarUrl: text("avatar_url"),
   googleId: text("google_id").unique(),
   appleId: text("apple_id").unique(),
   facebookId: text("facebook_id").unique(),
