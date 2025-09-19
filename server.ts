@@ -4,13 +4,13 @@ import { Server as SocketIOServer } from "socket.io";
 import morgan from "morgan";
 import helmet from "helmet";
 import cors from "cors";
-import { initializeChat } from "./features/chat/chat.socket";
-import { errorHandler } from "./shared/middleware/errorHandler";
-import envConfig from "./configs/env";
-import bouncer from "./shared/middleware/bouncer";
-import { connectEmail } from "./configs/email";
-import policyConfig from "./configs/policy";
-import router from "./features/api/v1";
+import { initializeChat } from "@/features/chat/chat.socket";
+import { errorHandler } from "@/shared/middleware/errorHandler";
+import envConfig from "@/configs/env";
+import bounce from "@/shared/middleware/bounce";
+import policyConfig from "@/configs/policy";
+import emailConfig from "@/configs/email";
+import apiRouter from "@/features/api/v1";
 
 const app: Express = express();
 
@@ -25,13 +25,13 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 app.use((req, res, next) => {
-  bouncer(req, next);
+  bounce(req, next);
 });
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use("/api/v1", router);
+app.use("/api/v1", apiRouter);
 
 const server = http.createServer(app);
 
@@ -43,7 +43,7 @@ const io = new SocketIOServer(server, {
   },
 });
 
-io.use((socket, next) => bouncer(socket.handshake, next));
+io.use((socket, next) => bounce(socket.handshake, next));
 
 initializeChat(io);
 
@@ -54,7 +54,7 @@ app.use((req: Request, res: Response) => {
 });
 
 (async () => {
-  await Promise.all([connectEmail(), policyConfig.initialize()]);
+  await Promise.all([emailConfig.initialize(), policyConfig.initialize()]);
   // we'll add other async operations here
 
   server.listen(envConfig.port, () => {

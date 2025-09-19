@@ -11,7 +11,7 @@ const allowedClients = [
 ];
 
 // bounce unallowed origins and clients
-export default async function bouncer(
+export default async function bounce(
   req: { headers: { [key: string]: unknown } },
   next: (err?: Error | undefined) => void,
 ) {

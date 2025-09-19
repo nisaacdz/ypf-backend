@@ -11,7 +11,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { Users } from "./app";
-import { MediaType, ContactType, MembershipType } from "./enums";
+import { MediaType, ContactType, MembershipType, Gender } from "./enums";
 
 const core = pgSchema("core");
 
@@ -43,7 +43,7 @@ export const Constituents = core.table("constituents", {
   }),
   salutation: text("salutation"),
   dateOfBirth: date("date_of_birth"),
-  gender: text("gender"),
+  gender: Gender("gender"),
   joinDate: timestamp("join_date", { withTimezone: true })
     .defaultNow()
     .notNull(),

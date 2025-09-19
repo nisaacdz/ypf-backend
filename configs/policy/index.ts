@@ -1,3 +1,4 @@
+import { AuthenticatedUser } from "@/shared/validators";
 import { Enforcer, newEnforcer } from "casbin";
 import { resolve } from "path";
 
@@ -32,13 +33,17 @@ class PolicyConfig {
     console.log("Casbin policy enforcer and rules loaded. 🛡️");
   }
 
-  public get enforcer(): Enforcer {
+  public async enforce(
+    user: AuthenticatedUser,
+    resource: string,
+    action: string,
+  ): Promise<boolean> {
     if (!this.enforcerInstance) {
       throw new Error(
         "Policy enforcer not initialized. Call policyConfig.initialize() first.",
       );
     }
-    return this.enforcerInstance;
+    return this.enforcerInstance.enforce(user, resource, action);
   }
 }
 

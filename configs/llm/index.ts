@@ -4,7 +4,7 @@ import {
   HarmBlockThreshold,
   Content,
 } from "@google/generative-ai";
-import envConfig from "./env";
+import envConfig from "@/configs/env";
 import fs from "fs";
 import path from "path";
 

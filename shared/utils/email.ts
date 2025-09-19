@@ -33,7 +33,7 @@ export const sendEmail = async (
   textContent?: string,
 ): Promise<void> => {
   const mailOptions: nodemailer.SendMailOptions = {
-    from: `"${envConfig.serviceName}" <${envConfig.emailer}>`,
+    from: `"${"YPF Africa"}" <${envConfig.emailer}>`,
     to: to,
     subject: subject,
     html: htmlBody,

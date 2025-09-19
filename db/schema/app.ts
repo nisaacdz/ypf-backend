@@ -8,7 +8,7 @@ import {
   jsonb,
   boolean,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { InferSelectModel, relations } from "drizzle-orm";
 import { Constituents } from "./core";
 import { Announcements } from "./communications";
 
@@ -29,6 +29,8 @@ export const Users = app.table("users", {
     .defaultNow()
     .notNull(),
 });
+
+export type User = Omit<InferSelectModel<typeof Users>, "password">;
 
 export const Otps = app.table("otps", {
   id: serial("id").primaryKey(),

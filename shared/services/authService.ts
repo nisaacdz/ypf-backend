@@ -1,6 +1,6 @@
 import { and, eq, or, lte, gte, isNull } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import { db } from "../../configs/db";
+import { db } from "@/configs/db";
 import schema from "../../db/schema";
 import { AppError } from "../../shared/types";
 import { AuthenticatedUser } from "../../shared/validators";
@@ -37,8 +37,7 @@ async function getUserRoles(userId: string): Promise<string[]> {
       ),
     );
 
-  // Map the query result to the format expected by Casbin (e.g., 'president' -> 'role_president')
-  return roleRecords.map((record) => `role_${record.name}`);
+  return roleRecords.map((role) => role.name);
 }
 
 /**
@@ -50,7 +49,7 @@ async function getUserRoles(userId: string): Promise<string[]> {
  * @returns A promise that resolves to the fully constructed AuthenticatedUser.
  * @throws AppError if authentication fails.
  */
-export async function loginUser(
+export async function loginWithUsernameAndPassword(
   username: string,
   password: string,
 ): Promise<AuthenticatedUser> {

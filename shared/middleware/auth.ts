@@ -2,8 +2,44 @@ import { NextFunction, Request, Response } from "express";
 import { AppError } from "../types";
 import { decodeData } from "../utils/jwt";
 import { AuthTokenValidationSchema } from "../validators";
+import policyConfig from "@/configs/policy";
+import envConfig from "@/configs/env";
 
-export function authenticated(req: Request, res: Response, next: NextFunction) {
+const allowedClients = [
+  "dashboard",
+  "website",
+  "tool",
+  "mobile",
+  ...(envConfig.isProduction ? [] : ["postman"]),
+];
+
+export default async function bounce(
+  req: { headers: { [key: string]: unknown } },
+  next: (err?: Error | undefined) => void,
+) {
+  const client = req.headers["x-client"];
+
+  if (
+    !client ||
+    typeof client !== "string" ||
+    !allowedClients.includes(client)
+  ) {
+    return next(new AppError("Unauthorized", 403));
+  }
+
+  const origin = String(req.headers.origin);
+  if (
+    envConfig.allowedOrigins &&
+    origin &&
+    !envConfig.allowedOrigins.includes(origin)
+  ) {
+    return next(new AppError("CORS Error: This origin is not allowed", 403));
+  }
+
+  next();
+}
+
+export function authenticate(req: Request, res: Response, next: NextFunction) {
   if (req.user) {
     return next();
   }
@@ -23,6 +59,28 @@ export function authenticated(req: Request, res: Response, next: NextFunction) {
   }
 
   req.user = decodedUser;
+
+  next();
+}
+
+export async function authorize(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  if (!req.user) {
+    return next(new AppError("User not authenticated", 401));
+  }
+
+  const isAuthorized = await policyConfig.enforce(
+    req.user,
+    req.path,
+    req.method, // todo
+  );
+
+  if (!isAuthorized) {
+    return next(new AppError("User not authorized", 403));
+  }
 
   next();
 }
