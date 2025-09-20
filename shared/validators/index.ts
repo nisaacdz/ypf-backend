@@ -15,7 +15,7 @@ export const AuthenticatedUserSchema = z.object({
 export const CreateEventSchema = z.object({
   projectId: z.uuid().optional(),
   eventName: z.string().min(2).max(100),
-  eventDate: z.date(),
+  eventDate: z.coerce.date(),
   eventLocation: z.string().max(255).optional(),
   eventObjectives: z.string().max(1000).optional(),
   status: z.enum(["UPCOMING", "COMPLETED", "CANCELLED"]).optional(),

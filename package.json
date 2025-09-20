@@ -9,9 +9,11 @@
     "dev": "ts-node-dev -r tsconfig-paths/register --respawn --transpile-only server.ts",
     "build": "tsc",
     "start": "ts-node -r tsconfig-paths/register server.ts",
-    "db:generate": "drizzle-kit generate:pg",
+    "db:generate": "drizzle-kit generate",
     "db:migrate": "ts-node ./scripts/migrate.ts",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "dependencies": {
     "@google/generative-ai": "0.24.1",
@@ -40,9 +42,13 @@
     "@types/nodemailer": "7.0.1",
     "@types/pg": "8.15.5",
     "drizzle-kit": "0.31.4",
+    "eslint": "^9.36.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
     "ts-node": "10.9.2",
     "ts-node-dev": "2.0.0",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "5.9.2"
+    "typescript": "5.9.2",
+    "typescript-eslint": "^8.44.0"
   }
 }

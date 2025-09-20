@@ -96,4 +96,4 @@ dist/
 .supabase/
 
 # VSCode
-.vscode/
+# .vscode/

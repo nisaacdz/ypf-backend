@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { AppError } from "../types";
+import { AppError, ApiResponse } from "../types";
 import z from "zod";
 
 export function validateBody<T>(schema: z.ZodType<T>) {
@@ -7,12 +7,12 @@ export function validateBody<T>(schema: z.ZodType<T>) {
     const result = schema.safeParse(req.body);
 
     if (!result.success) {
-      next(new AppError(result.error.message, 400));
+      return next(new AppError(result.error.message, 400));
     }
 
     req.Body = result.data;
 
-    next();
+    return next();
   };
 }
 
@@ -21,11 +21,11 @@ export function validateQuery<T>(schema: z.ZodType<T>) {
     const result = schema.safeParse(req.query);
 
     if (!result.success) {
-      next(new AppError(result.error.message, 400));
+      return next(new AppError(result.error.message, 400));
     }
 
     req.Query = result.data;
 
-    next();
+    return next();
   };
 }
