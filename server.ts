@@ -7,7 +7,7 @@ import cors from "cors";
 import { initializeChat } from "@/features/chat/v1";
 import { errorHandler } from "@/shared/middlewares/errorHandler";
 import envConfig from "@/configs/env";
-import { filter } from "./shared/middlewares/auth";
+import { filter } from "./shared/middlewares";
 import policyConfig from "@/configs/policy";
 import emailConfig from "@/configs/email";
 import apiRouter from "@/features/api/v1";

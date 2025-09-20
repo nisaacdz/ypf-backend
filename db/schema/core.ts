@@ -66,7 +66,7 @@ export const ContactInformations = core.table(
     value: text("value").notNull(),
     isPrimary: boolean("is_primary").default(false).notNull(),
   },
-  (table) => [unique().on(table.constituentId, table.contactType, table.value)]
+  (table) => [unique().on(table.constituentId, table.contactType, table.value)],
 );
 
 export const Memberships = core.table("memberships", {
@@ -109,7 +109,7 @@ export const ChapterMemberships = core.table(
     endDate: timestamp("end_date", { withTimezone: true }),
     isActive: boolean("is_active").default(true).notNull(),
   },
-  (table) => [unique().on(table.constituentId, table.chapterId)]
+  (table) => [unique().on(table.constituentId, table.chapterId)],
 );
 
 export const Committees = core.table("committees", {
@@ -132,7 +132,7 @@ export const CommitteeMemberships = core.table(
     endDate: timestamp("end_date", { withTimezone: true }),
     isActive: boolean("is_active").default(true).notNull(),
   },
-  (table) => [unique().on(table.constituentId, table.committeeId)]
+  (table) => [unique().on(table.constituentId, table.committeeId)],
 );
 
 export const Roles = core.table("roles", {
@@ -182,7 +182,7 @@ export const constituentsRelations = relations(
     chapterMemberships: many(ChapterMemberships),
     committeeMemberships: many(CommitteeMemberships),
     roleAssignments: many(RoleAssignments),
-  })
+  }),
 );
 
 export const contactInformationsRelations = relations(
@@ -192,7 +192,7 @@ export const contactInformationsRelations = relations(
       fields: [ContactInformations.constituentId],
       references: [Constituents.id],
     }),
-  })
+  }),
 );
 
 export const membershipsRelations = relations(Memberships, ({ one }) => ({
@@ -228,7 +228,7 @@ export const chapterMembershipsRelations = relations(
       fields: [ChapterMemberships.chapterId],
       references: [Chapters.id],
     }),
-  })
+  }),
 );
 
 export const committeesRelations = relations(Committees, ({ many }) => ({
@@ -246,7 +246,7 @@ export const committeeMembershipsRelations = relations(
       fields: [CommitteeMemberships.committeeId],
       references: [Committees.id],
     }),
-  })
+  }),
 );
 
 export const rolesRelations = relations(Roles, ({ many }) => ({
@@ -272,5 +272,5 @@ export const roleAssignmentsRelations = relations(
       fields: [RoleAssignments.committeeId],
       references: [Committees.id],
     }),
-  })
+  }),
 );

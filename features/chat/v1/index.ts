@@ -21,7 +21,7 @@ export const initializeChat = (io: SocketIOServer) => {
     });
 
     const initialResponse = await chat.sendMessage(
-      `Infer if it is your turn to respond from the chat history.`
+      `Infer if it is your turn to respond from the chat history.`,
     );
     const initialResponseText = initialResponse.response.text();
 

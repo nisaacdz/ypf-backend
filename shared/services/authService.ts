@@ -1,44 +1,11 @@
-import { and, eq, or, lte, gte, isNull } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import { db } from "@/configs/db";
-import schema from "../../db/schema";
-import { AppError } from "../../shared/types";
-import { AuthenticatedUser } from "../../shared/validators";
-
-/**
- * Fetches the current, active roles for a given user.
- * A role is considered active if its start date is in the past and its
- * end date is either null or in the future.
- *
- * @param userId The ID of the user from the `users` table.
- * @returns A promise that resolves to an array of role name strings (e.g., ['role_president']).
- */
-async function getUserRoles(userId: string): Promise<string[]> {
-  const roleRecords = await db
-    .select({
-      name: schema.Roles.name,
-    })
-    .from(schema.RoleAssignments)
-    .innerJoin(schema.Roles, eq(schema.RoleAssignments.roleId, schema.Roles.id))
-    .innerJoin(
-      schema.Constituents,
-      eq(schema.RoleAssignments.constituentId, schema.Constituents.id),
-    )
-    .where(
-      and(
-        // Match the constituent linked to our user ID
-        eq(schema.Constituents.userId, userId),
-        // The role assignment must be currently active
-        lte(schema.RoleAssignments.startedAt, new Date()),
-        or(
-          isNull(schema.RoleAssignments.endedAt),
-          gte(schema.RoleAssignments.endedAt, new Date()),
-        ),
-      ),
-    );
-
-  return roleRecords.map((role) => role.name);
-}
+import dbConfig from "@/configs/db";
+import schema from "@/db/schema";
+import { AppError } from "@/shared/types";
+import { AuthenticatedUser } from "@/shared/validators";
+import { getUserMemberships, getUserRoles } from "./usersService";
+import { Users } from "@/db/schema/app";
 
 /**
  * Authenticates a user based on their username/email and password.
@@ -53,9 +20,7 @@ export async function loginWithUsernameAndPassword(
   username: string,
   password: string,
 ): Promise<AuthenticatedUser> {
-  // We use a leftJoin here to ensure we still get the user record
-  // even if a corresponding constituent profile hasn't been created yet.
-  const [user] = await db
+  const [user] = await dbConfig
     .select({
       id: schema.Users.id,
       password: schema.Users.password,
@@ -73,7 +38,6 @@ export async function loginWithUsernameAndPassword(
       or(eq(schema.Users.username, username), eq(schema.Users.email, username)),
     );
 
-  // Validate user existence and password
   if (!user || !user.password) {
     throw new AppError("Invalid username or password", 401);
   }
@@ -83,10 +47,11 @@ export async function loginWithUsernameAndPassword(
     throw new AppError("Invalid username or password", 401);
   }
 
-  // Fetch the user's currently active roles
-  const roles = await getUserRoles(user.id);
+  const [roles, memberships] = await Promise.all([
+    getUserRoles(user.id),
+    getUserMemberships(user.id),
+  ]);
 
-  // Construct the final user object for use in the application
   const fullName =
     user.firstName && user.lastName
       ? `${user.firstName} ${user.lastName}`
@@ -97,7 +62,24 @@ export async function loginWithUsernameAndPassword(
     fullName,
     email: user.email,
     roles,
+    memberships,
   };
 
   return authUser;
+}
+
+/**
+ * Links a Google ID to an existing user account.
+ *
+ * @param userId The ID of the user to update.
+ * @param googleId The Google ID (sub claim) to link.
+ */
+export async function linkGoogleIdToUser(
+  userId: string,
+  googleId: string,
+): Promise<void> {
+  await dbConfig
+    .update(Users)
+    .set({ googleId: googleId })
+    .where(eq(Users.id, userId));
 }

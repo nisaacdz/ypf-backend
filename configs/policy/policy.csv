@@ -1,61 +1,98 @@
-# Casbin Policy Rules
-# Defines who can do what.
-# Format: p, role, resource_path, action, effect
+# ===========================================================================
+# Casbin Policy: RESTful API Authorization
+#
+# Format: p, subject (role OR membership), resource_path, action (HTTP method), effect
+# ===========================================================================
 
 # ---------------------------------------------------------------------------
-# GLOBAL ROLES (President has universal access)
+# 1. GLOBAL SUPERUSER ROLE
+# The President has unrestricted access to the entire system.
 # ---------------------------------------------------------------------------
 p, role_president, /*, *, allow
 
-# ---------------------------------------------------------------------------
-# CHAPTER-SCOPED EXECUTIVE ROLES
-# ---------------------------------------------------------------------------
-
-# -- role_chapter_head: Manages all aspects of a specific chapter --
-p, role_chapter_head, /chapters/:chapterId, view:details, allow
-p, role_chapter_head, /chapters/:chapterId, edit:details, allow
-p, role_chapter_head, /chapters/:chapterId/*, *, allow # Full control over sub-resources (members, projects, etc.)
-
-# -- role_organizer: Manages projects and events within a chapter --
-p, role_organizer, /chapters/:chapterId/projects, create, allow
-p, role_organizer, /chapters/:chapterId/projects/:id, *, allow # Full control over a specific project
-p, role_organizer, /chapters/:chapterId/events, create, allow
-p, role_organizer, /chapters/:chapterId/events/:id, *, allow # Full control over a specific event
-p, role_organizer, /chapters/:chapterId/projects/:id/impact-reports, create, allow
-
-# -- role_secretary: Manages chapter records and communications --
-p, role_secretary, /chapters/:chapterId/meetings, *, allow
-p, role_secretary, /chapters/:chapterId/announcements, *, allow
-p, role_secretary, /chapters/:chapterId/members, view:list, allow
-
-# -- role_financial_secretary: Manages chapter finances --
-p, role_financial_secretary, /chapters/:chapterId/donations, view:*, allow
-p, role_financial_secretary, /chapters/:chapterId/dues, *, allow
-p, role_financial_secretary, /chapters/:chapterId/expenditures, *, allow
-p, role_financial_secretary, /chapters/:chapterId/reports/financial, generate, allow
 
 # ---------------------------------------------------------------------------
-# COMMITTEE-SCOPED ROLES
+# 2. BASELINE ACCESS FOR AUTHENTICATED USERS
+# Permissions granted based on general membership status.
 # ---------------------------------------------------------------------------
-p, role_committee_head, /committees/:committeeId, *, allow
-p, role_committee_head, /committees/:committeeId/*, *, allow
+# Any MEMBER, VOLUNTEER, or DONOR can view general information.
+p, MEMBER, /chapters, GET, allow
+p, MEMBER, /committees, GET, allow
+p, MEMBER, /events, GET, allow
+p, MEMBER, /events/:id, GET, allow
+p, MEMBER, /projects, GET, allow
+p, MEMBER, /projects/:id, GET, allow
+
+p, VOLUNTEER, /chapters, GET, allow
+p, VOLUNTEER, /committees, GET, allow
+p, VOLUNTEER, /events, GET, allow
+p, VOLUNTEER, /events/:id, GET, allow
+
+p, DONOR, /chapters, GET, allow
+p, DONOR, /events, GET, allow
+
 
 # ---------------------------------------------------------------------------
-# IMPLICIT ROLES (Assigned by middleware based on context)
+# 3. SELF-SERVICE ACTIONS (Constituent Profiles)
+# Users can manage their own profiles.
+# NOTE: Your API handler MUST verify that the :id in the URL matches the authenticated user's ID.
+# ---------------------------------------------------------------------------
+p, MEMBER, /constituents/:id, GET, allow
+p, MEMBER, /constituents/:id, PUT, allow
+p, VOLUNTEER, /constituents/:id, GET, allow
+p, VOLUNTEER, /constituents/:id, PUT, allow
+p, DONOR, /constituents/:id, GET, allow
+p, DONOR, /constituents/:id, PUT, allow
+
+
+# ---------------------------------------------------------------------------
+# 4. RESOURCE-SPECIFIC PERMISSIONS (By Role & Membership)
 # ---------------------------------------------------------------------------
 
-# -- A member of a specific chapter can view most things inside it --
-p, role_chapter_member, /chapters/:chapterId/projects, view:list, allow
-p, role_chapter_member, /chapters/:chapterId/projects/:id, view:details, allow
-p, role_chapter_member, /chapters/:chapterId/events, view:list, allow
-p, role_chapter_member, /chapters/:chapterId/events/:id, view:details, allow
-p, role_chapter_member, /chapters/:chapterId/members, view:list, allow
-p, role_chapter_member, /chapters/:chapterId/announcements, view:list, allow
+# -- EVENTS & PROJECTS --
+# 'role_organizer' can create, manage, and delete events and projects.
+p, role_organizer, /events, POST, allow
+p, role_organizer, /events/:id, PUT, allow
+p, role_organizer, /events/:id, DELETE, allow
+p, role_organizer, /projects, POST, allow
+p, role_organizer, /projects/:id, PUT, allow
+p, role_organizer, /projects/:id, DELETE, allow
 
-# -- Any authenticated user can see high-level public information --
-p, role_authenticated_user, /chapters, view:list, allow
-p, role_authenticated_user, /chapters/:id, view:details, allow
-p, role_authenticated_user, /committees, view:list, allow
-p, role_authenticated_user, /committees/:id, view:details, allow
-p, role_authenticated_user, /constituents/:id, view:own_profile, allow # App logic must verify this
-p, role_authenticated_user, /constituents/:id, edit:own_profile, allow # App logic must verify this
+# VOLUNTEERS and MEMBERS can sign up for event participation.
+p, VOLUNTEER, /events/:id/participations, POST, allow
+p, MEMBER, /events/:id/participations, POST, allow
+p, VOLUNTEER, /events/:id/participations, DELETE, allow # Can cancel their own participation
+p, MEMBER, /events/:id/participations, DELETE, allow
+
+
+# -- FINANCE (Highly Restricted) --
+# 'role_financial_secretary' has full control over the finance module.
+p, role_financial_secretary, /finance/*, *, allow
+
+# 'AUDITOR' membership grants read-only access to all financial records for oversight.
+p, AUDITOR, /finance/*, GET, allow
+
+# DONORS can make a donation (a POST to the donations endpoint).
+p, DONOR, /finance/donations, POST, allow
+# Any user with a donor history can view their own past donations.
+p, DONOR, /constituents/:id/donations, GET, allow
+
+
+# -- COMMUNICATIONS --
+# 'role_secretary' manages meetings and announcements.
+p, role_secretary, /communications/*, *, allow
+
+# Regular MEMBERS can view announcements and meeting details.
+p, MEMBER, /communications/announcements, GET, allow
+p, MEMBER, /communications/meetings, GET, allow
+p, MEMBER, /communications/meetings/:id, GET, allow
+
+
+# -- CHAPTER & COMMITTEE MANAGEMENT (Scoped Roles) --
+# NOTE: Your middleware will need to verify that the user with the role belongs to the specified chapter/committee.
+p, role_chapter_head, /chapters/:id, PUT, allow
+p, role_chapter_head, /chapters/:id/members, *, allow # Manage members of their chapter
+p, role_chapter_head, /chapters/:id/projects, POST, allow # Can start projects in their chapter
+
+p, role_committee_head, /committees/:id, PUT, allow
+p, role_committee_head, /committees/:id/members, *, allow # Manage members of their committee

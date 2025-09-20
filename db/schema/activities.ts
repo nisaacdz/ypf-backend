@@ -33,6 +33,8 @@ export const Events = activities.table("events", {
   status: EventStatus("status").default("UPCOMING").notNull(),
 });
 
+export type Event = typeof Events.$inferSelect;
+
 export const EventParticipations = activities.table(
   "event_participations",
   {

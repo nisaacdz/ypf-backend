@@ -1,14 +1,17 @@
 import { AuthenticatedUser } from "@/shared/validators";
 import { Enforcer, newEnforcer } from "casbin";
+import { MembershipType } from "@/db/schema/enums";
 import { resolve } from "path";
 
-const hasRole = (userRolesStr: string, policyRole: string): boolean => {
-  try {
-    const userRoles: string[] = JSON.parse(userRolesStr);
-    return Array.isArray(userRoles) && userRoles.includes(policyRole);
-  } catch (e) {
-    return false;
-  }
+const hasRole = (user: AuthenticatedUser, role: string): boolean => {
+  return user.roles && user.roles.includes(role);
+};
+
+const hasMembership = (
+  user: AuthenticatedUser,
+  membership: (typeof MembershipType.enumValues)[number],
+): boolean => {
+  return user.memberships && user.memberships.includes(membership);
 };
 
 class PolicyConfig {
@@ -25,7 +28,9 @@ class PolicyConfig {
 
     const enforcer = await newEnforcer(modelPath, policyPath);
 
+    // Register our custom functions with the names used in the model matcher
     enforcer.addFunction("hasRole", hasRole);
+    enforcer.addFunction("hasMembership", hasMembership);
 
     await enforcer.loadPolicy();
     this.enforcerInstance = enforcer;
@@ -35,14 +40,15 @@ class PolicyConfig {
 
   public async enforce(
     user: AuthenticatedUser,
-    resource: string,
-    action: string,
+    resource: string, // req.path
+    action: string, // req.method
   ): Promise<boolean> {
     if (!this.enforcerInstance) {
       throw new Error(
         "Policy enforcer not initialized. Call policyConfig.initialize() first.",
       );
     }
+    // The 'user' object is passed as the subject (sub)
     return this.enforcerInstance.enforce(user, resource, action);
   }
 }

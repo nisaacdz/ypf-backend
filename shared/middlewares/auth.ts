@@ -5,38 +5,6 @@ import { AuthenticatedUserSchema } from "../validators";
 import policyConfig from "@/configs/policy";
 import envConfig from "@/configs/env";
 
-const allowedClients = [
-  "dashboard",
-  "website",
-  ...(envConfig.isProduction ? [] : ["postman"]),
-];
-
-export async function filter(
-  req: { headers: { [key: string]: unknown } },
-  next: (err?: Error | undefined) => void,
-) {
-  const client = req.headers["x-client"];
-
-  if (
-    !client ||
-    typeof client !== "string" ||
-    !allowedClients.includes(client)
-  ) {
-    return next(new AppError("Unauthorized", 403));
-  }
-
-  const origin = String(req.headers.origin);
-  if (
-    envConfig.allowedOrigins &&
-    origin &&
-    !envConfig.allowedOrigins.includes(origin)
-  ) {
-    return next(new AppError("CORS Error: This origin is not allowed", 403));
-  }
-
-  next();
-}
-
 export function authenticate(req: Request, res: Response, next: NextFunction) {
   if (req.user) {
     return next();
@@ -61,24 +29,31 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-export async function authorize(
+export const authorize = async (
   req: Request,
   res: Response,
   next: NextFunction,
-) {
-  if (!req.user) {
-    return next(new AppError("User not authenticated", 401));
+) => {
+  const user = req.user;
+  if (!user) {
+    return next(new AppError("Authentication required.", 401));
   }
 
-  const isAuthorized = await policyConfig.enforce(
-    req.user,
-    req.path,
-    req.method, // todo
-  );
+  const resource = req.path.replace("/api/v1", "") || "/";
+  const action = req.method;
 
-  if (!isAuthorized) {
-    return next(new AppError("User not authorized", 403));
+  try {
+    const hasPermission = await policyConfig.enforce(user, resource, action);
+
+    if (hasPermission) {
+      return next(); // User is authorized, proceed to the handler
+    }
+
+    return next(
+      new AppError("You do not have permission to perform this action.", 403),
+    );
+  } catch (error) {
+    // Catch initialization errors or other issues
+    return next(error);
   }
-
-  next();
-}
+};

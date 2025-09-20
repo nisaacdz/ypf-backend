@@ -26,7 +26,7 @@ authRoutes.post(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 authRoutes.post(
@@ -35,7 +35,7 @@ authRoutes.post(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { response, token } = await authHandler.loginWithGoogleAuthCode(
-        req.Body
+        req.Body,
       );
       res.cookie("auth_token", token, {
         httpOnly: true,
@@ -49,7 +49,7 @@ authRoutes.post(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 export default authRoutes;
