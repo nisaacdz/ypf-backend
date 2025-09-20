@@ -2,12 +2,12 @@ import { Request, Response, NextFunction } from "express";
 import { Router } from "express";
 import * as authHandler from "./authHandler";
 import { validateBody } from "@/shared/middlewares/validate";
-import { AuthCodeSchema, UsernameAndPasswordSchema } from "@/shared/validators";
-import envConfig from "@/configs/env";
+import { UsernameAndPasswordSchema } from "@/shared/validators";
+import variables from "@/configs/env";
 
-const authRoutes = Router();
+const authRouter = Router();
 
-authRoutes.post(
+authRouter.post(
   "/login",
   validateBody(UsernameAndPasswordSchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -16,7 +16,7 @@ authRoutes.post(
         await authHandler.loginWithUsernameAndPassword(req.Body);
       res.cookie("auth_token", token, {
         httpOnly: true,
-        secure: envConfig.isProduction,
+        secure: variables.isProduction,
         sameSite: "lax",
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         path: "/",
@@ -29,27 +29,27 @@ authRoutes.post(
   },
 );
 
-authRoutes.post(
-  "/google",
-  validateBody(AuthCodeSchema),
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { response, token } = await authHandler.loginWithGoogleAuthCode(
-        req.Body,
-      );
-      res.cookie("auth_token", token, {
-        httpOnly: true,
-        secure: envConfig.isProduction,
-        sameSite: "lax",
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        path: "/",
-      });
+// authRouter.post(
+//   "/google",
+//   validateBody(AuthCodeSchema),
+//   async (req: Request, res: Response, next: NextFunction) => {
+//     try {
+//       const { response, token } = await authHandler.loginWithGoogleAuthCode(
+//         req.Body,
+//       );
+//       res.cookie("auth_token", token, {
+//         httpOnly: true,
+//         secure: variables.isProduction,
+//         sameSite: "lax",
+//         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+//         path: "/",
+//       });
 
-      res.status(200).json(response);
-    } catch (error) {
-      next(error);
-    }
-  },
-);
+//       res.status(200).json(response);
+//     } catch (error) {
+//       next(error);
+//     }
+//   },
+// );
 
-export default authRoutes;
+export default authRouter;

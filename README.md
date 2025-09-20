@@ -2,9 +2,9 @@
 
 Rules
 
-1. Modular imports should use the @ annotation for project root as much as possible. e.g. import dbConfig from "@/configs/db" instead of import dbConfig from "../../configs/db"
+1. Modular imports should use the @ annotation for project root as much as possible. e.g. import db from "@/configs/db" instead of import db from "../../configs/db"
 2. After using the validateBody and validateQuery middlewares, the validated results will now be req.Body and req.Query respectively (capitalized)
-3. No process.env.[VARIABLE_NAME] call. Use envConfig.variableName from @/configs/env
+3. No process.env.[VARIABLE_NAME] call. Use env.variableName from @/configs/env
 4. Routes and route handlers are in features/api/v1/[segment]/...
 5. Route handlers should focus on interactions between utility functions and services in order to return a result of ApiResponse<T> or return an object with a response field of type ApiResponse<T>.
 6. Handlers shouldn't accept req and response objects but rather only the necessary objects needed
@@ -12,7 +12,7 @@ Rules
 
 DRIZZLE
 
-1. For selecting only one item with a UNIQUE column, consider using the dbConfig.query.[TableName].findOne(), instead of the db.select()
+1. For selecting only one item with a UNIQUE column, consider using the db.query.[TableName].findOne(), instead of the db.select()
 
 PR
 
@@ -24,4 +24,4 @@ ISSUES
 
 1.
 
-Reachout as frequently as you need in order to f
+Reachout as frequently as you need

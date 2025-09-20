@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import z from "zod";
-import envConfig from "../../configs/env";
+import variables from "@/configs/env";
 
 export function encodeData<T extends object>(
   payload: T,
@@ -8,14 +8,14 @@ export function encodeData<T extends object>(
 ): string {
   const signOptions = options ?? { expiresIn: "1h" };
 
-  const token = jwt.sign(payload, envConfig.jwtSecret, signOptions);
+  const token = jwt.sign(payload, variables.jwtSecret, signOptions);
 
   return token;
 }
 
 export function decodeData<T>(token: string, schema: z.ZodType<T>): T | null {
   try {
-    const decodedPayload = jwt.verify(token, envConfig.jwtSecret);
+    const decodedPayload = jwt.verify(token, variables.jwtSecret);
 
     const validationResult = schema.safeParse(decodedPayload);
 

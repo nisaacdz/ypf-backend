@@ -1,10 +1,10 @@
 import { AppError } from "../types";
-import envConfig from "@/configs/env";
+import variables from "@/configs/env";
 
 const allowedClients = [
   "dashboard",
   "website",
-  ...(envConfig.isProduction ? [] : ["postman"]),
+  ...(variables.isProduction ? [] : ["postman"]),
 ];
 
 export async function filter(
@@ -23,9 +23,9 @@ export async function filter(
 
   const origin = String(req.headers.origin);
   if (
-    envConfig.allowedOrigins &&
+    variables.allowedOrigins &&
     origin &&
-    !envConfig.allowedOrigins.includes(origin)
+    !variables.allowedOrigins.includes(origin)
   ) {
     return next(new AppError("CORS Error: This origin is not allowed", 403));
   }

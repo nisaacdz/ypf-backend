@@ -1,6 +1,6 @@
 import { eq, or } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import dbConfig from "@/configs/db";
+import db from "@/configs/db";
 import schema from "@/db/schema";
 import { AppError } from "@/shared/types";
 import { AuthenticatedUser } from "@/shared/validators";
@@ -20,7 +20,7 @@ export async function loginWithUsernameAndPassword(
   username: string,
   password: string,
 ): Promise<AuthenticatedUser> {
-  const [user] = await dbConfig
+  const [user] = await db
     .select({
       id: schema.Users.id,
       password: schema.Users.password,
@@ -78,7 +78,7 @@ export async function linkGoogleIdToUser(
   userId: string,
   googleId: string,
 ): Promise<void> {
-  await dbConfig
+  await db
     .update(Users)
     .set({ googleId: googleId })
     .where(eq(Users.id, userId));

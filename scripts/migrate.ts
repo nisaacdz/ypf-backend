@@ -1,13 +1,13 @@
-import dbConfig from "@/configs/db";
+import db from "@/configs/db";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import * as dotenv from "dotenv";
 
-dotenv.config();
+dotvariables.config();
 
 async function runMigrations() {
   console.log("Starting migrations...");
   try {
-    await migrate(dbConfig, { migrationsFolder: "./db/migrations" });
+    await migrate(db, { migrationsFolder: "./db/migrations" });
     console.log("Migrations applied successfully!");
     process.exit(0);
   } catch (error) {

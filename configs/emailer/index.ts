@@ -1,17 +1,17 @@
 import nodemailer from "nodemailer";
-import envConfig from "../env";
+import variables from "@/configs/env";
 
-class EmailConfig {
+class Emailer {
   transporter: nodemailer.Transporter;
 
   constructor() {
     this.transporter = nodemailer.createTransport({
-      host: envConfig.smtpHost,
-      port: envConfig.smtpPort,
+      host: variables.smtpHost,
+      port: variables.smtpPort,
       secure: true,
       auth: {
-        user: envConfig.smtpUser,
-        pass: envConfig.smtpPass,
+        user: variables.smtpUser,
+        pass: variables.smtpPass,
       },
     });
   }
@@ -28,6 +28,6 @@ class EmailConfig {
   }
 }
 
-const emailConfig = new EmailConfig();
+const emailer = new Emailer();
 
-export default emailConfig;
+export default emailer;

@@ -2,8 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import { AppError } from "../types";
 import { decodeData } from "../utils/jwt";
 import { AuthenticatedUserSchema } from "../validators";
-import policyConfig from "@/configs/policy";
-import envConfig from "@/configs/env";
+import authorizer from "@/configs/authorizer";
 
 export function authenticate(req: Request, res: Response, next: NextFunction) {
   if (req.user) {
@@ -43,7 +42,7 @@ export const authorize = async (
   const action = req.method;
 
   try {
-    const hasPermission = await policyConfig.enforce(user, resource, action);
+    const hasPermission = await authorizer.enforce(user, resource, action);
 
     if (hasPermission) {
       return next(); // User is authorized, proceed to the handler

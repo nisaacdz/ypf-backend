@@ -1,4 +1,4 @@
-import envConfig from "@/configs/env";
+import variables from "@/configs/env";
 import { MembershipType } from "@/db/schema/enums";
 import z from "zod";
 
@@ -7,7 +7,9 @@ export const AuthenticatedUserSchema = z.object({
   email: z.email(),
   fullName: z.string(),
   roles: z.array(z.string().min(1)), // active roles
-  memberships: z.array(z.enum(MembershipType.enumValues)), // active memberships
+  memberships: z
+    .array(z.enum(MembershipType.enumValues))
+    .max(MembershipType.enumValues.length), // active memberships
 });
 
 export const CreateEventSchema = z.object({
@@ -31,7 +33,7 @@ export const AuthCodeSchema = z.object({
     (uri) => {
       try {
         const url = new URL(uri);
-        return envConfig.allowedOrigins.includes(url.origin);
+        return variables.allowedOrigins.includes(url.origin);
       } catch {
         return false;
       }

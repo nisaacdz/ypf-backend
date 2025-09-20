@@ -4,12 +4,12 @@ import { Server as SocketIOServer } from "socket.io";
 import morgan from "morgan";
 import helmet from "helmet";
 import cors from "cors";
-import { initializeChat } from "@/features/chat/v1";
+//import { initializeChat } from "@/features/chat/v1";
 import { errorHandler } from "@/shared/middlewares/errorHandler";
-import envConfig from "@/configs/env";
+import variables from "@/configs/env";
 import { filter } from "./shared/middlewares";
-import policyConfig from "@/configs/policy";
-import emailConfig from "@/configs/email";
+import authorizer from "@/configs/authorizer";
+import emailer from "@/configs/emailer";
 import apiRouter from "@/features/api/v1";
 
 const app: Express = express();
@@ -17,7 +17,7 @@ const app: Express = express();
 app.use(helmet());
 
 const corsOptions = {
-  origin: envConfig.allowedOrigins,
+  origin: variables.allowedOrigins,
   optionsSuccessStatus: 200,
   credentials: true,
 };
@@ -37,7 +37,7 @@ const server = http.createServer(app);
 
 const io = new SocketIOServer(server, {
   cors: {
-    origin: envConfig.allowedOrigins,
+    origin: variables.allowedOrigins,
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -45,7 +45,7 @@ const io = new SocketIOServer(server, {
 
 io.use((socket, next) => filter(socket.handshake, next));
 
-initializeChat(io);
+//initializeChat(io);
 
 app.use(errorHandler);
 
@@ -54,11 +54,11 @@ app.use((req: Request, res: Response) => {
 });
 
 (async () => {
-  await Promise.all([emailConfig.initialize(), policyConfig.initialize()]);
-  // we'll add other async operations here
+  await Promise.all([emailer.initialize(), authorizer.initialize()]);
+  // we'll add other async initializations here
 
-  server.listen(envConfig.port, () => {
-    console.log(`Server is running on port ${envConfig.port}`);
+  server.listen(variables.port, () => {
+    console.log(`Server is running on port ${variables.port}`);
   });
 })();
 

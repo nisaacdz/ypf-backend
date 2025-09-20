@@ -1,5 +1,5 @@
 import { and, eq, or, lte, gte, isNull, getTableColumns } from "drizzle-orm";
-import dbConfig from "@/configs/db";
+import db from "@/configs/db";
 import schema from "../../db/schema";
 import { AppError } from "../../shared/types";
 import { User, Users } from "@/db/schema/app";
@@ -14,7 +14,7 @@ const columns = Object.fromEntries(
 ) as { [K in Exclude<keyof typeof allColumns, "password">]: true };
 
 export async function getUserById(userId: string): Promise<User> {
-  const user = await dbConfig.query.Users.findFirst({
+  const user = await db.query.Users.findFirst({
     columns,
     where: eq(schema.Users.id, userId),
   });
@@ -33,7 +33,7 @@ export async function getUserById(userId: string): Promise<User> {
  * @returns A promise that resolves to an array of role name strings (e.g., ['role_president']).
  */
 export async function getUserRoles(userId: string): Promise<string[]> {
-  const roleRecords = await dbConfig
+  const roleRecords = await db
     .select({
       name: schema.Roles.name,
     })
@@ -70,7 +70,7 @@ export async function getUserRoles(userId: string): Promise<string[]> {
 export async function getUserMemberships(
   userId: string,
 ): Promise<(typeof MembershipType.enumValues)[number][]> {
-  const membershipRecords = await dbConfig
+  const membershipRecords = await db
     .select({
       type: schema.Memberships.type,
     })
@@ -102,7 +102,7 @@ export async function getUserMemberships(
  * @returns A promise that resolves to the user object (with constituent data) or undefined if not found.
  */
 export async function findUserByEmail(email: string) {
-  const [user] = await dbConfig
+  const [user] = await db
     .select({
       id: schema.Users.id,
       email: schema.Users.email,

@@ -1,11 +1,11 @@
 import { Request, Response, NextFunction } from "express";
 import { Router } from "express";
 import * as usersHandler from "../users/usersHandler";
-import { authenticate } from "@/shared/middleware/auth";
+import { authenticate } from "@/shared/middlewares/auth";
 
-const authRoutes = Router();
+const usersRouter = Router();
 
-authRoutes.post(
+usersRouter.post(
   "/me",
   authenticate,
   async (req: Request, res: Response, next: NextFunction) => {
@@ -19,4 +19,4 @@ authRoutes.post(
   },
 );
 
-export default authRoutes;
+export default usersRouter;

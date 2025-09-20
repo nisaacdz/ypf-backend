@@ -1,6 +1,6 @@
 import nodemailer from "nodemailer";
-import envConfig from "../../configs/env";
-import emailConfig from "../../configs/email";
+import variables from "@/configs/env";
+import emailer from "@/configs/emailer";
 
 const colors = {
   primaryText: "#31393C",
@@ -17,7 +17,7 @@ const colors = {
  * Generates a base HTML structure for emails with consistent branding and styling.
  */
 const generateBaseHtml = (subject: string, contentHtml: string): string => {
-  const year = envConfig.year;
+  const year = variables.year;
 
   return "";
 };
@@ -33,7 +33,7 @@ export const sendEmail = async (
   textContent?: string,
 ): Promise<void> => {
   const mailOptions: nodemailer.SendMailOptions = {
-    from: `"${"YPF Africa"}" <${envConfig.emailer}>`,
+    from: `"${"YPF Africa"}" <${variables.emailer}>`,
     to: to,
     subject: subject,
     html: htmlBody,
@@ -43,7 +43,7 @@ export const sendEmail = async (
   }
 
   try {
-    const info = await emailConfig.transporter.sendMail(mailOptions);
+    const info = await emailer.transporter.sendMail(mailOptions);
     console.log(`Email sent to ${to}. Message ID: ${info.messageId}`);
   } catch (error) {
     console.error(`Error sending email to ${to}:`, error);

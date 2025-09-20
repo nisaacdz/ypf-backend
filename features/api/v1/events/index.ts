@@ -5,9 +5,9 @@ import { CreateEventSchema } from "@/shared/validators";
 import { authenticate, authorize } from "@/shared/middlewares/auth";
 import * as eventsHandler from "./eventsHandler";
 
-const authRoutes = Router();
+const eventsRouter = Router();
 
-authRoutes.post(
+eventsRouter.post(
   "/",
   authenticate,
   authorize,
@@ -22,4 +22,4 @@ authRoutes.post(
   },
 );
 
-export default authRoutes;
+export default eventsRouter;

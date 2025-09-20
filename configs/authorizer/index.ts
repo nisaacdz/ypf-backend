@@ -14,7 +14,7 @@ const hasMembership = (
   return user.memberships && user.memberships.includes(membership);
 };
 
-class PolicyConfig {
+class Authorizer {
   private enforcerInstance: Enforcer | undefined;
 
   public async initialize(): Promise<void> {
@@ -45,7 +45,7 @@ class PolicyConfig {
   ): Promise<boolean> {
     if (!this.enforcerInstance) {
       throw new Error(
-        "Policy enforcer not initialized. Call policyConfig.initialize() first.",
+        "Policy enforcer not initialized. Call authorizer.initialize() first.",
       );
     }
     // The 'user' object is passed as the subject (sub)
@@ -53,6 +53,6 @@ class PolicyConfig {
   }
 }
 
-const policyConfig = new PolicyConfig();
+const authorizer = new Authorizer();
 
-export default policyConfig;
+export default authorizer;
