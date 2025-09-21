@@ -4,9 +4,15 @@ import z from "zod";
 
 export const AuthenticatedUserSchema = z.object({
   id: z.uuid(),
+  constituentId: z.string().nullable(),
   email: z.email(),
   fullName: z.string(),
-  roles: z.array(z.string().min(1)), // active roles
+  roles: z.array(
+    z.object({
+      name: z.string(),
+      scope: z.string(),
+    }),
+  ),
   memberships: z
     .array(z.enum(MembershipType.enumValues))
     .max(MembershipType.enumValues.length), // active memberships

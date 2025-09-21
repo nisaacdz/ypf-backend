@@ -1,17 +1,15 @@
 import { AppError } from "../types";
 import variables from "@/configs/env";
 
-const allowedClients = [
-  "dashboard",
-  "website",
-  ...(variables.isProduction ? [] : ["postman"]),
-];
+const allowedClients = variables.isProduction ? ["dashboard", "website"] : [];
 
 export async function filter(
   req: { headers: { [key: string]: unknown } },
   next: (err?: Error | undefined) => void,
 ) {
   const client = req.headers["x-client"];
+
+  console.log("Client:", client);
 
   if (
     !client ||

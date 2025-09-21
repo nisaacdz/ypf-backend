@@ -1,7 +1,16 @@
-import { and, eq, or, lte, gte, isNull, getTableColumns } from "drizzle-orm";
+import {
+  and,
+  eq,
+  or,
+  lte,
+  gte,
+  isNull,
+  getTableColumns,
+  sql,
+} from "drizzle-orm";
 import db from "@/configs/db";
-import schema from "../../db/schema";
-import { AppError } from "../../shared/types";
+import schema from "@/db/schema";
+import { AppError } from "@/shared/types";
 import { User, Users } from "@/db/schema/app";
 import { MembershipType } from "@/db/schema/enums";
 
@@ -29,13 +38,26 @@ export async function getUserById(userId: string): Promise<User> {
  * A role is considered active if its start date is in the past and its
  * end date is either null or in the future.
  *
+ * The 'scope' is dynamically constructed based on the role assignment:
+ * - 'chapter_{id}' if linked to a chapter.
+ * - 'committee_{id}' if linked to a committee.
+ * - '*' for a global role.
+ *
  * @param userId The ID of the user from the `users` table.
- * @returns A promise that resolves to an array of role name strings (e.g., ['role_president']).
+ * @returns A promise that resolves to an array of role objects.
  */
-export async function getUserRoles(userId: string): Promise<string[]> {
+export async function getUserRoles(userId: string) {
   const roleRecords = await db
     .select({
       name: schema.Roles.name,
+      // Dynamically create the 'scope' string based on the assignment context
+      scope: sql<string>`
+        CASE
+          WHEN ${schema.RoleAssignments.chapterId} IS NOT NULL THEN CONCAT('chapter_', ${schema.RoleAssignments.chapterId})
+          WHEN ${schema.RoleAssignments.committeeId} IS NOT NULL THEN CONCAT('committee_', ${schema.RoleAssignments.committeeId})
+          ELSE '*'
+        END
+      `.as("scope"),
     })
     .from(schema.RoleAssignments)
     .innerJoin(schema.Roles, eq(schema.RoleAssignments.roleId, schema.Roles.id))
@@ -56,7 +78,7 @@ export async function getUserRoles(userId: string): Promise<string[]> {
       ),
     );
 
-  return roleRecords.map((role) => role.name);
+  return roleRecords;
 }
 
 /**

@@ -1,56 +1,40 @@
-# ===========================================================================
-# Casbin Policy: RESTful API Authorization
-#
-# Format: p, subject (role OR membership), resource_path, action (HTTP method), effect
+# @/config/authorizer/policy.csv
+# Format: p, subject (role/membership), resource_path, action, effect
 # ===========================================================================
 
-# ---------------------------------------------------------------------------
-# 1. GLOBAL SUPERUSER ROLE
-# The President has unrestricted access to the entire system.
-# ---------------------------------------------------------------------------
+# 1. SUPERUSER ROLE
+# The president has god-mode access. The scope for this role must be '*'.
 p, role_president, /*, *, allow
 
+# 2. FINANCE MODULE (Highly Restricted)
+# Financial secretary has full control over the finance module.
+p, role_financial_secretary, /finance/*, *, allow
+# Auditors get read-only access to the finance module.
+p, AUDITOR, /finance/*, GET, allow
+# Donors can create donations and view their own.
+p, DONOR, /finance/donations, POST, allow
+p, SELF, /constituents/:id/donations, GET, allow
 
-# ---------------------------------------------------------------------------
-# 2. BASELINE ACCESS FOR AUTHENTICATED USERS
-# Permissions granted based on general membership status.
-# ---------------------------------------------------------------------------
-# Any MEMBER, VOLUNTEER, or DONOR can view general information.
-p, MEMBER, /chapters, GET, allow
-p, MEMBER, /committees, GET, allow
-p, MEMBER, /events, GET, allow
-p, MEMBER, /events/:id, GET, allow
-p, MEMBER, /projects, GET, allow
-p, MEMBER, /projects/:id, GET, allow
+# 3. COMMUNICATIONS MODULE
+# Secretary has full control over the communications module.
+p, role_secretary, /communications/*, *, allow
+# Members can read announcements and meeting info.
+p, MEMBER, /communications/announcements, GET, allow
+p, MEMBER, /communications/meetings, GET, allow
+p, MEMBER, /communications/meetings/:id, GET, allow
 
-p, VOLUNTEER, /chapters, GET, allow
-p, VOLUNTEER, /committees, GET, allow
-p, VOLUNTEER, /events, GET, allow
-p, VOLUNTEER, /events/:id, GET, allow
+# 4. CORE MANAGEMENT ROLES (Scoped)
+# Chapter heads can manage their specific chapter and its members/projects.
+p, role_chapter_head, /chapters/:id, PUT, allow
+p, role_chapter_head, /chapters/:id/members, *, allow
+p, role_chapter_head, /chapters/:id/projects, POST, allow
 
-p, DONOR, /chapters, GET, allow
-p, DONOR, /events, GET, allow
+# Committee heads can manage their specific committee and its members.
+p, role_committee_head, /committees/:id, PUT, allow
+p, role_committee_head, /committees/:id/members, *, allow
 
-
-# ---------------------------------------------------------------------------
-# 3. SELF-SERVICE ACTIONS (Constituent Profiles)
-# Users can manage their own profiles.
-# NOTE: Your API handler MUST verify that the :id in the URL matches the authenticated user's ID.
-# ---------------------------------------------------------------------------
-p, MEMBER, /constituents/:id, GET, allow
-p, MEMBER, /constituents/:id, PUT, allow
-p, VOLUNTEER, /constituents/:id, GET, allow
-p, VOLUNTEER, /constituents/:id, PUT, allow
-p, DONOR, /constituents/:id, GET, allow
-p, DONOR, /constituents/:id, PUT, allow
-
-
-# ---------------------------------------------------------------------------
-# 4. RESOURCE-SPECIFIC PERMISSIONS (By Role & Membership)
-# ---------------------------------------------------------------------------
-
-# -- EVENTS & PROJECTS --
-# 'role_organizer' can create, manage, and delete events and projects.
+# 5. ACTIVITY MANAGEMENT ROLES (Can be global or scoped)
+# Organizers can manage events and projects.
 p, role_organizer, /events, POST, allow
 p, role_organizer, /events/:id, PUT, allow
 p, role_organizer, /events/:id, DELETE, allow
@@ -58,41 +42,32 @@ p, role_organizer, /projects, POST, allow
 p, role_organizer, /projects/:id, PUT, allow
 p, role_organizer, /projects/:id, DELETE, allow
 
-# VOLUNTEERS and MEMBERS can sign up for event participation.
-p, VOLUNTEER, /events/:id/participations, POST, allow
+# 6. SELF-SERVICE & PARTICIPATION
+# Any authenticated user can manage their own constituent profile.
+p, SELF, /constituents/:id, GET, allow
+p, SELF, /constituents/:id, PUT, allow
+
+# Members and Volunteers can participate in events.
 p, MEMBER, /events/:id/participations, POST, allow
-p, VOLUNTEER, /events/:id/participations, DELETE, allow # Can cancel their own participation
 p, MEMBER, /events/:id/participations, DELETE, allow
+p, VOLUNTEER, /events/:id/participations, POST, allow
+p, VOLUNTEER, /events/:id/participations, DELETE, allow
 
+# 7. BASELINE READ ACCESS (By Membership Type)
+# Permissions for Members.
+p, MEMBER, /chapters, GET, allow
+p, MEMBER, /committees, GET, allow
+p, MEMBER, /events, GET, allow
+p, MEMBER, /events/:id, GET, allow
+p, MEMBER, /projects, GET, allow
+p, MEMBER, /projects/:id, GET, allow
 
-# -- FINANCE (Highly Restricted) --
-# 'role_financial_secretary' has full control over the finance module.
-p, role_financial_secretary, /finance/*, *, allow
+# Permissions for Volunteers.
+p, VOLUNTEER, /chapters, GET, allow
+p, VOLUNTEER, /committees, GET, allow
+p, VOLUNTEER, /events, GET, allow
+p, VOLUNTEER, /events/:id, GET, allow
 
-# 'AUDITOR' membership grants read-only access to all financial records for oversight.
-p, AUDITOR, /finance/*, GET, allow
-
-# DONORS can make a donation (a POST to the donations endpoint).
-p, DONOR, /finance/donations, POST, allow
-# Any user with a donor history can view their own past donations.
-p, DONOR, /constituents/:id/donations, GET, allow
-
-
-# -- COMMUNICATIONS --
-# 'role_secretary' manages meetings and announcements.
-p, role_secretary, /communications/*, *, allow
-
-# Regular MEMBERS can view announcements and meeting details.
-p, MEMBER, /communications/announcements, GET, allow
-p, MEMBER, /communications/meetings, GET, allow
-p, MEMBER, /communications/meetings/:id, GET, allow
-
-
-# -- CHAPTER & COMMITTEE MANAGEMENT (Scoped Roles) --
-# NOTE: Your middleware will need to verify that the user with the role belongs to the specified chapter/committee.
-p, role_chapter_head, /chapters/:id, PUT, allow
-p, role_chapter_head, /chapters/:id/members, *, allow # Manage members of their chapter
-p, role_chapter_head, /chapters/:id/projects, POST, allow # Can start projects in their chapter
-
-p, role_committee_head, /committees/:id, PUT, allow
-p, role_committee_head, /committees/:id/members, *, allow # Manage members of their committee
+# Permissions for Donors.
+p, DONOR, /chapters, GET, allow
+p, DONOR, /events, GET, allow

@@ -23,6 +23,7 @@ export async function loginWithUsernameAndPassword(
   const [user] = await db
     .select({
       id: schema.Users.id,
+      constituentId: schema.Constituents.id,
       password: schema.Users.password,
       email: schema.Users.email,
       username: schema.Users.username,
@@ -59,6 +60,7 @@ export async function loginWithUsernameAndPassword(
 
   const authUser: AuthenticatedUser = {
     id: user.id,
+    constituentId: user.constituentId,
     fullName,
     email: user.email,
     roles,

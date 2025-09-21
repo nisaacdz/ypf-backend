@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-namespace */
 import { AuthenticatedUser } from "../validators";
+import { MembershipType as MembershipTypeEnum } from "@/db/schema/enums";
 
 export class AppError extends Error {
   public statusCode: number;
@@ -27,3 +28,5 @@ declare global {
     }
   }
 }
+
+export type MembershipType = (typeof MembershipTypeEnum.enumValues)[number];
