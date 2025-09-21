@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { AppError, ApiResponse } from "../types";
+import { AppError } from "../types";
 import z from "zod";
 
 export function validateBody<T>(schema: z.ZodType<T>) {

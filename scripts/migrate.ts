@@ -1,8 +1,5 @@
 import db from "@/configs/db";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
-import * as dotenv from "dotenv";
-
-dotvariables.config();
 
 async function runMigrations() {
   console.log("Starting migrations...");
