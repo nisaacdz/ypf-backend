@@ -7,6 +7,9 @@ export async function filter(
   req: { headers: { [key: string]: unknown } },
   next: (err?: Error | undefined) => void,
 ) {
+  if (allowedClients.length === 0) {
+    return next();
+  }
   const client = req.headers["x-client"];
 
   console.log("Client:", client);

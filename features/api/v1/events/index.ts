@@ -19,7 +19,7 @@ eventsRouter.post(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 export default eventsRouter;

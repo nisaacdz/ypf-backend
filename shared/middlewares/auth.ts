@@ -38,7 +38,8 @@ export const authorize = async (
     return next(new AppError("Authentication required.", 401));
   }
 
-  const resource = req.path.replace("/api/v1", "") || "/";
+  const resource = req.path.match(/^\/api(?:\/v\d+)?(\/.*)?$/)?.[1] ?? '/';
+  console.log("resource:", resource);
   const action = req.method;
 
   try {

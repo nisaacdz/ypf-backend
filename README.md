@@ -9,6 +9,9 @@ Rules
 5. Route handlers should focus on interactions between utility functions and services in order to return a result of ApiResponse<T> or return an object with a response field of type ApiResponse<T>.
 6. Handlers shouldn't accept req and response objects but rather only the necessary objects needed
 7. At the route definition, middlewares can be attached and responses can be sent after calling the route handlers.
+8. Service utility functions should interact with the database and handle possible errors into AppError
+9. Handlers do not need to be wrapped in a try-catch if they simply call service functions and return results.
+10. 
 
 DRIZZLE
 
