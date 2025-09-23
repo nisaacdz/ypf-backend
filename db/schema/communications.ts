@@ -4,7 +4,6 @@ import {
   text,
   timestamp,
   boolean,
-  primaryKey,
   serial,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
@@ -15,49 +14,34 @@ import { unique } from "drizzle-orm/pg-core";
 const communications = pgSchema("communications");
 
 // === TABLES ===
-
 export const Announcements = communications.table("announcements", {
   id: uuid("id").defaultRandom().primaryKey(),
   title: text("title").notNull(),
   content: text("content").notNull(),
-  createdById: uuid("created_by_id")
+  createdBy: uuid("created_by")
     .notNull()
     .references(() => Constituents.id, { onDelete: "restrict" }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
-  isGlobal: boolean("is_global").default(false).notNull(),
 });
 
-export const AnnouncementsChapters = communications.table(
-  "announcements_chapters",
-  {
-    announcementId: uuid("announcement_id")
-      .notNull()
-      .references(() => Announcements.id, { onDelete: "cascade" }),
-    chapterId: uuid("chapter_id")
-      .notNull()
-      .references(() => Chapters.id, { onDelete: "cascade" }),
-  },
-  (table) => ({
-    pk: primaryKey({ columns: [table.announcementId, table.chapterId] }),
-  }),
-);
-
-export const AnnouncementsCommittees = communications.table(
-  "announcements_committees",
-  {
-    announcementId: uuid("announcement_id")
-      .notNull()
-      .references(() => Announcements.id, { onDelete: "cascade" }),
-    committeeId: uuid("committee_id")
-      .notNull()
-      .references(() => Committees.id, { onDelete: "cascade" }),
-  },
-  (table) => ({
-    pk: primaryKey({ columns: [table.announcementId, table.committeeId] }),
-  }),
-);
+// sparse table
+// for broadcasting announcement to a chapter
+// set chapterId
+// for broadcasting announcement to a committee
+// set committeeId
+// for broadcasting announcement to a committee within a chapter
+// set chapterId, committeeId
+// for broadcasting announcement globally
+// unset chapterId, committeeId
+export const AnnouncementBroadCasts = communications.table("announcement_broadcasts", {
+  id: serial().primaryKey(),
+  announcementId: uuid("id").notNull(),
+  chapterId: uuid("chapter_id").references(() => Chapters.id, { onDelete: 'cascade'}),
+  committeeId: uuid("committee_id").references(() => Committees.id, { onDelete: 'cascade' }),
+  isArchived: boolean("is_archived").notNull().default(false),
+});
 
 export const Meetings = communications.table("meetings", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -97,46 +81,6 @@ export const MeetingAttendees = communications.table(
 );
 
 // === RELATIONS ===
-
-export const announcementsRelations = relations(
-  Announcements,
-  ({ one, many }) => ({
-    createdBy: one(Constituents, {
-      fields: [Announcements.createdById],
-      references: [Constituents.id],
-    }),
-    targetChapters: many(AnnouncementsChapters),
-    targetCommittees: many(AnnouncementsCommittees),
-  }),
-);
-
-export const announcementsChaptersRelations = relations(
-  AnnouncementsChapters,
-  ({ one }) => ({
-    announcement: one(Announcements, {
-      fields: [AnnouncementsChapters.announcementId],
-      references: [Announcements.id],
-    }),
-    chapter: one(Chapters, {
-      fields: [AnnouncementsChapters.chapterId],
-      references: [Chapters.id],
-    }),
-  }),
-);
-
-export const announcementsCommitteesRelations = relations(
-  AnnouncementsCommittees,
-  ({ one }) => ({
-    announcement: one(Announcements, {
-      fields: [AnnouncementsCommittees.announcementId],
-      references: [Announcements.id],
-    }),
-    committee: one(Committees, {
-      fields: [AnnouncementsCommittees.committeeId],
-      references: [Committees.id],
-    }),
-  }),
-);
 
 export const meetingsRelations = relations(Meetings, ({ one, many }) => ({
   chapter: one(Chapters, {

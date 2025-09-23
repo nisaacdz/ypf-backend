@@ -10,7 +10,7 @@ usersRouter.post(
   authenticate,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user?.id as string;
+      const userId = req.User?.id as string;
       const response = await usersHandler.getUserData({ userId });
       res.status(200).json(response);
     } catch (error) {

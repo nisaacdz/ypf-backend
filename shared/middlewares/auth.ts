@@ -5,7 +5,7 @@ import { AuthenticatedUserSchema } from "../validators";
 import authorizer from "@/configs/authorizer";
 
 export function authenticate(req: Request, res: Response, next: NextFunction) {
-  if (req.user) {
+  if (req.User) {
     return next();
   }
 
@@ -13,7 +13,7 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
 
   if (!token) {
     return next(
-      new AppError("You are not logged in. Please log in to get access.", 401),
+      new AppError("You are not logged in. Please log in to get access.", 401)
     );
   }
 
@@ -23,7 +23,7 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
     return next(new AppError("Invalid token. Please log in again.", 401));
   }
 
-  req.user = decodedUser;
+  req.User = decodedUser;
 
   next();
 }
@@ -31,29 +31,25 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
 export const authorize = async (
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ) => {
-  const user = req.user;
+  const user = req.User;
   if (!user) {
     return next(new AppError("Authentication required.", 401));
   }
 
-  const resource = req.path.match(/^\/api(?:\/v\d+)?(\/.*)?$/)?.[1] ?? '/';
-  console.log("resource:", resource);
+  const resource = req.path.match(/^\/api(?:\/v\d+)?(\/.*)?$/)?.[1] ?? "/";
   const action = req.method;
 
   try {
     const hasPermission = await authorizer.enforce(user, resource, action);
 
     if (hasPermission) {
-      return next(); // User is authorized, proceed to the handler
+      return next();
     }
 
-    return next(
-      new AppError("You do not have permission to perform this action.", 403),
-    );
+    return res.status(403).json({ success: false, message: "Permission denied!"})
   } catch (error) {
-    // Catch initialization errors or other issues
     return next(error);
   }
 };

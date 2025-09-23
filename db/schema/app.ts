@@ -7,10 +7,11 @@ import {
   serial,
   jsonb,
   boolean,
+  index,
 } from "drizzle-orm/pg-core";
 import { InferSelectModel, relations } from "drizzle-orm";
 import { Constituents } from "./core";
-import { Announcements } from "./communications";
+import { AnnouncementBroadCasts } from "./communications";
 
 const app = pgSchema("app");
 
@@ -42,21 +43,26 @@ export const Otps = app.table("otps", {
   isUsed: boolean("is_used").default(false).notNull(),
 });
 
-export const Notifications = app.table("notifications", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => Users.id, { onDelete: "cascade" }),
-  title: text("title"),
-  message: text("message"),
-  announcementId: uuid("announcement_id").references(() => Announcements.id, {
-    onDelete: "set null",
-  }),
-  isRead: boolean("is_read").default(false).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+// We m Ensure that message and broadcastId are not simultaneously null
+export const Notifications = app.table(
+  "notifications",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => Users.id, { onDelete: "cascade" }),
+    title: text("title"),
+    message: text("message"),
+    broadcastId: serial("broadcast_id")
+      .unique()
+      .references(() => AnnouncementBroadCasts.id, { onDelete: "cascade" }),
+    isRead: boolean("is_read").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [index().on(table.broadcastId)]
+);
 
 // === RELATIONS ===
 
@@ -64,16 +70,5 @@ export const usersRelations = relations(Users, ({ one }) => ({
   constituent: one(Constituents, {
     fields: [Users.id],
     references: [Constituents.userId],
-  }),
-}));
-
-export const notificationsRelations = relations(Notifications, ({ one }) => ({
-  user: one(Users, {
-    fields: [Notifications.userId],
-    references: [Users.id],
-  }),
-  announcement: one(Announcements, {
-    fields: [Notifications.announcementId],
-    references: [Announcements.id],
   }),
 }));

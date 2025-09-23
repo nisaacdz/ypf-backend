@@ -53,5 +53,3 @@ export const AuthCodeSchema = z.object({
 export const OtpSchema = z.object({
   otp: z.string().min(6).max(6),
 });
-
-export type AuthenticatedUser = z.infer<typeof AuthenticatedUserSchema>;
