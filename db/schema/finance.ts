@@ -10,7 +10,7 @@ import {
   serial,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { Chapters, Constituents } from "./core";
+import { Chapters, Constituents, Organizations } from "./core";
 import { Events, Projects } from "./activities";
 import { PaymentMethod, TransactionStatus, MembershipType } from "./enums";
 
@@ -84,11 +84,6 @@ export const DuesPayments = finance.table("dues_payments", {
     .references(() => Constituents.id, { onDelete: "restrict" }),
 });
 
-export const Vendors = finance.table("vendors", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  name: text("name").notNull().unique(),
-});
-
 export const Expenditures = finance.table("expenditures", {
   id: uuid("id").defaultRandom().primaryKey(),
   expenditureDate: timestamp("expenditure_date", {
@@ -104,12 +99,27 @@ export const Expenditures = finance.table("expenditures", {
   eventId: uuid("event_id").references(() => Events.id, {
     onDelete: "set null",
   }),
-  vendorId: uuid("vendor_id").references(() => Vendors.id, {
+  vendorId: uuid("vendor_id").references(() => Organizations.id, {
     onDelete: "set null",
   }),
   approvedById: uuid("approved_by_id").references(() => Constituents.id, {
     onDelete: "restrict",
   }),
+});
+
+export const Partnerships = finance.table("partnerships", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => Organizations.id, { onDelete: "restrict" }),
+  partnershipType: text("partnership_type").notNull(), // 'SPONSOR', 'IN_KIND', 'TECHNICAL', 'VENUE'
+  projectId: uuid("project_id").references(() => Projects.id, { onDelete: "set null" }),
+  eventId: uuid("event_id").references(() => Events.id, { onDelete: "set null" }),
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date"),
+  value: decimal("value", { precision: 12, scale: 2 }), // monetary value if applicable
+  description: text("description"),
+  contractUrl: text("contract_url"), // link to stored contract document
 });
 
 // === RELATIONS ===
@@ -177,9 +187,9 @@ export const expendituresRelations = relations(Expenditures, ({ one }) => ({
     fields: [Expenditures.eventId],
     references: [Events.id],
   }),
-  vendor: one(Vendors, {
+  vendor: one(Organizations, {
     fields: [Expenditures.vendorId],
-    references: [Vendors.id],
+    references: [Organizations.id],
   }),
   approvedBy: one(Constituents, {
     fields: [Expenditures.approvedById],

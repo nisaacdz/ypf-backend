@@ -11,7 +11,6 @@ import {
   integer,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { Users } from "./app";
 import { MediaType, ContactType, MembershipType, Gender } from "./enums";
 
 const core = pgSchema("core");
@@ -33,13 +32,10 @@ export const Medias = core.table("media", {
 
 export const Constituents = core.table("constituents", {
   id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id")
-    .unique()
-    .references(() => Users.id, { onDelete: "set null" }),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   preferredName: text("preferred_name"),
-  selfieId: uuid("selfie_id").references(() => Medias.id, {
+  profilePhotoId: uuid("profile_photo_id").references(() => Medias.id, {
     onDelete: "set null",
   }),
   salutation: text("salutation"),
@@ -117,6 +113,9 @@ export const Committees = core.table("committees", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull().unique(),
   description: text("description"),
+  chapterId: uuid("chapter_id").references(() => Chapters.id, {
+    onDelete: "cascade",
+  }),
 });
 
 export const CommitteeMemberships = core.table(
@@ -161,6 +160,29 @@ export const RoleAssignments = core.table("role_assignments", {
   endedAt: timestamp("ended_at", { withTimezone: true }),
 });
 
+export const Organizations = core.table("organizations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  organizationType: text("organization_type").notNull(), // 'PARTNER', 'SPONSOR', 'VENDOR', 'AFFILIATE'
+  website: text("website"),
+  description: text("description"),
+  logoUrl: text("logo_url"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const OrganizationContacts = core.table("organization_contacts", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => Organizations.id, { onDelete: "cascade" }),
+  constituentId: uuid("constituent_id")
+    .notNull()
+    .references(() => Constituents.id, { onDelete: "cascade" }),
+  title: text("title"), // their role at the org
+  isPrimary: boolean("is_primary").default(false).notNull(),
+}, (table) => [unique().on(table.organizationId, table.constituentId)]);
+
 // === RELATIONS ===
 
 export const mediasRelations = relations(Medias, ({ one }) => ({
@@ -174,9 +196,8 @@ export const mediasRelations = relations(Medias, ({ one }) => ({
 export const constituentsRelations = relations(
   Constituents,
   ({ one, many }) => ({
-    user: one(Users, { fields: [Constituents.userId], references: [Users.id] }),
-    selfie: one(Medias, {
-      fields: [Constituents.selfieId],
+    profilePhoto: one(Medias, {
+      fields: [Constituents.profilePhotoId],
       references: [Medias.id],
     }),
     contactInfo: many(ContactInformations),

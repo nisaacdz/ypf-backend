@@ -3,7 +3,6 @@ import * as app from "./app";
 import * as core from "./core";
 import * as activities from "./activities";
 import * as finance from "./finance";
-import * as impact from "./impact";
 import * as communications from "./communications";
 
 const schema = {
@@ -12,7 +11,6 @@ const schema = {
   ...core,
   ...activities,
   ...finance,
-  ...impact,
   ...communications,
 };
 

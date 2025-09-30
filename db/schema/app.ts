@@ -30,6 +30,8 @@ export const Users = app.table("users", {
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
+  constituentId: uuid("constituent_id").unique().notNull()
+    .references(() => Constituents.id, { onDelete: 'set null' }),
 });
 
 export type User = Omit<InferSelectModel<typeof Users>, "password">;
@@ -68,7 +70,8 @@ export const Notifications = app.table(
 
 export const usersRelations = relations(Users, ({ one }) => ({
   constituent: one(Constituents, {
-    fields: [Users.id],
-    references: [Constituents.userId],
+    fields: [Users.constituentId],
+    references: [Constituents.id],
   }),
 }));
+ 
