@@ -12,7 +12,7 @@ import {
 import { relations } from "drizzle-orm";
 import { Chapters, Constituents, Organizations } from "./core";
 import { Events, Projects } from "./activities";
-import { PaymentMethod, TransactionStatus, MembershipType } from "./enums";
+import { PaymentMethod, TransactionStatus, MembershipType, PartnershipType } from "./enums";
 
 const finance = pgSchema("finance");
 
@@ -112,7 +112,7 @@ export const Partnerships = finance.table("partnerships", {
   organizationId: uuid("organization_id")
     .notNull()
     .references(() => Organizations.id, { onDelete: "restrict" }),
-  partnershipType: text("partnership_type").notNull(), // 'SPONSOR', 'IN_KIND', 'TECHNICAL', 'VENUE'
+  partnershipType: PartnershipType("partnership_type").notNull(),
   projectId: uuid("project_id").references(() => Projects.id, { onDelete: "set null" }),
   eventId: uuid("event_id").references(() => Events.id, { onDelete: "set null" }),
   startDate: date("start_date").notNull(),

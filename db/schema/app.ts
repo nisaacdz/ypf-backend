@@ -31,7 +31,7 @@ export const Users = app.table("users", {
     .defaultNow()
     .notNull(),
   constituentId: uuid("constituent_id").unique().notNull()
-    .references(() => Constituents.id, { onDelete: 'set null' }),
+    .references(() => Constituents.id, { onDelete: 'cascade' }),
 });
 
 export type User = Omit<InferSelectModel<typeof Users>, "password">;

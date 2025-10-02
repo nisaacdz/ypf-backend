@@ -44,3 +44,4 @@ export const AttendanceStatus = pgEnum("attendance_status", [
   "ATTENDED",
 ]);
 export const Gender = pgEnum("gender", ["MALE", "FEMALE", "OTHER"]);
+export const PartnershipType = pgEnum("partnership_type", ['SPONSOR', 'IN_KIND', 'TECHNICAL', 'VENUE', 'OTHER']);

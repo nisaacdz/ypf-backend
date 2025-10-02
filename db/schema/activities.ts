@@ -15,8 +15,8 @@ export const Projects = activities.table("projects", {
   }),
   projectName: text("project_name").notNull(),
   projectObjective: text("project_objective"),
-  startDate: timestamp("start_date", { withTimezone: true }).notNull(),
-  endDate: timestamp("end_date", { withTimezone: true }),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+  endedAt: timestamp("ended_at", { withTimezone: true }),
   budget: decimal("budget", { precision: 12, scale: 2 }),
   status: ProjectStatus("status").default("PLANNING").notNull(),
 });

@@ -27,17 +27,10 @@ export const Announcements = communications.table("announcements", {
 });
 
 // sparse table
-// for broadcasting announcement to a chapter
-// set chapterId
-// for broadcasting announcement to a committee
-// set committeeId
-// for broadcasting announcement to a committee within a chapter
-// set chapterId, committeeId
-// for broadcasting announcement globally
-// unset chapterId, committeeId
+// at most one of chapterId and committeeId can be non-null
 export const AnnouncementBroadCasts = communications.table("announcement_broadcasts", {
   id: serial().primaryKey(),
-  announcementId: uuid("id").notNull(),
+  announcementId: uuid("id").notNull().references(() => Announcements.id, { onDelete: 'cascade' }),
   chapterId: uuid("chapter_id").references(() => Chapters.id, { onDelete: 'cascade'}),
   committeeId: uuid("committee_id").references(() => Committees.id, { onDelete: 'cascade' }),
   isArchived: boolean("is_archived").notNull().default(false),

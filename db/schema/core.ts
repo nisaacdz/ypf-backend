@@ -52,6 +52,7 @@ export const Constituents = core.table("constituents", {
     .notNull(),
 });
 
+// Delibrate
 export const ContactInformations = core.table(
   "contact_informations",
   {
@@ -73,8 +74,8 @@ export const Memberships = core.table("memberships", {
     .references(() => Constituents.id, { onDelete: "cascade" }),
   // we'll ensure that only one of this membership type is `active` for the constituent at a time
   type: MembershipType("type").notNull(),
-  startDate: timestamp("start_date", { withTimezone: true }).notNull(),
-  endDate: timestamp("end_date", { withTimezone: true }),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+  endedAt: timestamp("ended_at", { withTimezone: true }),
   assignerId: uuid("assigner_id").references(() => Constituents.id, {
     onDelete: "set null",
   }),
@@ -102,8 +103,8 @@ export const ChapterMemberships = core.table(
     chapterId: uuid("chapter_id")
       .notNull()
       .references(() => Chapters.id, { onDelete: "cascade" }),
-    startDate: timestamp("start_date", { withTimezone: true }).notNull(),
-    endDate: timestamp("end_date", { withTimezone: true }),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
     isActive: boolean("is_active").default(true).notNull(),
   },
   (table) => [unique().on(table.constituentId, table.chapterId)]
@@ -128,8 +129,8 @@ export const CommitteeMemberships = core.table(
     committeeId: uuid("committee_id")
       .notNull()
       .references(() => Committees.id, { onDelete: "cascade" }),
-    startDate: timestamp("start_date", { withTimezone: true }).notNull(),
-    endDate: timestamp("end_date", { withTimezone: true }),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
     isActive: boolean("is_active").default(true).notNull(),
   },
   (table) => [unique().on(table.constituentId, table.committeeId)]
@@ -163,7 +164,6 @@ export const RoleAssignments = core.table("role_assignments", {
 export const Organizations = core.table("organizations", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(),
-  organizationType: text("organization_type").notNull(), // 'PARTNER', 'SPONSOR', 'VENDOR', 'AFFILIATE'
   website: text("website"),
   description: text("description"),
   logoUrl: text("logo_url"),
