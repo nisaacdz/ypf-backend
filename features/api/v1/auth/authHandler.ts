@@ -1,7 +1,7 @@
 import * as authService from "@/shared/services/authService";
 import { encodeData } from "@/shared/utils/jwt";
 import { ApiResponse, AppError } from "@/shared/types";
-import { AuthenticatedUser } from "@/shared/validators";
+import { AuthenticatedUser } from "@/shared/types";
 
 export async function loginWithUsernameAndPassword({
   username,
