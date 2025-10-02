@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Enforcer, newEnforcer } from "casbin";
 import { resolve } from "path";
-import { AuthenticatedUser } from "@/shared/validators";
+import { AuthenticatedUser } from "@/shared/types";
 import { MembershipType } from "@/db/schema/enums";
 
 /**
