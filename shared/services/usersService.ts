@@ -62,13 +62,13 @@ export async function getUserRoles(userId: string) {
     .from(schema.RoleAssignments)
     .innerJoin(schema.Roles, eq(schema.RoleAssignments.roleId, schema.Roles.id))
     .innerJoin(
-      schema.Constituents,
-      eq(schema.RoleAssignments.constituentId, schema.Constituents.id),
+      schema.Users,
+      eq(schema.RoleAssignments.constituentId, schema.Users.constituentId),
     )
     .where(
       and(
         // Match the constituent linked to our user ID
-        eq(schema.Constituents.userId, userId),
+        eq(schema.Users.id, userId),
         // The role assignment must be currently active
         lte(schema.RoleAssignments.startedAt, new Date()),
         or(
@@ -98,13 +98,13 @@ export async function getUserMemberships(
     })
     .from(schema.Memberships)
     .innerJoin(
-      schema.Constituents,
-      eq(schema.Memberships.constituentId, schema.Constituents.id),
+      schema.Users,
+      eq(schema.Memberships.constituentId, schema.Users.constituentId),
     )
     .where(
       and(
         // Match the constituent linked to our user ID
-        eq(schema.Constituents.userId, userId),
+        eq(schema.Users.id, userId),
         // The membership must be currently active
         lte(schema.Memberships.startDate, new Date()),
         or(
@@ -136,7 +136,7 @@ export async function findUserByEmail(email: string) {
     .from(schema.Users)
     .leftJoin(
       schema.Constituents,
-      eq(schema.Users.id, schema.Constituents.userId),
+      eq(schema.Users.constituentId, schema.Constituents.id),
     )
     .where(eq(schema.Users.email, email));
 

@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import db from "@/configs/db";
 import schema from "@/db/schema";
 import { AppError } from "@/shared/types";
-import { AuthenticatedUser } from "@/shared/validators";
+import { AuthenticatedUser } from "@/shared/types";
 import { getUserMemberships, getUserRoles } from "./usersService";
 import { Users } from "@/db/schema/app";
 
@@ -33,7 +33,7 @@ export async function loginWithUsernameAndPassword(
     .from(schema.Users)
     .leftJoin(
       schema.Constituents,
-      eq(schema.Users.id, schema.Constituents.userId),
+      eq(schema.Users.constituentId, schema.Constituents.id),
     )
     .where(
       or(eq(schema.Users.username, username), eq(schema.Users.email, username)),
