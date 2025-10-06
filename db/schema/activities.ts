@@ -4,7 +4,7 @@ import { Chapters, Constituents } from "./core";
 import { ProjectStatus, EventStatus } from "./enums";
 import { unique } from "drizzle-orm/pg-core";
 
-const activities = pgSchema("activities");
+export const activities = pgSchema("activities");
 
 // === TABLES ===
 

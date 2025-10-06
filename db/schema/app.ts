@@ -13,7 +13,7 @@ import { InferSelectModel, relations } from "drizzle-orm";
 import { Constituents } from "./core";
 import { AnnouncementBroadCasts } from "./communications";
 
-const app = pgSchema("app");
+export const app = pgSchema("app");
 
 export const Users = app.table("users", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -30,8 +30,10 @@ export const Users = app.table("users", {
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
-  constituentId: uuid("constituent_id").unique().notNull()
-    .references(() => Constituents.id, { onDelete: 'cascade' }),
+  constituentId: uuid("constituent_id")
+    .unique()
+    .notNull()
+    .references(() => Constituents.id, { onDelete: "cascade" }),
 });
 
 export type User = Omit<InferSelectModel<typeof Users>, "password">;
@@ -55,15 +57,16 @@ export const Notifications = app.table(
       .references(() => Users.id, { onDelete: "cascade" }),
     title: text("title"),
     message: text("message"),
-    broadcastId: serial("broadcast_id")
-      .unique()
-      .references(() => AnnouncementBroadCasts.id, { onDelete: "cascade" }),
+    broadcastId: serial("broadcast_id").references(
+      () => AnnouncementBroadCasts.id,
+      { onDelete: "cascade" },
+    ),
     isRead: boolean("is_read").default(false).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
   },
-  (table) => [index().on(table.broadcastId)]
+  (table) => [index().on(table.broadcastId)],
 );
 
 // === RELATIONS ===
@@ -74,4 +77,3 @@ export const usersRelations = relations(Users, ({ one }) => ({
     references: [Constituents.id],
   }),
 }));
- 

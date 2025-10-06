@@ -11,7 +11,7 @@ import { Chapters, Committees, Constituents } from "./core";
 import { AttendanceStatus } from "./enums";
 import { unique } from "drizzle-orm/pg-core";
 
-const communications = pgSchema("communications");
+export const communications = pgSchema("communications");
 
 // === TABLES ===
 export const Announcements = communications.table("announcements", {
@@ -28,13 +28,22 @@ export const Announcements = communications.table("announcements", {
 
 // sparse table
 // at most one of chapterId and committeeId can be non-null
-export const AnnouncementBroadCasts = communications.table("announcement_broadcasts", {
-  id: serial().primaryKey(),
-  announcementId: uuid("id").notNull().references(() => Announcements.id, { onDelete: 'cascade' }),
-  chapterId: uuid("chapter_id").references(() => Chapters.id, { onDelete: 'cascade'}),
-  committeeId: uuid("committee_id").references(() => Committees.id, { onDelete: 'cascade' }),
-  isArchived: boolean("is_archived").notNull().default(false),
-});
+export const AnnouncementBroadCasts = communications.table(
+  "announcement_broadcasts",
+  {
+    id: serial().primaryKey(),
+    announcementId: uuid("announcement_id")
+      .notNull()
+      .references(() => Announcements.id, { onDelete: "cascade" }),
+    chapterId: uuid("chapter_id").references(() => Chapters.id, {
+      onDelete: "cascade",
+    }),
+    committeeId: uuid("committee_id").references(() => Committees.id, {
+      onDelete: "cascade",
+    }),
+    isArchived: boolean("is_archived").notNull().default(false),
+  },
+);
 
 export const Meetings = communications.table("meetings", {
   id: uuid("id").defaultRandom().primaryKey(),

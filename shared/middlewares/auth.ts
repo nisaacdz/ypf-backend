@@ -13,7 +13,7 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
 
   if (!token) {
     return next(
-      new AppError("You are not logged in. Please log in to get access.", 401)
+      new AppError("You are not logged in. Please log in to get access.", 401),
     );
   }
 
@@ -31,7 +31,7 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
 export const authorize = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   const user = req.User;
   if (!user) {
@@ -48,7 +48,9 @@ export const authorize = async (
       return next();
     }
 
-    return res.status(403).json({ success: false, message: "Permission denied!"})
+    return res
+      .status(403)
+      .json({ success: false, message: "Permission denied!" });
   } catch (error) {
     return next(error);
   }

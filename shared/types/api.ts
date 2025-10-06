@@ -15,14 +15,14 @@ export type ApiResponse<T> = {
 };
 
 export type InAppNotification = {
-    id: string;
-    title: string;
-    content: string;
-    isBroadCast: boolean;
-}
+  id: string;
+  title: string;
+  content: string;
+  isBroadCast: boolean;
+};
 
 export type Paginated<T> = {
-    data: T[];
-    page: number;
-    total: number;
-}
+  data: T[];
+  page: number;
+  total: number;
+};

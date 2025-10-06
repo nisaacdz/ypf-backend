@@ -12,9 +12,14 @@ import {
 import { relations } from "drizzle-orm";
 import { Chapters, Constituents, Organizations } from "./core";
 import { Events, Projects } from "./activities";
-import { PaymentMethod, TransactionStatus, MembershipType, PartnershipType } from "./enums";
+import {
+  PaymentMethod,
+  TransactionStatus,
+  MembershipType,
+  PartnershipType,
+} from "./enums";
 
-const finance = pgSchema("finance");
+export const finance = pgSchema("finance");
 
 // === TABLES ===
 
@@ -113,8 +118,12 @@ export const Partnerships = finance.table("partnerships", {
     .notNull()
     .references(() => Organizations.id, { onDelete: "restrict" }),
   partnershipType: PartnershipType("partnership_type").notNull(),
-  projectId: uuid("project_id").references(() => Projects.id, { onDelete: "set null" }),
-  eventId: uuid("event_id").references(() => Events.id, { onDelete: "set null" }),
+  projectId: uuid("project_id").references(() => Projects.id, {
+    onDelete: "set null",
+  }),
+  eventId: uuid("event_id").references(() => Events.id, {
+    onDelete: "set null",
+  }),
   startDate: date("start_date").notNull(),
   endDate: date("end_date"),
   value: decimal("value", { precision: 12, scale: 2 }), // monetary value if applicable
