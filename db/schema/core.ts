@@ -8,10 +8,9 @@ import {
   serial,
   date,
   unique,
-  uniqueIndex,
   integer,
 } from "drizzle-orm/pg-core";
-import { relations, sql } from "drizzle-orm";
+import { relations } from "drizzle-orm";
 import { MediaType, ContactType, MembershipType, Gender } from "./enums";
 
 export const core = pgSchema("core");
@@ -65,30 +64,22 @@ export const ContactInformations = core.table(
     value: text("value").notNull(),
     isPrimary: boolean("is_primary").default(false).notNull(),
   },
-  (table) => [unique().on(table.constituentId, table.contactType, table.value)],
+  (table) => [unique().on(table.constituentId, table.contactType, table.value)]
 );
 
-export const Memberships = core.table(
-  "memberships",
-  {
-    id: serial("id").primaryKey(),
-    constituentId: uuid("constituent_id")
-      .notNull()
-      .references(() => Constituents.id, { onDelete: "cascade" }),
-    // we'll ensure that only one of this membership type is `active` for the constituent at a time
-    type: MembershipType("type").notNull(),
-    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
-    endedAt: timestamp("ended_at", { withTimezone: true }),
-    assignerId: uuid("assigner_id").references(() => Constituents.id, {
-      onDelete: "set null",
-    }),
-  },
-  (table) => [
-    uniqueIndex()
-      .on(table.constituentId, table.type)
-      .where(sql`${table.endedAt} IS NULL OR ${table.endedAt} > now()`),
-  ],
-);
+export const Memberships = core.table("memberships", {
+  id: serial("id").primaryKey(),
+  constituentId: uuid("constituent_id")
+    .notNull()
+    .references(() => Constituents.id, { onDelete: "cascade" }),
+  // we'll ensure that only one of this membership type is `active` for the constituent at a time
+  type: MembershipType("type").notNull(),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+  endedAt: timestamp("ended_at", { withTimezone: true }),
+  assignerId: uuid("assigner_id").references(() => Constituents.id, {
+    onDelete: "set null",
+  }),
+});
 
 export const Chapters = core.table("chapters", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -116,7 +107,7 @@ export const ChapterMemberships = core.table(
     endedAt: timestamp("ended_at", { withTimezone: true }),
     isActive: boolean("is_active").default(true).notNull(),
   },
-  (table) => [unique().on(table.constituentId, table.chapterId)],
+  (table) => [unique().on(table.constituentId, table.chapterId)]
 );
 
 export const Committees = core.table("committees", {
@@ -142,7 +133,7 @@ export const CommitteeMemberships = core.table(
     endedAt: timestamp("ended_at", { withTimezone: true }),
     isActive: boolean("is_active").default(true).notNull(),
   },
-  (table) => [unique().on(table.constituentId, table.committeeId)],
+  (table) => [unique().on(table.constituentId, table.committeeId)]
 );
 
 export const Roles = core.table("roles", {
@@ -195,7 +186,7 @@ export const OrganizationContacts = core.table(
     title: text("title"), // their role at the org
     isPrimary: boolean("is_primary").default(false).notNull(),
   },
-  (table) => [unique().on(table.organizationId, table.constituentId)],
+  (table) => [unique().on(table.organizationId, table.constituentId)]
 );
 
 // === RELATIONS ===
@@ -220,7 +211,7 @@ export const constituentsRelations = relations(
     chapterMemberships: many(ChapterMemberships),
     committeeMemberships: many(CommitteeMemberships),
     roleAssignments: many(RoleAssignments),
-  }),
+  })
 );
 
 export const contactInformationsRelations = relations(
@@ -230,7 +221,7 @@ export const contactInformationsRelations = relations(
       fields: [ContactInformations.constituentId],
       references: [Constituents.id],
     }),
-  }),
+  })
 );
 
 export const membershipsRelations = relations(Memberships, ({ one }) => ({
@@ -266,7 +257,7 @@ export const chapterMembershipsRelations = relations(
       fields: [ChapterMemberships.chapterId],
       references: [Chapters.id],
     }),
-  }),
+  })
 );
 
 export const committeesRelations = relations(Committees, ({ many }) => ({
@@ -284,7 +275,7 @@ export const committeeMembershipsRelations = relations(
       fields: [CommitteeMemberships.committeeId],
       references: [Committees.id],
     }),
-  }),
+  })
 );
 
 export const rolesRelations = relations(Roles, ({ many }) => ({
@@ -310,5 +301,5 @@ export const roleAssignmentsRelations = relations(
       fields: [RoleAssignments.committeeId],
       references: [Committees.id],
     }),
-  }),
+  })
 );

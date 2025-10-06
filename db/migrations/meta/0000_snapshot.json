@@ -1,5 +1,5 @@
 {
-  "id": "de0c6996-0ade-4e1b-ba92-53ce43444f09",
+  "id": "58c0ae12-44c5-4228-abb0-9d4aef7e9ae7",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -870,30 +870,7 @@
           "notNull": false
         }
       },
-      "indexes": {
-        "memberships_constituent_id_type_index": {
-          "name": "memberships_constituent_id_type_index",
-          "columns": [
-            {
-              "expression": "constituent_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "type",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"core\".\"memberships\".\"ended_at\" IS NULL OR \"core\".\"memberships\".\"ended_at\" > now()",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "memberships_constituent_id_constituents_id_fk": {
           "name": "memberships_constituent_id_constituents_id_fk",

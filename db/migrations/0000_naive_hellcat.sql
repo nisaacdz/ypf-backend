@@ -410,5 +410,4 @@ ALTER TABLE "shop"."customers" ADD CONSTRAINT "customers_user_id_users_id_fk" FO
 ALTER TABLE "shop"."order_items" ADD CONSTRAINT "order_items_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "shop"."orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shop"."order_items" ADD CONSTRAINT "order_items_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "shop"."products"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shop"."orders" ADD CONSTRAINT "orders_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "shop"."customers"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "notifications_broadcast_id_index" ON "app"."notifications" USING btree ("broadcast_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "memberships_constituent_id_type_index" ON "core"."memberships" USING btree ("constituent_id","type") WHERE "core"."memberships"."ended_at" IS NULL OR "core"."memberships"."ended_at" > now();
+CREATE INDEX "notifications_broadcast_id_index" ON "app"."notifications" USING btree ("broadcast_id");
