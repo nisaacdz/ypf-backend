@@ -1,7 +1,7 @@
 {
-  "name": "ypf-core",
+  "name": "ypf-backend",
   "version": "1.0.0",
-  "description": "YPF App",
+  "description": "YPF Backend",
   "author": "",
   "license": "ISC",
   "main": "server.ts",
@@ -13,15 +13,19 @@
     "db:migrate": "ts-node -r tsconfig-paths/register ./scripts/migrate.ts",
     "db:studio": "drizzle-kit studio",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@google/generative-ai": "0.24.1",
     "bcryptjs": "3.0.2",
     "casbin": "^5.38.0",
+    "cookie-parser": "^1.4.7",
     "cors": "2.8.5",
     "dotenv": "17.2.2",
-    "drizzle-orm": "0.44.5",
+    "drizzle-orm": "^0.44.5",
     "express": "5.1.0",
     "helmet": "8.1.0",
     "jsonwebtoken": "^9.0.2",
@@ -34,21 +38,25 @@
     "zod": "4.1.8"
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.9",
     "@types/cors": "2.8.19",
-    "@types/express": "5.0.3",
+    "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/morgan": "1.9.10",
     "@types/node": "24.5.0",
     "@types/nodemailer": "7.0.1",
     "@types/pg": "8.15.5",
+    "@types/supertest": "^6.0.3",
     "drizzle-kit": "0.31.4",
     "eslint": "^9.36.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
+    "supertest": "^7.1.4",
     "ts-node": "10.9.2",
     "ts-node-dev": "2.0.0",
     "tsconfig-paths": "^4.2.0",
     "typescript": "5.9.2",
-    "typescript-eslint": "^8.44.0"
+    "typescript-eslint": "^8.44.0",
+    "vitest": "^3.2.4"
   }
 }
