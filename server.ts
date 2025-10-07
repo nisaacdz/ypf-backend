@@ -4,12 +4,14 @@ import { Server as SocketIOServer } from "socket.io";
 import morgan from "morgan";
 import helmet from "helmet";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 //import { initializeChat } from "@/features/chat/v1";
 import { errorHandler } from "@/shared/middlewares/errorHandler";
 import variables from "@/configs/env";
 import { filter } from "./shared/middlewares";
 import authorizer from "@/configs/authorizer";
 import emailer from "@/configs/emailer";
+import pgPool from "./configs/db";
 import apiRouter from "@/features/api/v1";
 
 const app: Express = express();
@@ -29,6 +31,7 @@ app.use((req, res, next) => {
 });
 app.use(morgan("dev"));
 app.use(express.json());
+app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api/v1", apiRouter);
@@ -54,7 +57,11 @@ app.use((req: Request, res: Response) => {
 });
 
 (async () => {
-  await Promise.all([emailer.initialize(), authorizer.initialize()]);
+  await Promise.all([
+    emailer.initialize(),
+    authorizer.initialize(),
+    pgPool.initialize(),
+  ]);
   // we'll add other async initializations here
 
   server.listen(variables.port, () => {

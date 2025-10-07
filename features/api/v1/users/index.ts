@@ -5,7 +5,7 @@ import { authenticate } from "@/shared/middlewares/auth";
 
 const usersRouter = Router();
 
-usersRouter.post(
+usersRouter.get(
   "/me",
   authenticate,
   async (req: Request, res: Response, next: NextFunction) => {

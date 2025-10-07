@@ -8,10 +8,10 @@ import {
   getTableColumns,
   sql,
 } from "drizzle-orm";
-import db from "@/configs/db";
+import pgPool from "@/configs/db";
 import schema from "@/db/schema";
 import { AppError } from "@/shared/types";
-import { User, Users } from "@/db/schema/app";
+import { Users } from "@/db/schema/app";
 import { MembershipType } from "@/db/schema/enums";
 
 const allColumns = getTableColumns(Users);
@@ -22,9 +22,12 @@ const columns = Object.fromEntries(
     .map((col) => [col, true]),
 ) as { [K in Exclude<keyof typeof allColumns, "password">]: true };
 
-export async function getUserById(userId: string): Promise<User> {
-  const user = await db.query.Users.findFirst({
+export async function getUserById(userId: string) {
+  const user = await pgPool.db.query.Users.findFirst({
     columns,
+    with: {
+      constituent: true,
+    },
     where: eq(schema.Users.id, userId),
   });
   if (!user) {
@@ -34,7 +37,7 @@ export async function getUserById(userId: string): Promise<User> {
 }
 
 /**
- * Fetches the current, active roles for a given user.
+ * Fetches the current, active roles for a given constituent.
  * A role is considered active if its start date is in the past and its
  * end date is either null or in the future.
  *
@@ -43,11 +46,11 @@ export async function getUserById(userId: string): Promise<User> {
  * - 'committee_{id}' if linked to a committee.
  * - '*' for a global role.
  *
- * @param userId The ID of the user from the `users` table.
- * @returns A promise that resolves to an array of role objects.
+ * @param constituentId The ID of the constituent from the `constituents` table.
+ * @returns A promise that resolves to an array of role objects (may be empty).
  */
-export async function getUserRoles(userId: string) {
-  const roleRecords = await db
+export async function getConstituentRoles(constituentId: string) {
+  const roleRecords = await pgPool.db
     .select({
       name: schema.Roles.name,
       // Dynamically create the 'scope' string based on the assignment context
@@ -61,14 +64,10 @@ export async function getUserRoles(userId: string) {
     })
     .from(schema.RoleAssignments)
     .innerJoin(schema.Roles, eq(schema.RoleAssignments.roleId, schema.Roles.id))
-    .innerJoin(
-      schema.Users,
-      eq(schema.RoleAssignments.constituentId, schema.Users.constituentId),
-    )
     .where(
       and(
-        // Match the constituent linked to our user ID
-        eq(schema.Users.id, userId),
+        // Match the constituent ID
+        eq(schema.RoleAssignments.constituentId, constituentId),
         // The role assignment must be currently active
         lte(schema.RoleAssignments.startedAt, new Date()),
         or(
@@ -82,34 +81,30 @@ export async function getUserRoles(userId: string) {
 }
 
 /**
- * Fetches the current, active memberships for a given user.
+ * Fetches the current, active memberships for a given constituent.
  * A membership is considered active if its start date is in the past and its
  * end date is either null or in the future.
  *
- * @param userId The ID of the user from the `users` table.
- * @returns A promise that resolves to an array of MembershipType enum values.
+ * @param constituentId The ID of the constituent from the `constituents` table.
+ * @returns A promise that resolves to an array of MembershipType enum values (may be empty).
  */
-export async function getUserMemberships(
-  userId: string,
+export async function getConstituentMemberships(
+  constituentId: string,
 ): Promise<(typeof MembershipType.enumValues)[number][]> {
-  const membershipRecords = await db
+  const membershipRecords = await pgPool.db
     .select({
       type: schema.Memberships.type,
     })
     .from(schema.Memberships)
-    .innerJoin(
-      schema.Users,
-      eq(schema.Memberships.constituentId, schema.Users.constituentId),
-    )
     .where(
       and(
-        // Match the constituent linked to our user ID
-        eq(schema.Users.id, userId),
+        // Match the constituent ID
+        eq(schema.Memberships.constituentId, constituentId),
         // The membership must be currently active
-        lte(schema.Memberships.startDate, new Date()),
+        lte(schema.Memberships.startedAt, new Date()),
         or(
-          isNull(schema.Memberships.endDate),
-          gte(schema.Memberships.endDate, new Date()),
+          isNull(schema.Memberships.endedAt),
+          gte(schema.Memberships.endedAt, new Date()),
         ),
       ),
     );
@@ -124,7 +119,7 @@ export async function getUserMemberships(
  * @returns A promise that resolves to the user object (with constituent data) or undefined if not found.
  */
 export async function findUserByEmail(email: string) {
-  const [user] = await db
+  const [user] = await pgPool.db
     .select({
       id: schema.Users.id,
       email: schema.Users.email,

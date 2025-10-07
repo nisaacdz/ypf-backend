@@ -3,7 +3,6 @@ import { Router } from "express";
 import * as authHandler from "./authHandler";
 import { validateBody } from "@/shared/middlewares/validate";
 import { UsernameAndPasswordSchema } from "@/shared/validators";
-import variables from "@/configs/env";
 
 const authRouter = Router();
 
@@ -16,8 +15,8 @@ authRouter.post(
         await authHandler.loginWithUsernameAndPassword(req.Body);
       res.cookie("auth_token", token, {
         httpOnly: true,
-        secure: variables.isProduction,
-        sameSite: "lax",
+        secure: true,
+        sameSite: "none",
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         path: "/",
       });

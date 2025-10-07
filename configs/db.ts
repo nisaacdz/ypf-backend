@@ -1,11 +1,34 @@
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
+import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import postgres, { type Sql } from "postgres";
 import variables from "./env";
 import schema from "@/db/schema";
 
-const connectionString = variables.databaseUrl;
-const client = postgres(connectionString);
+type Schema = typeof schema;
 
-const db = drizzle(client, { schema });
+class PgPool {
+  private pool: PostgresJsDatabase<Schema> | null = null;
 
-export default db;
+  initialize(client?: Sql) {
+    if (this.pool) return;
+    this.pool = drizzle(client ? client : postgres(variables.databaseUrl), {
+      schema,
+    });
+
+    return this.pool;
+  }
+
+  reset() {
+    this.pool = null;
+  }
+
+  get db() {
+    if (!this.pool) {
+      throw new Error("Database not initialized. Call initialize() first.");
+    }
+    return this.pool;
+  }
+}
+
+const pgPool = new PgPool();
+
+export default pgPool;

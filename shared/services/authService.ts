@@ -1,10 +1,10 @@
 import { eq, or } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import db from "@/configs/db";
+import pgPool from "@/configs/db";
 import schema from "@/db/schema";
 import { AppError } from "@/shared/types";
 import { AuthenticatedUser } from "@/shared/types";
-import { getUserMemberships, getUserRoles } from "./usersService";
+import { getConstituentMemberships, getConstituentRoles } from "./usersService";
 import { Users } from "@/db/schema/app";
 
 /**
@@ -20,7 +20,7 @@ export async function loginWithUsernameAndPassword(
   username: string,
   password: string,
 ): Promise<AuthenticatedUser> {
-  const [user] = await db
+  const [user] = await pgPool.db
     .select({
       id: schema.Users.id,
       constituentId: schema.Constituents.id,
@@ -48,10 +48,12 @@ export async function loginWithUsernameAndPassword(
     throw new AppError("Invalid username or password", 401);
   }
 
-  const [roles, memberships] = await Promise.all([
-    getUserRoles(user.id),
-    getUserMemberships(user.id),
-  ]);
+  const [roles, memberships] = user.constituentId
+    ? await Promise.all([
+        getConstituentRoles(user.constituentId),
+        getConstituentMemberships(user.constituentId),
+      ])
+    : [[], []];
 
   const fullName =
     user.firstName && user.lastName
@@ -80,7 +82,7 @@ export async function linkGoogleIdToUser(
   userId: string,
   googleId: string,
 ): Promise<void> {
-  await db
+  await pgPool.db
     .update(Users)
     .set({ googleId: googleId })
     .where(eq(Users.id, userId));
