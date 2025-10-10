@@ -1,8 +1,8 @@
-import { MembershipType, MediaType } from "@/shared/dtos";
+import { MembershipType, MediumType } from "@/shared/dtos";
 
-export type Media = {
+export type Medium = {
   url: string; // sdk-generated url
-  type: MediaType;
+  type: MediumType;
   dimensions: {
     width: number;
     height: number;
@@ -22,14 +22,13 @@ export type Member = {
 };
 
 export type MemberDetail = {
-  id: string; // constituent ID
+  id: string;
   firstName: string;
-  middleName?: string;
   lastName: string;
   salutation?: string;
-  photo?: Media;
+  profilePhoto?: Medium;
   contactInfo: {
-    type: "email" | "phone";
+    type: "EMAIL" | "PHONE" | "WHATSAPP"; // CORRECTED: Added WHATSAPP to match schema enum
     value: string;
     isPrimary: boolean;
   }[];
@@ -66,26 +65,25 @@ export type Chapter = {
 export type ChapterDetail = {
   id: string;
   name: string;
-  city: string;
   country: string;
-  featuredPhoto: Media;
-  description: string | null;
+  featuredMedia?: {
+    caption?: string;
+    medium: Medium;
+  }[];
+  description?: string;
   foundingDate: string;
   isActive: boolean;
-  parentChapter: {
+  parentChapter?: {
     id: string;
     name: string;
-  } | null;
+  };
 };
 
 export type Committee = {
   id: string;
   name: string;
   featuredPhotoUrl?: string;
-  chapter?: {
-    id: string;
-    name: string;
-  };
+  chapterName?: string;
   memberCount: number;
 };
 
@@ -93,12 +91,14 @@ export type CommitteeDetail = {
   id: string;
   name: string;
   description?: string;
-  featuredPhoto?: Media;
+  featuredMedia?: {
+    caption?: string;
+    medium: Medium;
+  }[];
   chapter: {
     id: string;
     name: string;
-  } | null;
-  //duties: string[] | null;
+  };
   isActive: boolean;
   createdAt: string;
 };
@@ -111,10 +111,7 @@ export type Project = {
   endDate: string;
   locationInfo: string;
   featuredPhotoUrl?: string;
-  chapter?: {
-    id: string;
-    name: string;
-  } | null;
+  chapterName?: string;
 };
 
 export type ProjectDetail = {
@@ -126,9 +123,9 @@ export type ProjectDetail = {
   startedAt: string;
   endedAt: string;
   locationInfo: string;
-  featuredPhotos: Media[]; // limited to 5
+  featuredPhotos: Medium[]; // limited to 5
   chapter: {
     id: string;
     name: string;
-  } | null;
+  };
 };

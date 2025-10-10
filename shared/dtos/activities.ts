@@ -1,59 +1,64 @@
-import { Media } from "./core";
+import { Medium } from "./core";
 import { EventStatus, ProjectStatus } from ".";
 
 export type Project = {
   id: string;
   title: string;
-  abstract: string;
-  startedAt: string;
-  endedAt?: string;
+  abstract?: string;
+  scheduledStart: string;
+  scheduledEnd: string;
   status: ProjectStatus;
-  featuredPhotoUrl?: string; // findOne 1
+  featuredPhotoUrl?: string;
+  chapterName?: string;
 };
 
 export type ProjectDetail = {
   id: string;
   title: string;
-  abstract: string;
-  objective: string | null;
-  startedAt: string;
-  endedAt?: string;
+  abstract?: string;
+  description?: string;
+  scheduledStart: string;
+  scheduledEnd: string;
   status: ProjectStatus;
-  budget: string | null;
-  featuredPhotos: {
-    id: string;
-    caption: string;
-    media: Media;
-  }[]; // limited to 5
-  chapter: {
-    id: string;
+  featuredMedia?: {
+    caption?: string;
+    medium: Medium;
+  }[];
+  chapter?: {
+    id:string;
     name: string;
-  } | null;
+  };
 };
 
 export type Event = {
   id: string;
-  eventName: string;
-  eventDate: string;
-  eventLocation: string | null;
+  name: string;
+  scheduledStart: string;
+  scheduledEnd: string;
+
+  location?: string;
   status: EventStatus;
   project?: {
     id: string;
-    name: string;
+    title: string;
   };
 };
 
 export type EventDetail = {
   id: string;
-  eventName: string;
-  eventDate: string;
-  location: string | null;
-  objectives: string | null; // markdown style?
+  name: string;
+  scheduledStart: string;
+  scheduledEnd: string;
+  location?: string;
+  objective?: string;
   status: EventStatus;
-  project: {
+  project?: {
     id: string;
-    name: string;
-  } | null;
+    title: string;
+  };
   participantCount: number;
-  featuredPhotos: Media[]; // limited to 5
+  featuredMedia?: {
+    caption?: string;
+    medium: Medium;
+  }[];
 };
