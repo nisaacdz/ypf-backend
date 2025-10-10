@@ -10,7 +10,7 @@ import {
   index,
   unique,
 } from "drizzle-orm/pg-core";
-import { InferSelectModel, relations } from "drizzle-orm";
+import { relations } from "drizzle-orm";
 import { Constituents } from "./core";
 import { AnnouncementBroadCasts } from "./communications";
 import { NotificationType } from "./enums";
@@ -18,10 +18,10 @@ import { NotificationType } from "./enums";
 export const app = pgSchema("app");
 
 export const Users = app.table("users", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  email: varchar("email", { length: 255 }).notNull().unique(),
-  password: text("password"),
-  username: text("username").unique(), // Initially set to Constituent.email
+  id: uuid().defaultRandom().primaryKey(),
+  email: varchar({ length: 255 }).notNull().unique(),
+  password: text(),
+  username: text().unique(), // Initially set to Constituent.email
   avatarUrl: text("avatar_url"),
   googleId: text("google_id").unique(),
   appleId: text("apple_id").unique(),
@@ -38,13 +38,11 @@ export const Users = app.table("users", {
     .references(() => Constituents.id, { onDelete: "cascade" }),
 });
 
-export type User = Omit<InferSelectModel<typeof Users>, "password">;
-
 export const Otps = app.table("otps", {
-  id: serial("id").primaryKey(),
-  email: varchar("email", { length: 255 }).notNull(),
-  code: text("code").notNull(),
-  payload: jsonb("payload"),
+  id: serial().primaryKey(),
+  email: varchar({ length: 255 }).notNull(),
+  code: text().notNull(),
+  payload: jsonb(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   usedAt: timestamp("used_at", { withTimezone: true }),
 });
@@ -52,13 +50,13 @@ export const Otps = app.table("otps", {
 export const Notifications = app.table(
   "notifications",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
+    id: uuid().defaultRandom().primaryKey(),
     userId: uuid("user_id")
       .notNull()
       .references(() => Users.id, { onDelete: "cascade" }),
-    type: NotificationType("type").notNull(),
-    title: text("title"),
-    message: text("message"),
+    type: NotificationType().notNull(),
+    title: text(),
+    message: text(),
     broadcastId: serial("broadcast_id").references(
       () => AnnouncementBroadCasts.id,
       { onDelete: "cascade" }

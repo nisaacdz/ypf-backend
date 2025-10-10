@@ -11,16 +11,16 @@ import {
   integer,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { MediaType, ContactType, MembershipType, Gender } from "./enums";
+import { MediumType, ContactType, MembershipType, Gender } from "./enums";
 
 export const core = pgSchema("core");
 
 // === TABLES ===
 
-export const Media = core.table("media", {
+export const Medium = core.table("media", {
   id: uuid("id").defaultRandom().primaryKey(),
   externalId: text("external_id").notNull().unique(),
-  mediaType: MediaType("media_type").notNull(),
+  mediaType: MediumType("media_type").notNull(),
   createdBy: uuid("created_by"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
@@ -35,7 +35,7 @@ export const Constituents = core.table("constituents", {
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   preferredName: text("preferred_name"),
-  profilePhotoId: uuid("profile_photo_id").references(() => Media.id, {
+  profilePhotoId: uuid("profile_photo_id").references(() => Medium.id, {
     onDelete: "set null",
   }),
   salutation: text("salutation"),
@@ -64,7 +64,7 @@ export const ContactInformations = core.table(
     value: text("value").notNull(),
     isPrimary: boolean("is_primary").default(false).notNull(),
   },
-  (table) => [unique().on(table.constituentId, table.contactType, table.value)],
+  (table) => [unique().on(table.constituentId, table.contactType, table.value)]
 );
 
 export const Memberships = core.table("memberships", {
@@ -107,7 +107,7 @@ export const ChapterMemberships = core.table(
     endedAt: timestamp("ended_at", { withTimezone: true }),
     isActive: boolean("is_active").default(true).notNull(),
   },
-  (table) => [unique().on(table.constituentId, table.chapterId)],
+  (table) => [unique().on(table.constituentId, table.chapterId)]
 );
 
 export const Committees = core.table("committees", {
@@ -133,7 +133,7 @@ export const CommitteeMemberships = core.table(
     endedAt: timestamp("ended_at", { withTimezone: true }),
     isActive: boolean("is_active").default(true).notNull(),
   },
-  (table) => [unique().on(table.constituentId, table.committeeId)],
+  (table) => [unique().on(table.constituentId, table.committeeId)]
 );
 
 export const Roles = core.table("roles", {
@@ -186,34 +186,38 @@ export const OrganizationContacts = core.table(
     title: text("title"), // their role at the org
     isPrimary: boolean("is_primary").default(false).notNull(),
   },
-  (table) => [unique().on(table.organizationId, table.constituentId)],
+  (table) => [unique().on(table.organizationId, table.constituentId)]
 );
 
-export const ChapterMedia = core.table(
-  "chapter_media",
-  {
-    id: serial().primaryKey(),
-    chapterId: uuid("chapter_id").references(() => Chapters.id, { onDelete: 'cascade'}),
-    mediaId: uuid("media_id").references(() => Media.id, { onDelete: 'cascade' }),
-    isFeatured: boolean("is_featured").notNull().default(false),
-  }
-);
+export const ChapterMedia = core.table("chapter_media", {
+  id: serial().primaryKey(),
+  chapterId: uuid("chapter_id").references(() => Chapters.id, {
+    onDelete: "cascade",
+  }),
+  mediumId: uuid("medium_id").references(() => Medium.id, {
+    onDelete: "cascade",
+  }),
+  caption: text(),
+  isFeatured: boolean("is_featured").notNull().default(false),
+});
 
-export const CommitteeMedia = core.table(
-  "committee_media",
-  {
-    id: serial().primaryKey(),
-    committeeId: uuid("committee_id").references(() => Committees.id, { onDelete: 'cascade'}),
-    mediaId: uuid("media_id").references(() => Media.id, { onDelete: 'cascade' }),
-    isFeatured: boolean("is_featured").notNull().default(false),
-  }
-);
+export const CommitteeMedia = core.table("committee_media", {
+  id: serial().primaryKey(),
+  committeeId: uuid("committee_id").references(() => Committees.id, {
+    onDelete: "cascade",
+  }),
+  mediumId: uuid("medium_id").references(() => Medium.id, {
+    onDelete: "cascade",
+  }),
+  caption: text(),
+  isFeatured: boolean("is_featured").notNull().default(false),
+});
 
 // === RELATIONS ===
 
-export const mediaRelations = relations(Media, ({ one }) => ({
+export const mediaRelations = relations(Medium, ({ one }) => ({
   creator: one(Constituents, {
-    fields: [Media.createdBy],
+    fields: [Medium.createdBy],
     references: [Constituents.id],
     relationName: "mediaCreator",
   }),
@@ -222,16 +226,16 @@ export const mediaRelations = relations(Media, ({ one }) => ({
 export const constituentsRelations = relations(
   Constituents,
   ({ one, many }) => ({
-    profilePhoto: one(Media, {
+    profilePhoto: one(Medium, {
       fields: [Constituents.profilePhotoId],
-      references: [Media.id],
+      references: [Medium.id],
     }),
     contactInfo: many(ContactInformations),
     memberships: many(Memberships),
     chapterMemberships: many(ChapterMemberships),
     committeeMemberships: many(CommitteeMemberships),
     roleAssignments: many(RoleAssignments),
-  }),
+  })
 );
 
 export const contactInformationsRelations = relations(
@@ -241,7 +245,7 @@ export const contactInformationsRelations = relations(
       fields: [ContactInformations.constituentId],
       references: [Constituents.id],
     }),
-  }),
+  })
 );
 
 export const membershipsRelations = relations(Memberships, ({ one }) => ({
@@ -277,7 +281,7 @@ export const chapterMembershipsRelations = relations(
       fields: [ChapterMemberships.chapterId],
       references: [Chapters.id],
     }),
-  }),
+  })
 );
 
 export const committeesRelations = relations(Committees, ({ many }) => ({
@@ -295,7 +299,7 @@ export const committeeMembershipsRelations = relations(
       fields: [CommitteeMemberships.committeeId],
       references: [Committees.id],
     }),
-  }),
+  })
 );
 
 export const rolesRelations = relations(Roles, ({ many }) => ({
@@ -321,5 +325,5 @@ export const roleAssignmentsRelations = relations(
       fields: [RoleAssignments.committeeId],
       references: [Committees.id],
     }),
-  }),
+  })
 );
