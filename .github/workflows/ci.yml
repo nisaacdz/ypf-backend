@@ -1,0 +1,48 @@
+name: Build, Migrate & Test
+
+on:
+  push:
+    branches:
+      - prod
+  pull_request:
+    branches:
+      - main
+      - prod
+
+jobs:
+  build-migrate-test:
+    runs-on: ubuntu-latest
+
+    env:
+      NODE_ENV: test
+      
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      SMTP_HOST: ${{ secrets.SMTP_HOST }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
+      EMAILER: ${{ secrets.EMAILER }}
+      ALLOWED_ORIGINS: ${{ secrets.ALLOWED_ORIGINS }}
+      LOGO_URL: ${{ secrets.LOGO_URL }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run database migrations
+        run: npm run script --migrate
+
+      - name: Build project
+        run: npm run build
+
+      - name: Run tests
+        run: npm run test
