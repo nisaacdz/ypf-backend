@@ -1,6 +1,6 @@
-import { pgSchema, uuid, text, timestamp, decimal } from "drizzle-orm/pg-core";
+import { boolean, pgSchema, uuid, text, timestamp, decimal, serial } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { Chapters, Constituents } from "./core";
+import { Chapters, Constituents, Media } from "./core";
 import { ProjectStatus, EventStatus } from "./enums";
 import { unique } from "drizzle-orm/pg-core";
 
@@ -13,12 +13,13 @@ export const Projects = activities.table("projects", {
   chapterId: uuid("chapter_id").references(() => Chapters.id, {
     onDelete: "set null",
   }),
-  projectName: text("project_name").notNull(),
-  projectObjective: text("project_objective"),
+  title: text("title").notNull(),
+  abstract: text("abstract").notNull(),
+  objective: text("objective"),
   startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
   endedAt: timestamp("ended_at", { withTimezone: true }),
   budget: decimal("budget", { precision: 12, scale: 2 }),
-  status: ProjectStatus("status").default("PLANNING").notNull(),
+  status: ProjectStatus("status").default("UPCOMING").notNull(),
 });
 
 export const Events = activities.table("events", {
@@ -26,14 +27,12 @@ export const Events = activities.table("events", {
   projectId: uuid("project_id").references(() => Projects.id, {
     onDelete: "set null",
   }),
-  eventName: text("event_name").notNull(),
-  eventDate: timestamp("event_date", { withTimezone: true }).notNull(),
-  eventLocation: text("event_location"),
-  eventObjectives: text("event_objectives"),
+  name: text("event_name").notNull(),
+  date: timestamp("event_date", { withTimezone: true }).notNull(),
+  location: text("event_location"),
+  objectives: text("event_objectives"),
   status: EventStatus("status").default("UPCOMING").notNull(),
 });
-
-export type Event = typeof Events.$inferSelect;
 
 export const EventParticipations = activities.table(
   "event_participations",
@@ -49,6 +48,26 @@ export const EventParticipations = activities.table(
     roleDuringEvent: text("role_during_event"),
   },
   (table) => [unique().on(table.constituentId, table.eventId)],
+);
+
+export const ProjectMedia = activities.table(
+  "project_media",
+  {
+    id: serial().primaryKey(),
+    projectId: uuid("project_id").references(() => Projects.id, { onDelete: 'cascade'}),
+    mediaId: uuid("media_id").references(() => Media.id, { onDelete: 'cascade' }),
+    isFeatured: boolean("is_featured").notNull().default(false),
+  }
+);
+
+export const EventMedia = activities.table(
+  "event_media",
+  {
+    id: serial().primaryKey(),
+    eventId: uuid("event_id").references(() => Events.id, { onDelete: 'cascade'}),
+    mediaId: uuid("media_id").references(() => Media.id, { onDelete: 'cascade' }),
+    isFeatured: boolean("is_featured").notNull().default(false),
+  }
 );
 
 // === RELATIONS ===

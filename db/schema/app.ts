@@ -8,10 +8,12 @@ import {
   jsonb,
   boolean,
   index,
+  unique,
 } from "drizzle-orm/pg-core";
 import { InferSelectModel, relations } from "drizzle-orm";
 import { Constituents } from "./core";
 import { AnnouncementBroadCasts } from "./communications";
+import { NotificationType } from "./enums";
 
 export const app = pgSchema("app");
 
@@ -44,10 +46,9 @@ export const Otps = app.table("otps", {
   code: text("code").notNull(),
   payload: jsonb("payload"),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-  isUsed: boolean("is_used").default(false).notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
 });
 
-// We m Ensure that message and broadcastId are not simultaneously null
 export const Notifications = app.table(
   "notifications",
   {
@@ -55,18 +56,22 @@ export const Notifications = app.table(
     userId: uuid("user_id")
       .notNull()
       .references(() => Users.id, { onDelete: "cascade" }),
+    type: NotificationType("type").notNull(),
     title: text("title"),
     message: text("message"),
     broadcastId: serial("broadcast_id").references(
       () => AnnouncementBroadCasts.id,
-      { onDelete: "cascade" },
+      { onDelete: "cascade" }
     ),
     isRead: boolean("is_read").default(false).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
   },
-  (table) => [index().on(table.broadcastId)],
+  (table) => [
+    index().on(table.broadcastId),
+    unique().on(table.userId, table.broadcastId),
+  ]
 );
 
 // === RELATIONS ===

@@ -13,10 +13,9 @@ export const ContactType = pgEnum("contact_type", [
   "WHATSAPP",
 ]);
 export const ProjectStatus = pgEnum("project_status", [
-  "PLANNING",
+  "UPCOMING",
   "IN_PROGRESS",
   "COMPLETED",
-  "ON_HOLD",
   "CANCELLED",
 ]);
 export const EventStatus = pgEnum("event_status", [
@@ -50,4 +49,10 @@ export const PartnershipType = pgEnum("partnership_type", [
   "TECHNICAL",
   "VENUE",
   "OTHER",
+]);
+export const NotificationType = pgEnum("notification_type", [
+  "OTHER",
+  "MEETING_INVITE",
+  "DONATION_RECEIPT",
+  "ANNOUNCEMENT",
 ]);

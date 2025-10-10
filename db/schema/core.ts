@@ -17,9 +17,9 @@ export const core = pgSchema("core");
 
 // === TABLES ===
 
-export const Medias = core.table("media", {
+export const Media = core.table("media", {
   id: uuid("id").defaultRandom().primaryKey(),
-  url: text("url").notNull(),
+  externalId: text("external_id").notNull().unique(),
   mediaType: MediaType("media_type").notNull(),
   createdBy: uuid("created_by"),
   createdAt: timestamp("created_at", { withTimezone: true })
@@ -35,7 +35,7 @@ export const Constituents = core.table("constituents", {
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   preferredName: text("preferred_name"),
-  profilePhotoId: uuid("profile_photo_id").references(() => Medias.id, {
+  profilePhotoId: uuid("profile_photo_id").references(() => Media.id, {
     onDelete: "set null",
   }),
   salutation: text("salutation"),
@@ -189,11 +189,31 @@ export const OrganizationContacts = core.table(
   (table) => [unique().on(table.organizationId, table.constituentId)],
 );
 
+export const ChapterMedia = core.table(
+  "chapter_media",
+  {
+    id: serial().primaryKey(),
+    chapterId: uuid("chapter_id").references(() => Chapters.id, { onDelete: 'cascade'}),
+    mediaId: uuid("media_id").references(() => Media.id, { onDelete: 'cascade' }),
+    isFeatured: boolean("is_featured").notNull().default(false),
+  }
+);
+
+export const CommitteeMedia = core.table(
+  "committee_media",
+  {
+    id: serial().primaryKey(),
+    committeeId: uuid("committee_id").references(() => Committees.id, { onDelete: 'cascade'}),
+    mediaId: uuid("media_id").references(() => Media.id, { onDelete: 'cascade' }),
+    isFeatured: boolean("is_featured").notNull().default(false),
+  }
+);
+
 // === RELATIONS ===
 
-export const mediasRelations = relations(Medias, ({ one }) => ({
+export const mediaRelations = relations(Media, ({ one }) => ({
   creator: one(Constituents, {
-    fields: [Medias.createdBy],
+    fields: [Media.createdBy],
     references: [Constituents.id],
     relationName: "mediaCreator",
   }),
@@ -202,9 +222,9 @@ export const mediasRelations = relations(Medias, ({ one }) => ({
 export const constituentsRelations = relations(
   Constituents,
   ({ one, many }) => ({
-    profilePhoto: one(Medias, {
+    profilePhoto: one(Media, {
       fields: [Constituents.profilePhotoId],
-      references: [Medias.id],
+      references: [Media.id],
     }),
     contactInfo: many(ContactInformations),
     memberships: many(Memberships),
