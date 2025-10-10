@@ -16,11 +16,26 @@ import { MembershipType } from "@/db/schema/enums";
 
 const allColumns = getTableColumns(Users);
 
+const excludedColumns = [
+  "password",
+  "googleId",
+  "appleId",
+  "facebookId",
+] as const;
+
 const columns = Object.fromEntries(
   Object.keys(allColumns)
-    .filter((col) => col !== "password")
-    .map((col) => [col, true]),
-) as { [K in Exclude<keyof typeof allColumns, "password">]: true };
+    .filter(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (col) => !excludedColumns.includes(col as any)
+    )
+    .map((col) => [col, true])
+) as {
+  [K in Exclude<
+    keyof typeof allColumns,
+    (typeof excludedColumns)[number]
+  >]: true;
+};
 
 export async function getUserById(userId: string) {
   const user = await pgPool.db.query.Users.findFirst({
@@ -72,9 +87,9 @@ export async function getConstituentRoles(constituentId: string) {
         lte(schema.RoleAssignments.startedAt, new Date()),
         or(
           isNull(schema.RoleAssignments.endedAt),
-          gte(schema.RoleAssignments.endedAt, new Date()),
-        ),
-      ),
+          gte(schema.RoleAssignments.endedAt, new Date())
+        )
+      )
     );
 
   return roleRecords;
@@ -89,7 +104,7 @@ export async function getConstituentRoles(constituentId: string) {
  * @returns A promise that resolves to an array of MembershipType enum values (may be empty).
  */
 export async function getConstituentMemberships(
-  constituentId: string,
+  constituentId: string
 ): Promise<(typeof MembershipType.enumValues)[number][]> {
   const membershipRecords = await pgPool.db
     .select({
@@ -104,9 +119,9 @@ export async function getConstituentMemberships(
         lte(schema.Memberships.startedAt, new Date()),
         or(
           isNull(schema.Memberships.endedAt),
-          gte(schema.Memberships.endedAt, new Date()),
-        ),
-      ),
+          gte(schema.Memberships.endedAt, new Date())
+        )
+      )
     );
 
   return membershipRecords.map((membership) => membership.type);
@@ -131,7 +146,7 @@ export async function findUserByEmail(email: string) {
     .from(schema.Users)
     .leftJoin(
       schema.Constituents,
-      eq(schema.Users.constituentId, schema.Constituents.id),
+      eq(schema.Users.constituentId, schema.Constituents.id)
     )
     .where(eq(schema.Users.email, email));
 

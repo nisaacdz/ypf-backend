@@ -11,6 +11,7 @@ export function validateBody<T>(schema: z.ZodType<T>) {
     }
 
     req.Body = result.data;
+    req.body = result.data as any; // to be deprecated
 
     return next();
   };
@@ -25,6 +26,22 @@ export function validateQuery<T>(schema: z.ZodType<T>) {
     }
 
     req.Query = result.data;
+    req.query = result.data as any; // to be deprecated
+
+    return next();
+  };
+}
+
+export function validateParams<T>(schema: z.ZodType<T>) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const result = schema.safeParse(req.params);
+
+    if (!result.success) {
+      return next(new AppError(result.error.message, 400));
+    }
+
+    req.Params = result.data;
+    req.params = result.data as any; // to be deprecated
 
     return next();
   };

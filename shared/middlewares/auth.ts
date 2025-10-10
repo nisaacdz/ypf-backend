@@ -33,11 +33,7 @@ export const authorize = async (
   res: Response,
   next: NextFunction,
 ) => {
-  const user = req.User;
-  if (!user) {
-    return next(new AppError("Authentication required.", 401));
-  }
-
+  const user = req.User || null;
   const resource = req.path.match(/^\/api(?:\/v\d+)?(\/.*)?$/)?.[1] ?? "/";
   const action = req.method;
 
@@ -55,3 +51,23 @@ export const authorize = async (
     return next(error);
   }
 };
+
+export const authenticateLax = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const token = req.cookies.auth_token;
+
+  if (!token) {
+    return next();
+  }
+
+  const decodedUser = decodeData(token, AuthenticatedUserSchema);
+
+  if (decodedUser) {
+    req.User = decodedUser;
+  }
+
+  next();
+}

@@ -3,6 +3,7 @@ import { migrate } from "drizzle-orm/postgres-js/migrator";
 
 async function runMigrations() {
   console.log("Starting migrations...");
+  pgPool.initialize();
   try {
     await migrate(pgPool.db, { migrationsFolder: "./db/migrations" });
     console.log("Migrations applied successfully!");

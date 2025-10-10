@@ -89,7 +89,7 @@ class Authorizer {
   }
 
   public async enforce(
-    user: AuthenticatedUser,
+    user: AuthenticatedUser | null,
     resource: string,
     action: string,
   ): Promise<boolean> {
