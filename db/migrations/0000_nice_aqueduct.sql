@@ -206,13 +206,13 @@ CREATE TABLE "activities"."event_media" (
 --> statement-breakpoint
 CREATE TABLE "activities"."events" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"project_id" uuid,
 	"name" text NOT NULL,
-	"startedAt" timestamp with time zone NOT NULL,
-	"endedAt" timestamp with time zone NOT NULL,
+	"scheduled_start" timestamp with time zone NOT NULL,
+	"scheduled_end" timestamp with time zone NOT NULL,
 	"location" text,
 	"objective" text,
-	"status" "event_status" DEFAULT 'UPCOMING' NOT NULL
+	"status" "event_status" DEFAULT 'UPCOMING' NOT NULL,
+	"project_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "activities"."project_media" (
@@ -225,13 +225,13 @@ CREATE TABLE "activities"."project_media" (
 --> statement-breakpoint
 CREATE TABLE "activities"."projects" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"chapter_id" uuid,
 	"title" text NOT NULL,
 	"abstract" text,
 	"description" text,
-	"started_at" timestamp with time zone NOT NULL,
-	"ended_at" timestamp with time zone,
-	"status" "project_status" DEFAULT 'UPCOMING' NOT NULL
+	"scheduled_start" timestamp with time zone NOT NULL,
+	"scheduled_end" timestamp with time zone NOT NULL,
+	"status" "project_status" DEFAULT 'UPCOMING' NOT NULL,
+	"chapter_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "finance"."donations" (
@@ -345,7 +345,7 @@ CREATE TABLE "shop"."products" (
 	"sku" text NOT NULL,
 	"description" text,
 	"price" numeric(10, 2) NOT NULL,
-	"stock_quantity" integer DEFAULT 0 NOT NULL,
+	"stock_quantity" integer DEFAULT 1 NOT NULL,
 	"image_url" text,
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,

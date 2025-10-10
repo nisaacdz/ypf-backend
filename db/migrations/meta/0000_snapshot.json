@@ -1,5 +1,5 @@
 {
-  "id": "0bab3749-a84c-4649-b50c-a07f0cff6299",
+  "id": "327dc8ac-0154-4653-a789-497ba7bcf98f",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1459,26 +1459,20 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "project_id": {
-          "name": "project_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "name": {
           "name": "name",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "startedAt": {
-          "name": "startedAt",
+        "scheduled_start": {
+          "name": "scheduled_start",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
         },
-        "endedAt": {
-          "name": "endedAt",
+        "scheduled_end": {
+          "name": "scheduled_end",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
@@ -1502,6 +1496,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'UPCOMING'"
+        },
+        "project_id": {
+          "name": "project_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -1611,12 +1611,6 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "chapter_id": {
-          "name": "chapter_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "title": {
           "name": "title",
           "type": "text",
@@ -1635,17 +1629,17 @@
           "primaryKey": false,
           "notNull": false
         },
-        "started_at": {
-          "name": "started_at",
+        "scheduled_start": {
+          "name": "scheduled_start",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
         },
-        "ended_at": {
-          "name": "ended_at",
+        "scheduled_end": {
+          "name": "scheduled_end",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "status": {
           "name": "status",
@@ -1654,6 +1648,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'UPCOMING'"
+        },
+        "chapter_id": {
+          "name": "chapter_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -2653,7 +2653,7 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "default": 0
+          "default": 1
         },
         "image_url": {
           "name": "image_url",
