@@ -12,6 +12,7 @@ on:
 jobs:
   build-migrate-test:
     runs-on: ubuntu-latest
+    environment: "CI/CD Environment"
 
     env:
       NODE_ENV: test
@@ -23,7 +24,7 @@ jobs:
       SMTP_PASS: ${{ secrets.SMTP_PASS }}
       EMAILER: ${{ secrets.EMAILER }}
       ALLOWED_ORIGINS: ${{ secrets.ALLOWED_ORIGINS }}
-      LOGO_URL: ${{ secrets.LOGO_URL }}
+      LOGO_URL: ${{ vars.LOGO_URL }}
 
     steps:
       - name: Checkout repository
@@ -39,7 +40,7 @@ jobs:
         run: npm ci
 
       - name: Run database migrations
-        run: npm run script --migrate
+        run: npm run script -- migrate
 
       - name: Build project
         run: npm run build
