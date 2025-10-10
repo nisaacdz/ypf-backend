@@ -18,7 +18,7 @@ export const core = pgSchema("core");
 // === TABLES ===
 
 export const Medium = core.table("media", {
-  id: uuid("id").defaultRandom().primaryKey(),
+  id: uuid().defaultRandom().primaryKey(),
   externalId: text("external_id").notNull().unique(),
   mediaType: MediumType("media_type").notNull(),
   createdBy: uuid("created_by"),
@@ -31,16 +31,16 @@ export const Medium = core.table("media", {
 });
 
 export const Constituents = core.table("constituents", {
-  id: uuid("id").defaultRandom().primaryKey(),
+  id: uuid().defaultRandom().primaryKey(),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   preferredName: text("preferred_name"),
   profilePhotoId: uuid("profile_photo_id").references(() => Medium.id, {
     onDelete: "set null",
   }),
-  salutation: text("salutation"),
+  salutation: text(),
   dateOfBirth: date("date_of_birth"),
-  gender: Gender("gender"),
+  gender: Gender(),
   joinDate: timestamp("join_date", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -56,24 +56,23 @@ export const Constituents = core.table("constituents", {
 export const ContactInformations = core.table(
   "contact_informations",
   {
-    id: serial("id").primaryKey(),
+    id: serial().primaryKey(),
     constituentId: uuid("constituent_id")
       .notNull()
       .references(() => Constituents.id, { onDelete: "cascade" }),
     contactType: ContactType("contact_type").notNull(),
-    value: text("value").notNull(),
+    value: text().notNull(),
     isPrimary: boolean("is_primary").default(false).notNull(),
   },
   (table) => [unique().on(table.constituentId, table.contactType, table.value)]
 );
 
 export const Memberships = core.table("memberships", {
-  id: serial("id").primaryKey(),
+  id: serial().primaryKey(),
   constituentId: uuid("constituent_id")
     .notNull()
     .references(() => Constituents.id, { onDelete: "cascade" }),
-  // we'll ensure that only one of this membership type is `active` for the constituent at a time
-  type: MembershipType("type").notNull(),
+  type: MembershipType().notNull(),
   startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
   endedAt: timestamp("ended_at", { withTimezone: true }),
   assignerId: uuid("assigner_id").references(() => Constituents.id, {
@@ -82,10 +81,10 @@ export const Memberships = core.table("memberships", {
 });
 
 export const Chapters = core.table("chapters", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  name: text("name").notNull(),
-  country: text("country").notNull(),
-  description: text("description"),
+  id: uuid().defaultRandom().primaryKey(),
+  name: text().notNull(),
+  country: text().notNull(),
+  description: text(),
   foundingDate: date("founding_date").notNull(),
   isActive: boolean("is_active").default(true).notNull(),
   parentId: uuid("parent_id").references((): any => Chapters.id, {
@@ -96,7 +95,7 @@ export const Chapters = core.table("chapters", {
 export const ChapterMemberships = core.table(
   "chapter_memberships",
   {
-    id: serial("id").primaryKey(),
+    id: serial().primaryKey(),
     constituentId: uuid("constituent_id")
       .notNull()
       .references(() => Constituents.id, { onDelete: "cascade" }),
@@ -111,9 +110,9 @@ export const ChapterMemberships = core.table(
 );
 
 export const Committees = core.table("committees", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  name: text("name").notNull().unique(),
-  description: text("description"),
+  id: uuid().defaultRandom().primaryKey(),
+  name: text().notNull().unique(),
+  description: text(),
   chapterId: uuid("chapter_id").references(() => Chapters.id, {
     onDelete: "cascade",
   }),
@@ -122,7 +121,7 @@ export const Committees = core.table("committees", {
 export const CommitteeMemberships = core.table(
   "committee_memberships",
   {
-    id: serial("id").primaryKey(),
+    id: serial().primaryKey(),
     constituentId: uuid("constituent_id")
       .notNull()
       .references(() => Constituents.id, { onDelete: "cascade" }),
@@ -137,14 +136,14 @@ export const CommitteeMemberships = core.table(
 );
 
 export const Roles = core.table("roles", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull().unique(),
-  level: integer().notNull(), // roughly indicates seniority level, good for ordering by significance
-  description: text("description"),
+  id: text().primaryKey(),
+  name: text().notNull().unique(),
+  _level: integer("level").notNull(), // roughly indicates relevance, 0 is highest
+  description: text(),
 });
 
 export const RoleAssignments = core.table("role_assignments", {
-  id: uuid("id").defaultRandom().primaryKey(),
+  id: uuid().defaultRandom().primaryKey(),
   constituentId: uuid("constituent_id")
     .notNull()
     .references(() => Constituents.id, { onDelete: "cascade" }),
@@ -162,10 +161,10 @@ export const RoleAssignments = core.table("role_assignments", {
 });
 
 export const Organizations = core.table("organizations", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  name: text("name").notNull(),
-  website: text("website"),
-  description: text("description"),
+  id: uuid().defaultRandom().primaryKey(),
+  name: text().notNull(),
+  website: text(),
+  description: text(),
   logoUrl: text("logo_url"),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
@@ -176,14 +175,14 @@ export const Organizations = core.table("organizations", {
 export const OrganizationContacts = core.table(
   "organization_contacts",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
+    id: uuid().defaultRandom().primaryKey(),
     organizationId: uuid("organization_id")
       .notNull()
       .references(() => Organizations.id, { onDelete: "cascade" }),
     constituentId: uuid("constituent_id")
       .notNull()
       .references(() => Constituents.id, { onDelete: "cascade" }),
-    title: text("title"), // their role at the org
+    title: text(), // their role at the org
     isPrimary: boolean("is_primary").default(false).notNull(),
   },
   (table) => [unique().on(table.organizationId, table.constituentId)]

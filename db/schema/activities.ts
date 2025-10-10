@@ -12,32 +12,30 @@ import { ProjectStatus, EventStatus } from "./enums";
 
 export const activities = pgSchema("activities");
 
-// === TABLES ===
-
 export const Projects = activities.table("projects", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  chapterId: uuid("chapter_id").references(() => Chapters.id, {
-    onDelete: "set null",
-  }),
+  id: uuid().defaultRandom().primaryKey(),
   title: text().notNull(),
   abstract: text(),
   description: text(),
-  startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
-  endedAt: timestamp("ended_at", { withTimezone: true }),
+  scheduledStart: timestamp("scheduled_start", { withTimezone: true }).notNull(),
+  scheduledEnd: timestamp("scheduled_end", { withTimezone: true }).notNull(),
   status: ProjectStatus().default("UPCOMING").notNull(),
+  chapterId: uuid("chapter_id").references(() => Chapters.id, {
+    onDelete: "set null",
+  })
 });
 
 export const Events = activities.table("events", {
   id: uuid().defaultRandom().primaryKey(),
-  projectId: uuid("project_id").references(() => Projects.id, {
-    onDelete: "set null",
-  }),
   name: text().notNull(),
-  startedAt: timestamp({ withTimezone: true }).notNull(),
-  endedAt: timestamp({ withTimezone: true }).notNull(),
+  scheduledStart: timestamp("scheduled_start", { withTimezone: true }).notNull(),
+  scheduledEnd: timestamp("scheduled_end", { withTimezone: true }).notNull(),
   location: text(),
   objective: text(),
   status: EventStatus().default("UPCOMING").notNull(),
+  projectId: uuid("project_id").references(() => Projects.id, {
+    onDelete: "set null",
+  }),
 });
 
 export const ProjectMedia = activities.table("project_media", {
@@ -63,8 +61,6 @@ export const EventMedia = activities.table("event_media", {
   caption: text(),
   isFeatured: boolean("is_featured").notNull().default(false),
 });
-
-// === RELATIONS ===
 
 export const projectsRelations = relations(Projects, ({ one, many }) => ({
   chapter: one(Chapters, {

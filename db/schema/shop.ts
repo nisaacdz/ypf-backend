@@ -25,7 +25,7 @@ export const Products = shop.table("products", {
   sku: text().notNull().unique(), // e.g., "YPF-TSH-RED-M"
   description: text(),
   price: decimal({ precision: 10, scale: 2 }).notNull(),
-  stockQuantity: integer("stock_quantity").default(0).notNull(),
+  stockQuantity: integer("stock_quantity").default(1).notNull(),
   imageUrl: text("image_url"),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
@@ -56,7 +56,7 @@ export const Orders = shop.table("orders", {
     .references(() => Constituents.id, { onDelete: "restrict" }),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
   status: orderStatus().default("PENDING").notNull(),
-  deliveryAddress: jsonb("delivery_address"), // self pickup
+  deliveryAddress: jsonb("delivery_address"), // nullable, this ain't amazon
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
