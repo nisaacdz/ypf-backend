@@ -1,14 +1,21 @@
 import z from "zod";
-import { ProjectStatus as ProjectStatusEnum } from "@/db/schema/enums";
+import {
+  ProjectStatus as ProjectStatusEnum,
+  EventStatus as EventStatusEnum,
+} from "@/db/schema/enums";
 import { PaginationQuery } from ".";
 
 export const GetProjectsQuerySchema = z.object({
-    filterStatus: z.enum(ProjectStatusEnum.enumValues).optional(),
-    ...PaginationQuery.shape
+  filterStatus: z.enum(ProjectStatusEnum.enumValues).optional(),
+  ...PaginationQuery.shape,
 });
 
 export const CreateEventSchema = z.object({
-    title: z.string().min(3).max(100),
-    description: z.string().min(10).max(1000),
-    location: z.string().min(3).max(255),
+  name: z.string().min(3).max(100),
+  objective: z.string().optional(),
+  location: z.string(),
+  scheduledStart: z.coerce.date(),
+  scheduledEnd: z.coerce.date(),
+  status: z.enum(EventStatusEnum.enumValues),
+  projectId: z.uuid(),
 });

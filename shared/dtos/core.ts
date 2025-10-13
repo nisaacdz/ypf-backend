@@ -2,7 +2,7 @@ import { MembershipType, MediumType } from "@/shared/dtos";
 
 export type Medium = {
   url: string; // sdk-generated url
-  type: MediumType;
+  type: MediumType; // "PICTURE" | "VIDEO"
   dimensions: {
     width: number;
     height: number;
@@ -17,8 +17,8 @@ export type Member = {
   profilePhotoUrl?: string;
   fullName: string;
   isActive: boolean;
-  joinedAt: string;
-  role?: string; // name of highest level role
+  joinedAt?: string;
+  role?: string; // name of most significant role
 };
 
 export type MemberDetail = {
@@ -101,31 +101,4 @@ export type CommitteeDetail = {
   };
   isActive: boolean;
   createdAt: string;
-};
-
-export type Project = {
-  id: string;
-  title: string;
-  abstract: string;
-  startDate: string;
-  endDate: string;
-  locationInfo: string;
-  featuredPhotoUrl?: string;
-  chapterName?: string;
-};
-
-export type ProjectDetail = {
-  id: string;
-  title: string;
-  abstract: string;
-  description: string;
-  goals: string[];
-  startedAt: string;
-  endedAt: string;
-  locationInfo: string;
-  featuredPhotos: Medium[]; // limited to 5
-  chapter: {
-    id: string;
-    name: string;
-  };
 };
