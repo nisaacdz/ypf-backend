@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   pgSchema,
   uuid,
@@ -9,6 +8,7 @@ import {
   date,
   unique,
   integer,
+  AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { MediumType, ContactType, MembershipType, Gender } from "./enums";
@@ -20,12 +20,15 @@ export const core = pgSchema("core");
 export const Medium = core.table("media", {
   id: uuid().defaultRandom().primaryKey(),
   externalId: text("external_id").notNull().unique(),
-  mediaType: MediumType("media_type").notNull(),
-  createdBy: uuid("created_by"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
+  type: MediumType().notNull(),
+  width: integer().notNull(),
+  height: integer().notNull(),
+  sizeInBytes: integer().notNull(),
+  uploadedBy: uuid("uploaded_by").references(
+    (): AnyPgColumn => Constituents.id,
+    { onDelete: "set null" }
+  ),
+  uploadedAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
 });
@@ -87,7 +90,7 @@ export const Chapters = core.table("chapters", {
   description: text(),
   foundingDate: date("founding_date").notNull(),
   isActive: boolean("is_active").default(true).notNull(),
-  parentId: uuid("parent_id").references((): any => Chapters.id, {
+  parentId: uuid("parent_id").references((): AnyPgColumn => Chapters.id, {
     onDelete: "set null",
   }),
 });
@@ -216,7 +219,7 @@ export const CommitteeMedia = core.table("committee_media", {
 
 export const mediaRelations = relations(Medium, ({ one }) => ({
   creator: one(Constituents, {
-    fields: [Medium.createdBy],
+    fields: [Medium.uploadedBy],
     references: [Constituents.id],
     relationName: "mediaCreator",
   }),
