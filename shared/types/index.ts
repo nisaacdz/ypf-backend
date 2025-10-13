@@ -11,6 +11,7 @@ declare global {
       Body: any;
       Query: any;
       Params: any;
+      File: any;
     }
   }
 }

@@ -11,3 +11,18 @@ export function generateMediaUrl(
 
   return url;
 }
+
+export async function storeMediumFile(file: Express.Multer.File) {
+  // Simulate file upload and return metadata
+  console.log("Uploading file to storage server...", file.originalname);
+
+  return {
+    externalId: "generated-external-id",
+    type: "VIDEO" as const,
+    dimensions: {
+      width: 1920,
+      height: 1080,
+    },
+    sizeInBytes: file.size,
+  };
+}

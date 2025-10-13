@@ -2,39 +2,50 @@ import pgPool from "@/configs/db";
 import schema from "@/db/schema";
 import { AppError } from "@/shared/types";
 
-export type MediaUploadResult = {
-  externalRef: string;
-  type: "PICTURE" | "VIDEO";
-  dimensions: {
+export type AddMediumRecord = {
+  caption?: string;
+  isFeatured: boolean;
+  medium: {
+    externalId: string;
+    type: "PICTURE" | "VIDEO";
     width: number;
     height: number;
+    sizeInBytes: number;
+    uploadedBy: string;
   };
-  sizeInBytes: number;
 };
 
-export type AddMediaRecord = {
-  externalId: string;
-  type: "PICTURE" | "VIDEO";
-  width: number;
-  height: number;
-  sizeInBytes: number;
-  uploadedBy: string;
-};
-
-// accept the file input of the right type (from request)
-// could be image or video of types [png, jpg, jpeg, mp4, mov, avi]
-// assume file type and size already validated (e.g., max 450MB for video, 50MB for image)
-// upload the file (validate with sdk on storage server side for video/picture)
-export async function uploadMediaToStorage(): Promise<MediaUploadResult> {
-  //
-  return null as any;
-}
-
-export async function addMediaRecordToDB(data: AddMediaRecord) {
+export async function uploadEventMedium(
+  eventId: string,
+  data: AddMediumRecord,
+): Promise<string> {
   try {
-    await pgPool.db.insert(schema.Medium).values(data);
+    const newMediumId = await pgPool.db.transaction(async (tx) => {
+      const [newMedium] = await tx
+        .insert(schema.Medium)
+        .values(data.medium)
+        .returning({ id: schema.Medium.id });
+      if (!newMedium?.id) {
+        throw new Error(
+          "Failed to create medium record, rolling back transaction.",
+        );
+      }
+
+      await tx.insert(schema.EventMedia).values({
+        eventId: eventId,
+        mediumId: newMedium.id,
+        caption: data.caption,
+        isFeatured: data.isFeatured,
+      });
+      return newMedium.id;
+    });
+
+    return newMediumId;
   } catch (err) {
     console.error(err);
-    throw new AppError("An error occurred while uploading your media", 500);
+    throw new AppError(
+      "An error occurred while adding the event medium record.",
+      500,
+    );
   }
 }

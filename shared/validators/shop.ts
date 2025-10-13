@@ -24,11 +24,9 @@ export const CreateProductSchema = z.object({
     .max(5000, { message: "Description is too long." })
     .optional(),
 
-  price: z
-    .string()
-    .regex(/^\d+(\.\d{1,2})?$/, {
-      message: "Please enter a valid price (e.g., 49.99).",
-    }),
+  price: z.string().regex(/^\d+(\.\d{1,2})?$/, {
+    message: "Please enter a valid price (e.g., 49.99).",
+  }),
 
   stockQuantity: z.coerce
     .number({ error: "Stock quantity must be a number." })
