@@ -8,16 +8,16 @@ export type Medium = {
     height: number;
   };
   sizeInBytes: number;
-  uploadedAt: string;
+  uploadedAt: Date;
   uploadedBy?: string; // fullName of uploader
 };
 
-export type Member = {
+export type YPFMember = {
   id: string; // constituent ID
   profilePhotoUrl?: string;
   fullName: string;
   isActive: boolean;
-  joinedAt?: string;
+  joinedAt?: Date;
   role?: string; // name of most significant role
 };
 
@@ -28,27 +28,31 @@ export type MemberDetail = {
   salutation?: string;
   profilePhoto?: Medium;
   contactInfo: {
-    type: "EMAIL" | "PHONE" | "WHATSAPP"; // CORRECTED: Added WHATSAPP to match schema enum
+    type: "EMAIL" | "PHONE" | "WHATSAPP";
     value: string;
     isPrimary: boolean;
   }[];
   roles: {
     name: string;
-    scope: {
-      type: "global" | "chapter" | "committee";
-      id: string | null; // id of chapter or committee
-      name: string | null; // name of chapter, name of committee or null
-    };
-    _level: number; // for ordering the roles
-    startedAt: string;
-    endedAt?: string;
+    scope:
+      | {
+          type: "global";
+        }
+      | {
+          type: "chapter" | "committee";
+          id: string;
+          name: string;
+        };
+    _level: number;
+    startedAt: Date;
+    endedAt?: Date;
   }[];
   memberships: {
     type: MembershipType;
-    startedAt: string;
-    endedAt?: string;
+    startedAt: Date;
+    endedAt?: Date;
   }[];
-  joinedAt: string;
+  joinedAt: Date;
   isActive: boolean;
 };
 
@@ -100,5 +104,5 @@ export type CommitteeDetail = {
     name: string;
   };
   isActive: boolean;
-  createdAt: string;
+  createdAt: Date;
 };

@@ -4,13 +4,19 @@ import {
   validateBody,
   validateFile,
   validateParams,
+  validateQuery,
 } from "@/shared/middlewares/validate";
 import {
   CreateEventSchema,
+  GetEventMediaQuerySchema,
   UploadEventFileSchema,
   UploadEventMediumOptionsSchema,
 } from "@/shared/validators/activities";
-import { authenticate, authorize } from "@/shared/middlewares/auth";
+import {
+  authenticate,
+  authenticateLax,
+  authorize,
+} from "@/shared/middlewares/auth";
 import * as eventsHandler from "./eventsHandler";
 import filesUpload from "@/shared/middlewares/multipart";
 import z from "zod";
@@ -48,6 +54,25 @@ eventsRouter.post(
         file: req.File,
         options: req.Body,
       });
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+eventsRouter.get(
+  "/:id/media",
+  validateParams(z.object({ id: z.uuid() })),
+  authenticateLax,
+  authorize,
+  validateQuery(GetEventMediaQuerySchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await eventsHandler.getEventMedia(
+        req.Params.id,
+        req.Query,
+      );
       res.status(200).json(response);
     } catch (error) {
       next(error);

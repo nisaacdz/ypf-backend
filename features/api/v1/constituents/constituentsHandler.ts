@@ -14,13 +14,13 @@ import z from "zod";
 import pgPool from "@/configs/db";
 import schema from "@/db/schema";
 import { ApiResponse } from "@/shared/types";
-import { Paginated, Member } from "@/shared/dtos";
+import { Paginated, YPFMember } from "@/shared/dtos";
 import { GetMembersQuerySchema } from "@/shared/validators/core";
 import * as mediaUtils from "@/shared/utils/media";
 
 export async function getMembers(
   query: z.infer<typeof GetMembersQuerySchema>,
-): Promise<ApiResponse<Paginated<Member>>> {
+): Promise<ApiResponse<Paginated<YPFMember>>> {
   const { page, pageSize, search, chapterId, committeeId } = query;
 
   // --- SUBQUERIES ---
@@ -144,21 +144,21 @@ export async function getMembers(
   const total = totalResult[0]?.total ?? 0;
 
   // --- DATA MAPPING ---
-  const data: Member[] = dbMembers.map((m) => ({
+  const items: YPFMember[] = dbMembers.map((m) => ({
     id: m.id,
     fullName: m.fullName,
     profilePhotoUrl: m.profilePhotoExternalId
       ? mediaUtils.generateMediaUrl(m.profilePhotoExternalId)
       : undefined,
     isActive: m.isActive,
-    joinedAt: m.joinedAt?.toISOString(),
+    joinedAt: m.joinedAt ?? undefined,
     role: m.role ?? undefined,
   }));
 
   return {
     success: true,
     data: {
-      data,
+      items,
       page,
       pageSize,
       total,

@@ -1,6 +1,6 @@
 export function generateMediaUrl(
   externalId: string,
-  options: { expiration: number; resolution: number } = {
+  options: { expiration: number; resolution?: number } = {
     expiration: 24 * 60 * 60,
     resolution: 1080,
   },
@@ -16,6 +16,8 @@ export async function storeMediumFile(file: Express.Multer.File) {
   // Simulate file upload and return metadata
   console.log("Uploading file to storage server...", file.originalname);
 
+  await new Promise((resolve) => setTimeout(resolve, 1000)); // simulate delay
+
   return {
     externalId: "generated-external-id",
     type: "VIDEO" as const,
@@ -25,4 +27,10 @@ export async function storeMediumFile(file: Express.Multer.File) {
     },
     sizeInBytes: file.size,
   };
+}
+
+export async function deleteMediumFile(externalId: string) {
+  // Simulate file deletion
+  console.log("Deleting file from storage server...", externalId);
+  return true;
 }

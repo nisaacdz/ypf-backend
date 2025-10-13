@@ -1,7 +1,7 @@
 import { Medium } from "./core";
 import { EventStatus, ProjectStatus } from ".";
 
-export type Project = {
+export type YPFProject = {
   id: string;
   title: string;
   abstract?: string;
@@ -12,7 +12,7 @@ export type Project = {
   chapterName?: string;
 };
 
-export type ProjectDetail = {
+export type YPFProjectDetail = {
   id: string;
   title: string;
   abstract?: string;
@@ -30,12 +30,11 @@ export type ProjectDetail = {
   };
 };
 
-export type Event = {
+export type YPFEvent = {
   id: string;
   name: string;
   scheduledStart: string;
   scheduledEnd: string;
-
   location?: string;
   status: EventStatus;
   project?: {
@@ -44,7 +43,7 @@ export type Event = {
   };
 };
 
-export type EventDetail = {
+export type YPFEventDetail = {
   id: string;
   name: string;
   scheduledStart: string;
@@ -62,3 +61,18 @@ export type EventDetail = {
     medium: Medium;
   }[];
 };
+
+export type YPFEventMedium = {
+  id: number;
+  caption?: string;
+  isFeatured: boolean;
+  medium: Medium;
+};
+
+export type YPFProjectMedium = {
+  id: string;
+  caption?: string;
+  isFeatured: boolean;
+  medium: Medium;
+};
+

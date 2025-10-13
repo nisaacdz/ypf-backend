@@ -10,7 +10,7 @@ export * from "./shop";
 export * from "./activities";
 
 export type Paginated<T> = {
-  data: T[];
+  items: T[];
   pageSize: number; // the page size used
   page: number; // the current page
   total: number; // total number of items
