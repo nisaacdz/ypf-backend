@@ -19,7 +19,7 @@ import { GetMembersQuerySchema } from "@/shared/validators/core";
 import * as mediaUtils from "@/shared/utils/media";
 
 export async function getMembers(
-  query: z.infer<typeof GetMembersQuerySchema>
+  query: z.infer<typeof GetMembersQuerySchema>,
 ): Promise<ApiResponse<Paginated<Member>>> {
   const { page, pageSize, search, chapterId, committeeId } = query;
 
@@ -42,7 +42,7 @@ export async function getMembers(
       constituentId: schema.Memberships.constituentId,
       endedAt: schema.Memberships.endedAt,
       rn: sql<number>`row_number() OVER (PARTITION BY ${schema.Memberships.constituentId} ORDER BY ${schema.Memberships.startedAt} DESC)`.as(
-        "rn"
+        "rn",
       ),
     })
     .from(schema.Memberships)
@@ -55,7 +55,7 @@ export async function getMembers(
       constituentId: schema.RoleAssignments.constituentId,
       roleName: schema.Roles.name,
       rn: sql<number>`row_number() OVER (PARTITION BY ${schema.RoleAssignments.constituentId} ORDER BY ${schema.Roles._level} ASC)`.as(
-        "rn"
+        "rn",
       ),
     })
     .from(schema.RoleAssignments)
@@ -77,7 +77,7 @@ export async function getMembers(
         SELECT 1 FROM ${schema.ChapterMemberships}
         WHERE ${schema.ChapterMemberships.constituentId} = ${schema.Constituents.id}
         AND ${schema.ChapterMemberships.chapterId} = ${chapterId}
-      )`
+      )`,
     );
   }
 
@@ -87,7 +87,7 @@ export async function getMembers(
         SELECT 1 FROM ${schema.CommitteeMemberships}
         WHERE ${schema.CommitteeMemberships.constituentId} = ${schema.Constituents.id}
         AND ${schema.CommitteeMemberships.committeeId} = ${committeeId}
-      )`
+      )`,
     );
   }
 
@@ -99,11 +99,11 @@ export async function getMembers(
       profilePhotoExternalId: schema.Medium.externalId,
       fullName:
         sql<string>`concat(${schema.Constituents.firstName}, ' ', ${schema.Constituents.lastName})`.as(
-          "full_name"
+          "full_name",
         ),
       isActive: sql<boolean>`${or(
         isNull(latestMembershipSubquery.endedAt),
-        gt(latestMembershipSubquery.endedAt, new Date())
+        gt(latestMembershipSubquery.endedAt, new Date()),
       )}`.as("is_active"),
       joinedAt: firstMembershipSubquery.joinedAt,
       role: topRoleSubquery.roleName,
@@ -111,25 +111,25 @@ export async function getMembers(
     .from(schema.Constituents)
     .innerJoin(
       firstMembershipSubquery,
-      eq(schema.Constituents.id, firstMembershipSubquery.constituentId)
+      eq(schema.Constituents.id, firstMembershipSubquery.constituentId),
     )
     .innerJoin(
       latestMembershipSubquery,
       and(
         eq(schema.Constituents.id, latestMembershipSubquery.constituentId),
-        eq(latestMembershipSubquery.rn, 1)
-      )
+        eq(latestMembershipSubquery.rn, 1),
+      ),
     )
     .leftJoin(
       schema.Medium,
-      eq(schema.Constituents.profilePhotoId, schema.Medium.id)
+      eq(schema.Constituents.profilePhotoId, schema.Medium.id),
     )
     .leftJoin(
       topRoleSubquery,
       and(
         eq(schema.Constituents.id, topRoleSubquery.constituentId),
-        eq(topRoleSubquery.rn, 1)
-      )
+        eq(topRoleSubquery.rn, 1),
+      ),
     )
     .where(and(...whereClauses));
 

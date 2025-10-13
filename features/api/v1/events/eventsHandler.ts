@@ -5,7 +5,7 @@ import z from "zod";
 import pgPool from "@/configs/db";
 
 export async function createEvent(
-  newEvent: z.infer<typeof CreateEventSchema>
+  newEvent: z.infer<typeof CreateEventSchema>,
 ): Promise<ApiResponse<null>> {
   const d = await pgPool.db.insert(Events).values(newEvent).returning();
   if (!d?.length) {

@@ -17,18 +17,22 @@ export const Projects = activities.table("projects", {
   title: text().notNull(),
   abstract: text(),
   description: text(),
-  scheduledStart: timestamp("scheduled_start", { withTimezone: true }).notNull(),
+  scheduledStart: timestamp("scheduled_start", {
+    withTimezone: true,
+  }).notNull(),
   scheduledEnd: timestamp("scheduled_end", { withTimezone: true }).notNull(),
   status: ProjectStatus().default("UPCOMING").notNull(),
   chapterId: uuid("chapter_id").references(() => Chapters.id, {
     onDelete: "set null",
-  })
+  }),
 });
 
 export const Events = activities.table("events", {
   id: uuid().defaultRandom().primaryKey(),
   name: text().notNull(),
-  scheduledStart: timestamp("scheduled_start", { withTimezone: true }).notNull(),
+  scheduledStart: timestamp("scheduled_start", {
+    withTimezone: true,
+  }).notNull(),
   scheduledEnd: timestamp("scheduled_end", { withTimezone: true }).notNull(),
   location: text(),
   objective: text(),

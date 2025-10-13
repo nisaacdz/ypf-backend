@@ -59,7 +59,7 @@ export const Notifications = app.table(
     message: text(),
     broadcastId: serial("broadcast_id").references(
       () => AnnouncementBroadCasts.id,
-      { onDelete: "cascade" }
+      { onDelete: "cascade" },
     ),
     isRead: boolean("is_read").default(false).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -69,7 +69,7 @@ export const Notifications = app.table(
   (table) => [
     index().on(table.broadcastId),
     unique().on(table.userId, table.broadcastId),
-  ]
+  ],
 );
 
 // === RELATIONS ===

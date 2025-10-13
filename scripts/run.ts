@@ -4,7 +4,9 @@ import fs from "fs";
 
 const scriptName = process.argv[2];
 if (!scriptName) {
-  console.error("❌ Please provide a script name. Example: npm run script -- migrate");
+  console.error(
+    "❌ Please provide a script name. Example: npm run script -- migrate",
+  );
   process.exit(1);
 }
 
@@ -16,7 +18,9 @@ if (fs.existsSync(scriptPathTs)) scriptToRun = scriptPathTs;
 else if (fs.existsSync(scriptPathJs)) scriptToRun = scriptPathJs;
 
 if (!scriptToRun) {
-  console.error(`❌ Could not find script: ${scriptName}.ts or ${scriptName}.js in ./scripts`);
+  console.error(
+    `❌ Could not find script: ${scriptName}.ts or ${scriptName}.js in ./scripts`,
+  );
   process.exit(1);
 }
 

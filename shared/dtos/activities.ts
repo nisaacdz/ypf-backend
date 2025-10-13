@@ -25,7 +25,7 @@ export type ProjectDetail = {
     medium: Medium;
   }[];
   chapter?: {
-    id:string;
+    id: string;
     name: string;
   };
 };

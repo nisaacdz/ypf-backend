@@ -2,10 +2,10 @@ import { ApiResponse } from "@/shared/types";
 import { Paginated } from "@/shared/dtos";
 import { GetProjectsQuerySchema } from "@/shared/validators/activities";
 import z from "zod";
-import { Project } from "@/shared/dtos/core";
+import { Project } from "@/shared/dtos";
 
 export function getProjects(
-  query: z.infer<typeof GetProjectsQuerySchema>
+  query: z.infer<typeof GetProjectsQuerySchema>,
 ): Promise<ApiResponse<Paginated<Project>>> {
   console.log("Query:", query);
   return Promise.resolve({

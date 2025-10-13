@@ -26,7 +26,7 @@ export type AddMediaRecord = {
 // assume file type and size already validated (e.g., max 450MB for video, 50MB for image)
 // upload the file (validate with sdk on storage server side for video/picture)
 export async function uploadMediaToStorage(): Promise<MediaUploadResult> {
-  // 
+  //
   return null as any;
 }
 

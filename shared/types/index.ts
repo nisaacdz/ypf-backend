@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-namespace */
 import z from "zod";
 import { AuthenticatedUserSchema } from "../validators";
-export * from './api';
+export * from "./api";
 
 declare global {
   namespace Express {
