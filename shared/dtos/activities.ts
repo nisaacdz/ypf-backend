@@ -75,4 +75,3 @@ export type YPFProjectMedium = {
   isFeatured: boolean;
   medium: Medium;
 };
-

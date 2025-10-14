@@ -89,7 +89,7 @@ export const Chapters = core.table("chapters", {
   country: text().notNull(),
   description: text(),
   foundingDate: date("founding_date").notNull(),
-  isActive: boolean("is_active").default(true).notNull(),
+  isActive: boolean("is_active").notNull().default(true),
   parentId: uuid("parent_id").references((): AnyPgColumn => Chapters.id, {
     onDelete: "set null",
   }),

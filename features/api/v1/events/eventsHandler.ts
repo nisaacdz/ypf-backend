@@ -12,7 +12,7 @@ import * as eventsService from "@/shared/services/eventsService";
 import { YPFEventMedium, Paginated } from "@/shared/dtos";
 
 export async function createEvent(
-  newEvent: z.infer<typeof CreateEventSchema>
+  newEvent: z.infer<typeof CreateEventSchema>,
 ): Promise<ApiResponse<string>> {
   const [event] = await pgPool.db
     .insert(Events)
@@ -68,7 +68,7 @@ export async function uploadEventMedia({
 
 export async function getEventMedia(
   eventId: string,
-  query: z.infer<typeof GetEventMediaQuerySchema>
+  query: z.infer<typeof GetEventMediaQuerySchema>,
 ): Promise<ApiResponse<Paginated<YPFEventMedium>>> {
   const { page, pageSize } = query;
   const { items, total } = await eventsService.fetchEventMedia(eventId, query);
