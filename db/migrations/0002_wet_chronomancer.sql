@@ -1,0 +1,1 @@
+ALTER TYPE "public"."membership_type" ADD VALUE 'SUPER_USER';
