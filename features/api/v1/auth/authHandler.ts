@@ -19,7 +19,7 @@ export async function loginWithUsernameAndPassword({
     password,
   );
 
-  const token = encodeData(authenticatedUser);
+  const token = encodeData(authenticatedUser, { expiresIn: "3d" });
 
   return {
     response: {

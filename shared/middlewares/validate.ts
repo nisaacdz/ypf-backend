@@ -29,7 +29,7 @@ export function validateQuery<T>(schema: z.ZodType<T>) {
     }
 
     req.Query = result.data;
-    req.query = result.data as any; // to be deprecated
+    //req.query = result.data as any; // to be deprecated
 
     return next();
   };

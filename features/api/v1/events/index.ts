@@ -46,7 +46,7 @@ eventsRouter.post(
 
 eventsRouter.post(
   "/:id/media",
-  validateParams(z.object({ id: z.uuid() })),
+  validateParams(z.object({ id: z.uuid("Invalid Request") })),
   authenticate,
   authorize(
     anyOf(
@@ -59,8 +59,11 @@ eventsRouter.post(
   validateBody(UploadEventMediumOptionsSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.User?.constituentId) {
+        throw new Error("Not authorized");
+      }
       const response = await eventsHandler.uploadEventMedia({
-        userId: req.User!.id,
+        constituentId: req.User!.constituentId,
         eventId: req.Params.id,
         file: req.File,
         options: req.Body,
@@ -74,7 +77,7 @@ eventsRouter.post(
 
 eventsRouter.get(
   "/:id/media",
-  validateParams(z.object({ id: z.uuid() })),
+  validateParams(z.object({ id: z.uuid("Invalid Request") })),
   authenticateLax,
   authorize("ALL"),
   validateQuery(GetEventMediaQuerySchema),

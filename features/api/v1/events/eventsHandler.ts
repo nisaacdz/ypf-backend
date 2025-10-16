@@ -29,12 +29,12 @@ export async function createEvent(
 }
 
 export async function uploadEventMedia({
-  userId,
+  constituentId,
   eventId,
   file,
   options,
 }: {
-  userId: string;
+  constituentId: string;
   eventId: string;
   file: Express.Multer.File;
   options: { caption?: string; isFeatured: boolean };
@@ -51,7 +51,7 @@ export async function uploadEventMedia({
         width: uploadMeta.dimensions.width,
         height: uploadMeta.dimensions.height,
         sizeInBytes: uploadMeta.sizeInBytes,
-        uploadedBy: userId,
+        uploadedBy: constituentId,
       },
     });
 
