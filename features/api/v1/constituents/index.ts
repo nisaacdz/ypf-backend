@@ -4,13 +4,14 @@ import { authenticateLax, authorize } from "@/shared/middlewares/auth";
 import { validateQuery } from "@/shared/middlewares/validate";
 import * as constituentsHandler from "./constituentsHandler";
 import { GetMembersQuerySchema } from "@/shared/validators/core";
+import { Guards } from "@/configs/authorizer";
 
 const constituentsRouter = Router();
 
 constituentsRouter.get(
   "/members",
   authenticateLax,
-  authorize,
+  authorize(Guards.hasMembership("MEMBER", "SUPER_USER")),
   validateQuery(GetMembersQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {

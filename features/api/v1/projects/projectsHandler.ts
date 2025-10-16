@@ -3,13 +3,16 @@ import { Paginated } from "@/shared/dtos";
 import { GetProjectsQuerySchema } from "@/shared/validators/activities";
 import z from "zod";
 import { YPFProject } from "@/shared/dtos";
+import * as projectsService from "@/shared/services/projectsService";
 
-export function getProjects(
+export async function getProjects(
   query: z.infer<typeof GetProjectsQuerySchema>,
 ): Promise<ApiResponse<Paginated<YPFProject>>> {
-  console.log("Query:", query);
-  return Promise.resolve({
+  const data = await projectsService.fetchProjects(query);
+
+  return {
     success: true,
-    data: { items: [], page: 1, pageSize: 10, total: 0 },
-  });
+    message: "Projects fetched successfully",
+    data,
+  };
 }

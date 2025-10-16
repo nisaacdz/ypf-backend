@@ -5,6 +5,7 @@ export const MembershipType = pgEnum("membership_type", [
   "MEMBER",
   "VOLUNTEER",
   "AUDITOR",
+  "SUPER_USER",
 ]);
 export const MediumType = pgEnum("media_type", ["PICTURE", "VIDEO"]);
 export const ContactType = pgEnum("contact_type", [

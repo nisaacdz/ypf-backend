@@ -10,7 +10,7 @@ const projectsRouter = Router();
 projectsRouter.get(
   "/",
   authenticateLax,
-  authorize,
+  authorize("ALL"),
   validateQuery(GetProjectsQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {

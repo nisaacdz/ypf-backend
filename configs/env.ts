@@ -17,8 +17,9 @@ const envSchema = z
       .string()
       .min(32, "JWT_SECRET must be at least 32 characters long"),
 
-    // Database
+    // Database and Other Services
     DATABASE_URL: z.url("A valid DATABASE_URL is required"),
+    CLOUDINARY_URL: z.url("A valid CLOUDINARY_URL is required"),
 
     // SMTP Email Configuration
     SMTP_HOST: z.string().min(1, "SMTP_HOST is required"),
@@ -52,6 +53,7 @@ const envSchema = z
     port: env.PORT,
     jwtSecret: env.JWT_SECRET,
     databaseUrl: env.DATABASE_URL,
+    cloudinaryUrl: env.CLOUDINARY_URL,
     smtpHost: env.SMTP_HOST,
     smtpUser: env.SMTP_USER,
     smtpPass: env.SMTP_PASS,

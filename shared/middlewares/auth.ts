@@ -2,7 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import { AppError } from "../types";
 import { decodeData } from "../utils/jwt";
 import { AuthenticatedUserSchema } from "../validators";
-import authorizer from "@/configs/authorizer";
+import type { GuardFunction } from "@/configs/authorizer";
 
 export function authenticate(req: Request, res: Response, next: NextFunction) {
   if (req.User) {
@@ -28,28 +28,25 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-export const authorize = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  const user = req.User || null;
-  const resource = req.path.match(/^\/api(?:\/v\d+)?(\/.*)?$/)?.[1] ?? "/";
-  const action = req.method;
+export const authorize = (guard: GuardFunction | "ALL") => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = req.User || null;
 
-  try {
-    const hasPermission = await authorizer.enforce(user, resource, action);
+      const hasAccess = guard === "ALL" ? true : await guard(user, req);
 
-    if (hasPermission) {
-      return next();
+      if (hasAccess) {
+        return next();
+      }
+
+      return res.status(403).json({
+        success: false,
+        message: "You don't have permission to access this resource",
+      });
+    } catch (error) {
+      return next(error);
     }
-
-    return res
-      .status(403)
-      .json({ success: false, message: "Permission denied!" });
-  } catch (error) {
-    return next(error);
-  }
+  };
 };
 
 export const authenticateLax = (

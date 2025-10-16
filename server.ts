@@ -9,7 +9,6 @@ import cookieParser from "cookie-parser";
 import { errorHandler } from "@/shared/middlewares/errorHandler";
 import variables from "@/configs/env";
 import { filter } from "./shared/middlewares";
-import authorizer from "@/configs/authorizer";
 import emailer from "@/configs/emailer";
 import pgPool from "./configs/db";
 import apiRouter from "@/features/api/v1";
@@ -57,11 +56,7 @@ app.use((req: Request, res: Response) => {
 });
 
 (async () => {
-  await Promise.all([
-    emailer.initialize(),
-    authorizer.initialize(),
-    pgPool.initialize(),
-  ]);
+  await Promise.all([emailer.initialize(), pgPool.initialize()]);
   // we'll add other async initializations here
 
   server.listen(variables.port, () => {

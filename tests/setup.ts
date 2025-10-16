@@ -1,6 +1,5 @@
 import { beforeAll, afterAll } from "vitest";
 import pgPool from "@/configs/db";
-import authorizer from "@/configs/authorizer";
 import emailer from "@/configs/emailer";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 
@@ -11,7 +10,7 @@ beforeAll(async () => {
   await migrate(pgPool.db, { migrationsFolder: "db/migrations" });
   console.log("Migrations complete.");
 
-  await Promise.all([emailer.initialize(), authorizer.initialize()]);
+  await Promise.all([emailer.initialize()]);
 });
 
 afterAll(() => {
