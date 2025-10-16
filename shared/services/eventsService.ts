@@ -46,7 +46,10 @@ export async function fetchEventMedia(
     ...m,
     caption: m.caption || undefined,
     medium: {
-      ...m.medium,
+      id: m.medium.id,
+      type: m.medium.type,
+      sizeInBytes: m.medium.sizeInBytes,
+      uploadedAt: m.medium.uploadedAt,
       url: mediaUtils.generateMediaUrl(m.medium.externalId),
       dimensions: {
         width: m.medium.width,

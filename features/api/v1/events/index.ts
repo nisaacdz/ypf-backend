@@ -62,7 +62,7 @@ eventsRouter.post(
       if (!req.User?.constituentId) {
         throw new Error("Not authorized");
       }
-      const response = await eventsHandler.uploadEventMedia({
+      const response = await eventsHandler.uploadEventMedium({
         constituentId: req.User!.constituentId,
         eventId: req.Params.id,
         file: req.File,

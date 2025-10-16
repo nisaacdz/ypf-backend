@@ -28,7 +28,7 @@ export async function createEvent(
   };
 }
 
-export async function uploadEventMedia({
+export async function uploadEventMedium({
   constituentId,
   eventId,
   file,
