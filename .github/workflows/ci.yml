@@ -18,6 +18,7 @@ jobs:
       NODE_ENV: test
 
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      CLOUDINARY_URL: ${{ secrets.CLOUDINARY_URL }}
       JWT_SECRET: ${{ secrets.JWT_SECRET }}
       SMTP_HOST: ${{ secrets.SMTP_HOST }}
       SMTP_USER: ${{ secrets.SMTP_USER }}
