@@ -20,7 +20,7 @@ import {
 import * as eventsHandler from "./eventsHandler";
 import filesUpload from "@/shared/middlewares/multipart";
 import z from "zod";
-import { anyOf, Guards } from "@/configs/authorizer";
+import { anyOf, Visitors } from "@/configs/authorizer";
 
 const eventsRouter = Router();
 
@@ -29,8 +29,8 @@ eventsRouter.post(
   authenticate,
   authorize(
     anyOf(
-      Guards.hasMembership("SUPER_USER"),
-      Guards.hasRole("event_coordinator"),
+      Visitors.hasMembership("SUPER_USER"),
+      Visitors.hasRole("event_coordinator"),
     ),
   ),
   validateBody(CreateEventSchema),
@@ -50,8 +50,8 @@ eventsRouter.post(
   authenticate,
   authorize(
     anyOf(
-      Guards.hasMembership("SUPER_USER"),
-      Guards.hasRole("event_coordinator"),
+      Visitors.hasMembership("SUPER_USER"),
+      Visitors.hasRole("event_coordinator"),
     ),
   ),
   filesUpload.single("file"),
@@ -79,7 +79,7 @@ eventsRouter.get(
   "/:id/media",
   validateParams(z.object({ id: z.uuid("Invalid Request") })),
   authenticateLax,
-  authorize(Guards.ALL),
+  authorize(Visitors.ALL),
   validateQuery(GetEventMediaQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {

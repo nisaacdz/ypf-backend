@@ -62,7 +62,7 @@ export const allOf = (...guards: GuardFunction[]): GuardFunction => {
   };
 };
 
-const Guards = {
+const Visitors = {
   ALL: () => true,
 
   authenticated: (req: Request) => req.User !== null,
@@ -72,4 +72,4 @@ const Guards = {
   hasRole,
 };
 
-export { Guards };
+export { Visitors };
