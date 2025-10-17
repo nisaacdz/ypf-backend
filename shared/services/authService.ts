@@ -31,7 +31,7 @@ export async function loginWithUsernameAndPassword(
       lastName: schema.Constituents.lastName,
     })
     .from(schema.Users)
-    .leftJoin(
+    .innerJoin(
       schema.Constituents,
       eq(schema.Users.constituentId, schema.Constituents.id),
     )
@@ -48,12 +48,10 @@ export async function loginWithUsernameAndPassword(
     throw new AppError("Invalid username or password", 401);
   }
 
-  const [roles, memberships] = user.constituentId
-    ? await Promise.all([
-        getConstituentRoles(user.constituentId),
-        getConstituentMemberships(user.constituentId),
-      ])
-    : [[], []];
+  const [roles, memberships] = await Promise.all([
+    getConstituentRoles(user.constituentId),
+    getConstituentMemberships(user.constituentId),
+  ]);
 
   const fullName =
     user.firstName && user.lastName
