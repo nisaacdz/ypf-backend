@@ -4,13 +4,14 @@ import { authenticateLax, authorize } from "@/shared/middlewares/auth";
 import { GetProjectsQuerySchema } from "@/shared/validators/activities";
 import { validateQuery } from "@/shared/middlewares/validate";
 import * as projectsHandler from "./projectsHandler";
+import { Guards } from "@/configs/authorizer";
 
 const projectsRouter = Router();
 
 projectsRouter.get(
   "/",
   authenticateLax,
-  authorize("ALL"),
+  authorize(Guards.ALL),
   validateQuery(GetProjectsQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
