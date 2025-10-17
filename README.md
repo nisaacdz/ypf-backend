@@ -1,69 +1,67 @@
 # YPF Core Backend
 
+A modular and well-structured Express backend for YPF projects.  
 This guide will get you up to speed on our conventions and how we build things around here.
+
+---
 
 ## 🚀 Getting Started
 
 Getting it up and running is straightforward:
 
-1.  Install the dependencies:
-    ```sh
-    npm install
-    ```
-2.  Reach out for the `.env` variables.
-3.  Start the dev server:
-    ```sh
-    npm run dev
-    ```
+1. **Install dependencies**
+   ```sh
+   npm install
+   ```
+2. Reach out for the `env`'s.
+3. **Start the dev server**
+   ```sh
+   npm run dev
+   ```
 
-And you're all set!
+And you’re all set!
+
+---
 
 ## 🏗️ How We Build: Key Conventions
 
 This is the important part. To keep our codebase consistent and easy to navigate, we follow these rules:
 
-- **Path Aliases**: Always use the `@/` alias for imports from the project root (e.g., `import pgPool from "@/configs/db";`). No more `../../..` madness.
-- **Environment Variables**: Never use `process.env` directly. Import the sanitized `variables` object from [`@/configs/env`](configs/env.ts).
-- **API Structure**:
-  - Routes and their handlers live in `features/api`, organized by version and domain.
-  - Handlers should be lean. They take in necessary data (not the whole `req`, `res` objects), call services, and return a structured `ApiResponse`.
-  - Services (`shared/services/`) contain the actual business logic, database interactions, and error handling.
-- **Database**: We use Drizzle ORM. Schema is defined in `db/schema/` and migrations are handled via `scripts/migrate.ts`.
-- **Validation**: use the validation middlewares `validateBody`, `validateQuery`, `validateParams` with the expected zod schemas regularly.
-- **Error Handling**: Services should handle potential errors and rethrow them as `AppError` from [`@/shared/types`](shared/types/index.ts).
+- Always use the `@/` alias for imports from the project root (e.g., `import pgPool from "@/configs/db";`).
+  No more `../../..` madness.
 
-## ✅ Testing
+- Never use `process.env` directly.
+  Instead, import the sanitized `variables` object from [`@/configs/env`](configs/env.ts).
 
-We use Vitest for our tests.
+- **API Structure**
+  - Routes live in `features/api`.
+  - Handlers (if you decide to extract route handler logic into a separate function) should be lean.
+    They take in only necessary data (not the whole `req` and `res`), call services, and return a structured `ApiResponse`.
+  - **Services (`shared/services/`)** perform database interactions, error handling, and other API-related logic.
+  - **Utils (`shared/utils/`)** contain small, reusable helpers not tied to a specific domain — rely on your intuition when deciding between a service or a util.
+  - After using helpers like `validateQuery`, `validateBody`, or `validateParams`, you can safely access the parsed and validated data via `req.Query`, `req.Body`, and `req.Params` respectively.
 
-- **Setup**: Test files are in the `tests/` directory. The [`tests/setup.ts`](tests/setup.ts) file handles the test environment setup.
-- **Running Tests**:
-  ```sh
-  npm test
-  ```
+---
 
 ## 📚 Documentation
+
+TODO
+
+---
 
 ## 🗺️ Project Layout
 
 Here’s a quick look at the project structure:
 
-- `server.ts`: The main application entry point.
-- `configs/`: Project-wide configs (database connection, emailer, environment variables).
-- `db/`: All things Drizzle ORM – schema definitions and migration files.
-- `docs/`: Generated TypeDoc documentation.
-- `features/`: Contains API routes and handlers, organized by domain.
-- `shared/`: Reusable pieces of code like services, middlewares, and type definitions.
-- `scripts/`: Standalone utility scripts (e.g., `migrate.ts`, `seed.ts`).
-- `tests/`: Unit and integration tests.
+- `server.ts` – Main application entry point.
+- `configs/` – Project-wide configs (database connection, emailer, environment variables).
+- `db/` – All things [Drizzle ORM](https://orm.drizzle.team/): schema definitions and migrations.
+- `docs/` – Currently empty.
+- `features/` – Contains API routes, WebSocket handlers.
+- `shared/` – Reusable code like services, middlewares, and type definitions.
+- `scripts/` – Standalone utility scripts (e.g., `migrate.ts`, `seed.ts`).
+- `tests/` – For tests.
 
-If you have any questions, don't hesitate to ask!
+---
 
-## 🛠️ Tools We Use
-
-- **Node.js**: JavaScript runtime for building the server.
-- **Express**: Web framework for building APIs.
-- **Zod**: TypeScript-first schema validation.
-- **Drizzle ORM**: Type-safe database ORM.
-- **Vitest**: Fast unit testing framework.
-- **TypeDoc**: Documentation generator for TypeScript projects.
+If you have any questions, don’t hesitate to ask!
