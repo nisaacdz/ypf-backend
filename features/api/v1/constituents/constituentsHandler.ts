@@ -42,7 +42,7 @@ export async function getMembers(
       constituentId: schema.Memberships.constituentId,
       endedAt: schema.Memberships.endedAt,
       rn: sql<number>`row_number() OVER (PARTITION BY ${schema.Memberships.constituentId} ORDER BY ${schema.Memberships.startedAt} DESC)`.as(
-        "rn",
+        "membership_rn",
       ),
     })
     .from(schema.Memberships)
@@ -55,7 +55,7 @@ export async function getMembers(
       constituentId: schema.RoleAssignments.constituentId,
       roleName: schema.Roles.name,
       rn: sql<number>`row_number() OVER (PARTITION BY ${schema.RoleAssignments.constituentId} ORDER BY ${schema.Roles._level} ASC)`.as(
-        "rn",
+        "role_rn",
       ),
     })
     .from(schema.RoleAssignments)

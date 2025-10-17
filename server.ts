@@ -1,6 +1,5 @@
-import express, { Express, Request, Response } from "express";
+import express, { Express } from "express";
 import http from "http";
-import { Server as SocketIOServer } from "socket.io";
 import morgan from "morgan";
 import helmet from "helmet";
 import cors from "cors";
@@ -37,22 +36,22 @@ app.use("/api/v1", apiRouter);
 
 const server = http.createServer(app);
 
-const io = new SocketIOServer(server, {
-  cors: {
-    origin: variables.allowedOrigins,
-    methods: ["GET", "POST"],
-    credentials: true,
-  },
-});
+// const io = new SocketIOServer(server, {
+//   cors: {
+//     origin: variables.allowedOrigins,
+//     methods: ["GET", "POST"],
+//     credentials: true,
+//   },
+// });
 
-io.use((socket, next) => filter(socket.handshake, next));
+// io.use((socket, next) => filter(socket.handshake, next));
 
 //initializeChat(io);
 
 app.use(errorHandler);
 
-app.use((req: Request, res: Response) => {
-  res.status(404).json({ error: "Not Found" });
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: "Resource not found" });
 });
 
 (async () => {
@@ -60,7 +59,7 @@ app.use((req: Request, res: Response) => {
   // we'll add other async initializations here
 
   server.listen(variables.port, () => {
-    console.log(`Server is running on port ${variables.port}`);
+    console.log(`Server is live on http://${variables.host}:${variables.port}`);
   });
 })();
 
