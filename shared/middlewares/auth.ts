@@ -28,12 +28,10 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-export const authorize = (guard: GuardFunction | "ALL") => {
+export const authorize = (guard: GuardFunction) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const user = req.User || null;
-
-      const hasAccess = guard === "ALL" ? true : await guard(user, req);
+      const hasAccess = await guard(req);
 
       if (hasAccess) {
         return next();

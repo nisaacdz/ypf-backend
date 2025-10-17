@@ -1,5 +1,4 @@
 import { Request } from "express";
-import { AuthenticatedUser } from "@/shared/types";
 import { MembershipType as MembershipTypeEnum } from "@/db/schema/enums";
 
 export const ROLES = {
@@ -64,9 +63,9 @@ export const allOf = (...guards: GuardFunction[]): GuardFunction => {
 };
 
 const Guards = {
-  public: () => true,
+  ALL: () => true,
 
-  authenticated: (user: AuthenticatedUser | null) => user !== null,
+  authenticated: (req: Request) => req.User !== null,
 
   hasMembership,
 

@@ -79,7 +79,7 @@ eventsRouter.get(
   "/:id/media",
   validateParams(z.object({ id: z.uuid("Invalid Request") })),
   authenticateLax,
-  authorize("ALL"),
+  authorize(Guards.ALL),
   validateQuery(GetEventMediaQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
