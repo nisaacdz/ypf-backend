@@ -4,7 +4,7 @@ import z from "zod";
 
 export const AuthenticatedUserSchema = z.object({
   id: z.uuid(),
-  constituentId: z.string().nullable(),
+  constituentId: z.string(),
   email: z.email(),
   fullName: z.string(),
   roles: z.array(

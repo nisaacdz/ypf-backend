@@ -59,9 +59,6 @@ eventsRouter.post(
   validateBody(UploadEventMediumOptionsSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      if (!req.User?.constituentId) {
-        throw new Error("Not authorized");
-      }
       const response = await eventsHandler.uploadEventMedium({
         constituentId: req.User!.constituentId,
         eventId: req.Params.id,
