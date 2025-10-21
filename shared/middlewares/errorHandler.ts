@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Request, Response, NextFunction } from "express";
 import { AppError } from "../types";
+import logger from "@/configs/logger";
 
 export const errorHandler = (
   err: any,
@@ -17,7 +18,7 @@ export const errorHandler = (
     });
   }
 
-  console.error(err.stack);
+  logger.error(err.stack);
 
   return res.status(500).json({
     success: false,

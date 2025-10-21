@@ -4,13 +4,13 @@ import morgan from "morgan";
 import helmet from "helmet";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-//import { initializeChat } from "@/features/chat/v1";
 import { errorHandler } from "@/shared/middlewares/errorHandler";
 import variables from "@/configs/env";
 import { filter } from "./shared/middlewares";
 import emailer from "@/configs/emailer";
 import pgPool from "./configs/db";
 import apiRouter from "@/features/api/v1";
+import logger from "@/configs/logger";
 
 const app: Express = express();
 
@@ -36,18 +36,6 @@ app.use("/api/v1", apiRouter);
 
 const server = http.createServer(app);
 
-// const io = new SocketIOServer(server, {
-//   cors: {
-//     origin: variables.allowedOrigins,
-//     methods: ["GET", "POST"],
-//     credentials: true,
-//   },
-// });
-
-// io.use((socket, next) => filter(socket.handshake, next));
-
-//initializeChat(io);
-
 app.use(errorHandler);
 
 app.use((req, res) => {
@@ -59,10 +47,8 @@ app.use((req, res) => {
   // we'll add other async initializations here
 
   server.listen(variables.app.port, () => {
-    console.log(
+    logger.info(
       `Server is live on http://${variables.app.host}:${variables.app.port}`,
     );
   });
 })();
-
-// export { app, io };

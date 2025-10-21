@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import z from "zod";
 import variables from "@/configs/env";
+import logger from "@/configs/logger";
 
 export function encodeData<T extends object>(
   payload: T,
@@ -20,9 +21,9 @@ export function decodeData<T>(token: string, schema: z.ZodType<T>): T | null {
     const validationResult = schema.safeParse(decodedPayload);
 
     if (!validationResult.success) {
-      console.error(
+      logger.error(
+        { zodError: z.treeifyError(validationResult.error) },
         "JWT payload failed schema validation:",
-        validationResult.error.format(),
       );
       return null;
     }
@@ -30,11 +31,11 @@ export function decodeData<T>(token: string, schema: z.ZodType<T>): T | null {
     return validationResult.data;
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {
-      // No need for a loud console.error here in production for expired tokens.
+      // No need for a loud error log here in production for expired tokens.
       // Returning null is sufficient for the application logic to handle it.
     } else {
       // Log unexpected errors.
-      console.error("An unexpected error occurred during JWT decoding:", error);
+      logger.error(error, "An unexpected error occurred during JWT decoding:");
     }
 
     return null;

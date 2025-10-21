@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer";
 import variables from "@/configs/env";
 import emailer from "@/configs/emailer";
+import logger from "@/configs/logger";
 
 const colors = {
   primaryText: "#31393C",
@@ -93,9 +94,9 @@ export const sendEmail = async (
 
   try {
     const info = await emailer.transporter.sendMail(mailOptions);
-    console.log(`Email sent to ${to}. Message ID: ${info.messageId}`);
+    logger.info(`Email sent to ${to}. Message ID: ${info.messageId}`);
   } catch (error) {
-    console.error(`Error sending email to ${to}:`, error);
+    logger.error(error, `Error sending email to ${to}:`);
     throw new Error(
       `Failed to send email: ${
         error instanceof Error ? error.message : String(error)

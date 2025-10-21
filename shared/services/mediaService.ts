@@ -3,6 +3,7 @@ import { imagekit } from "@/configs/fs/cdn";
 import schema from "@/db/schema";
 import { AppError } from "@/shared/types";
 import { eq } from "drizzle-orm";
+import logger from "@/configs/logger";
 
 export type AddMediumRecord = {
   caption?: string;
@@ -45,9 +46,9 @@ export async function uploadEventMedium(
     if (data.medium.type === "VIDEO") {
       backfillVideoMetadata(newMediumId, data.medium.externalId).catch(
         (err) => {
-          console.error(
-            `Error backfilling video metadata for medium ID: ${newMediumId}`,
+          logger.error(
             err,
+            `Error backfilling video metadata for medium ID: ${newMediumId}`,
           );
         },
       );
@@ -55,7 +56,7 @@ export async function uploadEventMedium(
 
     return newMediumId;
   } catch (err) {
-    console.error(err);
+    logger.error(err);
     throw new AppError(
       "An error occurred while adding the event medium record.",
       500,
@@ -82,11 +83,11 @@ export async function backfillVideoMetadata(
       })
       .where(eq(schema.Medium.id, mediumId));
 
-    console.log(`Successfully backfilled metadata for medium ID: ${mediumId}`);
+    logger.info(`Successfully backfilled metadata for medium ID: ${mediumId}`);
   } catch (err) {
-    console.error(
-      `Failed to backfill video metadata for medium ID: ${mediumId}, external ID: ${externalId}`,
+    logger.error(
       err,
+      `Failed to backfill video metadata for medium ID: ${mediumId}, external ID: ${externalId}`,
     );
     throw err;
   }

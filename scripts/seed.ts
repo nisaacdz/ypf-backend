@@ -3,14 +3,15 @@ import pgPool from "@/configs/db";
 import schema from "@/db/schema";
 import { exit } from "process";
 import bcrypt from "bcryptjs";
+import logger from "@/configs/logger";
 
 pgPool.initialize();
 
 async function seed() {
-  console.log("🌱 Seeding database...");
+  logger.info("🌱 Seeding database...");
 
   // 1. Clear existing data in reverse order of creation
-  console.log("🗑️ Clearing existing data...");
+  logger.info("🗑️ Clearing existing data...");
   await pgPool.db.delete(schema.RoleAssignments);
   await pgPool.db.delete(schema.ChapterMemberships);
   await pgPool.db.delete(schema.CommitteeMemberships);
@@ -25,10 +26,10 @@ async function seed() {
   await pgPool.db.delete(schema.Users);
   await pgPool.db.delete(schema.Constituents);
   await pgPool.db.delete(schema.Roles);
-  console.log("✅ Data cleared.");
+  logger.info("✅ Data cleared.");
 
   // --- Core & App ---
-  console.log("⚙️ Seeding core and app tables...");
+  logger.info("⚙️ Seeding core and app tables...");
 
   // 2. Roles
   const roles = await pgPool.db
@@ -115,10 +116,10 @@ async function seed() {
     },
   ]);
 
-  console.log("✅ Core and app tables seeded.");
+  logger.info("✅ Core and app tables seeded.");
 
   // --- Activities ---
-  console.log("🎉 Seeding activities...");
+  logger.info("🎉 Seeding activities...");
   const projects = await pgPool.db
     .insert(schema.Projects)
     .values(
@@ -145,10 +146,10 @@ async function seed() {
       projectId: faker.helpers.arrayElement(projects).id,
     })),
   );
-  console.log("✅ Activities seeded.");
+  logger.info("✅ Activities seeded.");
 
   // --- Shop ---
-  console.log("🛍️ Seeding shop...");
+  logger.info("🛍️ Seeding shop...");
   const products = await pgPool.db
     .insert(schema.Products)
     .values([
@@ -213,15 +214,15 @@ async function seed() {
       priceAtPurchase: products[2].price,
     },
   ]);
-  console.log("✅ Shop seeded.");
+  logger.info("✅ Shop seeded.");
 }
 
 seed()
   .then(() => {
-    console.log("Database seeded successfully! 🎉");
+    logger.info("Database seeded successfully! 🎉");
     exit(0);
   })
   .catch((err) => {
-    console.error("❌ Error seeding database:", err);
+    logger.error(err, "❌ Error seeding database:");
     exit(1);
   });

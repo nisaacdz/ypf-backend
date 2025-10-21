@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import variables from "@/configs/env";
+import logger from "@/configs/logger";
 
 class Emailer {
   transporter: nodemailer.Transporter;
@@ -19,9 +20,9 @@ class Emailer {
   public async initialize() {
     const result = await this.transporter.verify();
     if (result) {
-      console.log("Email transporter is ready to send emails");
+      logger.info("Email transporter is ready to send emails");
     } else {
-      console.error("Error setting up email transporter");
+      logger.error("Error setting up email transporter");
     }
 
     return result;

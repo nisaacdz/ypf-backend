@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 import path from "path";
 import fs from "fs";
+import logger from "@/configs/logger";
 
 const scriptName = process.argv[2];
 if (!scriptName) {
-  console.error(
+  logger.error(
     "❌ Please provide a script name. Example: npm run script -- migrate",
   );
   process.exit(1);
@@ -18,7 +19,7 @@ if (fs.existsSync(scriptPathTs)) scriptToRun = scriptPathTs;
 else if (fs.existsSync(scriptPathJs)) scriptToRun = scriptPathJs;
 
 if (!scriptToRun) {
-  console.error(
+  logger.error(
     `❌ Could not find script: ${scriptName}.ts or ${scriptName}.js in ./scripts`,
   );
   process.exit(1);
@@ -34,7 +35,7 @@ process.argv = [nodeExec, scriptArg0, ...extraArgs];
 try {
   require(scriptToRun);
 } catch (err) {
-  console.error("❌ Error while running script:", err);
+  logger.error(err, "❌ Error while running script:");
   process.exit(1);
 } finally {
   process.argv = originalArgv;

@@ -1,17 +1,10 @@
 import pgPool from "@/configs/db";
-import { migrate } from "drizzle-orm/postgres-js/migrator";
+import logger from "@/configs/logger";
 
 async function runMigrations() {
-  console.log("Starting migrations...");
-  pgPool.initialize();
-  try {
-    await migrate(pgPool.db, { migrationsFolder: "./db/migrations" });
-    console.log("Migrations applied successfully!");
-    process.exit(0);
-  } catch (error) {
-    console.error("Error applying migrations:", error);
-    process.exit(1);
-  }
+  logger.info("Starting migrations...");
+  await pgPool.initialize();
+  // runs migrations within initialize
 }
 
 runMigrations();

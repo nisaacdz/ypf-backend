@@ -4,6 +4,7 @@ import sharp from "sharp";
 
 import blobServiceClient, { containerName } from "@/configs/fs";
 import { imagekit } from "@/configs/fs/cdn";
+import logger from "@/configs/logger";
 
 export interface MediaMeta {
   externalId: string;
@@ -59,12 +60,12 @@ export async function deleteMediumFile(externalId: string): Promise<boolean> {
   } catch (error) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (error && (error as any).statusCode === 404) {
-      console.warn(
+      logger.warn(
         `Blob not found during deletion, treating as success: ${externalId}`,
       );
       return true;
     }
-    console.error(`Failed to delete blob: ${externalId}`, error);
+    logger.error(error, `Failed to delete blob: ${externalId}`);
     return false;
   }
 }

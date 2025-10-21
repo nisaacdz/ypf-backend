@@ -6,6 +6,7 @@ import type { Express } from "express";
 import { hashSync } from "bcryptjs";
 import pgPool from "@/configs/db";
 import schema from "@/db/schema";
+import logger from "@/configs/logger";
 
 describe("Authentication API", () => {
   let app: Express;
@@ -84,7 +85,7 @@ describe("Authentication API", () => {
       expect(response.status).toBe(401);
       expect(response.body.success).toBe(false);
       expect(response.headers["set-cookie"]).toBeUndefined();
-      console.log(response.body.message);
+      logger.info(response.body.message);
     });
 
     it("should reject login with a non-existent email", async () => {
@@ -96,7 +97,7 @@ describe("Authentication API", () => {
       expect(response.status).toBe(401);
       expect(response.body.success).toBe(false);
       expect(response.headers["set-cookie"]).toBeUndefined();
-      console.log(response.body.message);
+      logger.info(response.body.message);
     });
   });
 });
