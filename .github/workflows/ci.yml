@@ -18,7 +18,10 @@ jobs:
       NODE_ENV: test
 
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      CLOUDINARY_URL: ${{ secrets.CLOUDINARY_URL }}
+      AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
+      IMAGEKIT_PUBLIC_KEY: ${{ secrets.IMAGEKIT_PUBLIC_KEY }}
+      IMAGEKIT_PRIVATE_KEY: ${{ secrets.IMAGEKIT_PRIVATE_KEY }}
+      IMAGEKIT_URL_ENDPOINT: ${{ vars.IMAGEKIT_URL_ENDPOINT }}
       JWT_SECRET: ${{ secrets.JWT_SECRET }}
       SMTP_HOST: ${{ secrets.SMTP_HOST }}
       SMTP_USER: ${{ secrets.SMTP_USER }}
