@@ -6,7 +6,7 @@ import {
 import { Events } from "@/db/schema/activities";
 import z from "zod";
 import pgPool from "@/configs/db";
-import { storeMediumFile, deleteMediumFile } from "@/shared/utils/media";
+import * as mediaUtils from "@/shared/utils/media";
 import * as mediaService from "@/shared/services/mediaService";
 import * as eventsService from "@/shared/services/eventsService";
 import { YPFEventMedium, Paginated } from "@/shared/dtos";
@@ -39,7 +39,7 @@ export async function uploadEventMedium({
   file: Express.Multer.File;
   options: { caption?: string; isFeatured: boolean };
 }): Promise<ApiResponse<string>> {
-  const uploadMeta = await storeMediumFile(file);
+  const uploadMeta = await mediaUtils.storeMediumFile(file);
 
   try {
     const newMediumId = await mediaService.uploadEventMedium(eventId, {
@@ -61,7 +61,7 @@ export async function uploadEventMedium({
       data: newMediumId,
     };
   } catch (error) {
-    await deleteMediumFile(uploadMeta.externalId);
+    await mediaUtils.deleteMediumFile(uploadMeta.externalId);
     throw error;
   }
 }

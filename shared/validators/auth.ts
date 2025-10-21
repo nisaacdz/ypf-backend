@@ -30,7 +30,7 @@ export const AuthCodeSchema = z.object({
     (uri) => {
       try {
         const url = new URL(uri);
-        return variables.allowedOrigins.includes(url.origin);
+        return variables.security.allowedOrigins.includes(url.origin);
       } catch {
         return false;
       }

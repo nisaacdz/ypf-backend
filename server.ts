@@ -17,7 +17,7 @@ const app: Express = express();
 app.use(helmet());
 
 const corsOptions = {
-  origin: variables.allowedOrigins,
+  origin: variables.security.allowedOrigins,
   optionsSuccessStatus: 200,
   credentials: true,
 };
@@ -58,8 +58,10 @@ app.use((req, res) => {
   await Promise.all([emailer.initialize(), pgPool.initialize()]);
   // we'll add other async initializations here
 
-  server.listen(variables.port, () => {
-    console.log(`Server is live on http://${variables.host}:${variables.port}`);
+  server.listen(variables.app.port, () => {
+    console.log(
+      `Server is live on http://${variables.app.host}:${variables.app.port}`,
+    );
   });
 })();
 

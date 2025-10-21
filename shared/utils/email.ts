@@ -18,8 +18,8 @@ const colors = {
  * This ensures all outgoing emails have a professional and uniform look.
  */
 const generateBaseHtml = (subject: string, contentHtml: string): string => {
-  const year = variables.year;
-  const logoUrl = variables.logoUrl;
+  const year = variables.app.year;
+  const logoUrl = variables.app.logoUrl;
 
   return `
     <!DOCTYPE html>
@@ -82,7 +82,7 @@ export const sendEmail = async (
   textContent?: string,
 ): Promise<void> => {
   const mailOptions: nodemailer.SendMailOptions = {
-    from: `"YPF Africa" <${variables.emailer}>`,
+    from: `"YPF Africa" <${variables.services.email.sender}>`,
     to: to,
     subject: subject,
     html: htmlBody,

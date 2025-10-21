@@ -8,14 +8,14 @@ export function encodeData<T extends object>(
 ): string {
   const signOptions = options ?? { expiresIn: "1h" };
 
-  const token = jwt.sign(payload, variables.jwtSecret, signOptions);
+  const token = jwt.sign(payload, variables.security.jwtSecret, signOptions);
 
   return token;
 }
 
 export function decodeData<T>(token: string, schema: z.ZodType<T>): T | null {
   try {
-    const decodedPayload = jwt.verify(token, variables.jwtSecret);
+    const decodedPayload = jwt.verify(token, variables.security.jwtSecret);
 
     const validationResult = schema.safeParse(decodedPayload);
 

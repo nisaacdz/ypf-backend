@@ -148,7 +148,9 @@ export async function getMembers(
     id: m.id,
     fullName: m.fullName,
     profilePhotoUrl: m.profilePhotoExternalId
-      ? mediaUtils.generateMediaUrl(m.profilePhotoExternalId)
+      ? mediaUtils.generatePublicMediaUrl(m.profilePhotoExternalId, {
+          resolution: 360,
+        })
       : undefined,
     isActive: m.isActive,
     joinedAt: m.joinedAt ?? undefined,
