@@ -33,7 +33,7 @@ export async function storeMediumFile(
   let dimensions: { width: number; height: number };
 
   if (isVideo) {
-    // imagekit may not yet be aware of new uploads or may be too slow on user's request;
+    // imagekit may not yet be aware of new uploads or may be too slow; likely the latter
     // const fileDetails = await imagekit.getFileDetails(blobName);
     // const { width, height } = fileDetails;
     dimensions = { width: 0, height: 0 };
@@ -86,7 +86,7 @@ export function generateVideoThumbnailUrl(
         aspectRatio: "16-9",
         crop: "pad_resize",
         background: "000000",
-        t: second.toString(), // 't' is the thumbnail-from-time parameter
+        t: second.toString(),
       },
     ],
   });
