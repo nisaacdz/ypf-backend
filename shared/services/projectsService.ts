@@ -3,7 +3,7 @@ import { YPFProject } from "@/shared/dtos";
 import pgPool from "@/configs/db";
 import { Projects, ProjectMedia } from "@/db/schema/activities";
 import { Medium, Chapters } from "@/db/schema/core";
-import { generateMediaUrl } from "@/shared/utils/media";
+import * as mediaUtils from "@/shared/utils/media";
 import { eq, and, ilike, count } from "drizzle-orm";
 import z from "zod";
 import { GetProjectsQuerySchema } from "@/shared/validators/activities";
@@ -68,7 +68,10 @@ export async function fetchProjects(
     scheduledEnd: project.scheduledEnd.toISOString(),
     status: project.status,
     featuredPhotoUrl: project.featuredPhotoUrl
-      ? generateMediaUrl(project.featuredPhotoUrl)
+      ? mediaUtils.generateSignedMediaUrl(project.featuredPhotoUrl, {
+          resolution: 720,
+          expireSeconds: 60 * 60 * 24,
+        })
       : undefined,
     chapterName: project.chapterName || undefined,
   }));

@@ -50,7 +50,10 @@ export async function fetchEventMedia(
       type: m.medium.type,
       sizeInBytes: m.medium.sizeInBytes,
       uploadedAt: m.medium.uploadedAt,
-      url: mediaUtils.generateMediaUrl(m.medium.externalId),
+      url: mediaUtils.generateSignedMediaUrl(m.medium.externalId, {
+        resolution: 480,
+        expireSeconds: 60 * 60 * 24,
+      }),
       dimensions: {
         width: m.medium.width,
         height: m.medium.height,

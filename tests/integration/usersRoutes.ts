@@ -23,7 +23,6 @@ describe("Users API", () => {
 
   beforeAll(async () => {
     app = await createTestApp();
-    pgPool.initialize();
 
     await pgPool.db
       .delete(schema.Users)

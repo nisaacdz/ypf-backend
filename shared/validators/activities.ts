@@ -28,7 +28,7 @@ export const CreateEventSchema = z.object({
 
 export const UploadEventMediumOptionsSchema = z.object({
   caption: z.string().max(255).optional(),
-  isFeatured: z.boolean().optional().default(false),
+  isFeatured: z.coerce.boolean().optional().default(false),
 });
 
 export const UploadEventFileSchema = z

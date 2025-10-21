@@ -1,9 +1,10 @@
-import { v2 } from "cloudinary";
+import { BlobServiceClient } from "@azure/storage-blob";
+import variables from "../env";
 
-v2.config({
-  secure: true,
-});
+const blobServiceClient = BlobServiceClient.fromConnectionString(
+  variables.services.azure.connectionString,
+);
 
-const storage = v2;
+export const containerName = "media";
 
-export default storage;
+export default blobServiceClient;

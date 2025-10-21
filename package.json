@@ -17,9 +17,10 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@azure/storage-blob": "^12.29.1",
     "@google/generative-ai": "0.24.1",
+    "@types/fluent-ffmpeg": "^2.1.27",
     "bcryptjs": "3.0.2",
-    "cloudinary": "^2.7.0",
     "cookie-parser": "^1.4.7",
     "cors": "2.8.5",
     "dotenv": "17.2.2",
@@ -27,6 +28,7 @@
     "express": "5.1.0",
     "file-type": "^21.0.0",
     "helmet": "8.1.0",
+    "imagekit": "^6.0.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "1.10.1",
     "multer": "^2.0.2",
@@ -34,8 +36,10 @@
     "openid-client": "^6.8.1",
     "pg": "8.16.3",
     "postgres": "3.4.7",
+    "sharp": "^0.34.4",
     "socket.io": "4.8.1",
     "streamifier": "^0.1.1",
+    "uuid": "^13.0.0",
     "zod": "4.1.8"
   },
   "devDependencies": {

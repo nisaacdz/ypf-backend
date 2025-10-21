@@ -6,12 +6,12 @@ class Emailer {
 
   constructor() {
     this.transporter = nodemailer.createTransport({
-      host: variables.smtpHost,
+      host: variables.services.email.host,
       port: 465,
       secure: true,
       auth: {
-        user: variables.smtpUser,
-        pass: variables.smtpPass,
+        user: variables.services.email.user,
+        pass: variables.services.email.pass,
       },
     });
   }

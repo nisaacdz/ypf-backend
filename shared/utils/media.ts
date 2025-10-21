@@ -1,11 +1,12 @@
-import { UploadApiResponse, UploadApiOptions } from "cloudinary";
-import streamifier from "streamifier";
-import storage from "@/configs/fs";
-import { AllowedMimeTypes } from "../middlewares/multipart";
+import { v4 as uuidv4 } from "uuid";
+import path from "path";
+import sharp from "sharp";
+
+import blobServiceClient, { containerName } from "@/configs/fs";
+import { imagekit } from "@/configs/fs/cdn";
 
 export interface MediaMeta {
-  externalId: string; // cloudinary public_id
-  url: string; // delivered url (secure)
+  externalId: string;
   type: "PICTURE" | "VIDEO";
   dimensions: {
     width: number;
@@ -16,60 +17,109 @@ export interface MediaMeta {
 
 export async function storeMediumFile(
   file: Express.Multer.File,
-  folder = "my_app_uploads",
 ): Promise<MediaMeta> {
-  if (!file || !file.buffer) throw new Error("No file buffer provided");
+  const isVideo = file.mimetype.startsWith("video/");
+  const fileExtension =
+    path.extname(file.originalname) || `.${file.mimetype.split("/")[1]}`;
+  const fileName = `${uuidv4()}${fileExtension}`;
+  const blobName = `${file.mimetype.split("/")[0]}/${fileName}`;
 
-  const uploadOptions: UploadApiOptions = {
-    folder,
-    resource_type: file.mimetype.startsWith("video/") ? "video" : "image",
-    chunk_size: 6000000,
-  };
-
-  const result: UploadApiResponse = await new Promise((resolve, reject) => {
-    const uploadStream = storage.uploader.upload_stream(
-      uploadOptions,
-      (error, result) => {
-        if (error) return reject(error);
-        resolve(result as UploadApiResponse);
-      },
-    );
-    streamifier.createReadStream(file.buffer).pipe(uploadStream);
+  const containerClient = blobServiceClient.getContainerClient(containerName);
+  const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+  await blockBlobClient.uploadData(file.buffer, {
+    blobHTTPHeaders: { blobContentType: file.mimetype },
   });
+
+  let dimensions: { width: number; height: number };
+
+  if (isVideo) {
+    // imagekit may not yet be aware of new uploads or may be too slow; likely the latter
+    // const fileDetails = await imagekit.getFileDetails(blobName);
+    // const { width, height } = fileDetails;
+    dimensions = { width: 0, height: 0 };
+  } else {
+    const imageMeta = await sharp(file.buffer).metadata();
+    dimensions = { width: imageMeta.width, height: imageMeta.height };
+  }
 
   return {
-    externalId: result.public_id,
-    url: result.secure_url,
-    type: AllowedMimeTypes[file.mimetype],
-    dimensions: {
-      width: result.width,
-      height: result.height,
-    },
-    sizeInBytes: result.bytes,
+    externalId: blobName,
+    type: isVideo ? "VIDEO" : "PICTURE",
+    dimensions: dimensions,
+    sizeInBytes: file.size,
   };
 }
 
-export async function deleteMediumFile(
-  publicId: string,
-  resourceType: "image" | "video" = "image",
-): Promise<boolean> {
-  const result = await storage.uploader.destroy(publicId, {
-    resource_type: resourceType,
+export async function deleteMediumFile(externalId: string): Promise<boolean> {
+  try {
+    const containerClient = blobServiceClient.getContainerClient(containerName);
+    const blockBlobClient = containerClient.getBlockBlobClient(externalId);
+    await blockBlobClient.delete();
+    return true;
+  } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (error && (error as any).statusCode === 404) {
+      console.warn(
+        `Blob not found during deletion, treating as success: ${externalId}`,
+      );
+      return true;
+    }
+    console.error(`Failed to delete blob: ${externalId}`, error);
+    return false;
+  }
+}
+
+/**
+ * Generates a URL for a video thumbnail using ImageKit's on-the-fly processing.
+ * @param externalId The path to the video file in storage.
+ * @param second The time in the video to capture the thumbnail from (e.g., 5 for 5s mark).
+ */
+export function generateVideoThumbnailUrl(
+  externalId: string,
+  second: number = 5,
+): string {
+  return imagekit.url({
+    path: externalId,
+    transformation: [
+      {
+        height: "400",
+        aspectRatio: "16-9",
+        crop: "pad_resize",
+        background: "000000",
+        t: second.toString(),
+      },
+    ],
   });
-  return result.result === "ok" || result.result === "not_found";
 }
 
-export function generateMediaUrl(
-  publicId: string,
-  options: { resolution?: number; crop?: "scale" | "fit" | "limit" } = {
-    resolution: 1080,
-    crop: "scale",
-  },
-) {
-  const transformationOptions = {
-    secure: true,
-    transformation: [{ width: options.resolution, crop: options.crop }],
-  };
+export function generatePublicMediaUrl(
+  externalId: string,
+  options: { resolution?: number } = {},
+): string {
+  const transformations = [];
+  if (options.resolution) {
+    transformations.push({ width: options.resolution.toString() });
+  }
 
-  return storage.url(publicId, transformationOptions);
+  return imagekit.url({
+    path: externalId,
+    transformation: transformations,
+  });
+}
+
+export function generateSignedMediaUrl(
+  externalId: string,
+  options: { resolution?: number; expireSeconds: number },
+): string {
+  const transformations = [];
+  if (options.resolution) {
+    transformations.push({ width: options.resolution.toString() });
+  }
+
+  return imagekit.url({
+    path: externalId,
+    expireSeconds: options.expireSeconds,
+    transformation: transformations,
+    signed: true,
+  });
 }

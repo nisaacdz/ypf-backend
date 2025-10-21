@@ -221,7 +221,7 @@ export const mediaRelations = relations(Medium, ({ one }) => ({
   creator: one(Constituents, {
     fields: [Medium.uploadedBy],
     references: [Constituents.id],
-    relationName: "mediaCreator",
+    relationName: "mediumCreator",
   }),
 }));
 

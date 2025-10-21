@@ -1,7 +1,9 @@
 import { AppError } from "../types";
 import variables from "@/configs/env";
 
-const allowedClients = variables.isProduction ? ["dashboard", "website"] : [];
+const allowedClients = variables.app.isProduction
+  ? ["dashboard", "website"]
+  : [];
 
 export async function filter(
   req: { headers: { [key: string]: unknown } },
@@ -11,8 +13,6 @@ export async function filter(
     return next();
   }
   const client = req.headers["x-client"];
-
-  console.log("Client:", client);
 
   if (
     !client ||
@@ -24,9 +24,9 @@ export async function filter(
 
   const origin = String(req.headers.origin);
   if (
-    variables.allowedOrigins &&
+    variables.security.allowedOrigins &&
     origin &&
-    !variables.allowedOrigins.includes(origin)
+    !variables.security.allowedOrigins.includes(origin)
   ) {
     return next(new AppError("CORS Error: This origin is not allowed", 403));
   }
