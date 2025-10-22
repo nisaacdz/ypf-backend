@@ -13,11 +13,22 @@ authRouter.post(
     try {
       const { response, token } =
         await authHandler.loginWithUsernameAndPassword(req.Body);
+      
+      // Set access_token cookie with 30-minute expiry
       res.cookie("access_token", token, {
         httpOnly: true,
         secure: true,
         sameSite: "none",
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        maxAge: 30 * 60 * 1000, // 30 minutes
+        path: "/",
+      });
+
+      // Set refresh_token cookie with 3-day expiry
+      res.cookie("refresh_token", response.refreshToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "none",
+        maxAge: 3 * 24 * 60 * 60 * 1000, // 3 days
         path: "/",
       });
 
