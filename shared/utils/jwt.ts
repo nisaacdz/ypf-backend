@@ -14,9 +14,24 @@ export function encodeData<T extends object>(
   return token;
 }
 
-export function decodeData<T>(token: string, schema: z.ZodType<T>): T | null {
+export function decodeData<T extends object>(
+  token: string,
+  schema: z.ZodType<T>,
+): (T & { exp: number }) | null {
   try {
     const decodedPayload = jwt.verify(token, variables.security.jwtSecret);
+
+    if (typeof decodedPayload !== "object" || decodedPayload === null) {
+      logger.error({ decodedPayload }, "JWT payload is not a valid object:");
+      return null;
+    }
+
+    const exp = decodedPayload.exp;
+
+    if (typeof exp !== "number") {
+      logger.error({ exp }, "JWT expiration is not a valid number:");
+      return null;
+    }
 
     const validationResult = schema.safeParse(decodedPayload);
 
@@ -28,7 +43,7 @@ export function decodeData<T>(token: string, schema: z.ZodType<T>): T | null {
       return null;
     }
 
-    return validationResult.data;
+    return { ...validationResult.data, exp };
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {
       // No need for a loud error log here in production for expired tokens.

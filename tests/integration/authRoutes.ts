@@ -66,7 +66,7 @@ describe("Authentication API", () => {
 
       expect(response.headers["set-cookie"]).toBeDefined();
       const cookieHeader = response.headers["set-cookie"][0];
-      expect(cookieHeader).toMatch(/auth_token=.+/);
+      expect(cookieHeader).toMatch(/access_token=.+/);
       expect(cookieHeader).toMatch(/HttpOnly/);
       expect(cookieHeader).toMatch(/Path=\//);
 

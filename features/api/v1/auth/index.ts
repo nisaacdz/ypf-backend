@@ -13,7 +13,7 @@ authRouter.post(
     try {
       const { response, token } =
         await authHandler.loginWithUsernameAndPassword(req.Body);
-      res.cookie("auth_token", token, {
+      res.cookie("access_token", token, {
         httpOnly: true,
         secure: true,
         sameSite: "none",
@@ -36,7 +36,7 @@ authRouter.post(
 //       const { response, token } = await authHandler.loginWithGoogleAuthCode(
 //         req.Body,
 //       );
-//       res.cookie("auth_token", token, {
+//       res.cookie("access_token", token, {
 //         httpOnly: true,
 //         secure: variables.isProduction,
 //         sameSite: "lax",

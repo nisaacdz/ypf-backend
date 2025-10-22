@@ -1,4 +1,5 @@
 import { Request } from "express";
+import { Profile } from "@/shared/types";
 
 export const ADMIN = {
   REGULAR: (role: string) => role === "ADMIN.REGULAR",
@@ -13,8 +14,6 @@ export const MEMBER = {
     role === `MEMBER.chair.${committeeId}`,
   TREASURER: (role: string) => role === "MEMBER.treasurer",
 };
-
-export type Profile = "ADMIN" | "MEMBER" | "VOLUNTEER" | "DONOR" | "AUDITOR";
 
 export type GuardFunction = (req: Request) => boolean | Promise<boolean>;
 

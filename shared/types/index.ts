@@ -17,3 +17,5 @@ declare global {
 }
 
 export type AuthenticatedUser = z.infer<typeof AuthenticatedUserSchema>;
+
+export type Profile = "ADMIN" | "MEMBER" | "VOLUNTEER" | "DONOR" | "AUDITOR";

@@ -1,4 +1,4 @@
-import { Profile } from "@/configs/authorizer";
+import { Profile } from "@/shared/types";
 import { MediumType } from "@/shared/dtos";
 
 export type Medium = {

@@ -13,7 +13,7 @@ import schema from "@/db/schema";
 import { AppError } from "@/shared/types";
 import { Users } from "@/db/schema/app";
 import { AnyPgColumn, unionAll } from "drizzle-orm/pg-core";
-import { Profile } from "@/configs/authorizer";
+import { Profile } from "@/shared/types";
 
 const allColumns = getTableColumns(Users);
 

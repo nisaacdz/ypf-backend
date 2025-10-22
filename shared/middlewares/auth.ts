@@ -9,7 +9,7 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
     return next();
   }
 
-  const token = req.cookies.auth_token;
+  const token = req.cookies.access_token;
 
   if (!token) {
     return next(
@@ -52,7 +52,7 @@ export const authenticateLax = (
   res: Response,
   next: NextFunction,
 ) => {
-  const token = req.cookies.auth_token;
+  const token = req.cookies.access_token;
 
   if (!token) {
     return next();
