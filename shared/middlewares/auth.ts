@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { AppError } from "../types";
-import { decodeData } from "../utils/jwt";
+import { decodeToken } from "../utils/jwt";
 import { AuthenticatedUserSchema } from "../validators";
 import type { GuardFunction } from "@/configs/authorizer";
 
@@ -17,15 +17,20 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
     );
   }
 
-  const decodedUser = decodeData(token, AuthenticatedUserSchema);
+  const decodedUser = decodeToken(token, AuthenticatedUserSchema);
 
   if (!decodedUser) {
     return next(new AppError("Invalid token. Please log in again.", 401));
   }
 
-  req.User = decodedUser;
+  if ("id" in decodedUser) {
+    // Valid token with user data
+    req.User = decodedUser;
+    return next();
+  }
 
-  next();
+  // Expired token
+  return next(new AppError("Your session has expired. Please log in again.", 401));
 }
 
 export const authorize = (guard: GuardFunction) => {
@@ -58,9 +63,10 @@ export const authenticateLax = (
     return next();
   }
 
-  const decodedUser = decodeData(token, AuthenticatedUserSchema);
+  const decodedUser = decodeToken(token, AuthenticatedUserSchema);
 
-  if (decodedUser) {
+  if (decodedUser && "id" in decodedUser) {
+    // Only set user if token is valid and not expired
     req.User = decodedUser;
   }
 

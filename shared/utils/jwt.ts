@@ -3,6 +3,9 @@ import z from "zod";
 import variables from "@/configs/env";
 import logger from "@/configs/logger";
 
+export type Valid<T> = T & { exp: number };
+export type Expired = { exp: number };
+
 export function encodeData<T extends object>(
   payload: T,
   options?: jwt.SignOptions,
@@ -14,10 +17,10 @@ export function encodeData<T extends object>(
   return token;
 }
 
-export function decodeData<T extends object>(
+export function decodeToken<T extends object>(
   token: string,
   schema: z.ZodType<T>,
-): (T & { exp: number }) | null {
+): Valid<T> | Expired | null {
   try {
     const decodedPayload = jwt.verify(token, variables.security.jwtSecret);
 
@@ -45,14 +48,31 @@ export function decodeData<T extends object>(
 
     return { ...validationResult.data, exp };
   } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError) {
-      // No need for a loud error log here in production for expired tokens.
-      // Returning null is sufficient for the application logic to handle it.
+    if (error instanceof jwt.TokenExpiredError) {
+      // Token is expired but otherwise valid - decode without verification to get exp
+      try {
+        const decoded = jwt.decode(token);
+        if (typeof decoded === "object" && decoded !== null && typeof decoded.exp === "number") {
+          // Validate schema on the expired token
+          const validationResult = schema.safeParse(decoded);
+          if (validationResult.success) {
+            return { exp: decoded.exp };
+          }
+        }
+      } catch {
+        // Fall through to return null
+      }
+      return null;
+    } else if (error instanceof jwt.JsonWebTokenError) {
+      // Other JWT errors (malformed, invalid signature, etc.)
+      return null;
     } else {
       // Log unexpected errors.
       logger.error(error, "An unexpected error occurred during JWT decoding:");
+      return null;
     }
-
-    return null;
   }
 }
+
+// Backward compatibility alias
+export const decodeData = decodeToken;
