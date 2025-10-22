@@ -71,6 +71,61 @@ export async function loginWithUsernameAndPassword(
 }
 
 /**
+ * Authenticates a user based on their username/email without password validation.
+ * Used for token refresh operations.
+ *
+ * @param username The user's username or email.
+ * @returns A promise that resolves to the fully constructed AuthenticatedUser.
+ * @throws AppError if user is not found.
+ */
+export async function loginWithUsername(
+  username: string,
+): Promise<AuthenticatedUser> {
+  const [user] = await pgPool.db
+    .select({
+      id: schema.Users.id,
+      constituentId: schema.Constituents.id,
+      email: schema.Users.email,
+      username: schema.Users.username,
+      firstName: schema.Constituents.firstName,
+      lastName: schema.Constituents.lastName,
+    })
+    .from(schema.Users)
+    .innerJoin(
+      schema.Constituents,
+      eq(schema.Users.constituentId, schema.Constituents.id),
+    )
+    .where(
+      or(eq(schema.Users.username, username), eq(schema.Users.email, username)),
+    );
+
+  if (!user) {
+    throw new AppError("User not found", 401);
+  }
+
+  const [roles, profiles] = await Promise.all([
+    getConstituentRoles(user.constituentId),
+    getConstituentProfiles(user.constituentId),
+  ]);
+
+  const fullName =
+    user.firstName && user.lastName
+      ? `${user.firstName} ${user.lastName}`
+      : user.username || user.email;
+
+  const authUser: AuthenticatedUser = {
+    id: user.id,
+    constituentId: user.constituentId,
+    fullName,
+    email: user.email,
+    roles,
+    profiles,
+  };
+
+  return authUser;
+}
+
+/**
  * Links a Google ID to an existing user account.
  *
  * @param userId The ID of the user to update.

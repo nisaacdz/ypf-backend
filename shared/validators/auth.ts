@@ -38,3 +38,7 @@ export const AuthCodeSchema = z.object({
 export const OtpSchema = z.object({
   otp: z.string().min(6).max(6),
 });
+
+export const RefreshTokenPayloadSchema = z.object({
+  username: z.string(),
+});
