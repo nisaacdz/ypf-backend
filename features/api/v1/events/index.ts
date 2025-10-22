@@ -20,7 +20,7 @@ import {
 import * as eventsHandler from "./eventsHandler";
 import filesUpload from "@/shared/middlewares/multipart";
 import z from "zod";
-import { anyOf, Visitors } from "@/configs/authorizer";
+import { anyOf, MEMBER, Visitors } from "@/configs/authorizer";
 
 const eventsRouter = Router();
 
@@ -28,10 +28,7 @@ eventsRouter.post(
   "/",
   authenticate,
   authorize(
-    anyOf(
-      Visitors.hasMembership("SUPER_USER"),
-      Visitors.hasRole("event_coordinator"),
-    ),
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
   ),
   validateBody(CreateEventSchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -49,10 +46,7 @@ eventsRouter.post(
   validateParams(z.object({ id: z.uuid("Invalid Request") })),
   authenticate,
   authorize(
-    anyOf(
-      Visitors.hasMembership("SUPER_USER"),
-      Visitors.hasRole("event_coordinator"),
-    ),
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
   ),
   filesUpload.single("file"),
   validateFile(UploadEventFileSchema),

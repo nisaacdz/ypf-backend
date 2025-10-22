@@ -11,7 +11,7 @@ const constituentsRouter = Router();
 constituentsRouter.get(
   "/members",
   authenticateLax,
-  authorize(Visitors.hasMembership("MEMBER", "SUPER_USER")),
+  authorize(Visitors.hasProfile("MEMBER", "ADMIN")),
   validateQuery(GetMembersQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {

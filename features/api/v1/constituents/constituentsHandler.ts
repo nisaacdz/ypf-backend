@@ -3,11 +3,12 @@ import {
   and,
   eq,
   min,
-  countDistinct,
+  count,
   ilike,
   isNull,
-  gt,
   or,
+  lte,
+  gte,
 } from "drizzle-orm";
 import z from "zod";
 
@@ -22,45 +23,49 @@ export async function getMembers(
   query: z.infer<typeof GetMembersQuerySchema>,
 ): Promise<ApiResponse<Paginated<YPFMember>>> {
   const { page, pageSize, search, chapterId, committeeId } = query;
+  const now = sql`now()`;
 
   // --- SUBQUERIES ---
 
-  // 1. Subquery to find the earliest "MEMBER" membership start date for each constituent.
+  // 1. Subquery to find the earliest membership start date for each constituent.
   const firstMembershipSubquery = pgPool.db
     .select({
-      constituentId: schema.Memberships.constituentId,
-      joinedAt: min(schema.Memberships.startedAt).as("joined_at"),
+      constituentId: schema.Members.constituentId,
+      joinedAt: min(schema.Members.startedAt).as("joined_at"),
     })
-    .from(schema.Memberships)
-    .where(eq(schema.Memberships.type, "MEMBER"))
-    .groupBy(schema.Memberships.constituentId)
+    .from(schema.Members)
+    .groupBy(schema.Members.constituentId)
     .as("first_membership");
 
-  // 2. Subquery to find the most recent "MEMBER" membership to determine active status.
-  const latestMembershipSubquery = pgPool.db
+  // 2. Subquery to find the most significant (highest priority) active title for each constituent.
+  const topTitleSubquery = pgPool.db
     .select({
-      constituentId: schema.Memberships.constituentId,
-      endedAt: schema.Memberships.endedAt,
-      rn: sql<number>`row_number() OVER (PARTITION BY ${schema.Memberships.constituentId} ORDER BY ${schema.Memberships.startedAt} DESC)`.as(
-        "membership_rn",
+      constituentId: schema.Members.constituentId,
+      titleName: schema.MemberTitles.title,
+      rn: sql<number>`row_number() OVER (PARTITION BY ${schema.Members.constituentId} ORDER BY ${schema.MemberTitles._level} ASC)`.as(
+        "title_rn",
       ),
     })
-    .from(schema.Memberships)
-    .where(eq(schema.Memberships.type, "MEMBER"))
-    .as("latest_membership");
-
-  // 3. Subquery to find the role with the highest priority (lowest _level).
-  const topRoleSubquery = pgPool.db
-    .select({
-      constituentId: schema.RoleAssignments.constituentId,
-      roleName: schema.Roles.name,
-      rn: sql<number>`row_number() OVER (PARTITION BY ${schema.RoleAssignments.constituentId} ORDER BY ${schema.Roles._level} ASC)`.as(
-        "role_rn",
+    .from(schema.Members)
+    .innerJoin(
+      schema.MemberTitlesAssignments,
+      eq(schema.Members.id, schema.MemberTitlesAssignments.memberId),
+    )
+    .innerJoin(
+      schema.MemberTitles,
+      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
+    )
+    // Only consider titles that are currently active
+    .where(
+      and(
+        lte(schema.MemberTitlesAssignments.startedAt, now),
+        or(
+          isNull(schema.MemberTitlesAssignments.endedAt),
+          gte(schema.MemberTitlesAssignments.endedAt, now),
+        ),
       ),
-    })
-    .from(schema.RoleAssignments)
-    .innerJoin(schema.Roles, eq(schema.RoleAssignments.roleId, schema.Roles.id))
-    .as("top_role");
+    )
+    .as("top_title");
 
   // --- DYNAMIC FILTERS ---
 
@@ -71,22 +76,26 @@ export async function getMembers(
     whereClauses.push(ilike(fullName, `%${search}%`));
   }
 
+  // Filter for members active in a specific chapter
   if (chapterId) {
     whereClauses.push(
       sql`EXISTS (
-        SELECT 1 FROM ${schema.ChapterMemberships}
-        WHERE ${schema.ChapterMemberships.constituentId} = ${schema.Constituents.id}
-        AND ${schema.ChapterMemberships.chapterId} = ${chapterId}
+        SELECT 1 FROM ${schema.ChapterMemberships} cm
+        JOIN ${schema.Members} m ON cm.member_id = m.id
+        WHERE m.constituent_id = ${schema.Constituents.id}
+        AND cm.chapter_id = ${chapterId} AND cm.is_active = true
       )`,
     );
   }
 
+  // Filter for members active in a specific committee
   if (committeeId) {
     whereClauses.push(
       sql`EXISTS (
-        SELECT 1 FROM ${schema.CommitteeMemberships}
-        WHERE ${schema.CommitteeMemberships.constituentId} = ${schema.Constituents.id}
-        AND ${schema.CommitteeMemberships.committeeId} = ${committeeId}
+        SELECT 1 FROM ${schema.CommitteeMemberships} com
+        JOIN ${schema.Members} m ON com.member_id = m.id
+        WHERE m.constituent_id = ${schema.Constituents.id}
+        AND com.committee_id = ${committeeId} AND com.is_active = true
       )`,
     );
   }
@@ -101,43 +110,36 @@ export async function getMembers(
         sql<string>`concat(${schema.Constituents.firstName}, ' ', ${schema.Constituents.lastName})`.as(
           "full_name",
         ),
-      isActive: sql<boolean>`${or(
-        isNull(latestMembershipSubquery.endedAt),
-        gt(latestMembershipSubquery.endedAt, new Date()),
-      )}`.as("is_active"),
+      // Check if any active membership period exists for the constituent
+      isActive: sql<boolean>`EXISTS (
+        SELECT 1 FROM ${schema.Members} m
+        WHERE m.constituent_id = ${schema.Constituents.id}
+        AND m.started_at <= ${now} AND (m.ended_at IS NULL OR m.ended_at >= ${now})
+      )`.as("is_active"),
       joinedAt: firstMembershipSubquery.joinedAt,
-      role: topRoleSubquery.roleName,
+      title: topTitleSubquery.titleName,
     })
     .from(schema.Constituents)
     .innerJoin(
       firstMembershipSubquery,
       eq(schema.Constituents.id, firstMembershipSubquery.constituentId),
     )
-    .innerJoin(
-      latestMembershipSubquery,
-      and(
-        eq(schema.Constituents.id, latestMembershipSubquery.constituentId),
-        eq(latestMembershipSubquery.rn, 1),
-      ),
-    )
     .leftJoin(
       schema.Medium,
       eq(schema.Constituents.profilePhotoId, schema.Medium.id),
     )
     .leftJoin(
-      topRoleSubquery,
+      topTitleSubquery,
       and(
-        eq(schema.Constituents.id, topRoleSubquery.constituentId),
-        eq(topRoleSubquery.rn, 1),
+        eq(schema.Constituents.id, topTitleSubquery.constituentId),
+        eq(topTitleSubquery.rn, 1),
       ),
     )
     .where(and(...whereClauses));
 
   // --- QUERY EXECUTION ---
   const [totalResult, dbMembers] = await Promise.all([
-    pgPool.db
-      .select({ total: countDistinct(schema.Constituents.id) })
-      .from(baseQuery.as("sub")),
+    pgPool.db.select({ total: count() }).from(baseQuery.as("sub")),
     baseQuery.limit(pageSize).offset((page - 1) * pageSize),
   ]);
 
@@ -154,7 +156,7 @@ export async function getMembers(
       : undefined,
     isActive: m.isActive,
     joinedAt: m.joinedAt ?? undefined,
-    role: m.role ?? undefined,
+    title: m.title ?? undefined,
   }));
 
   return {
