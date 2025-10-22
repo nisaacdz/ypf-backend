@@ -1,40 +1,40 @@
 import { Request } from "express";
-import { MembershipType as MembershipTypeEnum } from "@/db/schema/enums";
 
-export const ROLES = {
-  PRESIDENT: "role_president",
-  SECRETARY: "role_secretary",
-  FINANCIAL_SECRETARY: "role_financial_secretary",
-  EVENT_COORDINATOR: "event_coordinator",
-  CHAPTER_LEADER: "chapter_leader",
-  COMMITTEE_CHAIR: "committee_chair",
+export const ADMIN = {
+  REGULAR: (role: string) => role === "ADMIN.REGULAR",
+  SUPER: (role: string) => role === "ADMIN.SUPER",
 };
+
+export const MEMBER = {
+  PRESIDENT: (role: string) => role === "MEMBER.president",
+  chapterLead: (chapterId: string) => (role: string) =>
+    role === `MEMBER.lead.${chapterId}`,
+  committeeChair: (committeeId: string) => (role: string) =>
+    role === `MEMBER.chair.${committeeId}`,
+  TREASURER: (role: string) => role === "MEMBER.treasurer",
+};
+
+export type Profile = "ADMIN" | "MEMBER" | "VOLUNTEER" | "DONOR" | "AUDITOR";
 
 export type GuardFunction = (req: Request) => boolean | Promise<boolean>;
 
 /**
- * Check if user has ANY of the specified memberships
+ * Check if user has ANY of the specified profiles
  */
-const hasMembership = (
-  ...types: (typeof MembershipTypeEnum.enumValues)[number][]
-): GuardFunction => {
+const hasProfile = (...types: Profile[]): GuardFunction => {
   return (req) => {
     if (!req.User) return false;
-    return req.User.memberships.some((m) => types.includes(m));
+    return req.User.profiles.some((m) => types.includes(m));
   };
 };
 
 /**
  * Check if user has a specific role (optionally scoped)
  */
-const hasRole = (roleName: string, requireScope?: string): GuardFunction => {
+const hasRole = (roleFunction: (role: string) => boolean): GuardFunction => {
   return (req) => {
     if (!req.User) return false;
-    return req.User.roles.some((role) => {
-      if (role.name !== roleName) return false;
-      if (!requireScope) return true;
-      return role.scope === "*" || role.scope === requireScope;
-    });
+    return req.User.roles.some((role) => roleFunction(role));
   };
 };
 
@@ -67,7 +67,7 @@ const Visitors = {
 
   authenticated: (req: Request) => req.User !== null,
 
-  hasMembership,
+  hasProfile,
 
   hasRole,
 };
