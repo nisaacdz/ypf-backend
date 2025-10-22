@@ -1,10 +1,6 @@
 import z from "zod";
 import { PaginationQuery } from ".";
 
-// ===================================
-// Product Validators (for Admin Panel)
-// ===================================
-
 export const CreateProductSchema = z.object({
   name: z
     .string()
@@ -28,7 +24,7 @@ export const CreateProductSchema = z.object({
     message: "Please enter a valid price (e.g., 49.99).",
   }),
 
-  stockQuantity: z.coerce
+  stockQuantity: z
     .number({ error: "Stock quantity must be a number." })
     .int({ message: "Stock quantity must be a whole number." })
     .min(0, { message: "Stock quantity cannot be negative." }),
@@ -41,10 +37,6 @@ export const CreateProductSchema = z.object({
 });
 
 export const UpdateProductSchema = CreateProductSchema.partial();
-
-// ===================================
-// Order Validators (for Website/Member App)
-// ===================================
 
 const OrderItemSchema = z.object({
   productId: z.uuid({ message: "Invalid product ID format." }),
@@ -76,10 +68,6 @@ export const CreateOrderSchema = z.object({
 
   deliveryAddress: DeliveryAddressSchema,
 });
-
-// ===================================
-// Query Validators (for fetching lists)
-// ===================================
 
 export const GetProductsQuerySchema = z.object({
   ...PaginationQuery.shape,

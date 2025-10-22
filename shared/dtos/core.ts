@@ -1,4 +1,5 @@
-import { MembershipType, MediumType } from "@/shared/dtos";
+import { Profile } from "@/configs/authorizer";
+import { MediumType } from "@/shared/dtos";
 
 export type Medium = {
   url: string; // sdk-generated url
@@ -18,7 +19,7 @@ export type YPFMember = {
   fullName: string;
   isActive: boolean;
   joinedAt?: Date;
-  role?: string; // name of most significant role
+  title?: string; // name of most significant title
 };
 
 export type MemberDetail = {
@@ -47,8 +48,8 @@ export type MemberDetail = {
     startedAt: Date;
     endedAt?: Date;
   }[];
-  memberships: {
-    type: MembershipType;
+  profiles: {
+    type: Profile;
     startedAt: Date;
     endedAt?: Date;
   }[];

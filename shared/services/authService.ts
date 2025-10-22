@@ -4,7 +4,7 @@ import pgPool from "@/configs/db";
 import schema from "@/db/schema";
 import { AppError } from "@/shared/types";
 import { AuthenticatedUser } from "@/shared/types";
-import { getConstituentMemberships, getConstituentRoles } from "./usersService";
+import { getConstituentProfiles, getConstituentRoles } from "./usersService";
 import { Users } from "@/db/schema/app";
 
 /**
@@ -48,9 +48,9 @@ export async function loginWithUsernameAndPassword(
     throw new AppError("Invalid username or password", 401);
   }
 
-  const [roles, memberships] = await Promise.all([
+  const [roles, profiles] = await Promise.all([
     getConstituentRoles(user.constituentId),
-    getConstituentMemberships(user.constituentId),
+    getConstituentProfiles(user.constituentId),
   ]);
 
   const fullName =
@@ -64,7 +64,7 @@ export async function loginWithUsernameAndPassword(
     fullName,
     email: user.email,
     roles,
-    memberships,
+    profiles,
   };
 
   return authUser;

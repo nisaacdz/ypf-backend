@@ -1,5 +1,4 @@
 import variables from "@/configs/env";
-import { MembershipType } from "@/db/schema/enums";
 import z from "zod";
 
 export const AuthenticatedUserSchema = z.object({
@@ -7,15 +6,10 @@ export const AuthenticatedUserSchema = z.object({
   constituentId: z.string(),
   email: z.email(),
   fullName: z.string(),
-  roles: z.array(
-    z.object({
-      name: z.string(),
-      scope: z.string(),
-    }),
-  ),
-  memberships: z
-    .array(z.enum(MembershipType.enumValues))
-    .max(MembershipType.enumValues.length), // active memberships
+  roles: z.array(z.string()), //eg 'ADMIN.REGULAR', 'MEMBER.president', 'MEMBER.chair.<committee_id>' etc
+  profiles: z
+    .array(z.enum(["ADMIN", "MEMBER", "VOLUNTEER", "DONOR", "AUDITOR"]))
+    .max(5), // active profiles
 });
 
 export const UsernameAndPasswordSchema = z.object({

@@ -1,5 +1,4 @@
 import {
-  MembershipType as MembershipTypeEnum,
   MediumType as MediumTypeEnum,
   EventStatus,
   ProjectStatus,
@@ -24,7 +23,6 @@ export type Notification = {
   createdAt: string;
 };
 
-export type MembershipType = (typeof MembershipTypeEnum.enumValues)[number];
 export type MediumType = (typeof MediumTypeEnum.enumValues)[number];
 export type EventStatus = (typeof EventStatus.enumValues)[number];
 export type ProjectStatus = (typeof ProjectStatus.enumValues)[number];
