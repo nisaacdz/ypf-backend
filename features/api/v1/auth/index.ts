@@ -11,7 +11,7 @@ authRouter.post(
   validateBody(UsernameAndPasswordSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { response, token } =
+      const { response, token, refreshToken } =
         await authHandler.loginWithUsernameAndPassword(req.Body);
       
       // Set access_token cookie with 30-minute expiry
@@ -24,7 +24,7 @@ authRouter.post(
       });
 
       // Set refresh_token cookie with 3-day expiry
-      res.cookie("refresh_token", response.refreshToken, {
+      res.cookie("refresh_token", refreshToken, {
         httpOnly: true,
         secure: true,
         sameSite: "none",

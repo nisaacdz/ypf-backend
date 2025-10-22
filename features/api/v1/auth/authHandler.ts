@@ -9,7 +9,7 @@ export async function loginWithUsernameAndPassword({
 }: {
   username: string;
   password: string;
-}): Promise<{ response: ApiResponse<AuthenticatedUser> & { refreshToken: string }; token: string }> {
+}): Promise<{ response: ApiResponse<AuthenticatedUser>; token: string; refreshToken: string }> {
   if (!username || !password) {
     throw new AppError("Username and password are required", 400);
   }
@@ -27,9 +27,9 @@ export async function loginWithUsernameAndPassword({
       success: true,
       data: authenticatedUser,
       message: "Login successful",
-      refreshToken,
     },
     token,
+    refreshToken,
   };
 }
 
