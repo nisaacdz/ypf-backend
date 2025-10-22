@@ -1,12 +1,5 @@
 import { pgEnum } from "drizzle-orm/pg-core";
 
-export const MembershipType = pgEnum("membership_type", [
-  "DONOR",
-  "MEMBER",
-  "VOLUNTEER",
-  "AUDITOR",
-  "SUPER_USER",
-]);
 export const MediumType = pgEnum("media_type", ["PICTURE", "VIDEO"]);
 export const ContactType = pgEnum("contact_type", [
   "EMAIL",

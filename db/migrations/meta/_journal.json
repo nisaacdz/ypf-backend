@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1760082678917,
-      "tag": "0000_nice_aqueduct",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1760330034845,
-      "tag": "0001_overrated_grim_reaper",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1760581323022,
-      "tag": "0002_wet_chronomancer",
+      "when": 1761151270990,
+      "tag": "0000_easy_sprite",
       "breakpoints": true
     }
   ]
