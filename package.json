@@ -26,6 +26,7 @@
     "dotenv": "17.2.2",
     "drizzle-orm": "^0.44.6",
     "express": "5.1.0",
+    "express-rate-limit": "^8.1.0",
     "file-type": "^21.0.0",
     "helmet": "8.1.0",
     "imagekit": "^6.0.0",
