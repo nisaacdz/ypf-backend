@@ -1,4 +1,4 @@
-import { eq, or } from "drizzle-orm";
+import { eq, or, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import pgPool from "@/configs/db";
 import schema from "@/db/schema";
@@ -168,15 +168,13 @@ export async function forgotPassword(email: string): Promise<string> {
   // Use transaction to ensure atomicity
   await pgPool.db.transaction(async (tx) => {
     // Delete any existing OTPs for this email
-    await tx
-      .delete(schema.Otps)
-      .where(eq(schema.Otps.email, email));
+    await tx.delete(schema.Otps).where(eq(schema.Otps.email, email));
 
-    // Insert new OTP that expires in 6 minutes
+    // Insert new OTP that expires in 6 minutes (using database time)
     await tx.insert(schema.Otps).values({
       email,
       code: otp,
-      expiresAt: new Date(Date.now() + 6 * 60 * 1000), // 6 minutes from now
+      expiresAt: sql`now() + interval '6 minutes'`,
     });
   });
 
