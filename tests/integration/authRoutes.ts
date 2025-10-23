@@ -174,6 +174,191 @@ describe("Authentication API", () => {
     });
   });
 
+  describe("POST /api/v1/auth/reset-password", () => {
+    it("should reset password with valid OTP", async () => {
+      // First, request a password reset to get an OTP
+      await request(app).post("/api/v1/auth/forgot-password").send({
+        email: testUser.email,
+      });
+
+      // Fetch the OTP from the database
+      const [otpRecord] = await pgPool.db
+        .select()
+        .from(schema.Otps)
+        .where(eq(schema.Otps.email, testUser.email));
+
+      expect(otpRecord).toBeDefined();
+      expect(otpRecord.code).toHaveLength(6);
+
+      const newPassword = "NewSecurePassword123!";
+
+      // Reset the password
+      const response = await request(app)
+        .post("/api/v1/auth/reset-password")
+        .send({
+          email: testUser.email,
+          otp: otpRecord.code,
+          password: newPassword,
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.message).toBe("Password reset successful");
+
+      // Verify OTP was marked as used
+      const [usedOtp] = await pgPool.db
+        .select()
+        .from(schema.Otps)
+        .where(eq(schema.Otps.id, otpRecord.id));
+
+      expect(usedOtp.usedAt).not.toBeNull();
+
+      // Verify the new password works
+      const loginResponse = await request(app).post("/api/v1/auth/login").send({
+        username: testUser.email,
+        password: newPassword,
+      });
+
+      expect(loginResponse.status).toBe(200);
+      expect(loginResponse.body.success).toBe(true);
+
+      // Update test user password for subsequent tests
+      testUser.password = newPassword;
+    });
+
+    it("should reject password reset with invalid OTP", async () => {
+      const response = await request(app)
+        .post("/api/v1/auth/reset-password")
+        .send({
+          email: testUser.email,
+          otp: "999999",
+          password: "NewPassword123!",
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.message).toBe("Invalid OTP");
+    });
+
+    it("should reject password reset with expired OTP", async () => {
+      // Insert an expired OTP directly
+      const expiredOtp = "123456";
+      await pgPool.db.insert(schema.Otps).values({
+        email: testUser.email,
+        code: expiredOtp,
+        expiresAt: new Date(Date.now() - 1000), // Already expired
+      });
+
+      const response = await request(app)
+        .post("/api/v1/auth/reset-password")
+        .send({
+          email: testUser.email,
+          otp: expiredOtp,
+          password: "NewPassword123!",
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.message).toBe("Invalid OTP");
+
+      // Clean up the expired OTP
+      await pgPool.db
+        .delete(schema.Otps)
+        .where(eq(schema.Otps.code, expiredOtp));
+    });
+
+    it("should reject password reset with already used OTP", async () => {
+      // Request a new OTP
+      await request(app).post("/api/v1/auth/forgot-password").send({
+        email: testUser.email,
+      });
+
+      // Fetch the OTP
+      const [otpRecord] = await pgPool.db
+        .select()
+        .from(schema.Otps)
+        .where(eq(schema.Otps.email, testUser.email));
+
+      // Use the OTP once
+      await request(app)
+        .post("/api/v1/auth/reset-password")
+        .send({
+          email: testUser.email,
+          otp: otpRecord.code,
+          password: "AnotherPassword123!",
+        });
+
+      // Try to use the same OTP again
+      const response = await request(app)
+        .post("/api/v1/auth/reset-password")
+        .send({
+          email: testUser.email,
+          otp: otpRecord.code,
+          password: "YetAnotherPassword123!",
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.message).toBe("OTP has already been used");
+
+      // Update test user password
+      testUser.password = "AnotherPassword123!";
+    });
+
+    it("should reject password reset with invalid email format", async () => {
+      const response = await request(app)
+        .post("/api/v1/auth/reset-password")
+        .send({
+          email: "invalid-email",
+          otp: "123456",
+          password: "NewPassword123!",
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+    });
+
+    it("should reject password reset with non-existent user", async () => {
+      const response = await request(app)
+        .post("/api/v1/auth/reset-password")
+        .send({
+          email: "nonexistent@example.com",
+          otp: "123456",
+          password: "NewPassword123!",
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.message).toBe("Invalid OTP");
+    });
+
+    it("should reject password reset with short password", async () => {
+      const response = await request(app)
+        .post("/api/v1/auth/reset-password")
+        .send({
+          email: testUser.email,
+          otp: "123456",
+          password: "abc",
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+    });
+
+    it("should reject password reset with invalid OTP length", async () => {
+      const response = await request(app)
+        .post("/api/v1/auth/reset-password")
+        .send({
+          email: testUser.email,
+          otp: "12345", // Too short
+          password: "NewPassword123!",
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+    });
+  });
+
   describe("POST /api/v1/auth/logout", () => {
     it("should logout and clear cookies", async () => {
       const response = await request(app).post("/api/v1/auth/logout");

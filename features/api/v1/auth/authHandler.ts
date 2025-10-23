@@ -3,9 +3,17 @@ import { encodeData } from "@/shared/utils/jwt";
 import { ApiResponse, AppError } from "@/shared/types";
 import { AuthenticatedUser } from "@/shared/types";
 import { send_otp_email } from "@/shared/utils/email";
-import { ForgotPasswordSchema } from "@/shared/validators";
+import { ForgotPasswordSchema, ResetPasswordSchema } from "@/shared/validators";
 import { z } from "zod";
 
+/**
+ * Authenticates a user with username and password.
+ * 
+ * @param username - The username or email
+ * @param password - The user's password
+ * @returns Authentication response with tokens
+ * @throws AppError if credentials are invalid
+ */
 export async function loginWithUsernameAndPassword({
   username,
   password,
@@ -43,6 +51,13 @@ export async function loginWithUsernameAndPassword({
   };
 }
 
+/**
+ * Initiates the forgot password flow by sending an OTP to the user's email.
+ * 
+ * @param email - The user's email address
+ * @returns Success response indicating OTP was sent
+ * @throws AppError if user not found
+ */
 export async function forgotPassword({
   email,
 }: z.infer<typeof ForgotPasswordSchema>): Promise<ApiResponse<null>> {
@@ -57,6 +72,34 @@ export async function forgotPassword({
   };
 }
 
+/**
+ * Resets the user's password using a valid OTP.
+ * 
+ * @param email - The user's email address
+ * @param otp - The OTP code received via email
+ * @param password - The new password
+ * @returns Success response indicating password was reset
+ * @throws AppError if OTP is invalid, expired, or used
+ */
+export async function resetPassword({
+  email,
+  otp,
+  password,
+}: z.infer<typeof ResetPasswordSchema>): Promise<ApiResponse<null>> {
+  await authService.resetPassword(email, otp, password);
+
+  return {
+    success: true,
+    data: null,
+    message: "Password reset successful",
+  };
+}
+
+/**
+ * Logs out the current user by clearing their session.
+ * 
+ * @returns Success response
+ */
 export async function logout(): Promise<{
   response: ApiResponse<null>;
 }> {
