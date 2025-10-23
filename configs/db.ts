@@ -18,9 +18,11 @@ class PgPool {
         schema,
       });
 
-    logger.info("Running migrations on database...");
-    await migrate(this.database, { migrationsFolder: "./db/migrations" });
-    logger.info("Migrations complete.");
+    if (variables.app.isProduction) {
+      logger.info("Running migrations on database...");
+      await migrate(this.database, { migrationsFolder: "./db/migrations" });
+      logger.info("Migrations complete.");
+    }
   }
 
   reset() {
