@@ -68,7 +68,7 @@ export async function authenticate(
         httpOnly: true,
         secure: true,
         sameSite: "none",
-        maxAge: 30 * 60 * 1000,
+        maxAge: 3 * 24 * 60 * 60 * 1000, // token expires earlier
         path: "/",
       });
 
@@ -160,13 +160,11 @@ export const authenticateLax = async (
         httpOnly: true,
         secure: true,
         sameSite: "none",
-        maxAge: 30 * 60 * 1000, // 30 minutes
+        maxAge: 3 * 24 * 60 * 60 * 1000, // token expires earlier
         path: "/",
       });
 
-      // If refresh_token is within 1 day of expiry, refresh it to 3 days
-      const oneDayInSeconds = 24 * 60 * 60;
-      if (refreshExp - now <= oneDayInSeconds) {
+      if (refreshExp - now <= 24 * 60 * 60) {
         const newRefreshToken = encodeData({ username }, { expiresIn: "3d" });
         res.cookie("refresh_token", newRefreshToken, {
           httpOnly: true,

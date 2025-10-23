@@ -19,7 +19,7 @@ authRouter.post(
         httpOnly: true,
         secure: true,
         sameSite: "none",
-        maxAge: 30 * 60 * 1000, // 30 minutes
+        maxAge: 3 * 24 * 60 * 60 * 1000, // actual token expires earlier
         path: "/",
       });
 
@@ -51,7 +51,7 @@ authRouter.post(
 //         httpOnly: true,
 //         secure: variables.isProduction,
 //         sameSite: "lax",
-//         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+//         maxAge: 3 * 24 * 60 * 60 * 1000, // 3 days
 //         path: "/",
 //       });
 
