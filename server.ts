@@ -4,6 +4,7 @@ import morgan from "morgan";
 import helmet from "helmet";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import swaggerUi from "swagger-ui-express";
 import { errorHandler } from "@/shared/middlewares/errorHandler";
 import variables from "@/configs/env";
 import { filter } from "./shared/middlewares";
@@ -11,6 +12,7 @@ import emailer from "@/configs/emailer";
 import pgPool from "./configs/db";
 import apiRouter from "@/features/api/v1";
 import logger from "@/configs/logger";
+import { swaggerSpec } from "@/configs/swagger";
 
 const app: Express = express();
 
@@ -32,6 +34,7 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use("/api/v1", apiRouter);
 
 const server = http.createServer(app);

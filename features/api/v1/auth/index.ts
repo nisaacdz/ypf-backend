@@ -6,6 +6,75 @@ import { UsernameAndPasswordSchema } from "@/shared/validators";
 
 const authRouter = Router();
 
+/**
+ * @swagger
+ * /api/v1/auth/login:
+ *   post:
+ *     summary: User login with username and password
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - password
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 description: User's username
+ *               password:
+ *                 type: string
+ *                 minLength: 4
+ *                 maxLength: 55
+ *                 description: User's password
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         headers:
+ *           Set-Cookie:
+ *             schema:
+ *               type: string
+ *               example: access_token=...; refresh_token=...
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Login successful
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                           format: uuid
+ *                         email:
+ *                           type: string
+ *                           format: email
+ *                         fullName:
+ *                           type: string
+ *                         profiles:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *                             enum: [ADMIN, MEMBER, VOLUNTEER, DONOR, AUDITOR]
+ *       400:
+ *         description: Invalid credentials or validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 authRouter.post(
   "/login",
   validateBody(UsernameAndPasswordSchema),
