@@ -202,7 +202,7 @@ eventsRouter.post(
  *         name: mediaType
  *         schema:
  *           type: string
- *           enum: [IMAGE, VIDEO, AUDIO, DOCUMENT]
+ *           enum: [PICTURE, VIDEO]
  *     responses:
  *       200:
  *         description: Media list retrieved successfully
