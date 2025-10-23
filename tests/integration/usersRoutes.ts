@@ -52,12 +52,14 @@ describe("Users API", () => {
     });
 
     const setCookieHeader = loginResponse.headers["set-cookie"];
-    const cookies = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
-    
+    const cookies = Array.isArray(setCookieHeader)
+      ? setCookieHeader
+      : [setCookieHeader];
+
     // Extract both access_token and refresh_token
     const accessToken = cookies.find((c) => c.includes("access_token"));
     const refreshToken = cookies.find((c) => c.includes("refresh_token"));
-    
+
     authTokenCookie = [accessToken, refreshToken]
       .filter(Boolean)
       .map((c) => c?.split(";")[0])

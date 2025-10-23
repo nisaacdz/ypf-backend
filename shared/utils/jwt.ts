@@ -14,12 +14,19 @@ export function encodeData<T extends object>(
   return token;
 }
 
+export type DecodeResult<T> =
+  | { valid: T & { exp: number } }
+  | { expired: { exp: number } }
+  | null;
+
 export function decodeData<T extends object>(
   token: string,
   schema: z.ZodType<T>,
-): (T & { exp: number }) | null {
+): DecodeResult<T> {
   try {
-    const decodedPayload = jwt.verify(token, variables.security.jwtSecret);
+    const decodedPayload = jwt.verify(token, variables.security.jwtSecret, {
+      ignoreExpiration: true,
+    });
 
     if (typeof decodedPayload !== "object" || decodedPayload === null) {
       logger.error({ decodedPayload }, "JWT payload is not a valid object:");
@@ -27,14 +34,12 @@ export function decodeData<T extends object>(
     }
 
     const exp = decodedPayload.exp;
-
     if (typeof exp !== "number") {
       logger.error({ exp }, "JWT expiration is not a valid number:");
       return null;
     }
 
     const validationResult = schema.safeParse(decodedPayload);
-
     if (!validationResult.success) {
       logger.error(
         { zodError: z.treeifyError(validationResult.error) },
@@ -43,13 +48,21 @@ export function decodeData<T extends object>(
       return null;
     }
 
-    return { ...validationResult.data, exp };
+    const now = Math.floor(Date.now() / 1000);
+    const payloadData = validationResult.data as T;
+
+    if (exp < now) {
+      return { expired: { exp } };
+    }
+
+    return { valid: { ...(payloadData as T), exp } };
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {
-      // No need for a loud error log here in production for expired tokens.
-      // Returning null is sufficient for the application logic to handle it.
+      logger.debug(
+        { err: error.message },
+        "JWT verification failed (JsonWebTokenError):",
+      );
     } else {
-      // Log unexpected errors.
       logger.error(error, "An unexpected error occurred during JWT decoding:");
     }
 

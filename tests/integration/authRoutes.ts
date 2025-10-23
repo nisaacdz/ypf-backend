@@ -65,20 +65,24 @@ describe("Authentication API", () => {
       expect(response.status).toBe(200);
 
       expect(response.headers["set-cookie"]).toBeDefined();
-      
+
       // Should have both access_token and refresh_token cookies
       const setCookieHeader = response.headers["set-cookie"];
-      const cookies = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
+      const cookies = Array.isArray(setCookieHeader)
+        ? setCookieHeader
+        : [setCookieHeader];
       expect(cookies.length).toBeGreaterThanOrEqual(2);
-      
+
       const accessTokenCookie = cookies.find((c) => c.includes("access_token"));
-      const refreshTokenCookie = cookies.find((c) => c.includes("refresh_token"));
-      
+      const refreshTokenCookie = cookies.find((c) =>
+        c.includes("refresh_token"),
+      );
+
       expect(accessTokenCookie).toBeDefined();
       expect(accessTokenCookie).toMatch(/access_token=.+/);
       expect(accessTokenCookie).toMatch(/HttpOnly/);
       expect(accessTokenCookie).toMatch(/Path=\//);
-      
+
       expect(refreshTokenCookie).toBeDefined();
       expect(refreshTokenCookie).toMatch(/refresh_token=.+/);
       expect(refreshTokenCookie).toMatch(/HttpOnly/);
