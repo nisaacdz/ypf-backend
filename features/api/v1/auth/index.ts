@@ -39,6 +39,35 @@ authRouter.post(
   },
 );
 
+authRouter.post(
+  "/logout",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { response } = await authHandler.logout();
+
+      // Clear access_token cookie
+      res.clearCookie("access_token", {
+        httpOnly: true,
+        secure: true,
+        sameSite: "none",
+        path: "/",
+      });
+
+      // Clear refresh_token cookie
+      res.clearCookie("refresh_token", {
+        httpOnly: true,
+        secure: true,
+        sameSite: "none",
+        path: "/",
+      });
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 // authRouter.post(
 //   "/google",
 //   validateBody(AuthCodeSchema),

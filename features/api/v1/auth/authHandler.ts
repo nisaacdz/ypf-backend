@@ -40,6 +40,18 @@ export async function loginWithUsernameAndPassword({
   };
 }
 
+export async function logout(): Promise<{
+  response: ApiResponse<null>;
+}> {
+  return {
+    response: {
+      success: true,
+      data: null,
+      message: "User successfully logged out",
+    },
+  };
+}
+
 // export async function loginWithGoogleAuthCode({
 //   code,
 //   codeVerifier,
