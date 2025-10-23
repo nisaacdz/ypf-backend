@@ -8,6 +8,63 @@ import { Visitors } from "@/configs/authorizer";
 
 const projectsRouter = Router();
 
+/**
+ * @swagger
+ * /api/v1/projects:
+ *   get:
+ *     summary: Get list of projects
+ *     tags: [Projects]
+ *     parameters:
+ *       - in: query
+ *         name: filterStatus
+ *         schema:
+ *           type: string
+ *           enum: [PLANNING, ACTIVE, COMPLETED, ON_HOLD]
+ *         description: Filter projects by status
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 10
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search query
+ *     responses:
+ *       200:
+ *         description: Projects list retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     projects:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                     pagination:
+ *                       type: object
+ *       400:
+ *         description: Invalid query parameters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 projectsRouter.get(
   "/",
   authenticateLax,
