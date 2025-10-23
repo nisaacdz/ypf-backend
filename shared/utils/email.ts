@@ -143,3 +143,29 @@ export async function sendWelcomeEmail(
   // 3. Send the email using the core function
   await sendEmail(to, subject, htmlBody, textContent);
 }
+
+/**
+ * Sends an OTP (One-Time Password) email to a user.
+ * @param to - The recipient's email address.
+ * @param otp - The 6-digit OTP code.
+ */
+export async function send_otp_email(to: string, otp: string): Promise<void> {
+  const subject = "Password Reset Code";
+
+  const content = `
+    <p>You have requested to reset your password.</p>
+    <p>Your verification code is:</p>
+    <div style="background-color: ${colors.containerBackground}; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
+      <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: ${colors.primaryAction};">${otp}</span>
+    </div>
+    <p><strong>This code will expire in 6 minutes.</strong></p>
+    <p>If you did not request a password reset, please ignore this email or contact support if you have concerns.</p>
+    <p>Best regards,<br>The YPF Africa Team</p>
+  `;
+
+  const htmlBody = generateBaseHtml(subject, content);
+
+  const textContent = `You have requested to reset your password.\n\nYour verification code is: ${otp}\n\nThis code will expire in 6 minutes.\n\nIf you did not request a password reset, please ignore this email.\n\nBest regards,\nThe YPF Africa Team`;
+
+  await sendEmail(to, subject, htmlBody, textContent);
+}

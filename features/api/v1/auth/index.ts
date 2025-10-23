@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { Router } from "express";
 import * as authHandler from "./authHandler";
 import { validateBody } from "@/shared/middlewares/validate";
-import { UsernameAndPasswordSchema } from "@/shared/validators";
+import { UsernameAndPasswordSchema, ForgotPasswordSchema } from "@/shared/validators";
 
 const authRouter = Router();
 
@@ -32,6 +32,19 @@ authRouter.post(
         path: "/",
       });
 
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+authRouter.post(
+  "/forgot-password",
+  validateBody(ForgotPasswordSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await authHandler.forgotPassword(req.Body);
       res.status(200).json(response);
     } catch (error) {
       next(error);

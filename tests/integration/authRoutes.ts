@@ -118,4 +118,59 @@ describe("Authentication API", () => {
       logger.info(response.body.message);
     });
   });
+
+  describe("POST /api/v1/auth/forgot-password", () => {
+    it("should send OTP email for existing user", async () => {
+      const response = await request(app)
+        .post("/api/v1/auth/forgot-password")
+        .send({
+          email: testUser.email,
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.message).toContain("Password reset code sent");
+
+      // Verify OTP was created in database
+      const [otp] = await pgPool.db
+        .select()
+        .from(schema.Otps)
+        .where(eq(schema.Otps.email, testUser.email));
+
+      expect(otp).toBeDefined();
+      expect(otp.code).toHaveLength(6);
+      expect(otp.code).toMatch(/^\d{6}$/);
+
+      // Verify expiration is set to 6 minutes from now (with some tolerance)
+      const now = new Date();
+      const expiresAt = new Date(otp.expiresAt);
+      const diffMs = expiresAt.getTime() - now.getTime();
+      const diffMinutes = diffMs / (1000 * 60);
+
+      expect(diffMinutes).toBeGreaterThan(5.5);
+      expect(diffMinutes).toBeLessThan(6.5);
+    });
+
+    it("should reject forgot-password for non-existent user", async () => {
+      const response = await request(app)
+        .post("/api/v1/auth/forgot-password")
+        .send({
+          email: "nonexistent@example.com",
+        });
+
+      expect(response.status).toBe(404);
+      expect(response.body.success).toBe(false);
+    });
+
+    it("should reject forgot-password with invalid email format", async () => {
+      const response = await request(app)
+        .post("/api/v1/auth/forgot-password")
+        .send({
+          email: "invalid-email",
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+    });
+  });
 });

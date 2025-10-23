@@ -42,3 +42,7 @@ export const OtpSchema = z.object({
 export const RefreshTokenPayloadSchema = z.object({
   username: z.string(),
 });
+
+export const ForgotPasswordSchema = z.object({
+  email: z.string().email(),
+});

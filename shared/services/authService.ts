@@ -140,3 +140,45 @@ export async function linkGoogleIdToUser(
     .set({ googleId: googleId })
     .where(eq(Users.id, userId));
 }
+
+/**
+ * Initiates the password reset process by creating an OTP for the user.
+ * Uses database transaction to ensure atomicity.
+ *
+ * @param email The user's email address.
+ * @returns The generated OTP code.
+ * @throws AppError if user is not found.
+ */
+export async function forgotPassword(email: string): Promise<string> {
+  // Check if user exists
+  const [user] = await pgPool.db
+    .select({
+      email: schema.Users.email,
+    })
+    .from(schema.Users)
+    .where(eq(schema.Users.email, email));
+
+  if (!user) {
+    throw new AppError("User not found", 404);
+  }
+
+  // Generate 6-digit OTP using Math.random
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+  // Use transaction to ensure atomicity
+  await pgPool.db.transaction(async (tx) => {
+    // Delete any existing OTPs for this email
+    await tx
+      .delete(schema.Otps)
+      .where(eq(schema.Otps.email, email));
+
+    // Insert new OTP that expires in 6 minutes
+    await tx.insert(schema.Otps).values({
+      email,
+      code: otp,
+      expiresAt: new Date(Date.now() + 6 * 60 * 1000), // 6 minutes from now
+    });
+  });
+
+  return otp;
+}

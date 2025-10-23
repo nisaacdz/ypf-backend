@@ -2,6 +2,7 @@ import * as authService from "@/shared/services/authService";
 import { encodeData } from "@/shared/utils/jwt";
 import { ApiResponse, AppError } from "@/shared/types";
 import { AuthenticatedUser } from "@/shared/types";
+import { send_otp_email } from "@/shared/utils/email";
 
 export async function loginWithUsernameAndPassword({
   username,
@@ -37,6 +38,26 @@ export async function loginWithUsernameAndPassword({
     },
     accessToken,
     refreshToken,
+  };
+}
+
+export async function forgotPassword({
+  email,
+}: {
+  email: string;
+}): Promise<ApiResponse<null>> {
+  if (!email) {
+    throw new AppError("Email is required", 400);
+  }
+
+  const otp = await authService.forgotPassword(email);
+
+  await send_otp_email(email, otp);
+
+  return {
+    success: true,
+    data: null,
+    message: "Password reset code sent to your email",
   };
 }
 
