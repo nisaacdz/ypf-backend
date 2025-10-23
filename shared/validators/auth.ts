@@ -44,11 +44,11 @@ export const RefreshTokenPayloadSchema = z.object({
 });
 
 export const ForgotPasswordSchema = z.object({
-  email: z.string().email(),
+  email: z.email(),
 });
 
 export const ResetPasswordSchema = z.object({
-  email: z.string().email(),
+  email: z.email(),
   otp: z.string().min(6).max(6),
   password: z.string().min(4).max(55),
 });
