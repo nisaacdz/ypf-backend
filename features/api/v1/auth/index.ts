@@ -5,6 +5,7 @@ import { validateBody } from "@/shared/middlewares/validate";
 import {
   UsernameAndPasswordSchema,
   ForgotPasswordSchema,
+  ResetPasswordSchema,
 } from "@/shared/validators";
 
 const authRouter = Router();
@@ -111,6 +112,55 @@ authRouter.post(
   },
 );
 
+/**
+ * @swagger
+ * /api/v1/auth/forgot-password:
+ *   post:
+ *     summary: Initiate password reset process
+ *     description: Sends a one-time password (OTP) to the user's email to begin the password reset process
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: User's email address
+ *     responses:
+ *       200:
+ *         description: Password reset code sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Password reset code sent to your email
+ *                 data:
+ *                   type: null
+ *       400:
+ *         description: Invalid email format
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 authRouter.post(
   "/forgot-password",
   validateBody(ForgotPasswordSchema),
@@ -124,6 +174,104 @@ authRouter.post(
   },
 );
 
+/**
+ * @swagger
+ * /api/v1/auth/reset-password:
+ *   post:
+ *     summary: Reset user password with OTP
+ *     description: Completes the password reset process by verifying the OTP and updating the user's password
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - otp
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: User's email address
+ *               otp:
+ *                 type: string
+ *                 minLength: 6
+ *                 maxLength: 6
+ *                 description: Six-digit OTP code received via email
+ *               password:
+ *                 type: string
+ *                 minLength: 4
+ *                 maxLength: 55
+ *                 description: New password for the account
+ *     responses:
+ *       200:
+ *         description: Password reset successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Password reset successful
+ *                 data:
+ *                   type: null
+ *       400:
+ *         description: Invalid OTP, OTP expired, or OTP already used
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+authRouter.post(
+  "/reset-password",
+  validateBody(ResetPasswordSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await authHandler.resetPassword(req.Body);
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/**
+ * @swagger
+ * /api/v1/auth/logout:
+ *   post:
+ *     summary: User logout
+ *     description: Logs out the current user by clearing authentication cookies
+ *     tags: [Authentication]
+ *     responses:
+ *       200:
+ *         description: Logout successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: User successfully logged out
+ *                 data:
+ *                   type: null
+ */
 authRouter.post(
   "/logout",
   async (req: Request, res: Response, next: NextFunction) => {

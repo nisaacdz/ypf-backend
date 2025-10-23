@@ -46,3 +46,9 @@ export const RefreshTokenPayloadSchema = z.object({
 export const ForgotPasswordSchema = z.object({
   email: z.string().email(),
 });
+
+export const ResetPasswordSchema = z.object({
+  email: z.string().email(),
+  otp: z.string().min(6).max(6),
+  password: z.string().min(4).max(55),
+});

@@ -180,3 +180,69 @@ export async function forgotPassword(email: string): Promise<string> {
 
   return otp;
 }
+
+/**
+ * Resets a user's password using a valid OTP.
+ * Uses database transaction to ensure atomicity of OTP validation, marking as used, and password update.
+ *
+ * @param email The user's email address.
+ * @param otp The OTP code received via email.
+ * @param newPassword The new password to set.
+ * @throws AppError if user not found, OTP invalid/expired/used, or password update fails.
+ */
+export async function resetPassword(
+  email: string,
+  otp: string,
+  newPassword: string,
+): Promise<void> {
+  await pgPool.db.transaction(async (tx) => {
+    // Fetch the OTP record for validation
+    const [otpRecord] = await tx
+      .select()
+      .from(schema.Otps)
+      .where(eq(schema.Otps.email, email));
+
+    // Validate OTP exists
+    if (!otpRecord) {
+      throw new AppError("Invalid OTP", 400);
+    }
+
+    // Validate OTP code matches
+    if (otpRecord.code !== otp) {
+      throw new AppError("Invalid OTP", 400);
+    }
+
+    // Validate OTP has not been used
+    if (otpRecord.usedAt) {
+      throw new AppError("OTP has already been used", 400);
+    }
+
+    // Validate OTP has not expired
+    const now = new Date();
+    const expiresAt = new Date(otpRecord.expiresAt);
+    if (now > expiresAt) {
+      throw new AppError("OTP has expired", 400);
+    }
+
+    // Mark OTP as used
+    await tx
+      .update(schema.Otps)
+      .set({ usedAt: sql`now()` })
+      .where(eq(schema.Otps.id, otpRecord.id));
+
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update user's password
+    const result = await tx
+      .update(schema.Users)
+      .set({ password: hashedPassword })
+      .where(eq(schema.Users.email, email))
+      .returning({ id: schema.Users.id });
+
+    // Ensure user exists
+    if (result.length === 0) {
+      throw new AppError("User not found", 404);
+    }
+  });
+}
