@@ -259,7 +259,7 @@ describe("Authentication API", () => {
 
       expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
-      expect(response.body.message).toBe("OTP has expired");
+      expect(response.body.message).toBe("Invalid OTP");
 
       // Clean up the expired OTP
       await pgPool.db
