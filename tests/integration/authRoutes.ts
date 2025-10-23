@@ -173,4 +173,46 @@ describe("Authentication API", () => {
       expect(response.body.success).toBe(false);
     });
   });
+
+  describe("POST /api/v1/auth/logout", () => {
+    it("should logout and clear cookies", async () => {
+      const response = await request(app).post("/api/v1/auth/logout");
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.message).toBe("User successfully logged out");
+
+      // Check that cookies are being cleared
+      const setCookieHeader = response.headers["set-cookie"];
+      expect(setCookieHeader).toBeDefined();
+
+      const cookies = Array.isArray(setCookieHeader)
+        ? setCookieHeader
+        : [setCookieHeader];
+
+      // Should have both access_token and refresh_token clear directives
+      const accessTokenCookie = cookies.find((c) => c.includes("access_token"));
+      const refreshTokenCookie = cookies.find((c) =>
+        c.includes("refresh_token"),
+      );
+
+      expect(accessTokenCookie).toBeDefined();
+      expect(accessTokenCookie).toMatch(/access_token=/);
+      expect(accessTokenCookie).toMatch(/HttpOnly/);
+      expect(accessTokenCookie).toMatch(/Path=\//);
+
+      expect(refreshTokenCookie).toBeDefined();
+      expect(refreshTokenCookie).toMatch(/refresh_token=/);
+      expect(refreshTokenCookie).toMatch(/HttpOnly/);
+      expect(refreshTokenCookie).toMatch(/Path=\//);
+    });
+
+    it("should logout successfully even without existing cookies", async () => {
+      const response = await request(app).post("/api/v1/auth/logout");
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.message).toBe("User successfully logged out");
+    });
+  });
 });

@@ -6,6 +6,7 @@ import { AppError } from "@/shared/types";
 import { AuthenticatedUser } from "@/shared/types";
 import { getConstituentProfiles, getConstituentRoles } from "./usersService";
 import { Users } from "@/db/schema/app";
+import { randomInt } from "crypto";
 
 /**
  * Authenticates a user based on their username/email and password.
@@ -162,8 +163,7 @@ export async function forgotPassword(email: string): Promise<string> {
     throw new AppError("User not found", 404);
   }
 
-  // Generate 6-digit OTP using Math.random (as specified in requirements)
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const otp = randomInt(100000, 1000000).toString();
 
   // Use transaction to ensure atomicity
   await pgPool.db.transaction(async (tx) => {

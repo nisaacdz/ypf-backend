@@ -3,6 +3,8 @@ import { encodeData } from "@/shared/utils/jwt";
 import { ApiResponse, AppError } from "@/shared/types";
 import { AuthenticatedUser } from "@/shared/types";
 import { send_otp_email } from "@/shared/utils/email";
+import { ForgotPasswordSchema } from "@/shared/validators";
+import { z } from "zod";
 
 export async function loginWithUsernameAndPassword({
   username,
@@ -43,13 +45,7 @@ export async function loginWithUsernameAndPassword({
 
 export async function forgotPassword({
   email,
-}: {
-  email: string;
-}): Promise<ApiResponse<null>> {
-  if (!email) {
-    throw new AppError("Email is required", 400);
-  }
-
+}: z.infer<typeof ForgotPasswordSchema>): Promise<ApiResponse<null>> {
   const otp = await authService.forgotPassword(email);
 
   await send_otp_email(email, otp);
@@ -58,6 +54,18 @@ export async function forgotPassword({
     success: true,
     data: null,
     message: "Password reset code sent to your email",
+  };
+}
+
+export async function logout(): Promise<{
+  response: ApiResponse<null>;
+}> {
+  return {
+    response: {
+      success: true,
+      data: null,
+      message: "User successfully logged out",
+    },
   };
 }
 
