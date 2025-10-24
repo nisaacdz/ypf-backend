@@ -30,18 +30,36 @@ describe("Committees API", () => {
 
   const testCommittee = {
     id: "",
-    name: "Test Committee " + Date.now(), // Make unique to avoid conflicts
+    name: "Test Committee for Committees Integration Test",
     description: "This is a test committee",
   };
 
   const testCommitteeWithChapter = {
     id: "",
-    name: "Test Chapter Committee " + Date.now(), // Make unique to avoid conflicts
+    name: "Test Chapter Committee for Committees Integration Test",
     description: "This is a test committee with chapter",
   };
 
   beforeAll(async () => {
     app = await createTestApp();
+
+    // Clean up any existing test data first to avoid conflicts
+    await pgPool.db
+      .delete(schema.Committees)
+      .where(
+        eq(
+          schema.Committees.name,
+          "Test Committee for Committees Integration Test",
+        ),
+      );
+    await pgPool.db
+      .delete(schema.Committees)
+      .where(
+        eq(
+          schema.Committees.name,
+          "Test Chapter Committee for Committees Integration Test",
+        ),
+      );
 
     // Clean up any existing test user
     await pgPool.db
