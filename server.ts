@@ -36,6 +36,8 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
+app.use(rateLimit({ windowMs: 15 * 60 * 1000, maxRequests: 99 }));
+
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use("/api/v1", apiRouter);
 
