@@ -2,18 +2,18 @@ import { Request, Response, NextFunction } from "express";
 import { Router } from "express";
 import { authenticateLax, authorize } from "@/shared/middlewares/auth";
 import { validateQuery } from "@/shared/middlewares/validate";
-import * as constituentsHandler from "./constituentsHandler";
+import * as membersHandler from "./membersHandler";
 import { GetMembersQuerySchema } from "@/shared/validators/core";
 import { Visitors } from "@/configs/authorizer";
 
-const constituentsRouter = Router();
+const membersRouter = Router();
 
 /**
  * @swagger
- * /api/v1/constituents/members:
+ * /api/v1/members:
  *   get:
  *     summary: Get list of members
- *     tags: [Constituents]
+ *     tags: [Members]
  *     security:
  *       - cookieAuth: []
  *     parameters:
@@ -77,14 +77,14 @@ const constituentsRouter = Router();
  *       403:
  *         description: Forbidden - requires MEMBER or ADMIN profile
  */
-constituentsRouter.get(
-  "/members",
+membersRouter.get(
+  "/",
   authenticateLax,
   authorize(Visitors.hasProfile("MEMBER", "ADMIN")),
   validateQuery(GetMembersQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const response = await constituentsHandler.getMembers(req.Query); // we know its safe because of validateParams
+      const response = await membersHandler.getMembers(req.Query); // we know its safe because of validateQuery
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -92,4 +92,4 @@ constituentsRouter.get(
   },
 );
 
-export default constituentsRouter;
+export default membersRouter;
