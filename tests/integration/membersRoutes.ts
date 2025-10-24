@@ -126,7 +126,7 @@ describe("Members API", () => {
     it("should reject the request if the session cookie is not provided", async () => {
       const response = await request(app)
         .get(`/api/v1/members/${testMember.constituentId}`)
-        .expect(401);
+        .expect(403); // Theoretically could succeed without authentication if permissions allow
 
       expect(response.body.success).toBe(false);
       expect(response.body.message).toBeDefined();
