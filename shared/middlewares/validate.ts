@@ -13,7 +13,6 @@ export function validateBody<T>(schema: z.ZodType<T>) {
     }
 
     req.Body = result.data;
-    req.body = result.data as any; // to be deprecated
 
     return next();
   };
@@ -29,7 +28,6 @@ export function validateQuery<T>(schema: z.ZodType<T>) {
     }
 
     req.Query = result.data;
-    //req.query = result.data as any; // to be deprecated
 
     return next();
   };
@@ -46,7 +44,6 @@ export function validateParams<T>(schema: z.ZodType<T>) {
     }
 
     req.Params = result.data;
-    req.params = result.data as any; // to be deprecated
 
     return next();
   };
