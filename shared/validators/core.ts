@@ -6,3 +6,12 @@ export const GetMembersQuerySchema = z.object({
   committeeId: z.uuid().optional(),
   ...PaginationQuery.shape,
 });
+
+export const GetChaptersQuerySchema = z.object({
+  ...PaginationQuery.shape,
+});
+
+export const GetCommitteesQuerySchema = z.object({
+  chapterId: z.uuid().optional(),
+  ...PaginationQuery.shape,
+});
