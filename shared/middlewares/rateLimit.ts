@@ -2,7 +2,7 @@ import { rateLimit as expressRateLimit } from "express-rate-limit";
 import type { RequestHandler } from "express";
 
 export function rateLimit({
-  windowMs = 60 * 60 * 1000,
+  windowMs = 15 * 60 * 1000,
   maxRequests,
 }: {
   windowMs: number;

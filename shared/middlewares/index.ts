@@ -33,5 +33,3 @@ export async function filter(
 
   next();
 }
-
-export { rateLimit } from "./rateLimit";

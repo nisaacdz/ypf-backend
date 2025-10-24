@@ -13,18 +13,20 @@ import pgPool from "./configs/db";
 import apiRouter from "@/features/api/v1";
 import logger from "@/configs/logger";
 import { swaggerSpec } from "@/configs/swagger";
+import { rateLimit } from "./shared/middlewares/rateLimit";
 
 const app: Express = express();
 
 app.use(helmet());
 
-const corsOptions = {
-  origin: variables.security.allowedOrigins,
-  optionsSuccessStatus: 200,
-  credentials: true,
-};
-
-app.use(cors(corsOptions));
+app.use(
+  cors({
+    origin: variables.security.allowedOrigins,
+    optionsSuccessStatus: 200,
+    credentials: true,
+  }),
+);
+app.use();
 
 app.use((req, res, next) => {
   filter(req, next);
@@ -34,7 +36,7 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use("/api/v1", apiRouter);
 
 const server = http.createServer(app);
@@ -47,7 +49,6 @@ app.use((req, res) => {
 
 (async () => {
   await Promise.all([emailer.initialize(), pgPool.initialize()]);
-  // we'll add other async initializations here
 
   server.listen(variables.app.port, () => {
     logger.info(
