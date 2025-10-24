@@ -172,10 +172,6 @@ export async function getMemberById(
 ): Promise<MemberDetail> {
   const now = sql`now()`;
 
-  // Create an alias for the uploader constituent
-  const uploaderConstituent = schema.Constituents;
-
-  // Query to get basic constituent information and profile photo
   const [constituent] = await pgPool.db
     .select({
       id: schema.Constituents.id,
@@ -221,77 +217,59 @@ export async function getMemberById(
     throw new AppError("Member not found", 404);
   }
 
-  // Fetch uploader name if profile photo exists and has uploader
-  let uploaderFullName: string | undefined;
-  if (constituent.profilePhotoUploadedBy) {
-    const [uploader] = await pgPool.db
+  const [contacts, titles] = await Promise.all([
+    pgPool.db
       .select({
-        firstName: uploaderConstituent.firstName,
-        lastName: uploaderConstituent.lastName,
+        type: schema.ContactInformations.contactType,
+        value: schema.ContactInformations.value,
       })
-      .from(uploaderConstituent)
-      .where(eq(uploaderConstituent.id, constituent.profilePhotoUploadedBy));
-
-    if (uploader) {
-      uploaderFullName = `${uploader.firstName} ${uploader.lastName}`;
-    }
-  }
-
-  // Query to get contact information
-  const contacts = await pgPool.db
-    .select({
-      type: schema.ContactInformations.contactType,
-      value: schema.ContactInformations.value,
-    })
-    .from(schema.ContactInformations)
-    .where(
-      and(
-        eq(schema.ContactInformations.constituentId, constituentId),
-        eq(schema.ContactInformations.isPrimary, true),
-      ),
-    );
-
-  // Query to get current titles with their scopes
-  const titles = await pgPool.db
-    .select({
-      name: schema.MemberTitles.title,
-      level: schema.MemberTitles._level,
-      startedAt: schema.MemberTitlesAssignments.startedAt,
-      endedAt: schema.MemberTitlesAssignments.endedAt,
-      chapterId: schema.Chapters.id,
-      chapterName: schema.Chapters.name,
-      committeeId: schema.Committees.id,
-      committeeName: schema.Committees.name,
-    })
-    .from(schema.MemberTitlesAssignments)
-    .innerJoin(
-      schema.Members,
-      eq(schema.MemberTitlesAssignments.memberId, schema.Members.id),
-    )
-    .innerJoin(
-      schema.MemberTitles,
-      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
-    )
-    .leftJoin(
-      schema.Chapters,
-      eq(schema.MemberTitles.chapterId, schema.Chapters.id),
-    )
-    .leftJoin(
-      schema.Committees,
-      eq(schema.MemberTitles.committeeId, schema.Committees.id),
-    )
-    .where(
-      and(
-        eq(schema.Members.constituentId, constituentId),
-        lte(schema.MemberTitlesAssignments.startedAt, now),
-        or(
-          isNull(schema.MemberTitlesAssignments.endedAt),
-          gte(schema.MemberTitlesAssignments.endedAt, now),
+      .from(schema.ContactInformations)
+      .where(
+        and(
+          eq(schema.ContactInformations.constituentId, constituentId),
+          eq(schema.ContactInformations.isPrimary, true),
         ),
       ),
-    );
+    pgPool.db
+      .select({
+        name: schema.MemberTitles.title,
+        _level: schema.MemberTitles._level,
+        startedAt: schema.MemberTitlesAssignments.startedAt,
+        endedAt: schema.MemberTitlesAssignments.endedAt,
+        chapterId: schema.Chapters.id,
+        chapterName: schema.Chapters.name,
+        committeeId: schema.Committees.id,
+        committeeName: schema.Committees.name,
+      })
+      .from(schema.MemberTitlesAssignments)
+      .innerJoin(
+        schema.Members,
+        eq(schema.MemberTitlesAssignments.memberId, schema.Members.id),
+      )
+      .innerJoin(
+        schema.MemberTitles,
+        eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
+      )
+      .leftJoin(
+        schema.Chapters,
+        eq(schema.MemberTitles.chapterId, schema.Chapters.id),
+      )
+      .leftJoin(
+        schema.Committees,
+        eq(schema.MemberTitles.committeeId, schema.Committees.id),
+      )
+      .where(
+        and(
+          eq(schema.Members.constituentId, constituentId),
+          lte(schema.MemberTitlesAssignments.startedAt, now),
+          or(
+            isNull(schema.MemberTitlesAssignments.endedAt),
+            gte(schema.MemberTitlesAssignments.endedAt, now),
+          ),
+        ),
+      ),
+  ]);
 
-  // Map the data to MemberDetail format
   const memberDetail: MemberDetail = {
     id: constituent.id,
     firstName: constituent.firstName,
@@ -316,7 +294,6 @@ export async function getMemberById(
             },
             sizeInBytes: constituent.profilePhotoSizeInBytes,
             uploadedAt: constituent.profilePhotoUploadedAt,
-            uploadedBy: uploaderFullName,
           }
         : undefined,
     contactInfos: contacts.map((c) => ({
@@ -335,7 +312,7 @@ export async function getMemberById(
                 id: t.committeeId,
               }
             : undefined,
-      _level: t.level,
+      _level: t._level,
       startedAt: t.startedAt,
       endedAt: t.endedAt ?? undefined,
     })),

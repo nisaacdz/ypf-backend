@@ -26,7 +26,7 @@ export type MemberDetail = {
   firstName: string;
   lastName: string;
   salutation?: string;
-  profilePhoto?: Medium;
+  profilePhoto?: Medium; // excludes uploadedBy
   contactInfos: {
     type: "EMAIL" | "PHONE" | "WHATSAPP";
     value: string;
