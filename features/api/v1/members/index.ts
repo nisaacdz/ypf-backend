@@ -108,7 +108,7 @@ membersRouter.get(
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Member (constituent) ID
+ *         description: Member (constituent) ID - Note that members are identified by their constituent ID
  *     responses:
  *       200:
  *         description: Member details retrieved successfully
