@@ -26,7 +26,6 @@ app.use(
     credentials: true,
   }),
 );
-app.use();
 
 app.use((req, res, next) => {
   filter(req, next);
