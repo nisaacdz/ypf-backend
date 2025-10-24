@@ -43,7 +43,7 @@ export type MemberDetail = {
 };
 
 // exclude archivedAt non null from lists
-export type Chapter = {
+export type YPFChapter = {
   id: string;
   name: string;
   country: string;
@@ -52,7 +52,7 @@ export type Chapter = {
   foundingDate: string;
 };
 
-export type ChapterDetail = {
+export type DetailedChapter = {
   id: string;
   name: string;
   country: string;
@@ -70,7 +70,7 @@ export type ChapterDetail = {
   };
 };
 
-export type Committee = {
+export type YPFCommittee = {
   id: string;
   name: string;
   description?: string;
@@ -79,7 +79,7 @@ export type Committee = {
   memberCount: number;
 };
 
-export type CommitteeDetail = {
+export type DetailedCommittee = {
   id: string;
   name: string;
   description?: string;
