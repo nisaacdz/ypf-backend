@@ -84,7 +84,7 @@ membersRouter.get(
   validateQuery(GetMembersQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const response = await membersHandler.getMembers(req.Query); // we know its safe because of validateParams
+      const response = await membersHandler.getMembers(req.Query); // we know its safe because of validateQuery
       res.status(200).json(response);
     } catch (error) {
       next(error);
