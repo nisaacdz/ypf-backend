@@ -177,13 +177,13 @@ export const Chapters = core.table("chapters", {
   country: text().notNull(),
   description: text(),
   foundingDate: date("founding_date").notNull(),
-  isActive: boolean("is_active").notNull().default(true),
+  archivedAt: date("archived_at"),
   parentId: uuid("parent_id").references((): AnyPgColumn => Chapters.id, {
     onDelete: "set null",
   }),
 });
 
-// add constraint at dbms level for non overlapping (memberId, chapterId) assignments
+// add constraint at dbms level for non overlapping (memberId, chapterId) assignment duration
 export const ChapterMemberships = core.table("chapter_memberships", {
   id: serial().primaryKey(),
   memberId: uuid("member_id")
@@ -194,9 +194,10 @@ export const ChapterMemberships = core.table("chapter_memberships", {
     .references(() => Chapters.id, { onDelete: "cascade" }),
   startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
   endedAt: timestamp("ended_at", { withTimezone: true }),
-  isActive: boolean("is_active").default(true).notNull(),
 });
 
+// if the committee.chapter is archived, the committee itself should be considered archived and excluded from lists
+// ensure application level chooses the committee.chapter.archivedAt over committee.archivedAt when both are set
 export const Committees = core.table("committees", {
   id: uuid().defaultRandom().primaryKey(),
   name: text().notNull().unique(),
@@ -204,6 +205,7 @@ export const Committees = core.table("committees", {
   chapterId: uuid("chapter_id").references(() => Chapters.id, {
     onDelete: "cascade",
   }),
+  archivedAt: date("archived_at"),
 });
 
 // add constraint at dbms level for non overlapping (memberId, committeeId) assignments
@@ -217,7 +219,6 @@ export const CommitteeMemberships = core.table("committee_memberships", {
     .references(() => Committees.id, { onDelete: "cascade" }),
   startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
   endedAt: timestamp("ended_at", { withTimezone: true }),
-  isActive: boolean("is_active").default(true).notNull(),
 });
 
 export const Organizations = core.table("organizations", {

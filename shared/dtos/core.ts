@@ -42,27 +42,28 @@ export type MemberDetail = {
   isActive: boolean;
 };
 
+// exclude archivedAt non null from lists
 export type Chapter = {
   id: string;
   name: string;
+  country: string;
   featuredPhotoUrl?: string;
-  location: string;
   memberCount: number;
   foundingDate: string;
-  isActive: boolean;
 };
 
 export type ChapterDetail = {
   id: string;
   name: string;
   country: string;
+  description?: string;
+  foundingDate: string;
+  // from chaptermedia table, filter isFeatured = true, sort by latest, limit to 5
   featuredMedia?: {
     caption?: string;
     medium: Medium;
-  }[];
-  description?: string;
-  foundingDate: string;
-  isActive: boolean;
+  }[]; // all featured ChapterMedia -- don't worry it won't be plenty -- average of 1.5 max of 5
+  isActive: boolean; // true if archived at is null
   parentChapter?: {
     id: string;
     name: string;
@@ -72,6 +73,7 @@ export type ChapterDetail = {
 export type Committee = {
   id: string;
   name: string;
+  description?: string;
   featuredPhotoUrl?: string;
   chapterName?: string;
   memberCount: number;
@@ -85,10 +87,10 @@ export type CommitteeDetail = {
     caption?: string;
     medium: Medium;
   }[];
-  chapter: {
+  chapter?: {
     id: string;
     name: string;
   };
-  isActive: boolean;
+  isActive: boolean; // if committe is active and committe?.chapter is active
   createdAt: Date;
 };
