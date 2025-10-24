@@ -46,20 +46,10 @@ describe("Committees API", () => {
     // Clean up any existing test data first to avoid conflicts
     await pgPool.db
       .delete(schema.Committees)
-      .where(
-        eq(
-          schema.Committees.name,
-          "Test Committee for Committees Integration Test",
-        ),
-      );
+      .where(eq(schema.Committees.name, testCommittee.name));
     await pgPool.db
       .delete(schema.Committees)
-      .where(
-        eq(
-          schema.Committees.name,
-          "Test Chapter Committee for Committees Integration Test",
-        ),
-      );
+      .where(eq(schema.Committees.name, testCommitteeWithChapter.name));
 
     // Clean up any existing test user
     await pgPool.db
