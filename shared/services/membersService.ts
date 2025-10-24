@@ -14,14 +14,13 @@ import z from "zod";
 
 import pgPool from "@/configs/db";
 import schema from "@/db/schema";
-import { ApiResponse } from "@/shared/types";
 import { Paginated, YPFMember } from "@/shared/dtos";
 import { GetMembersQuerySchema } from "@/shared/validators/core";
 import * as mediaUtils from "@/shared/utils/media";
 
 export async function getMembers(
   query: z.infer<typeof GetMembersQuerySchema>,
-): Promise<ApiResponse<Paginated<YPFMember>>> {
+): Promise<Paginated<YPFMember>> {
   const { page, pageSize, search, chapterId, committeeId } = query;
   const now = sql`now()`;
 
@@ -160,12 +159,9 @@ export async function getMembers(
   }));
 
   return {
-    success: true,
-    data: {
-      items,
-      page,
-      pageSize,
-      total,
-    },
+    items,
+    page,
+    pageSize,
+    total,
   };
 }
