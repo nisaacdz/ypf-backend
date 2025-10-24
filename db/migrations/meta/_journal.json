@@ -15,6 +15,13 @@
       "when": 1761269343799,
       "tag": "0001_overrated_mikhail_rasputin",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1761349111648,
+      "tag": "0002_high_patriot",
+      "breakpoints": true
     }
   ]
 }
