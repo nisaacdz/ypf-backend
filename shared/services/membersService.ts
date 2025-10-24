@@ -14,9 +14,10 @@ import z from "zod";
 
 import pgPool from "@/configs/db";
 import schema from "@/db/schema";
-import { Paginated, YPFMember } from "@/shared/dtos";
+import { Paginated, YPFMember, MemberDetail } from "@/shared/dtos";
 import { GetMembersQuerySchema } from "@/shared/validators/core";
 import * as mediaUtils from "@/shared/utils/media";
+import { AppError } from "@/shared/types";
 
 export async function getMembers(
   query: z.infer<typeof GetMembersQuerySchema>,
@@ -164,4 +165,160 @@ export async function getMembers(
     pageSize,
     total,
   };
+}
+
+export async function getMemberById(
+  constituentId: string,
+): Promise<MemberDetail> {
+  const now = sql`now()`;
+
+  const [constituent] = await pgPool.db
+    .select({
+      id: schema.Constituents.id,
+      firstName: schema.Constituents.firstName,
+      lastName: schema.Constituents.lastName,
+      salutation: schema.Constituents.salutation,
+      profilePhotoExternalId: schema.Medium.externalId,
+      profilePhotoType: schema.Medium.type,
+      profilePhotoWidth: schema.Medium.width,
+      profilePhotoHeight: schema.Medium.height,
+      profilePhotoSizeInBytes: schema.Medium.sizeInBytes,
+      profilePhotoUploadedAt: schema.Medium.uploadedAt,
+      profilePhotoUploadedBy: schema.Medium.uploadedBy,
+      joinedAt: min(schema.Members.startedAt).as("joined_at"),
+      isActive: sql<boolean>`EXISTS (
+        SELECT 1 FROM ${schema.Members} m
+        WHERE m.constituent_id = ${schema.Constituents.id}
+        AND m.started_at <= ${now} AND (m.ended_at IS NULL OR m.ended_at >= ${now})
+      )`.as("is_active"),
+    })
+    .from(schema.Constituents)
+    .leftJoin(
+      schema.Medium,
+      eq(schema.Constituents.profilePhotoId, schema.Medium.id),
+    )
+    .leftJoin(
+      schema.Members,
+      eq(schema.Constituents.id, schema.Members.constituentId),
+    )
+    .where(eq(schema.Constituents.id, constituentId))
+    .groupBy(
+      schema.Constituents.id,
+      schema.Medium.externalId,
+      schema.Medium.type,
+      schema.Medium.width,
+      schema.Medium.height,
+      schema.Medium.sizeInBytes,
+      schema.Medium.uploadedAt,
+      schema.Medium.uploadedBy,
+    );
+
+  if (!constituent) {
+    throw new AppError("Member not found", 404);
+  }
+
+  const [contacts, titles] = await Promise.all([
+    pgPool.db
+      .select({
+        type: schema.ContactInformations.contactType,
+        value: schema.ContactInformations.value,
+      })
+      .from(schema.ContactInformations)
+      .where(
+        and(
+          eq(schema.ContactInformations.constituentId, constituentId),
+          eq(schema.ContactInformations.isPrimary, true),
+        ),
+      ),
+    pgPool.db
+      .select({
+        name: schema.MemberTitles.title,
+        _level: schema.MemberTitles._level,
+        startedAt: schema.MemberTitlesAssignments.startedAt,
+        endedAt: schema.MemberTitlesAssignments.endedAt,
+        chapterId: schema.Chapters.id,
+        chapterName: schema.Chapters.name,
+        committeeId: schema.Committees.id,
+        committeeName: schema.Committees.name,
+      })
+      .from(schema.MemberTitlesAssignments)
+      .innerJoin(
+        schema.Members,
+        eq(schema.MemberTitlesAssignments.memberId, schema.Members.id),
+      )
+      .innerJoin(
+        schema.MemberTitles,
+        eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
+      )
+      .leftJoin(
+        schema.Chapters,
+        eq(schema.MemberTitles.chapterId, schema.Chapters.id),
+      )
+      .leftJoin(
+        schema.Committees,
+        eq(schema.MemberTitles.committeeId, schema.Committees.id),
+      )
+      .where(
+        and(
+          eq(schema.Members.constituentId, constituentId),
+          lte(schema.MemberTitlesAssignments.startedAt, now),
+          or(
+            isNull(schema.MemberTitlesAssignments.endedAt),
+            gte(schema.MemberTitlesAssignments.endedAt, now),
+          ),
+        ),
+      ),
+  ]);
+
+  const memberDetail: MemberDetail = {
+    id: constituent.id,
+    firstName: constituent.firstName,
+    lastName: constituent.lastName,
+    salutation: constituent.salutation ?? undefined,
+    profilePhoto:
+      constituent.profilePhotoExternalId &&
+      constituent.profilePhotoType &&
+      constituent.profilePhotoWidth !== null &&
+      constituent.profilePhotoHeight !== null &&
+      constituent.profilePhotoSizeInBytes !== null &&
+      constituent.profilePhotoUploadedAt
+        ? {
+            url: mediaUtils.generatePublicMediaUrl(
+              constituent.profilePhotoExternalId,
+              { resolution: 720 },
+            ),
+            type: constituent.profilePhotoType,
+            dimensions: {
+              width: constituent.profilePhotoWidth,
+              height: constituent.profilePhotoHeight,
+            },
+            sizeInBytes: constituent.profilePhotoSizeInBytes,
+            uploadedAt: constituent.profilePhotoUploadedAt,
+          }
+        : undefined,
+    contactInfos: contacts.map((c) => ({
+      type: c.type as "EMAIL" | "PHONE" | "WHATSAPP",
+      value: c.value,
+    })),
+    titles: titles.map((t) => ({
+      name: t.name,
+      scope:
+        t.chapterId && t.chapterName
+          ? { type: "chapter" as const, name: t.chapterName, id: t.chapterId }
+          : t.committeeId && t.committeeName
+            ? {
+                type: "committee" as const,
+                name: t.committeeName,
+                id: t.committeeId,
+              }
+            : undefined,
+      _level: t._level,
+      startedAt: t.startedAt,
+      endedAt: t.endedAt ?? undefined,
+    })),
+    joinedAt: constituent.joinedAt ?? new Date(),
+    isActive: constituent.isActive,
+  };
+
+  return memberDetail;
 }

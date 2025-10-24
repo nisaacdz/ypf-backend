@@ -22,11 +22,11 @@ export type YPFMember = {
 };
 
 export type MemberDetail = {
-  id: string;
+  id: string; // constituent ID
   firstName: string;
   lastName: string;
   salutation?: string;
-  profilePhoto?: Medium;
+  profilePhoto?: Medium; // excludes uploadedBy
   contactInfos: {
     type: "EMAIL" | "PHONE" | "WHATSAPP";
     value: string;
