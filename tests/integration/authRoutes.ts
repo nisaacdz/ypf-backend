@@ -280,13 +280,11 @@ describe("Authentication API", () => {
         .where(eq(schema.Otps.email, testUser.email));
 
       // Use the OTP once
-      await request(app)
-        .post("/api/v1/auth/reset-password")
-        .send({
-          email: testUser.email,
-          otp: otpRecord.code,
-          password: "AnotherPassword123!",
-        });
+      await request(app).post("/api/v1/auth/reset-password").send({
+        email: testUser.email,
+        otp: otpRecord.code,
+        password: "AnotherPassword123!",
+      });
 
       // Try to use the same OTP again
       const response = await request(app)

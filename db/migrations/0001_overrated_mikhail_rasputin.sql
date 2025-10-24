@@ -1,0 +1,1 @@
+ALTER TABLE "finance"."donations" ALTER COLUMN "donor_id" DROP NOT NULL;

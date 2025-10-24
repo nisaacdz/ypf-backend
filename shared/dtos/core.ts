@@ -1,4 +1,3 @@
-import { Profile } from "@/shared/types";
 import { MediumType } from "@/shared/dtos";
 
 export type Medium = {
@@ -28,31 +27,17 @@ export type MemberDetail = {
   lastName: string;
   salutation?: string;
   profilePhoto?: Medium;
-  contactInfo: {
+  contactInfos: {
     type: "EMAIL" | "PHONE" | "WHATSAPP";
     value: string;
-    isPrimary: boolean;
-  }[];
-  roles: {
-    name: string;
-    scope:
-      | {
-          type: "global";
-        }
-      | {
-          type: "chapter" | "committee";
-          id: string;
-          name: string;
-        };
+  }[]; // primary contact
+  titles: {
+    name: string; // eg. president
+    scope?: { type: "chapter" | "committee"; name: string; id: string }; // undefined if global
     _level: number;
     startedAt: Date;
     endedAt?: Date;
-  }[];
-  profiles: {
-    type: Profile;
-    startedAt: Date;
-    endedAt?: Date;
-  }[];
+  }[]; // current titles
   joinedAt: Date;
   isActive: boolean;
 };

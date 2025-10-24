@@ -29,15 +29,16 @@ export const FinancialTransactions = finance.table("financial_transactions", {
   externalRef: text("external_ref"),
 });
 
+// Null donorId means anonymous donation
 export const Donations = finance.table("donations", {
   id: uuid("id").defaultRandom().primaryKey(),
   transactionId: uuid("transaction_id")
     .notNull()
     .unique()
     .references(() => FinancialTransactions.id, { onDelete: "restrict" }),
-  donorId: uuid("donor_id")
-    .notNull()
-    .references(() => Donors.id, { onDelete: "restrict" }),
+  donorId: uuid("donor_id").references(() => Donors.id, {
+    onDelete: "restrict",
+  }),
   projectId: uuid("project_id").references(() => Projects.id, {
     onDelete: "set null",
   }),

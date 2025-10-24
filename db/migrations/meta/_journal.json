@@ -8,6 +8,13 @@
       "when": 1761151270990,
       "tag": "0000_easy_sprite",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1761269343799,
+      "tag": "0001_overrated_mikhail_rasputin",
+      "breakpoints": true
     }
   ]
 }

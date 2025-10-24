@@ -8,7 +8,7 @@ import { z } from "zod";
 
 /**
  * Authenticates a user with username and password.
- * 
+ *
  * @param username - The username or email
  * @param password - The user's password
  * @returns Authentication response with tokens
@@ -53,7 +53,7 @@ export async function loginWithUsernameAndPassword({
 
 /**
  * Initiates the forgot password flow by sending an OTP to the user's email.
- * 
+ *
  * @param email - The user's email address
  * @returns Success response indicating OTP was sent
  * @throws AppError if user not found
@@ -74,7 +74,7 @@ export async function forgotPassword({
 
 /**
  * Resets the user's password using a valid OTP.
- * 
+ *
  * @param email - The user's email address
  * @param otp - The OTP code received via email
  * @param password - The new password
@@ -97,7 +97,7 @@ export async function resetPassword({
 
 /**
  * Logs out the current user by clearing their session.
- * 
+ *
  * @returns Success response
  */
 export async function logout(): Promise<{
