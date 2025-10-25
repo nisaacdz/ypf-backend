@@ -1,7 +1,10 @@
 import { Request, Response, NextFunction } from "express";
 import { Router } from "express";
 import { authenticateLax, authorize } from "@/shared/middlewares/auth";
-import { GetProjectsQuerySchema, GetProjectMediaQuerySchema } from "@/shared/validators/activities";
+import {
+  GetProjectsQuerySchema,
+  GetProjectMediaQuerySchema,
+} from "@/shared/validators/activities";
 import { validateQuery, validateParams } from "@/shared/middlewares/validate";
 import * as projectsHandler from "./projectsHandler";
 import { Visitors } from "@/configs/authorizer";

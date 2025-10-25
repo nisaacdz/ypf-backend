@@ -1,6 +1,9 @@
 import { ApiResponse } from "@/shared/types";
 import { Paginated } from "@/shared/dtos";
-import { GetProjectsQuerySchema, GetProjectMediaQuerySchema } from "@/shared/validators/activities";
+import {
+  GetProjectsQuerySchema,
+  GetProjectMediaQuerySchema,
+} from "@/shared/validators/activities";
 import z from "zod";
 import { YPFProject, YPFProjectMedium } from "@/shared/dtos";
 import * as projectsService from "@/shared/services/projectsService";
@@ -22,7 +25,10 @@ export async function getProjectMedia(
   query: z.infer<typeof GetProjectMediaQuerySchema>,
 ): Promise<ApiResponse<Paginated<YPFProjectMedium>>> {
   const { page, pageSize } = query;
-  const { items, total } = await projectsService.fetchProjectMedia(projectId, query);
+  const { items, total } = await projectsService.fetchProjectMedia(
+    projectId,
+    query,
+  );
   return {
     success: true,
     message: "Project media fetched successfully",
