@@ -7,18 +7,11 @@ import { hashSync } from "bcryptjs";
 import pgPool from "@/configs/db";
 import schema from "@/db/schema";
 import logger from "@/configs/logger";
+import { generateTestUser } from "../factories";
 
 describe("Authentication API", () => {
   let app: Express;
-  const testUser = {
-    email: "login-test@example.com",
-    password: "SecurePassword123!",
-    name: {
-      firstName: "Login",
-      lastName: "User",
-    },
-    constituentId: "",
-  };
+  const testUser = generateTestUser();
 
   beforeAll(async () => {
     app = await createTestApp();

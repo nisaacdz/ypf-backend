@@ -6,6 +6,7 @@ import type { Express } from "express";
 import { hashSync } from "bcryptjs";
 import pgPool from "@/configs/db";
 import schema from "@/db/schema";
+import { generateTestUser, generateTestChapter } from "../factories";
 
 interface EventResponse {
   id: string;
@@ -22,15 +23,8 @@ describe("Events API", () => {
   let app: Express;
   let authTokenCookie: string;
 
-  const testUser = {
-    email: "events-test@example.com",
-    password: "SecurePassword123!",
-    name: {
-      firstName: "Events",
-      lastName: "Test",
-    },
-    constituentId: "",
-  };
+  const testUser = generateTestUser();
+  const testChapter = generateTestChapter();
 
   const testData = {
     chapterId: "",
@@ -76,9 +70,10 @@ describe("Events API", () => {
     const [newChapter] = await pgPool.db
       .insert(schema.Chapters)
       .values({
-        name: "Test Chapter for Events",
-        country: "Test Country",
-        foundingDate: new Date("2020-01-01"),
+        name: testChapter.name,
+        country: testChapter.country,
+        description: testChapter.description,
+        foundingDate: testChapter.foundingDate,
       })
       .returning();
 

@@ -6,20 +6,13 @@ import type { Express } from "express";
 import { hashSync } from "bcryptjs";
 import pgPool from "@/configs/db";
 import schema from "@/db/schema";
+import { generateTestUser } from "../factories";
 
 describe("Members API", () => {
   let app: Express;
   let authTokenCookie: string;
 
-  const testUser = {
-    email: "members-test@example.com",
-    password: "SecurePassword123!",
-    name: {
-      firstName: "Members",
-      lastName: "Test",
-    },
-    constituentId: "",
-  };
+  const testUser = generateTestUser();
 
   const testMember = {
     constituentId: "",

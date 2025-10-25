@@ -6,39 +6,20 @@ import type { Express } from "express";
 import { hashSync } from "bcryptjs";
 import pgPool from "@/configs/db";
 import schema from "@/db/schema";
+import {
+  generateTestUser,
+  generateTestChapter,
+  generateTestCommittee,
+} from "../factories";
 
 describe("Committees API", () => {
   let app: Express;
   let authTokenCookie: string;
 
-  const testUser = {
-    email: "committees-test@example.com",
-    password: "SecurePassword123!",
-    name: {
-      firstName: "Committees",
-      lastName: "Test",
-    },
-    constituentId: "",
-  };
-
-  const testChapter = {
-    id: "",
-    name: "Test Chapter for Committees",
-    country: "Test Country",
-    foundingDate: new Date("2020-01-01"),
-  };
-
-  const testCommittee = {
-    id: "",
-    name: "Test Committee for Committees Integration Test",
-    description: "This is a test committee",
-  };
-
-  const testCommitteeWithChapter = {
-    id: "",
-    name: "Test Chapter Committee for Committees Integration Test",
-    description: "This is a test committee with chapter",
-  };
+  const testUser = generateTestUser();
+  const testChapter = generateTestChapter();
+  const testCommittee = generateTestCommittee();
+  const testCommitteeWithChapter = generateTestCommittee();
 
   beforeAll(async () => {
     app = await createTestApp();
