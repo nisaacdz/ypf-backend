@@ -7,6 +7,17 @@ import { hashSync } from "bcryptjs";
 import pgPool from "@/configs/db";
 import schema from "@/db/schema";
 
+interface EventResponse {
+  id: string;
+  name: string;
+  location?: string;
+  status: string;
+  project?: {
+    id: string;
+    title: string;
+  };
+}
+
 describe("Events API", () => {
   let app: Express;
   let authTokenCookie: string;
@@ -172,16 +183,6 @@ describe("Events API", () => {
       expect(Array.isArray(response.body.data.items)).toBe(true);
 
       // Check if our test event is in the list
-      interface EventResponse {
-        id: string;
-        name: string;
-        location?: string;
-        status: string;
-        project?: {
-          id: string;
-          title: string;
-        };
-      }
       const testEvent = response.body.data.items.find(
         (e: EventResponse) => e.id === testData.eventId,
       );
@@ -215,12 +216,6 @@ describe("Events API", () => {
       expect(response.body.data.items).toBeDefined();
 
       // If we find results, they should contain the search term in the name
-      interface EventResponse {
-        name: string;
-        project?: {
-          title: string;
-        };
-      }
       if (response.body.data.items.length > 0) {
         const hasMatchingName = response.body.data.items.some(
           (e: EventResponse) =>
@@ -240,12 +235,6 @@ describe("Events API", () => {
       expect(response.body.data.items).toBeDefined();
 
       // If we find results, they should have a project with the search term
-      interface EventResponse {
-        name: string;
-        project?: {
-          title: string;
-        };
-      }
       if (response.body.data.items.length > 0) {
         const hasMatchingProject = response.body.data.items.some(
           (e: EventResponse) =>
