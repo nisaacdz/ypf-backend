@@ -6,7 +6,10 @@ import { Medium, Chapters } from "@/db/schema/core";
 import * as mediaUtils from "@/shared/utils/media";
 import { eq, and, ilike, count, sql } from "drizzle-orm";
 import z from "zod";
-import { GetProjectsQuerySchema, GetProjectMediaQuerySchema } from "@/shared/validators/activities";
+import {
+  GetProjectsQuerySchema,
+  GetProjectMediaQuerySchema,
+} from "@/shared/validators/activities";
 
 export async function fetchProjects(
   query: z.infer<typeof GetProjectsQuerySchema>,
@@ -64,8 +67,8 @@ export async function fetchProjects(
     id: project.id,
     title: project.title,
     abstract: project.abstract || undefined,
-    scheduledStart: project.scheduledStart.toISOString(),
-    scheduledEnd: project.scheduledEnd.toISOString(),
+    scheduledStart: project.scheduledStart,
+    scheduledEnd: project.scheduledEnd,
     status: project.status,
     featuredPhotoUrl: project.featuredPhotoUrl
       ? mediaUtils.generateSignedMediaUrl(project.featuredPhotoUrl, {
@@ -93,7 +96,7 @@ export async function fetchProjectMedia(
 
   // Use raw SQL for UNION query with proper database-level pagination
   const mediaTypeCondition = mediaType ? sql`AND m.type = ${mediaType}` : sql``;
-  
+
   // Count total records
   const totalQuery = sql`
     SELECT COUNT(*) as total FROM (

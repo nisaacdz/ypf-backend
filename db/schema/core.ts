@@ -43,7 +43,7 @@ export const Constituents = core.table("constituents", {
     onDelete: "set null",
   }),
   salutation: text(),
-  dateOfBirth: date("date_of_birth"),
+  dateOfBirth: date("date_of_birth", { mode: "date" }),
   gender: Gender(),
   joinDate: timestamp("join_date", { withTimezone: true })
     .defaultNow()

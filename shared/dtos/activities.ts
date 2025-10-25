@@ -5,8 +5,8 @@ export type YPFProject = {
   id: string;
   title: string;
   abstract?: string;
-  scheduledStart: string;
-  scheduledEnd: string;
+  scheduledStart: Date;
+  scheduledEnd: Date;
   status: ProjectStatus;
   featuredPhotoUrl?: string;
   chapterName?: string;
@@ -17,8 +17,8 @@ export type YPFProjectDetail = {
   title: string;
   abstract?: string;
   description?: string;
-  scheduledStart: string;
-  scheduledEnd: string;
+  scheduledStart: Date;
+  scheduledEnd: Date;
   status: ProjectStatus;
   featuredMedia?: {
     caption?: string;
@@ -33,8 +33,8 @@ export type YPFProjectDetail = {
 export type YPFEvent = {
   id: string;
   name: string;
-  scheduledStart: string;
-  scheduledEnd: string;
+  scheduledStart: Date;
+  scheduledEnd: Date;
   location?: string;
   status: EventStatus;
   project?: {
@@ -46,8 +46,8 @@ export type YPFEvent = {
 export type YPFEventDetail = {
   id: string;
   name: string;
-  scheduledStart: string;
-  scheduledEnd: string;
+  scheduledStart: Date;
+  scheduledEnd: Date;
   location?: string;
   objective?: string;
   status: EventStatus;

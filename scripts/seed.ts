@@ -20,9 +20,7 @@ async function seed(
       Array.from({ length: 30 }, () => ({
         firstName: faker.person.firstName(),
         lastName: faker.person.lastName(),
-        dateOfBirth: faker.date
-          .birthdate({ min: 18, max: 65, mode: "age" })
-          .toISOString(),
+        dateOfBirth: faker.date.birthdate({ min: 18, max: 65, mode: "age" }),
         gender: faker.helpers.arrayElement(schema.Gender.enumValues),
       })),
     )

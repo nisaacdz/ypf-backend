@@ -2,7 +2,10 @@ import { eq, count, and, ilike, or } from "drizzle-orm";
 import schema from "@/db/schema";
 import pgPool from "@/configs/db";
 import z from "zod";
-import { GetEventMediaQuerySchema, GetEventsQuerySchema } from "../validators/activities";
+import {
+  GetEventMediaQuerySchema,
+  GetEventsQuerySchema,
+} from "../validators/activities";
 import * as mediaUtils from "@/shared/utils/media";
 import { Paginated, YPFEvent } from "@/shared/dtos";
 
@@ -31,10 +34,7 @@ export async function fetchEvents(
   const [{ total }] = await pgPool.db
     .select({ total: count() })
     .from(schema.Events)
-    .leftJoin(
-      schema.Projects,
-      eq(schema.Events.projectId, schema.Projects.id),
-    )
+    .leftJoin(schema.Projects, eq(schema.Events.projectId, schema.Projects.id))
     .where(whereClause);
 
   // Fetch paginated events with project info
@@ -50,10 +50,7 @@ export async function fetchEvents(
       projectTitle: schema.Projects.title,
     })
     .from(schema.Events)
-    .leftJoin(
-      schema.Projects,
-      eq(schema.Events.projectId, schema.Projects.id),
-    )
+    .leftJoin(schema.Projects, eq(schema.Events.projectId, schema.Projects.id))
     .where(whereClause)
     .limit(pageSize)
     .offset(offset);
@@ -62,8 +59,8 @@ export async function fetchEvents(
   const items: YPFEvent[] = events.map((event) => ({
     id: event.id,
     name: event.name,
-    scheduledStart: event.scheduledStart.toISOString(),
-    scheduledEnd: event.scheduledEnd.toISOString(),
+    scheduledStart: event.scheduledStart,
+    scheduledEnd: event.scheduledEnd,
     location: event.location || undefined,
     status: event.status,
     project:

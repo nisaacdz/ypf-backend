@@ -1,12 +1,4 @@
-import {
-  sql,
-  and,
-  eq,
-  count,
-  ilike,
-  isNull,
-  desc,
-} from "drizzle-orm";
+import { sql, and, eq, count, ilike, isNull, desc } from "drizzle-orm";
 import z from "zod";
 
 import pgPool from "@/configs/db";
@@ -25,9 +17,10 @@ export async function getChapters(
   const memberCountSubquery = pgPool.db
     .select({
       chapterId: schema.ChapterMemberships.chapterId,
-      memberCount: sql<number>`COUNT(DISTINCT ${schema.Members.constituentId})`.as(
-        "member_count",
-      ),
+      memberCount:
+        sql<number>`COUNT(DISTINCT ${schema.Members.constituentId})`.as(
+          "member_count",
+        ),
     })
     .from(schema.ChapterMemberships)
     .innerJoin(
@@ -151,9 +144,10 @@ export async function getChapterById(
         mediumHeight: schema.Medium.height,
         mediumSizeInBytes: schema.Medium.sizeInBytes,
         mediumUploadedAt: schema.Medium.uploadedAt,
-        mediumUploadedBy: sql<string>`concat(${schema.Constituents.firstName}, ' ', ${schema.Constituents.lastName})`.as(
-          "uploader_name",
-        ),
+        mediumUploadedBy:
+          sql<string>`concat(${schema.Constituents.firstName}, ' ', ${schema.Constituents.lastName})`.as(
+            "uploader_name",
+          ),
       })
       .from(schema.ChapterMedia)
       .innerJoin(

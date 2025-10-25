@@ -1,13 +1,4 @@
-import {
-  sql,
-  and,
-  eq,
-  count,
-  ilike,
-  isNull,
-  desc,
-  or,
-} from "drizzle-orm";
+import { sql, and, eq, count, ilike, isNull, desc, or } from "drizzle-orm";
 import z from "zod";
 
 import pgPool from "@/configs/db";
@@ -26,9 +17,10 @@ export async function getCommittees(
   const memberCountSubquery = pgPool.db
     .select({
       committeeId: schema.CommitteeMemberships.committeeId,
-      memberCount: sql<number>`COUNT(DISTINCT ${schema.Members.constituentId})`.as(
-        "member_count",
-      ),
+      memberCount:
+        sql<number>`COUNT(DISTINCT ${schema.Members.constituentId})`.as(
+          "member_count",
+        ),
     })
     .from(schema.CommitteeMemberships)
     .innerJoin(
@@ -64,10 +56,7 @@ export async function getCommittees(
   // --- DYNAMIC FILTERS ---
   const whereClauses = [
     isNull(schema.Committees.archivedAt),
-    or(
-      isNull(schema.Committees.chapterId),
-      isNull(schema.Chapters.archivedAt),
-    ),
+    or(isNull(schema.Committees.chapterId), isNull(schema.Chapters.archivedAt)),
   ];
 
   if (search) {
@@ -174,9 +163,10 @@ export async function getCommitteeById(
       mediumHeight: schema.Medium.height,
       mediumSizeInBytes: schema.Medium.sizeInBytes,
       mediumUploadedAt: schema.Medium.uploadedAt,
-      mediumUploadedBy: sql<string>`concat(${schema.Constituents.firstName}, ' ', ${schema.Constituents.lastName})`.as(
-        "uploader_name",
-      ),
+      mediumUploadedBy:
+        sql<string>`concat(${schema.Constituents.firstName}, ' ', ${schema.Constituents.lastName})`.as(
+          "uploader_name",
+        ),
     })
     .from(schema.CommitteeMedia)
     .innerJoin(
