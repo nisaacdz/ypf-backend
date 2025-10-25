@@ -3,6 +3,18 @@ import pgPool from "@/configs/db";
 import schema from "@/db/schema";
 import bcrypt from "bcryptjs";
 
+// Helper function to format date as YYYY-MM-DD string
+function toDateString(date: Date): string {
+  return date.toISOString().split("T")[0];
+}
+
+// Helper function to get random enum value with proper typing
+function randomEnum<T extends readonly string[]>(
+  enumValues: T,
+): T[number] {
+  return faker.helpers.arrayElement(enumValues) as T[number];
+}
+
 async function seed(
   tx: Parameters<Parameters<typeof pgPool.db.transaction>[0]>[0],
 ) {
@@ -392,12 +404,8 @@ async function seed(
         amount: faker.finance.amount({ min: 10, max: 500, dec: 2 }),
         currency: "USD",
         transactionDate: faker.date.recent(),
-        paymentMethod: faker.helpers.arrayElement(
-          schema.PaymentMethod.enumValues,
-        ) as (typeof schema.PaymentMethod.enumValues)[number],
-        status: faker.helpers.arrayElement(
-          schema.TransactionStatus.enumValues,
-        ) as (typeof schema.TransactionStatus.enumValues)[number],
+        paymentMethod: randomEnum(schema.PaymentMethod.enumValues),
+        status: randomEnum(schema.TransactionStatus.enumValues),
       })),
     )
     .returning();
@@ -434,9 +442,7 @@ async function seed(
         amount: "100.00",
         currency: "USD",
         transactionDate: faker.date.recent(),
-        paymentMethod: faker.helpers.arrayElement(
-          schema.PaymentMethod.enumValues,
-        ) as (typeof schema.PaymentMethod.enumValues)[number],
+        paymentMethod: randomEnum(schema.PaymentMethod.enumValues),
         status: "COMPLETED" as const,
       })),
     )
@@ -495,14 +501,14 @@ async function seed(
       organizationId: organizations[1].id,
       partnershipType: "IN_KIND" as const,
       eventId: events[0].id,
-      startedAt: faker.date.past().toISOString().split("T")[0],
+      startedAt: toDateString(faker.date.past()),
       metadata: "Provided environmental materials",
     },
     {
       organizationId: organizations[2].id,
       partnershipType: "VENUE" as const,
       eventId: events[1].id,
-      startedAt: faker.date.past().toISOString().split("T")[0],
+      startedAt: toDateString(faker.date.past()),
       value: "800.00",
     },
   ]);
