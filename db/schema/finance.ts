@@ -102,8 +102,8 @@ export const Partnerships = finance.table("partnerships", {
   eventId: uuid("event_id").references(() => Events.id, {
     onDelete: "set null",
   }),
-  startedAt: date("started_at").notNull(),
-  endedAt: date("ended_at"),
+  startedAt: date("started_at", { mode: "date" }).notNull(),
+  endedAt: date("ended_at", { mode: "date" }),
   value: decimal({ precision: 12, scale: 2 }), // monetary value if applicable
   metadata: text(),
   // contractUrl: text("contract_url"), // lets create a documents table and reference it with documentId

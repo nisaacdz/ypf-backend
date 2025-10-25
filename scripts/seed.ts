@@ -3,11 +3,6 @@ import pgPool from "@/configs/db";
 import schema from "@/db/schema";
 import bcrypt from "bcryptjs";
 
-// Helper function to format date as YYYY-MM-DD string
-function toDateString(date: Date): string {
-  return date.toISOString().split("T")[0];
-}
-
 // Helper function to get random enum value with proper typing
 function randomEnum<T extends readonly string[]>(enumValues: T): T[number] {
   return faker.helpers.arrayElement(enumValues) as T[number];
@@ -494,7 +489,7 @@ async function seed(
       organizationId: organizations[0].id,
       partnershipType: "SPONSOR" as const,
       projectId: projects[0].id,
-      startedAt: "2024-01-01",
+      startedAt: new Date("2024-01-01"),
       value: "5000.00",
       metadata: "Tech sponsorship for digital infrastructure",
     },
@@ -502,14 +497,14 @@ async function seed(
       organizationId: organizations[1].id,
       partnershipType: "IN_KIND" as const,
       eventId: events[0].id,
-      startedAt: toDateString(faker.date.past()),
+      startedAt: faker.date.past(),
       metadata: "Provided environmental materials",
     },
     {
       organizationId: organizations[2].id,
       partnershipType: "VENUE" as const,
       eventId: events[1].id,
-      startedAt: toDateString(faker.date.past()),
+      startedAt: faker.date.past(),
       value: "800.00",
     },
   ]);
