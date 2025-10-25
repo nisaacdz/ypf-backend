@@ -26,7 +26,6 @@ export default [
 
   {
     files: ["**/*.ts"],
-    ignores: ["tests/**/*", "**/*.test.ts", "**/*.spec.ts", "vitest.config.ts"],
     languageOptions: {
       globals: {
         ...globals.node,
@@ -34,18 +33,6 @@ export default [
       parserOptions: {
         project: true,
         tsconfigRootDir: import.meta.dirname,
-      },
-    },
-    rules: {
-      "@typescript-eslint/no-explicit-any": "warn",
-    },
-  },
-
-  {
-    files: ["tests/**/*.ts", "**/*.test.ts", "**/*.spec.ts", "vitest.config.ts"],
-    languageOptions: {
-      globals: {
-        ...globals.node,
       },
     },
     rules: {

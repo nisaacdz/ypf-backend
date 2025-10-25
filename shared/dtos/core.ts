@@ -49,7 +49,7 @@ export type YPFChapter = {
   country: string;
   featuredPhotoUrl?: string;
   memberCount: number;
-  foundingDate: string;
+  foundingDate: Date;
 };
 
 export type DetailedChapter = {
@@ -57,7 +57,7 @@ export type DetailedChapter = {
   name: string;
   country: string;
   description?: string;
-  foundingDate: string;
+  foundingDate: Date;
   // from chaptermedia table, filter isFeatured = true, sort by latest, limit to 5
   featuredMedia?: {
     caption?: string;

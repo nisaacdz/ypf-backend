@@ -176,7 +176,7 @@ export const Chapters = core.table("chapters", {
   name: text().notNull(),
   country: text().notNull(),
   description: text(),
-  foundingDate: date("founding_date").notNull(),
+  foundingDate: date("founding_date", { mode: "date" }).notNull(),
   archivedAt: date("archived_at"),
   parentId: uuid("parent_id").references((): AnyPgColumn => Chapters.id, {
     onDelete: "set null",
