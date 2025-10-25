@@ -20,6 +20,11 @@ export const GetEventMediaQuerySchema = z.object({
   mediaType: z.enum(MediaTypeEnum.enumValues).optional(),
 });
 
+export const GetProjectMediaQuerySchema = z.object({
+  ...PaginationQuery.shape,
+  mediaType: z.enum(MediaTypeEnum.enumValues).optional(),
+});
+
 export const CreateEventSchema = z.object({
   name: z.string().min(3).max(100),
   objective: z.string().optional(),
