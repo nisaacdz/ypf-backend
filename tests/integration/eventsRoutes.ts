@@ -66,7 +66,8 @@ describe("Events API", () => {
       .insert(schema.Chapters)
       .values({
         name: "Test Chapter for Events",
-        location: "Test Location",
+        country: "Test Country",
+        foundingDate: new Date("2020-01-01"),
       })
       .returning();
 
@@ -79,7 +80,7 @@ describe("Events API", () => {
         title: "Test Project for Events",
         scheduledStart: new Date("2024-01-01"),
         scheduledEnd: new Date("2024-12-31"),
-        status: "ACTIVE",
+        status: "IN_PROGRESS",
         chapterId: testData.chapterId,
       })
       .returning();
@@ -171,8 +172,18 @@ describe("Events API", () => {
       expect(Array.isArray(response.body.data.items)).toBe(true);
 
       // Check if our test event is in the list
+      interface EventResponse {
+        id: string;
+        name: string;
+        location?: string;
+        status: string;
+        project?: {
+          id: string;
+          title: string;
+        };
+      }
       const testEvent = response.body.data.items.find(
-        (e: any) => e.id === testData.eventId,
+        (e: EventResponse) => e.id === testData.eventId,
       );
       if (testEvent) {
         expect(testEvent.name).toBe("Test Event");
@@ -204,9 +215,15 @@ describe("Events API", () => {
       expect(response.body.data.items).toBeDefined();
 
       // If we find results, they should contain the search term in the name
+      interface EventResponse {
+        name: string;
+        project?: {
+          title: string;
+        };
+      }
       if (response.body.data.items.length > 0) {
         const hasMatchingName = response.body.data.items.some(
-          (e: any) =>
+          (e: EventResponse) =>
             e.name.toLowerCase().includes("test event") ||
             e.project?.title.toLowerCase().includes("test event"),
         );
@@ -223,9 +240,15 @@ describe("Events API", () => {
       expect(response.body.data.items).toBeDefined();
 
       // If we find results, they should have a project with the search term
+      interface EventResponse {
+        name: string;
+        project?: {
+          title: string;
+        };
+      }
       if (response.body.data.items.length > 0) {
         const hasMatchingProject = response.body.data.items.some(
-          (e: any) =>
+          (e: EventResponse) =>
             e.project?.title.toLowerCase().includes("test project") ||
             e.name.toLowerCase().includes("test project"),
         );
