@@ -79,19 +79,19 @@ const generateBaseHtml = (subject: string, contentHtml: string): string => {
 export const sendEmail = async (
   to: string,
   subject: string,
-  htmlBody: string,
-  textContent?: string,
+  html: string,
+  text?: string,
 ): Promise<void> => {
+  if (variables.app.environment === "test") {
+    return;
+  }
   const mailOptions: nodemailer.SendMailOptions = {
     from: `"YPF Africa" <${variables.services.email.sender}>`,
-    to: to,
-    subject: subject,
-    html: htmlBody,
+    to,
+    subject,
+    html,
+    text,
   };
-  if (textContent) {
-    mailOptions.text = textContent;
-  }
-
   try {
     const info = await emailer.transporter.sendMail(mailOptions);
     logger.info(`Email sent to ${to}. Message ID: ${info.messageId}`);

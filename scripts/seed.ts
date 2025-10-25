@@ -3,11 +3,6 @@ import pgPool from "@/configs/db";
 import schema from "@/db/schema";
 import bcrypt from "bcryptjs";
 
-// Helper function to get random enum value with proper typing
-function randomEnum<T extends readonly string[]>(enumValues: T): T[number] {
-  return faker.helpers.arrayElement(enumValues) as T[number];
-}
-
 async function seed(
   tx: Parameters<Parameters<typeof pgPool.db.transaction>[0]>[0],
 ) {
@@ -398,8 +393,10 @@ async function seed(
         amount: faker.finance.amount({ min: 10, max: 500, dec: 2 }),
         currency: "USD",
         transactionDate: faker.date.recent(),
-        paymentMethod: randomEnum(schema.PaymentMethod.enumValues),
-        status: randomEnum(schema.TransactionStatus.enumValues),
+        paymentMethod: faker.helpers.arrayElement(
+          schema.PaymentMethod.enumValues,
+        ),
+        status: faker.helpers.arrayElement(schema.TransactionStatus.enumValues),
       })),
     )
     .returning();
@@ -436,7 +433,9 @@ async function seed(
         amount: "100.00",
         currency: "USD",
         transactionDate: faker.date.recent(),
-        paymentMethod: randomEnum(schema.PaymentMethod.enumValues),
+        paymentMethod: faker.helpers.arrayElement(
+          schema.PaymentMethod.enumValues,
+        ),
         status: "COMPLETED" as const,
       })),
     )
