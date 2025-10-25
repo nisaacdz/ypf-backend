@@ -9,6 +9,7 @@ import {
 import {
   CreateEventSchema,
   GetEventMediaQuerySchema,
+  GetEventsQuerySchema,
   UploadEventFileSchema,
   UploadEventMediumOptionsSchema,
 } from "@/shared/validators/activities";
@@ -23,6 +24,76 @@ import z from "zod";
 import { anyOf, MEMBER, Visitors } from "@/configs/authorizer";
 
 const eventsRouter = Router();
+
+/**
+ * @swagger
+ * /api/v1/events:
+ *   get:
+ *     summary: Get list of events
+ *     tags: [Events]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 10
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search query (searches event names and project titles)
+ *     responses:
+ *       200:
+ *         description: Events list retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     items:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                     page:
+ *                       type: integer
+ *                     pageSize:
+ *                       type: integer
+ *                     total:
+ *                       type: integer
+ *       400:
+ *         description: Invalid query parameters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+eventsRouter.get(
+  "/",
+  authenticateLax,
+  authorize(Visitors.ALL),
+  validateQuery(GetEventsQuerySchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await eventsHandler.getEvents(req.Query);
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 /**
  * @swagger

@@ -1,9 +1,87 @@
-import { eq, count } from "drizzle-orm";
+import { eq, count, and, ilike, or } from "drizzle-orm";
 import schema from "@/db/schema";
 import pgPool from "@/configs/db";
 import z from "zod";
-import { GetEventMediaQuerySchema } from "../validators/activities";
+import { GetEventMediaQuerySchema, GetEventsQuerySchema } from "../validators/activities";
 import * as mediaUtils from "@/shared/utils/media";
+import { Paginated, YPFEvent } from "@/shared/dtos";
+
+export async function fetchEvents(
+  query: z.infer<typeof GetEventsQuerySchema>,
+): Promise<Paginated<YPFEvent>> {
+  const { page, pageSize, search } = query;
+  const offset = (page - 1) * pageSize;
+
+  // Build where conditions
+  const conditions = [];
+
+  if (search) {
+    // Search in event name or project title if event is part of a project
+    conditions.push(
+      or(
+        ilike(schema.Events.name, `%${search}%`),
+        ilike(schema.Projects.title, `%${search}%`),
+      ),
+    );
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  // Fetch total count
+  const [{ total }] = await pgPool.db
+    .select({ total: count() })
+    .from(schema.Events)
+    .leftJoin(
+      schema.Projects,
+      eq(schema.Events.projectId, schema.Projects.id),
+    )
+    .where(whereClause);
+
+  // Fetch paginated events with project info
+  const events = await pgPool.db
+    .select({
+      id: schema.Events.id,
+      name: schema.Events.name,
+      scheduledStart: schema.Events.scheduledStart,
+      scheduledEnd: schema.Events.scheduledEnd,
+      location: schema.Events.location,
+      status: schema.Events.status,
+      projectId: schema.Projects.id,
+      projectTitle: schema.Projects.title,
+    })
+    .from(schema.Events)
+    .leftJoin(
+      schema.Projects,
+      eq(schema.Events.projectId, schema.Projects.id),
+    )
+    .where(whereClause)
+    .limit(pageSize)
+    .offset(offset);
+
+  // Transform to YPFEvent
+  const items: YPFEvent[] = events.map((event) => ({
+    id: event.id,
+    name: event.name,
+    scheduledStart: event.scheduledStart.toISOString(),
+    scheduledEnd: event.scheduledEnd.toISOString(),
+    location: event.location || undefined,
+    status: event.status,
+    project:
+      event.projectId && event.projectTitle
+        ? {
+            id: event.projectId,
+            title: event.projectTitle,
+          }
+        : undefined,
+  }));
+
+  return {
+    items,
+    page,
+    pageSize,
+    total,
+  };
+}
 
 export async function fetchEventMedia(
   eventId: string,
