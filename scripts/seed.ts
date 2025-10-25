@@ -40,12 +40,12 @@ async function seed(
       {
         name: "Lagos Chapter",
         country: "NG",
-        foundingDate: faker.date.past().toISOString(),
+        foundingDate: faker.date.past(),
       },
       {
         name: "Accra Chapter",
         country: "GH",
-        foundingDate: faker.date.past().toISOString(),
+        foundingDate: faker.date.past(),
       },
     ])
     .returning();
