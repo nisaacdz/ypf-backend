@@ -11,6 +11,10 @@ export const GetProjectsQuerySchema = z.object({
   ...PaginationQuery.shape,
 });
 
+export const GetEventsQuerySchema = z.object({
+  ...PaginationQuery.shape,
+});
+
 export const GetEventMediaQuerySchema = z.object({
   ...PaginationQuery.shape,
   mediaType: z.enum(MediaTypeEnum.enumValues).optional(),

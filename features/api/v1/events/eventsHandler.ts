@@ -2,6 +2,7 @@ import { ApiResponse, AppError } from "@/shared/types";
 import {
   CreateEventSchema,
   GetEventMediaQuerySchema,
+  GetEventsQuerySchema,
 } from "@/shared/validators/activities";
 import { Events } from "@/db/schema/activities";
 import z from "zod";
@@ -9,7 +10,19 @@ import pgPool from "@/configs/db";
 import * as mediaUtils from "@/shared/utils/media";
 import * as mediaService from "@/shared/services/mediaService";
 import * as eventsService from "@/shared/services/eventsService";
-import { YPFEventMedium, Paginated } from "@/shared/dtos";
+import { YPFEventMedium, Paginated, YPFEvent } from "@/shared/dtos";
+
+export async function getEvents(
+  query: z.infer<typeof GetEventsQuerySchema>,
+): Promise<ApiResponse<Paginated<YPFEvent>>> {
+  const data = await eventsService.fetchEvents(query);
+
+  return {
+    success: true,
+    message: "Events fetched successfully",
+    data,
+  };
+}
 
 export async function createEvent(
   newEvent: z.infer<typeof CreateEventSchema>,
