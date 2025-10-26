@@ -6,28 +6,14 @@ import type { Express } from "express";
 import { hashSync } from "bcryptjs";
 import pgPool from "@/configs/db";
 import schema from "@/db/schema";
+import { generateTestUser, generateTestChapter } from "../factories";
 
 describe("Chapters API", () => {
   let app: Express;
   let authTokenCookie: string;
 
-  const testUser = {
-    email: "chapters-test@example.com",
-    password: "SecurePassword123!",
-    name: {
-      firstName: "Chapters",
-      lastName: "Test",
-    },
-    constituentId: "",
-  };
-
-  const testChapter = {
-    id: "",
-    name: "Test Chapter",
-    country: "Test Country",
-    description: "This is a test chapter",
-    foundingDate: new Date("2020-01-01"),
-  };
+  const testUser = generateTestUser();
+  const testChapter = generateTestChapter();
 
   beforeAll(async () => {
     app = await createTestApp();
