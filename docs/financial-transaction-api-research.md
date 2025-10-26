@@ -1048,6 +1048,7 @@ export async function handleSuccessfulPayment(
   }
 
   // Calculate net amount if provider fee is provided
+  // Note: Drizzle returns decimal fields as strings, so we parse to float for calculation
   const netAmount = providerFee
     ? (parseFloat(existingTransaction.amount) - providerFee).toString()
     : undefined;
