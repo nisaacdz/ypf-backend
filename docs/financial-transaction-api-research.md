@@ -1038,15 +1038,27 @@ export async function handleSuccessfulPayment(
   externalRef: string,
   providerFee?: number
 ) {
+  // First, fetch the transaction to get the current amount
+  const existingTransaction = await db.query.FinancialTransactions.findFirst({
+    where: eq(FinancialTransactions.id, transactionId),
+  });
+
+  if (!existingTransaction) {
+    throw new Error('Transaction not found');
+  }
+
+  // Calculate net amount if provider fee is provided
+  const netAmount = providerFee
+    ? (parseFloat(existingTransaction.amount) - providerFee).toString()
+    : undefined;
+
   const transaction = await db
     .update(FinancialTransactions)
     .set({
       status: 'COMPLETED',
       externalRef,
       providerFee: providerFee?.toString(),
-      netAmount: providerFee
-        ? (parseFloat(transaction.amount) - providerFee).toString()
-        : undefined,
+      netAmount,
       updatedAt: new Date(),
     })
     .where(eq(FinancialTransactions.id, transactionId))
