@@ -12,7 +12,7 @@ import emailer from "@/configs/emailer";
 import pgPool from "./configs/db";
 import apiRouter from "@/features/api/v1";
 import logger from "@/configs/logger";
-import { swaggerSpec } from "@/configs/swagger";
+import { swaggerSpec } from "@/configs/docs";
 import { rateLimit } from "./shared/middlewares/rateLimit";
 
 const app: Express = express();
