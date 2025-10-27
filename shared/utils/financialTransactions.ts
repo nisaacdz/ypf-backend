@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import flutterwaveConfig from "@/configs/finance";
+import logger from "@/configs/logger";
 
 /**
  * Financial Transactions Utility Module
@@ -264,8 +265,9 @@ export async function verifyTransaction(
  * Verify webhook signature from Flutterwave
  *
  * This function verifies that a webhook request actually came from Flutterwave
- * by validating the signature in the request headers. Always verify webhook
- * signatures before processing webhook events to prevent fraudulent requests.
+ * by validating the signature in the request headers using constant-time comparison
+ * to prevent timing attacks. Always verify webhook signatures before processing
+ * webhook events to prevent fraudulent requests.
  *
  * @param signature - The webhook signature from request headers (verif-hash)
  * @returns True if the signature is valid, false otherwise
@@ -290,7 +292,16 @@ export async function verifyTransaction(
  */
 export function verifyWebhookSignature(signature: string): boolean {
   const expectedSignature = flutterwaveConfig.webhookSecret;
-  return signature === expectedSignature;
+  
+  // Use constant-time comparison to prevent timing attacks
+  if (signature.length !== expectedSignature.length) {
+    return false;
+  }
+  
+  return crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expectedSignature)
+  );
 }
 
 /**
@@ -338,7 +349,7 @@ export async function processWebhookEvent(
     await handler(event);
     return true;
   } catch (error) {
-    console.error("Error processing webhook event:", error);
+    logger.error(error, "Error processing webhook event");
     throw error;
   }
 }
