@@ -13,7 +13,13 @@ export function rateLimit({
     limit: maxRequests,
     standardHeaders: true,
     legacyHeaders: false,
-    message: "Too many requests, please try again later.",
-    statusCode: 429,
+    handler: (req, res) => {
+      const response = {
+        success: false,
+        data: null,
+        message: "Too many requests, please try again later.",
+      };
+      res.status(429).send(response);
+    },
   });
 }

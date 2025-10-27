@@ -1,7 +1,6 @@
 # YPF Core Backend
 
-A modular and well-structured Express backend for YPF projects.  
-This guide will get you up to speed on our conventions and how we build things around here.
+A YPF Africa backend setup
 
 ---
 
@@ -45,7 +44,9 @@ This is the important part. To keep our codebase consistent and easy to navigate
 
 ## 📚 Documentation
 
-TODO
+Swagger UI
+
+Served at /docs endpoint
 
 ---
 
@@ -56,7 +57,7 @@ Here’s a quick look at the project structure:
 - `server.ts` – Main application entry point.
 - `configs/` – Project-wide configs (database connection, emailer, environment variables).
 - `db/` – All things [Drizzle ORM](https://orm.drizzle.team/): schema definitions and migrations.
-- `docs/` – Currently empty.
+- `docs/` – Some info regarding design patterns, implementation choices, etc.
 - `features/` – Contains API routes, WebSocket handlers.
 - `shared/` – Reusable code like services, middlewares, and type definitions.
 - `scripts/` – Standalone utility scripts (e.g., `migrate.ts`, `seed.ts`).

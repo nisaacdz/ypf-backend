@@ -15,12 +15,14 @@ Tests currently share the same `DATABASE_URL` and other resources with the devel
 **Issue**: All test environments use the same `DATABASE_URL` from environment variables.
 
 **Evidence**:
+
 - `vitest.config.ts` loads `.env.test` but falls back to default `.env`
 - `configs/env.ts` reads `DATABASE_URL` from `process.env`
 - GitHub Actions CI workflow uses the same `DATABASE_URL` secret for all runs
 - No database-level isolation mechanism exists
 
 **Impact**: When tests run concurrently, they all operate on the same database tables simultaneously, causing:
+
 - Data race conditions
 - Unpredictable test data states
 - Cleanup operations affecting other running tests
@@ -34,31 +36,32 @@ Tests currently share the same `DATABASE_URL` and other resources with the devel
 ```typescript
 // tests/integration/authRoutes.ts
 const testUser = {
-  email: "login-test@example.com",  // Static, not unique
+  email: "login-test@example.com", // Static, not unique
   password: "SecurePassword123!",
   // ...
 };
 
 // tests/integration/chaptersRoutes.ts
 const testUser = {
-  email: "chapters-test@example.com",  // Static, not unique
+  email: "chapters-test@example.com", // Static, not unique
   // ...
 };
 
 // tests/integration/committeesRoutes.ts
 const testUser = {
-  email: "committees-test@example.com",  // Static, not unique
+  email: "committees-test@example.com", // Static, not unique
   // ...
 };
 
 // tests/integration/membersRoutes.ts
 const testUser = {
-  email: "members-test@example.com",  // Static, not unique
+  email: "members-test@example.com", // Static, not unique
   // ...
 };
 ```
 
 **Impact**: When the same test suite runs twice concurrently:
+
 1. First run's `beforeAll` creates user with email "login-test@example.com"
 2. Second run's `beforeAll` tries to create the same user → **Unique constraint violation**
 3. Or first run's `afterAll` deletes the user while second run is using it → **Test failures**
@@ -68,12 +71,13 @@ const testUser = {
 **Issue**: The test Express application is cached and reused across all tests.
 
 **Evidence from `tests/app.ts`**:
+
 ```typescript
 let app: Express | null = null;
 
 export async function createTestApp(): Promise<Express> {
-  if (app) return app;  // Returns cached instance
-  
+  if (app) return app; // Returns cached instance
+
   app = express();
   // ... setup
   return app;
@@ -81,6 +85,7 @@ export async function createTestApp(): Promise<Express> {
 ```
 
 **Impact**: All tests share the same Express instance, potentially causing:
+
 - Middleware state pollution
 - Route handler side effects affecting other tests
 - Socket/connection leaks
@@ -90,22 +95,24 @@ export async function createTestApp(): Promise<Express> {
 **Issue**: A singleton database connection pool is shared across all tests.
 
 **Evidence from `configs/db.ts`**:
+
 ```typescript
 class PgPool {
   private database: PostgresJsDatabase<Schema> | null = null;
 
   async initialize(db?: PostgresJsDatabase<Schema>) {
-    if (this.database) return;  // Only initializes once
+    if (this.database) return; // Only initializes once
     this.database = db ?? drizzle(postgres(variables.database.url), { schema });
     // ...
   }
 }
 
-const pgPool = new PgPool();  // Singleton instance
+const pgPool = new PgPool(); // Singleton instance
 export default pgPool;
 ```
 
 **Impact**:
+
 - All tests share the same connection pool
 - No per-test transaction isolation
 - Cleanup operations affect all running tests
@@ -115,6 +122,7 @@ export default pgPool;
 **Issue**: Tests modify the database directly without transaction rollback mechanisms.
 
 **Evidence**:
+
 - Tests use `INSERT`, `DELETE`, `UPDATE` directly on the shared database
 - No transaction wrapping around test execution
 - Cleanup is done in `afterAll` hooks, not automatic rollback
@@ -123,6 +131,7 @@ export default pgPool;
 ### 6. **Vitest Configuration Limitations**
 
 **Current configuration** (`vitest.config.ts`):
+
 ```typescript
 pool: "forks",
 poolOptions: {
@@ -133,6 +142,7 @@ poolOptions: {
 ```
 
 **Impact**: While `singleFork: true` prevents tests from running in parallel within a single process, it doesn't prevent:
+
 - Multiple CI jobs running simultaneously
 - Local development tests running while CI is running
 - Multiple developer machines running tests against the same database
@@ -140,6 +150,7 @@ poolOptions: {
 ## Critical Scenarios Leading to Failures
 
 ### Scenario 1: Concurrent Test Runs (Most Common)
+
 ```
 Time    | CI Job 1                          | CI Job 2
 --------|-----------------------------------|-----------------------------------
@@ -151,6 +162,7 @@ T4      | Delete user                       | User already deleted ❌
 ```
 
 ### Scenario 2: Cleanup Race Condition
+
 ```
 Time    | Test Suite A                      | Test Suite B
 --------|-----------------------------------|-----------------------------------
@@ -162,6 +174,7 @@ T4      | -                                 | Tests using U2 fail ❌ (C2 delete
 ```
 
 ### Scenario 3: Shared State Pollution
+
 ```
 Time    | Test File 1                       | Test File 2
 --------|-----------------------------------|-----------------------------------
@@ -179,30 +192,32 @@ T2      | -                                 | Finds N+1 chapters ❌
 **Implementation**:
 
 1. **Modify `.env.test`** to use a template database URL:
+
 ```env
 DATABASE_URL=postgresql://user:pass@localhost:5432/ypf_test_template
 TEST_DATABASE_PREFIX=ypf_test
 ```
 
 2. **Create a test database helper** (`tests/helpers.ts`):
+
 ```typescript
-import { randomUUID } from 'crypto';
-import postgres from 'postgres';
+import { randomUUID } from "crypto";
+import postgres from "postgres";
 
 export function getTestDatabaseUrl(): string {
-  const baseUrl = process.env.DATABASE_URL || '';
+  const baseUrl = process.env.DATABASE_URL || "";
   const testId = randomUUID().substring(0, 8);
-  const dbName = `${process.env.TEST_DATABASE_PREFIX || 'ypf_test'}_${testId}`;
-  
+  const dbName = `${process.env.TEST_DATABASE_PREFIX || "ypf_test"}_${testId}`;
+
   // Replace database name in URL
   return baseUrl.replace(/\/[^\/]+$/, `/${dbName}`);
 }
 
 export async function createTestDatabase(url: string): Promise<void> {
-  const baseUrl = process.env.DATABASE_URL || '';
+  const baseUrl = process.env.DATABASE_URL || "";
   const sql = postgres(baseUrl);
-  const dbName = url.split('/').pop();
-  
+  const dbName = url.split("/").pop();
+
   try {
     await sql`CREATE DATABASE ${sql(dbName)} TEMPLATE ypf_test_template`;
   } finally {
@@ -211,10 +226,10 @@ export async function createTestDatabase(url: string): Promise<void> {
 }
 
 export async function dropTestDatabase(url: string): Promise<void> {
-  const baseUrl = process.env.DATABASE_URL || '';
+  const baseUrl = process.env.DATABASE_URL || "";
   const sql = postgres(baseUrl);
-  const dbName = url.split('/').pop();
-  
+  const dbName = url.split("/").pop();
+
   try {
     await sql`DROP DATABASE IF EXISTS ${sql(dbName)}`;
   } finally {
@@ -224,19 +239,24 @@ export async function dropTestDatabase(url: string): Promise<void> {
 ```
 
 3. **Update `tests/setup.ts`**:
+
 ```typescript
 import { beforeAll, afterAll } from "vitest";
 import pgPool from "@/configs/db";
 import emailer from "@/configs/emailer";
 import logger from "@/configs/logger";
-import { createTestDatabase, dropTestDatabase, getTestDatabaseUrl } from "./helpers";
+import {
+  createTestDatabase,
+  dropTestDatabase,
+  getTestDatabaseUrl,
+} from "./helpers";
 
 let testDbUrl: string;
 
 beforeAll(async () => {
   testDbUrl = getTestDatabaseUrl();
   await createTestDatabase(testDbUrl);
-  
+
   // Initialize pool with test database
   process.env.DATABASE_URL = testDbUrl;
   await pgPool.initialize();
@@ -251,12 +271,14 @@ afterAll(async () => {
 ```
 
 **Pros**:
+
 - Complete isolation between test runs
 - No changes to individual test files
 - Works with concurrent CI jobs
 - Clean slate for each test run
 
 **Cons**:
+
 - Requires database creation permissions
 - Slightly slower setup time
 - Need to maintain a template database with schema
@@ -268,9 +290,10 @@ afterAll(async () => {
 **Implementation**:
 
 1. **Create a test data factory** (`tests/factories.ts`):
+
 ```typescript
-import { randomUUID } from 'crypto';
-import { faker } from '@faker-js/faker';
+import { randomUUID } from "crypto";
+import { faker } from "@faker-js/faker";
 
 export function generateTestUser() {
   const uniqueId = randomUUID().substring(0, 8);
@@ -300,6 +323,7 @@ export function generateTestChapter() {
 ```
 
 2. **Update test files** (example for `authRoutes.ts`):
+
 ```typescript
 import { generateTestUser } from "../factories";
 
@@ -309,26 +333,28 @@ describe("Authentication API", () => {
 
   beforeAll(async () => {
     app = await createTestApp();
-    
+
     // Cleanup is now safe as email is unique
     await pgPool.db
       .delete(schema.Users)
       .where(eq(schema.Users.email, testUser.email));
-    
+
     // ... rest of setup
   });
-  
+
   // ... tests
 });
 ```
 
 **Pros**:
+
 - Simple to implement
 - Immediate benefit
 - No infrastructure changes
 - Minimal code changes
 
 **Cons**:
+
 - Doesn't solve all isolation issues
 - Database still shared (potential cleanup issues)
 - Doesn't prevent all race conditions
@@ -340,6 +366,7 @@ describe("Authentication API", () => {
 **Implementation**:
 
 1. **Create transaction wrapper** (`tests/helpers.ts`):
+
 ```typescript
 import { beforeEach, afterEach } from "vitest";
 import pgPool from "@/configs/db";
@@ -367,26 +394,31 @@ export function getTestDb() {
 ```
 
 2. **Use in tests**:
+
 ```typescript
 import { setupTestTransaction, getTestDb } from "../helpers";
 
 describe("Authentication API", () => {
   setupTestTransaction();
-  
+
   it("should create user", async () => {
     const db = getTestDb();
-    await db.insert(schema.Users).values({ /* ... */ });
+    await db.insert(schema.Users).values({
+      /* ... */
+    });
     // Automatically rolled back after test
   });
 });
 ```
 
 **Pros**:
+
 - Automatic cleanup
 - True test isolation
 - Fast execution
 
 **Cons**:
+
 - Complex to implement correctly
 - Requires significant refactoring
 - May not work with all database operations
@@ -434,6 +466,7 @@ describe("Authentication API", () => {
 ### 1. Separate Test Environment Configuration
 
 Create a dedicated `.env.test` file:
+
 ```env
 NODE_ENV=test
 DATABASE_URL=postgresql://localhost:5432/ypf_test
@@ -446,8 +479,9 @@ DATABASE_URL=postgresql://localhost:5432/ypf_test
 ### 2. Mock External Services
 
 Update `tests/setup.ts` to mock external services in test environment:
+
 ```typescript
-if (process.env.NODE_ENV === 'test') {
+if (process.env.NODE_ENV === "test") {
   // Mock imagekit
   // Mock azure storage
   // Mock email sender
@@ -457,6 +491,7 @@ if (process.env.NODE_ENV === 'test') {
 ### 3. Improve Vitest Configuration
 
 Remove `singleFork: true` once isolation is implemented:
+
 ```typescript
 // vitest.config.ts
 pool: "forks",
@@ -471,12 +506,13 @@ poolOptions: {
 ### 4. CI/CD Improvements
 
 Update GitHub Actions workflow:
+
 ```yaml
 jobs:
   test:
     strategy:
       matrix:
-        test-shard: [1, 2, 3, 4]  # Parallel shards
+        test-shard: [1, 2, 3, 4] # Parallel shards
     steps:
       # ... existing steps
       - name: Run tests

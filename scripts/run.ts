@@ -9,6 +9,9 @@ if (!scriptName) {
     "❌ Please provide a script name. Example: npm run script -- migrate",
   );
   process.exit(1);
+} else if (scriptName === path.parse(__filename).name) {
+  logger.error("❌ Please provide a different script name.");
+  process.exit(1);
 }
 
 const scriptPathTs = path.resolve(__dirname, `${scriptName}.ts`);
