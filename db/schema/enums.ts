@@ -50,3 +50,6 @@ export const NotificationType = pgEnum("notification_type", [
   "DONATION_RECEIPT",
   "ANNOUNCEMENT",
 ]);
+export const ExternalPaymentProvider = pgEnum("external_payment_provider", [
+  "FLUTTERWAVE",
+]);

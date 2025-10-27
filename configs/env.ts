@@ -37,6 +37,20 @@ const envSchema = z
     SMTP_PASS: z.string().min(1, "SMTP_PASS is required"),
     EMAILER: z.email("A valid sender email (EMAILER) is required"),
 
+    // Flutterwave Payment Gateway
+    FLUTTERWAVE_PUBLIC_KEY: z
+      .string()
+      .min(1, "FLUTTERWAVE_PUBLIC_KEY is required"),
+    FLUTTERWAVE_SECRET_KEY: z
+      .string()
+      .min(1, "FLUTTERWAVE_SECRET_KEY is required"),
+    FLUTTERWAVE_ENCRYPTION_KEY: z
+      .string()
+      .min(1, "FLUTTERWAVE_ENCRYPTION_KEY is required"),
+    FLUTTERWAVE_WEBHOOK_SECRET: z
+      .string()
+      .min(1, "FLUTTERWAVE_WEBHOOK_SECRET is required"),
+
     // Application Metadata
     LOGO_URL: z.url("A valid LOGO_URL is required"),
     YEAR: z.string().default(new Date().getFullYear().toString()),
@@ -73,6 +87,12 @@ const envSchema = z
         user: env.SMTP_USER,
         pass: env.SMTP_PASS,
         sender: env.EMAILER,
+      },
+      flutterwave: {
+        publicKey: env.FLUTTERWAVE_PUBLIC_KEY,
+        secretKey: env.FLUTTERWAVE_SECRET_KEY,
+        encryptionKey: env.FLUTTERWAVE_ENCRYPTION_KEY,
+        webhookSecret: env.FLUTTERWAVE_WEBHOOK_SECRET,
       },
     },
   }));
