@@ -7,12 +7,10 @@ export const ADMIN = {
 };
 
 export const MEMBER = {
-  PRESIDENT: (role: string) => role === "MEMBER.president",
-  chapterLead: (chapterId: string) => (role: string) =>
-    role === `MEMBER.lead.${chapterId}`,
-  committeeChair: (committeeId: string) => (role: string) =>
-    role === `MEMBER.chair.${committeeId}`,
-  TREASURER: (role: string) => role === "MEMBER.treasurer",
+  PRESIDENT: "MEMBER.president",
+  chapterLead: (chapterId: string) => `MEMBER.lead.${chapterId}`,
+  committeeChair: (committeeId: string) => `MEMBER.chair.${committeeId}`,
+  TREASURER: "MEMBER.treasurer",
 };
 
 export type GuardFunction = (req: Request) => boolean | Promise<boolean>;
@@ -30,10 +28,26 @@ const hasProfile = (...types: Profile[]): GuardFunction => {
 /**
  * Check if user has a specific role (optionally scoped)
  */
-const hasRole = (roleFunction: (role: string) => boolean): GuardFunction => {
+const hasRole = (
+  ...roles: (string | ((req: Request) => string))[]
+): GuardFunction => {
   return (req) => {
     if (!req.User) return false;
-    return req.User.roles.some((role) => roleFunction(role));
+    return req.User.roles.some((role) => {
+      let result = false;
+      for (const r of roles) {
+        if (typeof r === "string") {
+          result = r == role;
+        } else {
+          result = role == r(req);
+        }
+        if (result) {
+          break;
+        }
+      }
+
+      return result;
+    });
   };
 };
 
