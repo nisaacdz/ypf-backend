@@ -31,6 +31,9 @@ const envSchema = z
     IMAGEKIT_PUBLIC_KEY: z.string().min(1, "IMAGEKIT_PUBLIC_KEY is required"),
     IMAGEKIT_PRIVATE_KEY: z.string().min(1, "IMAGEKIT_PRIVATE_KEY is required"),
 
+    // Paystack Configuration
+    PAYSTACK_SECRET: z.string().min(1, "PAYSTACK_SECRET is required"),
+
     // SMTP Email Configuration
     SMTP_HOST: z.string().min(1, "SMTP_HOST is required"),
     SMTP_USER: z.string().min(1, "SMTP_USER is required"),
@@ -73,6 +76,9 @@ const envSchema = z
         user: env.SMTP_USER,
         pass: env.SMTP_PASS,
         sender: env.EMAILER,
+      },
+      paystack: {
+        secretHash: env.PAYSTACK_SECRET,
       },
     },
   }));
