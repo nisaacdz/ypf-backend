@@ -1134,7 +1134,6 @@ bytes = "1"
 
 # File upload & storage
 multer = "3"
-azure_storage = "0.20"
 azure_storage_blobs = "0.20"
 tokio-util = { version = "0.7", features = ["io"] }
 
