@@ -160,7 +160,8 @@ const events = await pgPool.db.select().from(Events).where(...);
 - Use Vitest as the test runner
 - Structure: `tests/unit/` and `tests/integration/`
 - Test utilities available in `tests/helpers.ts` and `tests/factories.ts`
-- Follow the isolation strategy documented in `docs/0001_test-isolation-strategy.md`
+- Use test data factories from `tests/factories.ts` to generate unique test data with UUIDs
+- This prevents race conditions when multiple tests run concurrently
 
 Run tests with:
 

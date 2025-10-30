@@ -49,7 +49,6 @@ function normalizePhone(phone: string): string {
 
 /**
  * Finds or creates a constituent based on the provided information
- * Implements the donor unification strategy from docs/0002_donor-unification-strategy.md
  *
  * @param donorInfo - The donor's information
  * @param anonymous - Whether this is an anonymous donation (if true, returns null)
