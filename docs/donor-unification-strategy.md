@@ -1062,11 +1062,11 @@ ORDER BY ft.transaction_date DESC;
 ### Appendix C: Implementation Phases
 
 #### Phase 1: Core Matching (Weeks 1-2)
-- [x] Analyze existing schema
-- [x] Design matching strategy
 - [ ] Implement matching service
 - [ ] Add unit tests
 - [ ] Add integration tests
+- [ ] Deploy to staging environment
+- [ ] Performance testing
 
 #### Phase 2: Account Linking (Weeks 3-4)
 - [ ] Implement post-registration linking
