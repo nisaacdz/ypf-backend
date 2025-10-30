@@ -270,16 +270,6 @@ async function seed(
     },
   ]);
 
-  // Seed Donors
-  const donors = await tx
-    .insert(schema.Donors)
-    .values(
-      constituents.slice(20, 30).map((c) => ({
-        constituentId: c.id,
-      })),
-    )
-    .returning();
-
   // Seed Member Titles Assignments
   await tx.insert(schema.MemberTitlesAssignments).values([
     {
@@ -396,6 +386,7 @@ async function seed(
         paymentMethod: faker.helpers.arrayElement(
           schema.PaymentMethod.enumValues,
         ),
+        externalProvider: "PAYSTACK" as const,
         status: faker.helpers.arrayElement(schema.TransactionStatus.enumValues),
       })),
     )
@@ -405,7 +396,7 @@ async function seed(
   await tx.insert(schema.Donations).values(
     donationTransactions.map((txn, i) => ({
       transactionId: txn.id,
-      donorId: i < donors.length ? donors[i].id : null, // Some anonymous
+      constituentId: i < 10 ? constituents[20 + i].id : null, // First 8 with constituents, rest anonymous
       projectId: i < 4 ? projects[i % projects.length].id : null,
       eventId: i >= 4 ? events[i % events.length].id : null,
     })),
@@ -436,6 +427,7 @@ async function seed(
         paymentMethod: faker.helpers.arrayElement(
           schema.PaymentMethod.enumValues,
         ),
+        externalProvider: "PAYSTACK" as const,
         status: "COMPLETED" as const,
       })),
     )

@@ -7,6 +7,7 @@ import membersRouter from "./members";
 import chaptersRouter from "./chapters";
 import committeesRouter from "./committees";
 import webhooksRouter from "./webhooks";
+import donationsRouter from "./donations";
 
 const apiRouter = Router();
 
@@ -18,5 +19,6 @@ apiRouter.use("/members", membersRouter);
 apiRouter.use("/chapters", chaptersRouter);
 apiRouter.use("/committees", committeesRouter);
 apiRouter.use("/webhooks", webhooksRouter);
+apiRouter.use("/donations", donationsRouter);
 
 export default apiRouter;
