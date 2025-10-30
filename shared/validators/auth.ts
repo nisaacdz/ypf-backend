@@ -7,9 +7,7 @@ export const AuthenticatedUserSchema = z.object({
   email: z.email(),
   fullName: z.string(),
   roles: z.array(z.string()), //eg 'ADMIN.REGULAR', 'MEMBER.president', 'MEMBER.chair.<committee_id>' etc
-  profiles: z
-    .array(z.enum(["ADMIN", "MEMBER", "VOLUNTEER", "DONOR", "AUDITOR"]))
-    .max(5), // active profiles
+  profiles: z.array(z.enum(["ADMIN", "MEMBER", "VOLUNTEER", "AUDITOR"])).max(5), // active profiles
 });
 
 export const UsernameAndPasswordSchema = z.object({

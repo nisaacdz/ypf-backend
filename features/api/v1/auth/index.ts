@@ -71,7 +71,7 @@ const authRouter = Router();
  *                           type: array
  *                           items:
  *                             type: string
- *                             enum: [ADMIN, MEMBER, VOLUNTEER, DONOR, AUDITOR]
+ *                             enum: [ADMIN, MEMBER, VOLUNTEER, AUDITOR]
  *       400:
  *         description: Invalid credentials or validation error
  *         content:

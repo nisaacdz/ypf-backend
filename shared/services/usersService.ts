@@ -179,7 +179,7 @@ export async function getConstituentProfiles(
     memberQuery,
     adminQuery,
     volunteerQuery,
-    auditorQuery
+    auditorQuery,
   );
 
   return result.map((row) => row.profile);
