@@ -396,6 +396,7 @@ async function seed(
         paymentMethod: faker.helpers.arrayElement(
           schema.PaymentMethod.enumValues,
         ),
+        externalProvider: "PAYSTACK" as const,
         status: faker.helpers.arrayElement(schema.TransactionStatus.enumValues),
       })),
     )
@@ -436,6 +437,7 @@ async function seed(
         paymentMethod: faker.helpers.arrayElement(
           schema.PaymentMethod.enumValues,
         ),
+        externalProvider: "PAYSTACK" as const,
         status: "COMPLETED" as const,
       })),
     )

@@ -1,6 +1,7 @@
 import z from "zod";
 
 export * from "./auth";
+export * from "./donations";
 
 export const PaginationQuery = z.object({
   page: z.coerce.number().min(1).default(1),

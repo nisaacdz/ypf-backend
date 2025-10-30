@@ -1,0 +1,374 @@
+import { eq, and } from "drizzle-orm";
+import pgPool from "@/configs/db";
+import schema from "@/db/schema";
+import variables from "@/configs/env";
+import { AppError } from "@/shared/types";
+import logger from "@/configs/logger";
+import { findOrCreateDonor, ensureDonorProfile } from "./donorMatchingService";
+
+interface CreateDonationInput {
+  amount: number;
+  currency: string;
+  anonymous?: boolean;
+  donorInfo?: {
+    firstName: string;
+    lastName: string;
+    email?: string;
+    phone?: string;
+    salutation?: string;
+  };
+  projectId?: string;
+  eventId?: string;
+  authenticatedConstituentId?: string;
+}
+
+interface DonationResponse {
+  id: string;
+  amount: string;
+  currency: string;
+  donor?: {
+    firstName: string;
+    lastName: string;
+    salutation?: string | null;
+  };
+}
+
+interface PaystackInitializeResponse {
+  status: boolean;
+  message: string;
+  data: {
+    authorization_url: string;
+    access_code: string;
+    reference: string;
+  };
+}
+
+interface PaystackVerifyResponse {
+  status: boolean;
+  message: string;
+  data: {
+    status: string;
+    reference: string;
+    amount: number;
+    currency: string;
+    channel: string;
+    paid_at: string;
+  };
+}
+
+/**
+ * Creates a new donation and generates Paystack payment URL
+ */
+export async function createDonation(input: CreateDonationInput): Promise<{
+  donation: DonationResponse;
+  paymentUrl: string;
+}> {
+  const {
+    amount,
+    currency,
+    anonymous = false,
+    donorInfo,
+    projectId,
+    eventId,
+    authenticatedConstituentId,
+  } = input;
+
+  try {
+    let donorId: string | null = null;
+    let constituentForResponse: {
+      firstName: string;
+      lastName: string;
+      salutation: string | null;
+    } | null = null;
+
+    // Determine donor based on authentication status and anonymous flag
+    if (!anonymous) {
+      if (authenticatedConstituentId) {
+        // Authenticated user donation
+        donorId = await ensureDonorProfile(authenticatedConstituentId);
+
+        // Fetch constituent details for response
+        const constituent = await pgPool.db.query.Constituents.findFirst({
+          where: eq(schema.Constituents.id, authenticatedConstituentId),
+        });
+        if (constituent) {
+          constituentForResponse = {
+            firstName: constituent.firstName,
+            lastName: constituent.lastName,
+            salutation: constituent.salutation,
+          };
+        }
+      } else if (donorInfo) {
+        // Guest donation - apply matching logic
+        const matchResult = await findOrCreateDonor(donorInfo, false);
+        if (matchResult) {
+          donorId = matchResult.donorId;
+
+          // Fetch constituent details for response
+          const constituent = await pgPool.db.query.Constituents.findFirst({
+            where: eq(schema.Constituents.id, matchResult.constituentId),
+          });
+          if (constituent) {
+            constituentForResponse = {
+              firstName: constituent.firstName,
+              lastName: constituent.lastName,
+              salutation: constituent.salutation,
+            };
+          }
+        }
+      } else {
+        throw new AppError(
+          "Donor information is required for non-anonymous donations",
+          400,
+        );
+      }
+    }
+
+    // Create financial transaction
+    const [transaction] = await pgPool.db
+      .insert(schema.FinancialTransactions)
+      .values({
+        amount: amount.toFixed(2),
+        currency,
+        paymentMethod: "CREDIT_CARD", // Default for online payments, will be updated by webhook
+        status: "PENDING",
+        externalProvider: "PAYSTACK",
+      })
+      .returning();
+
+    // Create donation record
+    const [donation] = await pgPool.db
+      .insert(schema.Donations)
+      .values({
+        transactionId: transaction.id,
+        donorId,
+        projectId: projectId || null,
+        eventId: eventId || null,
+      })
+      .returning();
+
+    // Initialize Paystack payment
+    const paystackSecretKey = variables.services.paystack.secretHash;
+    if (!paystackSecretKey) {
+      throw new AppError("Paystack configuration is missing", 500);
+    }
+
+    const paystackResponse = await fetch(
+      "https://api.paystack.co/transaction/initialize",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${paystackSecretKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: Math.round(amount * 100), // Paystack expects amount in kobo/pesewas
+          currency,
+          reference: transaction.id, // Use transaction ID as reference
+          callback_url: `${variables.app.host}/donations/callback`,
+        }),
+      },
+    );
+
+    if (!paystackResponse.ok) {
+      const errorData = await paystackResponse.json();
+      logger.error("Paystack initialization failed:", errorData);
+      throw new AppError("Failed to initialize payment", 500);
+    }
+
+    const paystackData: PaystackInitializeResponse =
+      await paystackResponse.json();
+
+    if (!paystackData.status) {
+      throw new AppError(
+        paystackData.message || "Failed to initialize payment",
+        500,
+      );
+    }
+
+    // Update transaction with Paystack reference
+    await pgPool.db
+      .update(schema.FinancialTransactions)
+      .set({ externalRef: paystackData.data.reference })
+      .where(eq(schema.FinancialTransactions.id, transaction.id));
+
+    // Build response
+    const donationResponse: DonationResponse = {
+      id: donation.id,
+      amount: transaction.amount,
+      currency: transaction.currency,
+    };
+
+    if (constituentForResponse && !anonymous) {
+      donationResponse.donor = {
+        firstName: constituentForResponse.firstName,
+        lastName: constituentForResponse.lastName,
+        salutation: constituentForResponse.salutation,
+      };
+    }
+
+    logger.info(
+      `Created donation ${donation.id} with Paystack reference ${paystackData.data.reference}`,
+    );
+
+    return {
+      donation: donationResponse,
+      paymentUrl: paystackData.data.authorization_url,
+    };
+  } catch (error) {
+    logger.error({ error }, "Error creating donation");
+    throw error;
+  }
+}
+
+/**
+ * Verifies a donation using Paystack's verification API
+ */
+export async function verifyDonation(donationId: string): Promise<{
+  status: string;
+}> {
+  try {
+    // Fetch donation with transaction
+    const donation = await pgPool.db.query.Donations.findFirst({
+      where: eq(schema.Donations.id, donationId),
+      with: {
+        transaction: true,
+      },
+    });
+
+    if (!donation) {
+      throw new AppError("Donation not found", 404);
+    }
+
+    if (!donation.transaction) {
+      throw new AppError("Transaction not found for this donation", 404);
+    }
+
+    // Verify it's a Paystack transaction
+    if (donation.transaction.externalProvider !== "PAYSTACK") {
+      throw new AppError(
+        "Only Paystack donations can be verified through this endpoint",
+        400,
+      );
+    }
+
+    if (!donation.transaction.externalRef) {
+      throw new AppError(
+        "No external reference found for this transaction",
+        400,
+      );
+    }
+
+    // Call Paystack verification API
+    const paystackSecretKey = variables.services.paystack.secretHash;
+    if (!paystackSecretKey) {
+      throw new AppError("Paystack configuration is missing", 500);
+    }
+
+    const verifyResponse = await fetch(
+      `https://api.paystack.co/transaction/verify/${donation.transaction.externalRef}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${paystackSecretKey}`,
+        },
+      },
+    );
+
+    if (!verifyResponse.ok) {
+      const errorData = await verifyResponse.json();
+      logger.error("Paystack verification failed:", errorData);
+      throw new AppError("Failed to verify payment", 500);
+    }
+
+    const verifyData: PaystackVerifyResponse = await verifyResponse.json();
+
+    if (!verifyData.status) {
+      throw new AppError(verifyData.message || "Failed to verify payment", 500);
+    }
+
+    // Map Paystack status to our status
+    const statusMap: Record<
+      string,
+      (typeof schema.TransactionStatus.enumValues)[number]
+    > = {
+      success: "COMPLETED",
+      failed: "FAILED",
+      abandoned: "FAILED",
+    };
+
+    const newStatus = statusMap[verifyData.data.status] || "PENDING";
+
+    // Map Paystack channel to our payment method
+    const paymentMethodMap: Record<
+      string,
+      (typeof schema.PaymentMethod.enumValues)[number]
+    > = {
+      card: "CREDIT_CARD",
+      bank: "BANK_TRANSFER",
+      bank_transfer: "BANK_TRANSFER",
+      mobile_money: "MOBILE_MONEY",
+    };
+
+    const paymentMethod =
+      paymentMethodMap[verifyData.data.channel] || "CREDIT_CARD";
+
+    // Update transaction status only if still pending
+    await pgPool.db
+      .update(schema.FinancialTransactions)
+      .set({
+        status: newStatus,
+        paymentMethod,
+      })
+      .where(
+        and(
+          eq(schema.FinancialTransactions.id, donation.transaction.id),
+          eq(schema.FinancialTransactions.status, "PENDING"),
+        ),
+      );
+
+    logger.info(`Verified donation ${donationId} with status: ${newStatus}`);
+
+    return {
+      status: newStatus,
+    };
+  } catch (error) {
+    logger.error({ error }, "Error verifying donation");
+    throw error;
+  }
+}
+
+/**
+ * Checks if a donation has been completed
+ */
+export async function checkDonationStatus(donationId: string): Promise<{
+  completed: boolean;
+  status: string;
+  updatedAt: Date;
+}> {
+  try {
+    const donation = await pgPool.db.query.Donations.findFirst({
+      where: eq(schema.Donations.id, donationId),
+      with: {
+        transaction: true,
+      },
+    });
+
+    if (!donation) {
+      throw new AppError("Donation not found", 404);
+    }
+
+    if (!donation.transaction) {
+      throw new AppError("Transaction not found for this donation", 404);
+    }
+
+    return {
+      completed: donation.transaction.status === "COMPLETED",
+      status: donation.transaction.status,
+      updatedAt: donation.transaction.transactionDate,
+    };
+  } catch (error) {
+    logger.error({ error }, "Error checking donation status");
+    throw error;
+  }
+}
