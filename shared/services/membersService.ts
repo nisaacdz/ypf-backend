@@ -171,7 +171,7 @@ export async function getMembers(
   };
 }
 
-export async function getMemberById(
+export async function getMemberByConstituentId(
   constituentId: string,
 ): Promise<MemberDetail> {
   const now = sql`now()`;

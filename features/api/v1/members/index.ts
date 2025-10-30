@@ -95,7 +95,7 @@ membersRouter.get(
 
 /**
  * @swagger
- * /api/v1/members/{id}:
+ * /api/v1/members/{constituentId}:
  *   get:
  *     summary: Get a single member by ID
  *     tags: [Members]
@@ -103,12 +103,12 @@ membersRouter.get(
  *       - cookieAuth: []
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: constituentId
  *         required: true
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Member (constituent) ID - Note that members are identified by their constituent ID
+ *         description: Constituent ID - Note that members are identified by their constituent ID
  *     responses:
  *       200:
  *         description: Member details retrieved successfully
@@ -160,13 +160,13 @@ membersRouter.get(
  *         description: Member not found
  */
 membersRouter.get(
-  "/:id",
+  "/:constituentId",
   authenticateLax,
   authorize(Visitors.hasProfile("MEMBER", "ADMIN")),
-  validateParams(z.object({ id: z.uuid("Invalid member ID") })),
+  validateParams(z.object({ constituentId: z.uuid("Member not found ID") })),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const response = await membersHandler.getMember(req.Params.id);
+      const response = await membersHandler.getMember(req.Params.constituentId);
       res.status(200).json(response);
     } catch (error) {
       next(error);

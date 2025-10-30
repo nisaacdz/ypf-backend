@@ -12,8 +12,8 @@ export async function getMembers(
 }
 
 export async function getMember(
-  memberId: string,
+  constituentId: string,
 ): Promise<ApiResponse<MemberDetail>> {
-  const data = await membersService.getMemberById(memberId);
+  const data = await membersService.getMemberByConstituentId(constituentId);
   return { success: true, data };
 }
