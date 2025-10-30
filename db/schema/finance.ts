@@ -38,7 +38,7 @@ export const FinancialTransactions = finance.table("financial_transactions", {
   transactionDate: timestamp("transaction_date", { withTimezone: true })
     .defaultNow()
     .notNull(),
-  paymentMethod: PaymentMethod("payment_method").notNull(),
+  paymentMethod: PaymentMethod("payment_method"),
   status: TransactionStatus().default("PENDING").notNull(),
   externalProvider: ExternalProvider("external_provider").notNull(),
   externalRef: text("external_ref").unique(),
