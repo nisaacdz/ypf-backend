@@ -160,7 +160,7 @@ const events = await pgPool.db.select().from(Events).where(...);
 - Use Vitest as the test runner
 - Structure: `tests/unit/` and `tests/integration/`
 - Test utilities available in `tests/helpers.ts` and `tests/factories.ts`
-- Follow the isolation strategy documented in `docs/TEST_ISOLATION_STRATEGY.md`
+- Follow the isolation strategy documented in `docs/0001_test-isolation-strategy.md`
 
 Run tests with:
 
