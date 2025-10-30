@@ -117,6 +117,7 @@ Previous donations still linked to old Constituent/Donor records
 #### Core Tables
 
 **1. `core.constituents`**
+
 ```typescript
 {
   id: UUID (PK),
@@ -132,6 +133,7 @@ Previous donations still linked to old Constituent/Donor records
 **Purpose**: Universal person record. One constituent can have multiple roles (donor, member, volunteer, etc.)
 
 **2. `core.donors`**
+
 ```typescript
 {
   id: UUID (PK),
@@ -142,6 +144,7 @@ Previous donations still linked to old Constituent/Donor records
 **Relationship**: One-to-one with constituents. If a constituent donates, they get a donor record.
 
 **3. `core.contact_informations`**
+
 ```typescript
 {
   id: SERIAL (PK),
@@ -156,6 +159,7 @@ Previous donations still linked to old Constituent/Donor records
 **Purpose**: Store multiple contact points per constituent. Email and phone are key for matching.
 
 **4. `app.users`**
+
 ```typescript
 {
   id: UUID (PK),
@@ -169,6 +173,7 @@ Previous donations still linked to old Constituent/Donor records
 **Relationship**: One-to-one with constituents. Authenticated users are linked to a constituent.
 
 **5. `finance.donations`**
+
 ```typescript
 {
   id: UUID (PK),
@@ -182,6 +187,7 @@ Previous donations still linked to old Constituent/Donor records
 **Anonymous Donations**: `donorId` is NULL, no constituent/donor record needed.
 
 **6. `app.otps`**
+
 ```typescript
 {
   id: SERIAL (PK),
@@ -225,17 +231,17 @@ await createDonation({
 // Always creates new records (problem!)
 const constituent = await createConstituent({
   firstName: "John",
-  lastName: "Doe"
+  lastName: "Doe",
 });
 
 await createContactInformation({
   constituentId: constituent.id,
   contactType: "EMAIL",
-  value: "john.doe@example.com"
+  value: "john.doe@example.com",
 });
 
 const donor = await createDonor({
-  constituentId: constituent.id
+  constituentId: constituent.id,
 });
 
 await createDonation({
@@ -259,8 +265,8 @@ await createDonation({
 ```javascript
 // Stripe checks for existing customer by email
 const customer = await stripe.customers.list({
-  email: 'donor@example.com',
-  limit: 1
+  email: "donor@example.com",
+  limit: 1,
 });
 
 if (customer.data.length > 0) {
@@ -269,8 +275,8 @@ if (customer.data.length > 0) {
 } else {
   // Create new customer
   const newCustomer = await stripe.customers.create({
-    email: 'donor@example.com',
-    name: 'John Doe'
+    email: "donor@example.com",
+    name: "John Doe",
   });
   customerId = newCustomer.id;
 }
@@ -354,19 +360,21 @@ if (customer.data.length > 0) {
 /**
  * Find existing constituent by email (case-insensitive)
  */
-async function findConstituentByEmail(email: string): Promise<Constituent | null> {
+async function findConstituentByEmail(
+  email: string,
+): Promise<Constituent | null> {
   const normalizedEmail = email.toLowerCase().trim();
-  
+
   const result = await db.query.ContactInformations.findFirst({
     where: and(
-      eq(ContactInformations.contactType, 'EMAIL'),
-      sql`LOWER(${ContactInformations.value}) = ${normalizedEmail}`
+      eq(ContactInformations.contactType, "EMAIL"),
+      sql`LOWER(${ContactInformations.value}) = ${normalizedEmail}`,
     ),
     with: {
-      constituent: true
-    }
+      constituent: true,
+    },
   });
-  
+
   return result?.constituent || null;
 }
 ```
@@ -380,19 +388,21 @@ async function findConstituentByEmail(email: string): Promise<Constituent | null
 /**
  * Find existing constituent by phone (normalized)
  */
-async function findConstituentByPhone(phone: string): Promise<Constituent | null> {
+async function findConstituentByPhone(
+  phone: string,
+): Promise<Constituent | null> {
   const normalizedPhone = normalizePhoneNumber(phone);
-  
+
   const result = await db.query.ContactInformations.findFirst({
     where: and(
-      eq(ContactInformations.contactType, 'PHONE'),
-      sql`${ContactInformations.value} = ${normalizedPhone}`
+      eq(ContactInformations.contactType, "PHONE"),
+      sql`${ContactInformations.value} = ${normalizedPhone}`,
     ),
     with: {
-      constituent: true
-    }
+      constituent: true,
+    },
   });
-  
+
   return result?.constituent || null;
 }
 
@@ -401,15 +411,15 @@ async function findConstituentByPhone(phone: string): Promise<Constituent | null
  */
 function normalizePhoneNumber(phone: string): string {
   // Remove all non-digit characters
-  let digits = phone.replace(/\D/g, '');
-  
+  let digits = phone.replace(/\D/g, "");
+
   // Handle common country code patterns
   // e.g., +1 (USA), +254 (Kenya), +234 (Nigeria)
   if (digits.length > 10) {
     // Keep country code + local number
     return digits;
   }
-  
+
   return digits;
 }
 ```
@@ -428,12 +438,12 @@ async function findConstituentByNameAndContact(
   firstName: string,
   lastName: string,
   email?: string,
-  phone?: string
+  phone?: string,
 ): Promise<Constituent | null> {
   // Normalize name for comparison
   const normFirstName = normalizeName(firstName);
   const normLastName = normalizeName(lastName);
-  
+
   // Build search query
   let query = db
     .select()
@@ -441,32 +451,35 @@ async function findConstituentByNameAndContact(
     .where(
       and(
         sql`LOWER(${Constituents.firstName}) = ${normFirstName}`,
-        sql`LOWER(${Constituents.lastName}) = ${normLastName}`
-      )
+        sql`LOWER(${Constituents.lastName}) = ${normLastName}`,
+      ),
     );
-  
+
   const candidates = await query;
-  
+
   // If multiple matches, check contact info to disambiguate
   if (candidates.length > 1 && (email || phone)) {
     for (const candidate of candidates) {
       const contacts = await db.query.ContactInformations.findMany({
-        where: eq(ContactInformations.constituentId, candidate.id)
+        where: eq(ContactInformations.constituentId, candidate.id),
       });
-      
-      const hasMatchingContact = contacts.some(c => 
-        (email && c.contactType === 'EMAIL' && 
-         c.value.toLowerCase() === email.toLowerCase()) ||
-        (phone && c.contactType === 'PHONE' && 
-         normalizePhoneNumber(c.value) === normalizePhoneNumber(phone))
+
+      const hasMatchingContact = contacts.some(
+        (c) =>
+          (email &&
+            c.contactType === "EMAIL" &&
+            c.value.toLowerCase() === email.toLowerCase()) ||
+          (phone &&
+            c.contactType === "PHONE" &&
+            normalizePhoneNumber(c.value) === normalizePhoneNumber(phone)),
       );
-      
+
       if (hasMatchingContact) {
         return candidate;
       }
     }
   }
-  
+
   return candidates[0] || null;
 }
 
@@ -526,9 +539,9 @@ The core matching logic should be implemented as a dedicated service:
 ```typescript
 // shared/services/donorMatchingService.ts
 
-import { db } from '@/configs/db';
-import { Constituents, ContactInformations, Donors } from '@/db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { db } from "@/configs/db";
+import { Constituents, ContactInformations, Donors } from "@/db/schema";
+import { eq, and, sql } from "drizzle-orm";
 
 export interface DonorMatchingInput {
   firstName: string;
@@ -542,7 +555,7 @@ export interface DonorMatchingResult {
   matched: boolean;
   constituentId?: string;
   donorId?: string;
-  matchMethod?: 'email' | 'phone' | 'new';
+  matchMethod?: "email" | "phone" | "new";
   confidence?: number;
 }
 
@@ -551,14 +564,13 @@ export interface DonorMatchingResult {
  * Returns existing constituent/donor if match found, or indicates new record needed.
  */
 export async function findOrCreateDonorForGuest(
-  input: DonorMatchingInput
+  input: DonorMatchingInput,
 ): Promise<DonorMatchingResult> {
-  
   // Anonymous donations: no matching needed
   if (input.isAnonymous) {
     return { matched: false };
   }
-  
+
   // Tier 1: Email matching (highest priority)
   if (input.email) {
     const constituent = await findConstituentByEmail(input.email);
@@ -568,32 +580,32 @@ export async function findOrCreateDonorForGuest(
         matched: true,
         constituentId: constituent.id,
         donorId: donor.id,
-        matchMethod: 'email',
-        confidence: 95
+        matchMethod: "email",
+        confidence: 95,
       };
     }
   }
-  
+
   // Tier 2: Phone matching (secondary)
   if (input.phone) {
     const constituent = await findConstituentByPhone(input.phone);
     if (constituent) {
       // Found by phone - add email if provided and not already present
       if (input.email) {
-        await addContactIfNotExists(constituent.id, 'EMAIL', input.email);
+        await addContactIfNotExists(constituent.id, "EMAIL", input.email);
       }
-      
+
       const donor = await findOrCreateDonorForConstituent(constituent.id);
       return {
         matched: true,
         constituentId: constituent.id,
         donorId: donor.id,
-        matchMethod: 'phone',
-        confidence: 85
+        matchMethod: "phone",
+        confidence: 85,
       };
     }
   }
-  
+
   // No match found - need to create new constituent/donor
   return { matched: false };
 }
@@ -696,11 +708,13 @@ if (isAnonymous) {
 ### 2. Email Privacy
 
 **Concerns:**
+
 - Email addresses are PII (Personally Identifiable Information)
 - Users may not expect donations to be linked
 - GDPR/CCPA compliance requirements
 
 **Mitigations:**
+
 - **Transparent Communication**: Privacy policy states donations with same email are linked
 - **User Control**: Allow users to unlink donations in account settings
 - **Data Minimization**: Only store necessary contact info
@@ -709,11 +723,13 @@ if (isAnonymous) {
 ### 3. Phone Number Privacy
 
 **Concerns:**
+
 - Phone numbers can be reassigned (recycled)
 - Families may share phone numbers
 - International formatting complexity
 
 **Mitigations:**
+
 - **Lower Confidence**: Phone matching has 85% confidence (vs 95% email)
 - **Normalization**: Strip formatting before comparison
 - **Verification**: Consider SMS OTP for high-value donations
@@ -724,6 +740,7 @@ if (isAnonymous) {
 **Risk**: Matching wrong constituent (e.g., shared email, typo)
 
 **Mitigations:**
+
 - **High Confidence Threshold**: Only auto-match at 85%+ confidence
 - **Notification**: Email confirmation when match occurs
 - **User Review**: Allow users to contest matches
@@ -732,12 +749,14 @@ if (isAnonymous) {
 ### 5. GDPR Compliance
 
 **Requirements:**
+
 - Right to access: Users can see all linked donations
 - Right to rectification: Users can update contact info
 - Right to erasure: Soft delete with donation history anonymized
 - Consent: Privacy policy disclosure
 
 **Implementation:**
+
 ```typescript
 // API to let user see linked donations
 GET /api/v1/donors/me/donations
@@ -757,6 +776,7 @@ DELETE /api/v1/donors/me/donations/:donationId/unlink
 **Current Behavior**: Both donations linked to first person who used email.
 
 **Mitigation:**
+
 - Use name + email combination for disambiguation
 - Allow admin to split into separate constituents
 - Suggest users use individual emails
@@ -768,6 +788,7 @@ DELETE /api/v1/donors/me/donations/:donationId/unlink
 **Current Behavior**: Creates new constituent (wrong email doesn't match).
 
 **Mitigation:**
+
 - Email validation on frontend (check MX records)
 - Fuzzy email matching (advanced, not recommended initially)
 - Send confirmation email (user will notice wrong address)
@@ -779,6 +800,7 @@ DELETE /api/v1/donors/me/donations/:donationId/unlink
 **Current Behavior**: Donations incorrectly linked to new phone owner.
 
 **Mitigation:**
+
 - Lower confidence for phone-only matching (85%)
 - Time window: Only match phones used in last 2 years
 - Prefer email over phone when both available
@@ -790,6 +812,7 @@ DELETE /api/v1/donors/me/donations/:donationId/unlink
 **Current Behavior**: Two separate constituent records exist.
 
 **Mitigation:**
+
 - Admin duplicate detection tool
 - Allow user to request account merge
 - Fuzzy name matching to suggest duplicates during registration
@@ -803,6 +826,7 @@ DELETE /api/v1/donors/me/donations/:donationId/unlink
 **Risk**: User may not remember donating, sees unexpected history.
 
 **Mitigation:**
+
 - Show notification during registration: "We found X previous donations"
 - Allow user to contest/unlink if incorrect
 - Privacy policy disclosure about linking behavior
@@ -814,6 +838,7 @@ DELETE /api/v1/donors/me/donations/:donationId/unlink
 **Current Behavior**: Exact match required, may fail if encoding differs.
 
 **Mitigation:**
+
 - Unicode normalization (NFD vs NFC)
 - Consider ASCII transliteration for matching (lose accents)
 - Store original form, match on normalized form
@@ -825,73 +850,73 @@ DELETE /api/v1/donors/me/donations/:donationId/unlink
 ### Unit Tests
 
 ```typescript
-describe('Donor Matching Service', () => {
-  describe('findConstituentByEmail', () => {
-    it('should match email case-insensitively', async () => {
+describe("Donor Matching Service", () => {
+  describe("findConstituentByEmail", () => {
+    it("should match email case-insensitively", async () => {
       await createTestConstituent({
-        email: 'John.Doe@Example.com'
+        email: "John.Doe@Example.com",
       });
-      
-      const result = await findConstituentByEmail('john.doe@example.com');
+
+      const result = await findConstituentByEmail("john.doe@example.com");
       expect(result).not.toBeNull();
     });
-    
-    it('should handle email with extra spaces', async () => {
+
+    it("should handle email with extra spaces", async () => {
       await createTestConstituent({
-        email: 'test@example.com'
+        email: "test@example.com",
       });
-      
-      const result = await findConstituentByEmail('  test@example.com  ');
+
+      const result = await findConstituentByEmail("  test@example.com  ");
       expect(result).not.toBeNull();
     });
   });
-  
-  describe('findConstituentByPhone', () => {
-    it('should normalize phone numbers before matching', async () => {
+
+  describe("findConstituentByPhone", () => {
+    it("should normalize phone numbers before matching", async () => {
       await createTestConstituent({
-        phone: '1234567890'
+        phone: "1234567890",
       });
-      
-      const result1 = await findConstituentByPhone('(123) 456-7890');
-      const result2 = await findConstituentByPhone('+1-123-456-7890');
-      
+
+      const result1 = await findConstituentByPhone("(123) 456-7890");
+      const result2 = await findConstituentByPhone("+1-123-456-7890");
+
       expect(result1).not.toBeNull();
       expect(result2).not.toBeNull();
       expect(result1.id).toBe(result2.id);
     });
   });
-  
-  describe('findOrCreateDonorForGuest', () => {
-    it('should return existing donor when email matches', async () => {
+
+  describe("findOrCreateDonorForGuest", () => {
+    it("should return existing donor when email matches", async () => {
       const existing = await createTestConstituent({
-        firstName: 'John',
-        lastName: 'Doe',
-        email: 'john@example.com'
+        firstName: "John",
+        lastName: "Doe",
+        email: "john@example.com",
       });
-      
+
       const result = await findOrCreateDonorForGuest({
-        firstName: 'John',
-        lastName: 'Doe',
-        email: 'john@example.com'
+        firstName: "John",
+        lastName: "Doe",
+        email: "john@example.com",
       });
-      
+
       expect(result.matched).toBe(true);
       expect(result.constituentId).toBe(existing.id);
-      expect(result.matchMethod).toBe('email');
+      expect(result.matchMethod).toBe("email");
     });
-    
-    it('should not match anonymous donations', async () => {
+
+    it("should not match anonymous donations", async () => {
       await createTestConstituent({
-        email: 'john@example.com'
+        email: "john@example.com",
       });
-      
+
       const result = await findOrCreateDonorForGuest({
-        firstName: 'John',
-        lastName: 'Doe',
-        email: 'john@example.com',
-        isAnonymous: true
+        firstName: "John",
+        lastName: "Doe",
+        email: "john@example.com",
+        isAnonymous: true,
       });
-      
+
       expect(result.matched).toBe(false);
     });
   });
@@ -901,60 +926,54 @@ describe('Donor Matching Service', () => {
 ### Integration Tests
 
 ```typescript
-describe('Guest Donation Flow', () => {
-  it('should create new donor for first-time guest', async () => {
-    const response = await request(app)
-      .post('/api/v1/donations/guest')
-      .send({
-        amount: 50,
-        currency: 'USD',
-        firstName: 'Jane',
-        lastName: 'Smith',
-        email: 'jane@example.com',
-        phone: '+1234567890',
-        isAnonymous: false
-      });
-    
+describe("Guest Donation Flow", () => {
+  it("should create new donor for first-time guest", async () => {
+    const response = await request(app).post("/api/v1/donations/guest").send({
+      amount: 50,
+      currency: "USD",
+      firstName: "Jane",
+      lastName: "Smith",
+      email: "jane@example.com",
+      phone: "+1234567890",
+      isAnonymous: false,
+    });
+
     expect(response.status).toBe(200);
     expect(response.body.data.matched).toBe(false);
-    
+
     // Verify donor created
     const donor = await db.query.ContactInformations.findFirst({
-      where: eq(ContactInformations.value, 'jane@example.com')
+      where: eq(ContactInformations.value, "jane@example.com"),
     });
     expect(donor).not.toBeNull();
   });
-  
-  it('should match returning guest donor by email', async () => {
+
+  it("should match returning guest donor by email", async () => {
     // First donation
-    await request(app)
-      .post('/api/v1/donations/guest')
-      .send({
-        amount: 50,
-        currency: 'USD',
-        firstName: 'Jane',
-        lastName: 'Smith',
-        email: 'jane@example.com'
-      });
-    
+    await request(app).post("/api/v1/donations/guest").send({
+      amount: 50,
+      currency: "USD",
+      firstName: "Jane",
+      lastName: "Smith",
+      email: "jane@example.com",
+    });
+
     // Second donation (should match)
-    const response = await request(app)
-      .post('/api/v1/donations/guest')
-      .send({
-        amount: 75,
-        currency: 'USD',
-        firstName: 'Jane',
-        lastName: 'Smith',
-        email: 'jane@example.com'
-      });
-    
+    const response = await request(app).post("/api/v1/donations/guest").send({
+      amount: 75,
+      currency: "USD",
+      firstName: "Jane",
+      lastName: "Smith",
+      email: "jane@example.com",
+    });
+
     expect(response.status).toBe(200);
     expect(response.body.data.matched).toBe(true);
-    expect(response.body.data.matchMethod).toBe('email');
-    
+    expect(response.body.data.matchMethod).toBe("email");
+
     // Verify only one constituent exists
     const constituents = await db.query.ContactInformations.findMany({
-      where: eq(ContactInformations.value, 'jane@example.com')
+      where: eq(ContactInformations.value, "jane@example.com"),
     });
     expect(constituents.length).toBe(1);
   });
@@ -978,11 +997,13 @@ describe('Guest Donation Flow', () => {
 **Concept**: Send SMS/Email OTP before processing donation.
 
 **Benefits:**
+
 - Verifies email/phone ownership
 - Reduces fraudulent donations
 - Enables higher confidence matching
 
 **Tradeoffs:**
+
 - Adds friction to donation process
 - May reduce conversion rate
 
@@ -991,6 +1012,7 @@ describe('Guest Donation Flow', () => {
 **Concept**: Dedicated interface for donors to manage profile and history.
 
 **Features:**
+
 - View all donations (including pre-registration)
 - Update contact information
 - Manage recurring donations
@@ -1000,6 +1022,7 @@ describe('Guest Donation Flow', () => {
 ### 4. Admin Dashboard
 
 **Features:**
+
 - Duplicate detection reports
 - Manual merge interface
 - Matching statistics and accuracy metrics
@@ -1011,23 +1034,23 @@ describe('Guest Donation Flow', () => {
 
 ### Appendix A: Matching Decision Matrix
 
-| Input Scenario | Email Match | Phone Match | Name Match | Decision | Confidence |
-|---------------|-------------|-------------|------------|----------|-----------|
-| Anonymous | N/A | N/A | N/A | Create NULL donor | 100% |
-| Email provided, matches | ✓ | - | - | Use existing | 95% |
-| Email provided, no match | ✗ | - | - | Check phone | - |
-| Phone provided, matches | - | ✓ | - | Use existing | 85% |
-| Phone provided, no match | - | ✗ | - | Create new | - |
-| Name + Email matches | ✓ | - | ✓ | Use existing | 95% |
-| Name + Phone matches | - | ✓ | ✓ | Use existing | 80% |
-| Name matches, contacts differ | - | - | ✓ | Create new | - |
+| Input Scenario                | Email Match | Phone Match | Name Match | Decision          | Confidence |
+| ----------------------------- | ----------- | ----------- | ---------- | ----------------- | ---------- |
+| Anonymous                     | N/A         | N/A         | N/A        | Create NULL donor | 100%       |
+| Email provided, matches       | ✓           | -           | -          | Use existing      | 95%        |
+| Email provided, no match      | ✗           | -           | -          | Check phone       | -          |
+| Phone provided, matches       | -           | ✓           | -          | Use existing      | 85%        |
+| Phone provided, no match      | -           | ✗           | -          | Create new        | -          |
+| Name + Email matches          | ✓           | -           | ✓          | Use existing      | 95%        |
+| Name + Phone matches          | -           | ✓           | ✓          | Use existing      | 80%        |
+| Name matches, contacts differ | -           | -           | ✓          | Create new        | -          |
 
 ### Appendix B: Database Queries
 
 #### Find Duplicate Constituents by Email
 
 ```sql
-SELECT 
+SELECT
   ci.value AS email,
   COUNT(DISTINCT ci.constituent_id) AS constituent_count,
   STRING_AGG(DISTINCT c.first_name || ' ' || c.last_name, ', ') AS names
@@ -1042,7 +1065,7 @@ ORDER BY constituent_count DESC;
 #### Find Donation History for Email
 
 ```sql
-SELECT 
+SELECT
   d.id AS donation_id,
   ft.amount,
   ft.currency,
@@ -1062,6 +1085,7 @@ ORDER BY ft.transaction_date DESC;
 ### Appendix C: Implementation Phases
 
 #### Phase 1: Core Matching (Weeks 1-2)
+
 - [ ] Implement matching service
 - [ ] Add unit tests
 - [ ] Add integration tests
@@ -1069,12 +1093,14 @@ ORDER BY ft.transaction_date DESC;
 - [ ] Performance testing
 
 #### Phase 2: Account Linking (Weeks 3-4)
+
 - [ ] Implement post-registration linking
 - [ ] Update registration flow
 - [ ] Add user notifications
 - [ ] Test linking logic
 
 #### Phase 3: Admin Tools (Weeks 5-6)
+
 - [ ] Duplicate detection reports
 - [ ] Manual merge interface
 - [ ] Matching analytics dashboard
@@ -1098,7 +1124,7 @@ This proposal outlines a **multi-tiered donor matching strategy** that:
 
 **Phase 1 (Weeks 1-2):** Core matching logic with email and phone tiers  
 **Phase 2 (Weeks 3-4):** Account linking and user notification  
-**Phase 3 (Weeks 5-6):** Admin tools and duplicate detection  
+**Phase 3 (Weeks 5-6):** Admin tools and duplicate detection
 
 ### Expected Impact
 

@@ -163,6 +163,7 @@ const events = await pgPool.db.select().from(Events).where(...);
 - Follow the isolation strategy documented in `docs/TEST_ISOLATION_STRATEGY.md`
 
 Run tests with:
+
 ```bash
 npm test              # Run all tests
 npm run test:watch   # Watch mode
@@ -190,6 +191,7 @@ npm run lint:fix    # Auto-fix linting issues
 ### Scripts
 
 Utility scripts are in `scripts/` directory:
+
 ```bash
 npm run script      # Run scripts via scripts/run.ts
 ```
