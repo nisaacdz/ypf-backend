@@ -1,11 +1,9 @@
 import { Request, Response, NextFunction, Router } from "express";
 import { authenticateLax } from "@/shared/middlewares/auth";
 import { validateBody, validateParams } from "@/shared/middlewares/validate";
-import {
-  CreateDonationSchema,
-  DonationIdParamsSchema,
-} from "@/shared/validators/donations";
+import { CreateDonationSchema } from "@/shared/validators/donations";
 import * as donationsHandler from "./donationsHandler";
+import z from "zod";
 
 const donationsRouter = Router();
 
@@ -160,7 +158,11 @@ donationsRouter.post(
 donationsRouter.patch(
   "/:id/verify",
   authenticateLax,
-  validateParams(DonationIdParamsSchema),
+  validateParams(
+    z.object({
+      id: z.uuid("Invalid donation ID"),
+    }),
+  ),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await donationsHandler.verifyDonation(req.Params);
@@ -216,7 +218,11 @@ donationsRouter.patch(
 donationsRouter.get(
   "/:id/check",
   authenticateLax,
-  validateParams(DonationIdParamsSchema),
+  validateParams(
+    z.object({
+      id: z.uuid("Invalid donation ID"),
+    }),
+  ),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await donationsHandler.checkDonation(req.Params);
