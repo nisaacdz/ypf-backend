@@ -9,7 +9,7 @@ import {
   serial,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { Chapters, Donors, Members, Organizations } from "./core";
+import { Chapters, Constituents, Members, Organizations } from "./core";
 import { Events, Projects } from "./activities";
 import { PartnershipType } from "./enums";
 
@@ -44,14 +44,14 @@ export const FinancialTransactions = finance.table("financial_transactions", {
   externalRef: text("external_ref").unique(),
 });
 
-// Null donorId means anonymous donation
+// Null constituentId means anonymous donation
 export const Donations = finance.table("donations", {
   id: uuid("id").defaultRandom().primaryKey(),
   transactionId: uuid("transaction_id")
     .notNull()
     .unique()
     .references(() => FinancialTransactions.id, { onDelete: "restrict" }),
-  donorId: uuid("donor_id").references(() => Donors.id, {
+  constituentId: uuid("constituent_id").references(() => Constituents.id, {
     onDelete: "restrict",
   }),
   projectId: uuid("project_id").references(() => Projects.id, {
@@ -149,11 +149,10 @@ export const donationsRelations = relations(Donations, ({ one }) => ({
     fields: [Donations.transactionId],
     references: [FinancialTransactions.id],
   }),
-  // A donation comes from one donor
-  donor: one(Donors, {
-    // CORRECTED: Was Members, now correctly Donors
-    fields: [Donations.donorId],
-    references: [Donors.id],
+  // A donation comes from one constituent
+  constituent: one(Constituents, {
+    fields: [Donations.constituentId],
+    references: [Constituents.id],
   }),
   // A donation can be associated with a project
   project: one(Projects, {

@@ -11,8 +11,7 @@ interface DonorInfo {
   salutation?: string;
 }
 
-interface MatchedDonor {
-  donorId: string;
+interface MatchedConstituent {
   constituentId: string;
   matched: boolean;
   matchMethod?: "email" | "phone" | "new";
@@ -49,17 +48,17 @@ function normalizePhone(phone: string): string {
 }
 
 /**
- * Finds or creates a donor based on the provided information
+ * Finds or creates a constituent based on the provided information
  * Implements the donor unification strategy from docs/donor-unification-strategy.md
  *
  * @param donorInfo - The donor's information
- * @param anonymous - Whether this is an anonymous donation (if true, returns null donor)
- * @returns The donor ID and constituent ID, or null for anonymous donations
+ * @param anonymous - Whether this is an anonymous donation (if true, returns null)
+ * @returns The constituent ID, or null for anonymous donations
  */
-export async function findOrCreateDonor(
+export async function findOrCreateConstituent(
   donorInfo: DonorInfo,
   anonymous: boolean = false,
-): Promise<MatchedDonor | null> {
+): Promise<MatchedConstituent | null> {
   // Short-circuit for anonymous donations
   if (anonymous) {
     return null;
@@ -79,40 +78,14 @@ export async function findOrCreateDonor(
             eq(schema.ContactInformations.value, normalizedEmail),
           ),
           with: {
-            constituent: {
-              with: {
-                donorProfile: true,
-              },
-            },
+            constituent: true,
           },
         });
 
       if (existingContact?.constituent) {
-        const constituent = existingContact.constituent;
-
-        // If constituent has a donor profile, return it
-        if (constituent.donorProfile) {
-          logger.info(`Matched donor by email: ${normalizedEmail}`);
-          return {
-            donorId: constituent.donorProfile.id,
-            constituentId: constituent.id,
-            matched: true,
-            matchMethod: "email",
-          };
-        }
-
-        // Constituent exists but no donor profile yet - create one
-        const [newDonor] = await pgPool.db
-          .insert(schema.Donors)
-          .values({ constituentId: constituent.id })
-          .returning();
-
-        logger.info(
-          `Created donor profile for existing constituent (email match): ${normalizedEmail}`,
-        );
+        logger.info(`Matched constituent by email: ${normalizedEmail}`);
         return {
-          donorId: newDonor.id,
-          constituentId: constituent.id,
+          constituentId: existingContact.constituent.id,
           matched: true,
           matchMethod: "email",
         };
@@ -130,48 +103,22 @@ export async function findOrCreateDonor(
             eq(schema.ContactInformations.value, normalizedPhone),
           ),
           with: {
-            constituent: {
-              with: {
-                donorProfile: true,
-              },
-            },
+            constituent: true,
           },
         });
 
       if (existingContact?.constituent) {
-        const constituent = existingContact.constituent;
-
-        // If constituent has a donor profile, return it
-        if (constituent.donorProfile) {
-          logger.info(`Matched donor by phone: ${normalizedPhone}`);
-          return {
-            donorId: constituent.donorProfile.id,
-            constituentId: constituent.id,
-            matched: true,
-            matchMethod: "phone",
-          };
-        }
-
-        // Constituent exists but no donor profile yet - create one
-        const [newDonor] = await pgPool.db
-          .insert(schema.Donors)
-          .values({ constituentId: constituent.id })
-          .returning();
-
-        logger.info(
-          `Created donor profile for existing constituent (phone match): ${normalizedPhone}`,
-        );
+        logger.info(`Matched constituent by phone: ${normalizedPhone}`);
         return {
-          donorId: newDonor.id,
-          constituentId: constituent.id,
+          constituentId: existingContact.constituent.id,
           matched: true,
           matchMethod: "phone",
         };
       }
     }
 
-    // No match found - create new constituent and donor
-    logger.info(`Creating new constituent and donor: ${firstName} ${lastName}`);
+    // No match found - create new constituent
+    logger.info(`Creating new constituent: ${firstName} ${lastName}`);
 
     const [newConstituent] = await pgPool.db
       .insert(schema.Constituents)
@@ -201,54 +148,14 @@ export async function findOrCreateDonor(
       });
     }
 
-    // Create donor profile
-    const [newDonor] = await pgPool.db
-      .insert(schema.Donors)
-      .values({ constituentId: newConstituent.id })
-      .returning();
-
-    logger.info(`Created new donor: ${newDonor.id}`);
+    logger.info(`Created new constituent: ${newConstituent.id}`);
     return {
-      donorId: newDonor.id,
       constituentId: newConstituent.id,
       matched: false,
       matchMethod: "new",
     };
   } catch (error) {
-    logger.error({ error }, "Error in findOrCreateDonor");
-    throw error;
-  }
-}
-
-/**
- * Links an existing constituent (from authenticated user) to a donor profile
- * Creates a donor profile if one doesn't exist
- */
-export async function ensureDonorProfile(
-  constituentId: string,
-): Promise<string> {
-  try {
-    // Check if donor profile already exists
-    const existingDonor = await pgPool.db.query.Donors.findFirst({
-      where: eq(schema.Donors.constituentId, constituentId),
-    });
-
-    if (existingDonor) {
-      return existingDonor.id;
-    }
-
-    // Create new donor profile
-    const [newDonor] = await pgPool.db
-      .insert(schema.Donors)
-      .values({ constituentId })
-      .returning();
-
-    logger.info(
-      `Created donor profile for authenticated user: ${constituentId}`,
-    );
-    return newDonor.id;
-  } catch (error) {
-    logger.error({ error }, "Error in ensureDonorProfile");
+    logger.error({ error }, "Error in findOrCreateConstituent");
     throw error;
   }
 }

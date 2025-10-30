@@ -4,7 +4,7 @@ import schema from "@/db/schema";
 import variables from "@/configs/env";
 import { AppError } from "@/shared/types";
 import logger from "@/configs/logger";
-import { findOrCreateDonor, ensureDonorProfile } from "./donorMatchingService";
+import { findOrCreateConstituent } from "./donorMatchingService";
 
 interface CreateDonationInput {
   amount: number;
@@ -74,18 +74,18 @@ export async function createDonation(input: CreateDonationInput): Promise<{
   } = input;
 
   try {
-    let donorId: string | null = null;
+    let constituentId: string | null = null;
     let constituentForResponse: {
       firstName: string;
       lastName: string;
       salutation: string | null;
     } | null = null;
 
-    // Determine donor based on authentication status and anonymous flag
+    // Determine constituent based on authentication status and anonymous flag
     if (!anonymous) {
       if (authenticatedConstituentId) {
         // Authenticated user donation
-        donorId = await ensureDonorProfile(authenticatedConstituentId);
+        constituentId = authenticatedConstituentId;
 
         // Fetch constituent details for response
         const constituent = await pgPool.db.query.Constituents.findFirst({
@@ -100,9 +100,9 @@ export async function createDonation(input: CreateDonationInput): Promise<{
         }
       } else if (donorInfo) {
         // Guest donation - apply matching logic
-        const matchResult = await findOrCreateDonor(donorInfo, false);
+        const matchResult = await findOrCreateConstituent(donorInfo, false);
         if (matchResult) {
-          donorId = matchResult.donorId;
+          constituentId = matchResult.constituentId;
 
           // Fetch constituent details for response
           const constituent = await pgPool.db.query.Constituents.findFirst({
@@ -141,7 +141,7 @@ export async function createDonation(input: CreateDonationInput): Promise<{
       .insert(schema.Donations)
       .values({
         transactionId: transaction.id,
-        donorId,
+        constituentId,
         projectId: projectId || null,
         eventId: eventId || null,
       })
