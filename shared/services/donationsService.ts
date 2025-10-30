@@ -2,9 +2,10 @@ import { eq, and } from "drizzle-orm";
 import pgPool from "@/configs/db";
 import schema from "@/db/schema";
 import variables from "@/configs/env";
-import { AppError } from "@/shared/types";
+import { AppError, AuthenticatedUser } from "@/shared/types";
 import logger from "@/configs/logger";
 import { findOrCreateConstituent } from "./donorMatchingService";
+import { v4 as uuidv4 } from "uuid";
 
 interface CreateDonationInput {
   amount: number;
@@ -19,7 +20,6 @@ interface CreateDonationInput {
   };
   projectId?: string;
   eventId?: string;
-  authenticatedConstituentId?: string;
 }
 
 interface DonationResponse {
@@ -59,7 +59,10 @@ interface PaystackVerifyResponse {
 /**
  * Creates a new donation and generates Paystack payment URL
  */
-export async function createDonation(input: CreateDonationInput): Promise<{
+export async function createDonation(
+  input: CreateDonationInput,
+  user: AuthenticatedUser | null,
+): Promise<{
   donation: DonationResponse;
   paymentUrl: string;
 }> {
@@ -70,7 +73,6 @@ export async function createDonation(input: CreateDonationInput): Promise<{
     donorInfo,
     projectId,
     eventId,
-    authenticatedConstituentId,
   } = input;
 
   try {
@@ -83,13 +85,13 @@ export async function createDonation(input: CreateDonationInput): Promise<{
 
     // Determine constituent based on authentication status and anonymous flag
     if (!anonymous) {
-      if (authenticatedConstituentId) {
+      if (user) {
         // Authenticated user donation
-        constituentId = authenticatedConstituentId;
+        constituentId = user.constituentId;
 
         // Fetch constituent details for response
         const constituent = await pgPool.db.query.Constituents.findFirst({
-          where: eq(schema.Constituents.id, authenticatedConstituentId),
+          where: eq(schema.Constituents.id, user.constituentId),
         });
         if (constituent) {
           constituentForResponse = {
@@ -130,7 +132,6 @@ export async function createDonation(input: CreateDonationInput): Promise<{
       .values({
         amount: amount.toFixed(2),
         currency,
-        paymentMethod: "CREDIT_CARD", // Default for online payments, will be updated by webhook
         status: "PENDING",
         externalProvider: "PAYSTACK",
       })
@@ -147,24 +148,18 @@ export async function createDonation(input: CreateDonationInput): Promise<{
       })
       .returning();
 
-    // Initialize Paystack payment
-    const paystackSecretKey = variables.services.paystack.secretHash;
-    if (!paystackSecretKey) {
-      throw new AppError("Paystack configuration is missing", 500);
-    }
-
     const paystackResponse = await fetch(
       "https://api.paystack.co/transaction/initialize",
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${paystackSecretKey}`,
+          Authorization: `Bearer ${variables.services.paystack.secretHash}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           amount: Math.floor(amount * 100), // Paystack expects amount in kobo/pesewas (use floor to avoid overcharging)
           currency,
-          reference: transaction.id, // Use transaction ID as reference
+          reference: uuidv4(),
           callback_url: `${variables.app.host}/donations/callback`,
         }),
       },

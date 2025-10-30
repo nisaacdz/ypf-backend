@@ -106,10 +106,9 @@ donationsRouter.post(
   validateBody(CreateDonationSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const constituentId = req.User?.constituentId;
       const response = await donationsHandler.createDonation(
         req.Body,
-        constituentId,
+        req.User || null,
       );
       res.status(200).json(response);
     } catch (error) {

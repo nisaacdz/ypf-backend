@@ -1,4 +1,4 @@
-import { ApiResponse, AppError } from "@/shared/types";
+import { ApiResponse, AppError, AuthenticatedUser } from "@/shared/types";
 import { CreateDonationSchema } from "@/shared/validators/donations";
 import z from "zod";
 import * as donationsService from "@/shared/services/donationsService";
@@ -19,20 +19,22 @@ interface DonationResponse {
  */
 export async function createDonation(
   body: z.infer<typeof CreateDonationSchema>,
-  authenticatedConstituentId?: string,
+  user: AuthenticatedUser | null,
 ): Promise<ApiResponse<{ donation: DonationResponse; paymentUrl: string }>> {
   // Validate that donor info is provided if not authenticated and not anonymous
-  if (!authenticatedConstituentId && !body.anonymous && !body.donorInfo) {
+  if (!user && !body.anonymous && !body.donorInfo) {
     throw new AppError(
       "Donor information is required for non-anonymous guest donations",
       400,
     );
   }
 
-  const result = await donationsService.createDonation({
-    ...body,
-    authenticatedConstituentId,
-  });
+  const result = await donationsService.createDonation(
+    {
+      ...body,
+    },
+    user,
+  );
 
   return {
     success: true,
