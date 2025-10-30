@@ -7,7 +7,7 @@ import logger from "@/configs/logger";
 import { findOrCreateConstituent } from "./donorMatchingService";
 import { v4 as uuidv4 } from "uuid";
 
-interface CreateDonationInput {
+type CreateDonationInput = {
   amount: number;
   currency: string;
   anonymous?: boolean;
@@ -20,9 +20,9 @@ interface CreateDonationInput {
   };
   projectId?: string;
   eventId?: string;
-}
+};
 
-interface DonationResponse {
+type DonationResponse = {
   id: string;
   amount: string;
   currency: string;
@@ -31,9 +31,9 @@ interface DonationResponse {
     lastName: string;
     salutation?: string | null;
   };
-}
+};
 
-interface PaystackInitializeResponse {
+type PaystackInitializeResponse = {
   status: boolean;
   message: string;
   data: {
@@ -41,9 +41,9 @@ interface PaystackInitializeResponse {
     access_code: string;
     reference: string;
   };
-}
+};
 
-interface PaystackVerifyResponse {
+type PaystackVerifyResponse = {
   status: boolean;
   message: string;
   data: {
@@ -54,7 +54,7 @@ interface PaystackVerifyResponse {
     channel: string;
     paid_at: string;
   };
-}
+};
 
 /**
  * Creates a new donation and generates Paystack payment URL

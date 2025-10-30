@@ -3,7 +3,7 @@ import { CreateDonationSchema } from "@/shared/validators/donations";
 import z from "zod";
 import * as donationsService from "@/shared/services/donationsService";
 
-interface DonationResponse {
+type DonationResponse = {
   id: string;
   amount: string;
   currency: string;
@@ -12,7 +12,7 @@ interface DonationResponse {
     lastName: string;
     salutation?: string | null;
   };
-}
+};
 
 /**
  * Handler for creating a new donation
