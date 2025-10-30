@@ -13,6 +13,7 @@ This document analyzes the feasibility of translating the YPF Backend from TypeS
 ### Tech Stack Overview
 
 The current YPF Backend is built with:
+
 - **Runtime**: Node.js with TypeScript
 - **Framework**: Express.js 5.1.0
 - **Database**: PostgreSQL with Drizzle ORM
@@ -44,6 +45,7 @@ The current YPF Backend is built with:
 ### Axum (Recommended)
 
 **Pros**:
+
 - **Modern async/await**: Built on Tokio, native async/await support
 - **Type safety**: Leverages Rust's type system extensively with extractors
 - **Tower ecosystem**: Access to tower middleware (battle-tested)
@@ -54,10 +56,12 @@ The current YPF Backend is built with:
 - **Better for API-first**: Designed with REST APIs in mind
 
 **Cons**:
+
 - Slightly newer (but stable and production-ready)
 - Smaller ecosystem than Actix (but growing rapidly)
 
 **Best fit for YPF Backend**: ✅
+
 - Middleware stacking aligns well with Tower layers
 - Extractor pattern matches our validation approach
 - Type safety similar to TypeScript + Zod
@@ -66,6 +70,7 @@ The current YPF Backend is built with:
 ### Actix-web
 
 **Pros**:
+
 - **Mature ecosystem**: Large community, extensive middleware
 - **Performance**: Often cited as one of the fastest web frameworks
 - **Feature-rich**: Built-in session management, WebSocket support
@@ -73,12 +78,14 @@ The current YPF Backend is built with:
 - **Actor model**: Built on Actix actor system (optional to use)
 
 **Cons**:
+
 - **More complex API**: Steeper learning curve
 - **Macro-heavy**: Heavy use of procedural macros can be confusing
 - **Less "Rust-idiomatic"**: Some patterns feel less natural
 - **Middleware composition**: Not as clean as Tower's layer approach
 
 **Best fit for YPF Backend**: 🟡
+
 - Still viable, especially if maximum performance is critical
 - Good for WebSocket if we expand chat features
 - More mature, but less ergonomic
@@ -86,6 +93,7 @@ The current YPF Backend is built with:
 ### Verdict
 
 **Choose Axum** because:
+
 1. Cleaner middleware composition matches our Express patterns
 2. Better type safety and extractor pattern for validation
 3. More intuitive for TypeScript developers transitioning to Rust
@@ -163,6 +171,7 @@ ypf-backend-rust/
 ### 2. HTTP Server & Routing
 
 **Recommended Crates**:
+
 - `axum = "0.7"` - Web framework
 - `tokio = { version = "1", features = ["full"] }` - Async runtime
 - `tower = "0.4"` - Middleware
@@ -171,6 +180,7 @@ ypf-backend-rust/
 **Pattern Translation**:
 
 TypeScript (Express):
+
 ```typescript
 app.use(helmet());
 app.use(cors({ origin: variables.security.allowedOrigins }));
@@ -179,6 +189,7 @@ app.use("/api/v1", apiRouter);
 ```
 
 Rust (Axum):
+
 ```rust
 use axum::{Router, routing::get};
 use tower_http::{
@@ -201,6 +212,7 @@ let app = Router::new()
 ### 3. Configuration & Environment Variables
 
 **Recommended Crates**:
+
 - `dotenvy = "0.15"` - Load .env files
 - `serde = { version = "1", features = ["derive"] }` - Serialization
 - `config = "0.14"` - Configuration management
@@ -209,6 +221,7 @@ let app = Router::new()
 **Pattern Translation**:
 
 TypeScript (Zod):
+
 ```typescript
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]),
@@ -221,6 +234,7 @@ const variables = envSchema.parse(process.env);
 ```
 
 Rust (config + validator):
+
 ```rust
 use serde::Deserialize;
 use validator::Validate;
@@ -229,13 +243,13 @@ use validator::Validate;
 pub struct Config {
     #[validate(length(min = 32))]
     pub jwt_secret: String,
-    
+
     #[validate(url)]
     pub database_url: String,
-    
+
     #[serde(default = "default_port")]
     pub port: u16,
-    
+
     pub node_env: Environment,
 }
 
@@ -250,11 +264,11 @@ pub enum Environment {
 impl Config {
     pub fn from_env() -> Result<Self, config::ConfigError> {
         dotenvy::dotenv().ok();
-        
+
         let config = config::Config::builder()
             .add_source(config::Environment::default())
             .build()?;
-            
+
         let cfg: Config = config.try_deserialize()?;
         cfg.validate()
             .map_err(|e| config::ConfigError::Message(e.to_string()))?;
@@ -274,6 +288,7 @@ impl Config {
 **Alternative**: SeaORM (more ORM-like, similar to Drizzle)
 
 **Recommended Crates**:
+
 - `sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "migrate", "uuid", "chrono"] }`
 - `uuid = { version = "1.6", features = ["serde", "v4"] }`
 - `chrono = { version = "0.4", features = ["serde"] }`
@@ -281,6 +296,7 @@ impl Config {
 **Pattern Translation**:
 
 TypeScript (Drizzle):
+
 ```typescript
 const [user] = await pgPool.db
   .select({
@@ -293,6 +309,7 @@ const [user] = await pgPool.db
 ```
 
 Rust (SQLx):
+
 ```rust
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -313,6 +330,7 @@ let user = sqlx::query_as::<_, User>(
 ```
 
 **Migration Management**:
+
 ```bash
 # SQLx CLI
 cargo install sqlx-cli --no-default-features --features postgres
@@ -323,6 +341,7 @@ sqlx migrate run
 **Difficulty**: 🟡 Medium - Different query style, but compile-time checking is a huge advantage
 
 **Why SQLx over SeaORM**:
+
 - Compile-time query verification
 - Less abstraction = easier to optimize
 - More control over SQL
@@ -334,6 +353,7 @@ sqlx migrate run
 ### 5. Validation
 
 **Recommended Crates**:
+
 - `validator = { version = "0.18", features = ["derive"] }` - Validation
 - `serde = { version = "1", features = ["derive"] }` - Serialization
 - `serde_json = "1"` - JSON handling
@@ -341,6 +361,7 @@ sqlx migrate run
 **Pattern Translation**:
 
 TypeScript (Zod):
+
 ```typescript
 export const UsernameAndPasswordSchema = z.object({
   username: z.string(),
@@ -361,6 +382,7 @@ export function validateBody<T>(schema: z.ZodType<T>) {
 ```
 
 Rust (validator + Axum):
+
 ```rust
 use axum::{Json, extract::rejection::JsonRejection};
 use serde::{Deserialize, Serialize};
@@ -369,7 +391,7 @@ use validator::Validate;
 #[derive(Debug, Deserialize, Validate)]
 pub struct LoginRequest {
     pub username: String,
-    
+
     #[validate(length(min = 4, max = 55))]
     pub password: String,
 }
@@ -398,7 +420,7 @@ where
                 };
                 (StatusCode::BAD_REQUEST, Json(error))
             })?;
-        
+
         data.validate().map_err(|e| {
             let error = ErrorResponse {
                 success: false,
@@ -406,7 +428,7 @@ where
             };
             (StatusCode::BAD_REQUEST, Json(error))
         })?;
-        
+
         Ok(ValidatedJson(data))
     }
 }
@@ -427,6 +449,7 @@ async fn login(
 ### 6. Authentication & Authorization
 
 **Recommended Crates**:
+
 - `jsonwebtoken = "9"` - JWT encoding/decoding
 - `bcrypt = "0.15"` - Password hashing
 - `tower-cookies = "0.10"` - Cookie management (works with Axum)
@@ -434,22 +457,24 @@ async fn login(
 **Pattern Translation**:
 
 TypeScript (JWT + Cookies):
+
 ```typescript
 export async function authenticate(req, res, next) {
   const accessToken = req.cookies.access_token;
-  
+
   const decoded = decodeData(accessToken, AuthenticatedUserSchema);
-  
+
   if (decoded && "valid" in decoded) {
     req.User = decoded.valid;
     return next();
   }
-  
+
   return next(new AppError("Invalid token", 401));
 }
 ```
 
 Rust (JWT + Tower Cookies):
+
 ```rust
 use axum::{
     extract::{Request, State},
@@ -478,16 +503,16 @@ pub async fn authenticate_middleware(
         .get("access_token")
         .ok_or_else(|| AppError::Unauthorized("Missing token".into()))?
         .value();
-    
+
     let token_data = decode::<AuthenticatedUser>(
         access_token,
         &DecodingKey::from_secret(config.jwt_secret.as_bytes()),
         &Validation::default(),
     )
     .map_err(|_| AppError::Unauthorized("Invalid token".into()))?;
-    
+
     req.extensions_mut().insert(token_data.claims);
-    
+
     Ok(next.run(req).await)
 }
 
@@ -510,7 +535,7 @@ where
             .get::<AuthenticatedUser>()
             .ok_or_else(|| AppError::Unauthorized("No user found".into()))?
             .clone();
-        
+
         Ok(AuthUser(user))
     }
 }
@@ -519,6 +544,7 @@ where
 **Authorization Guards**:
 
 TypeScript:
+
 ```typescript
 export const authorize = (guard: GuardFunction) => {
   return async (req, res, next) => {
@@ -530,6 +556,7 @@ export const authorize = (guard: GuardFunction) => {
 ```
 
 Rust:
+
 ```rust
 pub struct RequireRole(pub Vec<String>);
 
@@ -545,12 +572,12 @@ where
         _state: &S,
     ) -> Result<Self, Self::Rejection> {
         let AuthUser(user) = AuthUser::from_request_parts(parts, _state).await?;
-        
+
         // Check roles - this would be more sophisticated
         if user.roles.is_empty() {
             return Err(AppError::Forbidden("Insufficient permissions".into()));
         }
-        
+
         Ok(RequireRole(user.roles))
     }
 }
@@ -574,6 +601,7 @@ async fn admin_only(
 **Pattern Translation**:
 
 TypeScript:
+
 ```typescript
 export class AppError extends Error {
   public statusCode: number;
@@ -598,6 +626,7 @@ export const errorHandler = (err, req, res, next) => {
 ```
 
 Rust:
+
 ```rust
 use axum::{
     http::StatusCode,
@@ -638,12 +667,12 @@ impl IntoResponse for AppError {
                 (StatusCode::INTERNAL_SERVER_ERROR, "Database error".into())
             }
         };
-        
+
         let body = Json(ErrorResponse {
             success: false,
             message,
         });
-        
+
         (status, body).into_response()
     }
 }
@@ -665,6 +694,7 @@ impl From<sqlx::Error> for AppError {
 **Pattern Translation**:
 
 TypeScript:
+
 ```typescript
 export type ApiResponse<T> = {
   success: boolean;
@@ -681,6 +711,7 @@ return {
 ```
 
 Rust:
+
 ```rust
 use serde::Serialize;
 
@@ -700,7 +731,7 @@ impl<T> ApiResponse<T> {
             message: Some(message.into()),
         }
     }
-    
+
     pub fn success_no_message(data: T) -> Self {
         Self {
             success: true,
@@ -721,6 +752,7 @@ Ok(Json(ApiResponse::success(user, "Login successful")))
 ### 9. Middleware & Rate Limiting
 
 **Recommended Crates**:
+
 - `tower-http = "0.5"` - Standard HTTP middleware
 - `tower-governor = "0.3"` - Rate limiting
 - `tracing = "0.1"` - Logging
@@ -729,11 +761,13 @@ Ok(Json(ApiResponse::success(user, "Login successful")))
 **Pattern Translation**:
 
 TypeScript:
+
 ```typescript
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, maxRequests: 99 }));
 ```
 
 Rust:
+
 ```rust
 use tower_governor::{
     governor::GovernorConfigBuilder,
@@ -759,6 +793,7 @@ let app = Router::new()
 **Logging**:
 
 TypeScript (Pino):
+
 ```typescript
 import logger from "@/configs/logger";
 logger.info("Server is live");
@@ -766,6 +801,7 @@ logger.error(err.stack);
 ```
 
 Rust (tracing):
+
 ```rust
 use tracing::{info, error};
 
@@ -780,6 +816,7 @@ error!("Error occurred: {:?}", err);
 ### 10. File Upload & Storage
 
 **Recommended Crates**:
+
 - `multer = "3"` - Multipart form handling
 - `azure_storage_blobs = "0.20"` - Azure Blob Storage
 - `bytes = "1"` - Byte handling
@@ -788,16 +825,18 @@ error!("Error occurred: {:?}", err);
 **Pattern Translation**:
 
 TypeScript (Multer):
+
 ```typescript
 router.post(
   "/upload",
   multipart.single("file"),
   validateFile(ImageFileSchema),
-  handler
+  handler,
 );
 ```
 
 Rust (Multer):
+
 ```rust
 use axum::extract::Multipart;
 use bytes::Bytes;
@@ -810,17 +849,17 @@ async fn upload_handler(
         if name == "file" {
             let content_type = field.content_type().unwrap_or("");
             let data = field.bytes().await?;
-            
+
             // Validate file type, size, etc.
             validate_file(&data, content_type)?;
-            
+
             // Upload to Azure
             let url = upload_to_azure(data).await?;
-            
+
             return Ok(Json(ApiResponse::success(url, "Upload successful")));
         }
     }
-    
+
     Err(AppError::BadRequest("No file provided".into()))
 }
 ```
@@ -832,12 +871,14 @@ async fn upload_handler(
 ### 11. Email Service
 
 **Recommended Crates**:
+
 - `lettre = "0.11"` - Email sending
 - `tera = "1"` - Template engine (similar to Handlebars)
 
 **Pattern Translation**:
 
 TypeScript (Nodemailer):
+
 ```typescript
 await emailer.send({
   to: user.email,
@@ -847,6 +888,7 @@ await emailer.send({
 ```
 
 Rust (Lettre):
+
 ```rust
 use lettre::{
     Message, SmtpTransport, Transport,
@@ -864,17 +906,17 @@ impl EmailService {
             config.smtp_user.clone(),
             config.smtp_pass.clone(),
         );
-        
+
         let mailer = SmtpTransport::relay(&config.smtp_host)?
             .credentials(creds)
             .build();
-        
+
         Ok(Self {
             mailer,
             from: config.emailer.clone(),
         })
     }
-    
+
     pub async fn send_email(
         &self,
         to: &str,
@@ -887,10 +929,10 @@ impl EmailService {
             .subject(subject)
             .body(body.to_string())
             .map_err(|e| AppError::InternalServerError(e.to_string()))?;
-        
+
         self.mailer.send(&email)
             .map_err(|e| AppError::InternalServerError(e.to_string()))?;
-        
+
         Ok(())
     }
 }
@@ -903,12 +945,14 @@ impl EmailService {
 ### 12. WebSocket / Real-time Communication
 
 **Recommended Crates**:
+
 - `axum = { version = "0.7", features = ["ws"] }` - WebSocket support in Axum
 - `tokio = { version = "1", features = ["sync"] }` - Async channels
 
 **Pattern Translation**:
 
 TypeScript (Socket.IO):
+
 ```typescript
 io.on("connection", (socket) => {
   socket.on("sendMessage", (data) => {
@@ -918,6 +962,7 @@ io.on("connection", (socket) => {
 ```
 
 Rust (Axum WebSocket):
+
 ```rust
 use axum::{
     extract::ws::{WebSocket, WebSocketUpgrade},
@@ -956,12 +1001,14 @@ async fn handle_socket(mut socket: WebSocket) {
 ### 13. API Documentation
 
 **Recommended Crates**:
+
 - `utoipa = { version = "4", features = ["axum_extras"] }` - OpenAPI generation
 - `utoipa-swagger-ui = { version = "6", features = ["axum"] }` - Swagger UI
 
 **Pattern Translation**:
 
 TypeScript (swagger-jsdoc):
+
 ```typescript
 /**
  * @swagger
@@ -974,6 +1021,7 @@ router.post("/login", handler);
 ```
 
 Rust (utoipa):
+
 ```rust
 use utoipa::OpenApi;
 
@@ -1022,6 +1070,7 @@ let app = Router::new()
 ### 14. Testing
 
 **Recommended Crates**:
+
 - Built-in `cargo test`
 - `tokio = { version = "1", features = ["test-util", "macros"] }` - Async test runtime
 - `sqlx = { version = "0.7", features = ["test"] }` - Database testing helpers
@@ -1031,13 +1080,14 @@ let app = Router::new()
 **Pattern Translation**:
 
 TypeScript (Vitest + Supertest):
+
 ```typescript
 describe("Auth API", () => {
   it("should login with valid credentials", async () => {
     const res = await request(app)
       .post("/api/v1/auth/login")
       .send({ username: "test", password: "password" });
-    
+
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
   });
@@ -1045,6 +1095,7 @@ describe("Auth API", () => {
 ```
 
 Rust (tokio + axum):
+
 ```rust
 use axum::http::{Request, StatusCode};
 use tower::ServiceExt; // for `oneshot`
@@ -1052,7 +1103,7 @@ use tower::ServiceExt; // for `oneshot`
 #[tokio::test]
 async fn test_login_success() {
     let app = create_test_app().await;
-    
+
     let request = Request::builder()
         .uri("/api/v1/auth/login")
         .method("POST")
@@ -1064,15 +1115,15 @@ async fn test_login_success() {
             }).unwrap()
         ))
         .unwrap();
-    
+
     let response = app.oneshot(request).await.unwrap();
-    
+
     assert_eq!(response.status(), StatusCode::OK);
-    
+
     let body = hyper::body::to_bytes(response.into_body()).await.unwrap();
-    let api_response: ApiResponse<AuthResponse> = 
+    let api_response: ApiResponse<AuthResponse> =
         serde_json::from_slice(&body).unwrap();
-    
+
     assert!(api_response.success);
 }
 ```
@@ -1084,6 +1135,7 @@ async fn test_login_success() {
 ## Complete Crate Recommendations
 
 ### Core Framework
+
 ```toml
 [dependencies]
 # Web framework
@@ -1156,6 +1208,7 @@ sqlx = { version = "0.7", features = ["test"] }
 ## Migration Strategy
 
 ### Phase 1: Foundation (2-3 weeks)
+
 1. Set up project structure
 2. Implement configuration management
 3. Set up database connection and migrations
@@ -1163,12 +1216,14 @@ sqlx = { version = "0.7", features = ["test"] }
 5. Set up logging and tracing
 
 ### Phase 2: Core Authentication (2 weeks)
+
 1. Implement JWT utilities
 2. Create authentication middleware
 3. Build authorization guards
 4. Port auth routes and handlers
 
 ### Phase 3: API Features (4-6 weeks)
+
 1. Port validation schemas
 2. Migrate API routes one by one:
    - Users
@@ -1181,17 +1236,20 @@ sqlx = { version = "0.7", features = ["test"] }
 4. Add middleware (rate limiting, CORS, etc.)
 
 ### Phase 4: External Services (1-2 weeks)
+
 1. File upload and storage
 2. Email service
 3. WebSocket/real-time features
 
 ### Phase 5: Testing & Documentation (2 weeks)
+
 1. Write integration tests
 2. Write unit tests
 3. Set up API documentation with utoipa
 4. Performance testing and optimization
 
 ### Phase 6: Deployment & DevOps (1 week)
+
 1. Dockerize application
 2. CI/CD setup
 3. Production deployment
@@ -1227,22 +1285,22 @@ sqlx = { version = "0.7", features = ["test"] }
 
 ## Difficulty Assessment by Component
 
-| Component | Difficulty | Notes |
-|-----------|-----------|-------|
-| HTTP Server & Routing | 🟢 Easy | Axum is very ergonomic |
-| Configuration | 🟢 Easy | Similar validation patterns |
-| Database/ORM | 🟡 Medium | Different query style, but SQLx is excellent |
-| Validation | 🟢 Easy | Actually more ergonomic with extractors |
-| Authentication | 🟡 Medium | Different patterns, but more type-safe |
-| Authorization | 🟡 Medium | Extractor pattern needs learning |
-| Error Handling | 🟢 Easy | More explicit, safer |
-| API Responses | 🟢 Easy | Nearly identical |
-| Middleware | 🟢 Easy | Tower middleware is excellent |
-| File Upload | 🟡 Medium | More manual, but more control |
-| Email | 🟢 Easy | Very similar API |
-| WebSocket | 🟡 Medium | Lower-level but sufficient |
-| Documentation | 🟢 Easy | Better compile-time integration |
-| Testing | 🟡 Medium | More verbose, same concepts |
+| Component             | Difficulty | Notes                                        |
+| --------------------- | ---------- | -------------------------------------------- |
+| HTTP Server & Routing | 🟢 Easy    | Axum is very ergonomic                       |
+| Configuration         | 🟢 Easy    | Similar validation patterns                  |
+| Database/ORM          | 🟡 Medium  | Different query style, but SQLx is excellent |
+| Validation            | 🟢 Easy    | Actually more ergonomic with extractors      |
+| Authentication        | 🟡 Medium  | Different patterns, but more type-safe       |
+| Authorization         | 🟡 Medium  | Extractor pattern needs learning             |
+| Error Handling        | 🟢 Easy    | More explicit, safer                         |
+| API Responses         | 🟢 Easy    | Nearly identical                             |
+| Middleware            | 🟢 Easy    | Tower middleware is excellent                |
+| File Upload           | 🟡 Medium  | More manual, but more control                |
+| Email                 | 🟢 Easy    | Very similar API                             |
+| WebSocket             | 🟡 Medium  | Lower-level but sufficient                   |
+| Documentation         | 🟢 Easy    | Better compile-time integration              |
+| Testing               | 🟡 Medium  | More verbose, same concepts                  |
 
 **Overall Difficulty**: 🟡 **Medium** - Feasible for a team willing to invest in learning Rust
 
@@ -1253,18 +1311,21 @@ sqlx = { version = "0.7", features = ["test"] }
 **Is it worth migrating to Rust?**
 
 **Yes, if:**
+
 - Performance and resource efficiency are priorities
 - Team is willing to invest time in learning Rust
 - Long-term maintainability and type safety are valued
 - Scaling and deployment costs are concerns
 
 **No, if:**
+
 - Team has no Rust experience and tight deadlines
 - Current TypeScript solution meets all performance needs
 - Rapid feature development is the primary goal
 - Ecosystem maturity for specific features is critical
 
 **Recommendation**: Start with a **pilot project** or **proof of concept** implementing 1-2 endpoints in Rust to evaluate:
+
 1. Team learning curve
 2. Development velocity
 3. Performance gains
@@ -1282,4 +1343,3 @@ The architecture and patterns translate well to Rust, especially with Axum. The 
 - [Tokio Tutorial](https://tokio.rs/tokio/tutorial)
 - [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/)
 - [Zero To Production In Rust](https://www.zero2prod.com/) - Excellent book on building production Rust APIs
-
