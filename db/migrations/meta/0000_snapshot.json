@@ -1,5 +1,5 @@
 {
-  "id": "a1575e91-1806-4840-8e8c-7ad9f315bbb8",
+  "id": "2ad63ad3-d524-4869-b81a-7a9af2a8c99e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -84,8 +84,12 @@
           "tableFrom": "notifications",
           "tableTo": "users",
           "schemaTo": "app",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -94,8 +98,12 @@
           "tableFrom": "notifications",
           "tableTo": "announcement_broadcasts",
           "schemaTo": "communications",
-          "columnsFrom": ["broadcast_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "broadcast_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -105,7 +113,10 @@
         "notifications_user_id_broadcast_id_unique": {
           "name": "notifications_user_id_broadcast_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["user_id", "broadcast_id"]
+          "columns": [
+            "user_id",
+            "broadcast_id"
+          ]
         }
       },
       "policies": {},
@@ -242,8 +253,12 @@
           "tableFrom": "users",
           "tableTo": "constituents",
           "schemaTo": "core",
-          "columnsFrom": ["constituent_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "constituent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -253,32 +268,44 @@
         "users_email_unique": {
           "name": "users_email_unique",
           "nullsNotDistinct": false,
-          "columns": ["email"]
+          "columns": [
+            "email"
+          ]
         },
         "users_username_unique": {
           "name": "users_username_unique",
           "nullsNotDistinct": false,
-          "columns": ["username"]
+          "columns": [
+            "username"
+          ]
         },
         "users_google_id_unique": {
           "name": "users_google_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["google_id"]
+          "columns": [
+            "google_id"
+          ]
         },
         "users_apple_id_unique": {
           "name": "users_apple_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["apple_id"]
+          "columns": [
+            "apple_id"
+          ]
         },
         "users_facebook_id_unique": {
           "name": "users_facebook_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["facebook_id"]
+          "columns": [
+            "facebook_id"
+          ]
         },
         "users_constituent_id_unique": {
           "name": "users_constituent_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["constituent_id"]
+          "columns": [
+            "constituent_id"
+          ]
         }
       },
       "policies": {},
@@ -328,8 +355,12 @@
           "tableFrom": "admin_roles_assignments",
           "tableTo": "admins",
           "schemaTo": "core",
-          "columnsFrom": ["admin_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "admin_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -377,8 +408,12 @@
           "tableFrom": "admins",
           "tableTo": "constituents",
           "schemaTo": "core",
-          "columnsFrom": ["constituent_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "constituent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -426,8 +461,12 @@
           "tableFrom": "auditors",
           "tableTo": "constituents",
           "schemaTo": "core",
-          "columnsFrom": ["constituent_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "constituent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -481,8 +520,12 @@
           "tableFrom": "chapter_media",
           "tableTo": "chapters",
           "schemaTo": "core",
-          "columnsFrom": ["chapter_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "chapter_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -491,8 +534,12 @@
           "tableFrom": "chapter_media",
           "tableTo": "media",
           "schemaTo": "core",
-          "columnsFrom": ["medium_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "medium_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -536,13 +583,6 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
-        },
-        "is_active": {
-          "name": "is_active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
         }
       },
       "indexes": {},
@@ -552,8 +592,12 @@
           "tableFrom": "chapter_memberships",
           "tableTo": "members",
           "schemaTo": "core",
-          "columnsFrom": ["member_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "member_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -562,8 +606,12 @@
           "tableFrom": "chapter_memberships",
           "tableTo": "chapters",
           "schemaTo": "core",
-          "columnsFrom": ["chapter_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "chapter_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -609,12 +657,11 @@
           "primaryKey": false,
           "notNull": true
         },
-        "is_active": {
-          "name": "is_active",
-          "type": "boolean",
+        "archived_at": {
+          "name": "archived_at",
+          "type": "date",
           "primaryKey": false,
-          "notNull": true,
-          "default": true
+          "notNull": false
         },
         "parent_id": {
           "name": "parent_id",
@@ -630,8 +677,12 @@
           "tableFrom": "chapters",
           "tableTo": "chapters",
           "schemaTo": "core",
-          "columnsFrom": ["parent_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -685,8 +736,12 @@
           "tableFrom": "committee_media",
           "tableTo": "committees",
           "schemaTo": "core",
-          "columnsFrom": ["committee_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "committee_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -695,8 +750,12 @@
           "tableFrom": "committee_media",
           "tableTo": "media",
           "schemaTo": "core",
-          "columnsFrom": ["medium_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "medium_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -740,13 +799,6 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
-        },
-        "is_active": {
-          "name": "is_active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
         }
       },
       "indexes": {},
@@ -756,8 +808,12 @@
           "tableFrom": "committee_memberships",
           "tableTo": "members",
           "schemaTo": "core",
-          "columnsFrom": ["member_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "member_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -766,8 +822,12 @@
           "tableFrom": "committee_memberships",
           "tableTo": "committees",
           "schemaTo": "core",
-          "columnsFrom": ["committee_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "committee_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -806,6 +866,12 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -815,8 +881,12 @@
           "tableFrom": "committees",
           "tableTo": "chapters",
           "schemaTo": "core",
-          "columnsFrom": ["chapter_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "chapter_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -826,7 +896,9 @@
         "committees_name_unique": {
           "name": "committees_name_unique",
           "nullsNotDistinct": false,
-          "columns": ["name"]
+          "columns": [
+            "name"
+          ]
         }
       },
       "policies": {},
@@ -916,8 +988,12 @@
           "tableFrom": "constituents",
           "tableTo": "media",
           "schemaTo": "core",
-          "columnsFrom": ["profile_photo_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "profile_photo_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -972,8 +1048,12 @@
           "tableFrom": "contact_informations",
           "tableTo": "constituents",
           "schemaTo": "core",
-          "columnsFrom": ["constituent_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "constituent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -983,50 +1063,11 @@
         "contact_informations_constituent_id_contact_type_value_unique": {
           "name": "contact_informations_constituent_id_contact_type_value_unique",
           "nullsNotDistinct": false,
-          "columns": ["constituent_id", "contact_type", "value"]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "core.donors": {
-      "name": "donors",
-      "schema": "core",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "constituent_id": {
-          "name": "constituent_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "donors_constituent_id_constituents_id_fk": {
-          "name": "donors_constituent_id_constituents_id_fk",
-          "tableFrom": "donors",
-          "tableTo": "constituents",
-          "schemaTo": "core",
-          "columnsFrom": ["constituent_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "donors_constituent_id_unique": {
-          "name": "donors_constituent_id_unique",
-          "nullsNotDistinct": false,
-          "columns": ["constituent_id"]
+          "columns": [
+            "constituent_id",
+            "contact_type",
+            "value"
+          ]
         }
       },
       "policies": {},
@@ -1096,8 +1137,12 @@
           "tableFrom": "media",
           "tableTo": "constituents",
           "schemaTo": "core",
-          "columnsFrom": ["uploaded_by"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "uploaded_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1107,7 +1152,9 @@
         "media_external_id_unique": {
           "name": "media_external_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["external_id"]
+          "columns": [
+            "external_id"
+          ]
         }
       },
       "policies": {},
@@ -1162,8 +1209,12 @@
           "tableFrom": "member_titles",
           "tableTo": "chapters",
           "schemaTo": "core",
-          "columnsFrom": ["chapter_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "chapter_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1172,8 +1223,12 @@
           "tableFrom": "member_titles",
           "tableTo": "committees",
           "schemaTo": "core",
-          "columnsFrom": ["committee_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "committee_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1183,7 +1238,11 @@
         "member_titles_title_chapter_id_committee_id_unique": {
           "name": "member_titles_title_chapter_id_committee_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["title", "chapter_id", "committee_id"]
+          "columns": [
+            "title",
+            "chapter_id",
+            "committee_id"
+          ]
         }
       },
       "policies": {},
@@ -1237,8 +1296,12 @@
           "tableFrom": "member_titles_assignments",
           "tableTo": "members",
           "schemaTo": "core",
-          "columnsFrom": ["member_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "member_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1247,8 +1310,12 @@
           "tableFrom": "member_titles_assignments",
           "tableTo": "member_titles",
           "schemaTo": "core",
-          "columnsFrom": ["title_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "title_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1296,8 +1363,12 @@
           "tableFrom": "members",
           "tableTo": "constituents",
           "schemaTo": "core",
-          "columnsFrom": ["constituent_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "constituent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1352,8 +1423,12 @@
           "tableFrom": "organization_contacts",
           "tableTo": "organizations",
           "schemaTo": "core",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1362,8 +1437,12 @@
           "tableFrom": "organization_contacts",
           "tableTo": "constituents",
           "schemaTo": "core",
-          "columnsFrom": ["constituent_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "constituent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1373,7 +1452,10 @@
         "organization_contacts_organization_id_constituent_id_unique": {
           "name": "organization_contacts_organization_id_constituent_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["organization_id", "constituent_id"]
+          "columns": [
+            "organization_id",
+            "constituent_id"
+          ]
         }
       },
       "policies": {},
@@ -1475,8 +1557,12 @@
           "tableFrom": "volunteers",
           "tableTo": "constituents",
           "schemaTo": "core",
-          "columnsFrom": ["constituent_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "constituent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1530,8 +1616,12 @@
           "tableFrom": "event_media",
           "tableTo": "events",
           "schemaTo": "activities",
-          "columnsFrom": ["event_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1540,8 +1630,12 @@
           "tableFrom": "event_media",
           "tableTo": "media",
           "schemaTo": "core",
-          "columnsFrom": ["medium_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "medium_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1615,8 +1709,12 @@
           "tableFrom": "events",
           "tableTo": "projects",
           "schemaTo": "activities",
-          "columnsFrom": ["project_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1670,8 +1768,12 @@
           "tableFrom": "project_media",
           "tableTo": "projects",
           "schemaTo": "activities",
-          "columnsFrom": ["project_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1680,8 +1782,12 @@
           "tableFrom": "project_media",
           "tableTo": "media",
           "schemaTo": "core",
-          "columnsFrom": ["medium_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "medium_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1755,8 +1861,12 @@
           "tableFrom": "projects",
           "tableTo": "chapters",
           "schemaTo": "core",
-          "columnsFrom": ["chapter_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "chapter_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1784,11 +1894,11 @@
           "primaryKey": false,
           "notNull": true
         },
-        "donor_id": {
-          "name": "donor_id",
+        "constituent_id": {
+          "name": "constituent_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "project_id": {
           "name": "project_id",
@@ -1810,18 +1920,26 @@
           "tableFrom": "donations",
           "tableTo": "financial_transactions",
           "schemaTo": "finance",
-          "columnsFrom": ["transaction_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
-        "donations_donor_id_donors_id_fk": {
-          "name": "donations_donor_id_donors_id_fk",
+        "donations_constituent_id_constituents_id_fk": {
+          "name": "donations_constituent_id_constituents_id_fk",
           "tableFrom": "donations",
-          "tableTo": "donors",
+          "tableTo": "constituents",
           "schemaTo": "core",
-          "columnsFrom": ["donor_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "constituent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -1830,8 +1948,12 @@
           "tableFrom": "donations",
           "tableTo": "projects",
           "schemaTo": "activities",
-          "columnsFrom": ["project_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1840,8 +1962,12 @@
           "tableFrom": "donations",
           "tableTo": "events",
           "schemaTo": "activities",
-          "columnsFrom": ["event_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1851,7 +1977,9 @@
         "donations_transaction_id_unique": {
           "name": "donations_transaction_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["transaction_id"]
+          "columns": [
+            "transaction_id"
+          ]
         }
       },
       "policies": {},
@@ -1907,8 +2035,12 @@
           "tableFrom": "dues",
           "tableTo": "chapters",
           "schemaTo": "core",
-          "columnsFrom": ["chapter_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "chapter_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1955,8 +2087,12 @@
           "tableFrom": "dues_payments",
           "tableTo": "financial_transactions",
           "schemaTo": "finance",
-          "columnsFrom": ["transaction_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -1965,8 +2101,12 @@
           "tableFrom": "dues_payments",
           "tableTo": "dues",
           "schemaTo": "finance",
-          "columnsFrom": ["dues_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "dues_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -1975,8 +2115,12 @@
           "tableFrom": "dues_payments",
           "tableTo": "members",
           "schemaTo": "core",
-          "columnsFrom": ["member_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "member_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -1986,7 +2130,9 @@
         "dues_payments_transaction_id_unique": {
           "name": "dues_payments_transaction_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["transaction_id"]
+          "columns": [
+            "transaction_id"
+          ]
         }
       },
       "policies": {},
@@ -2060,8 +2206,12 @@
           "tableFrom": "expenditures",
           "tableTo": "projects",
           "schemaTo": "activities",
-          "columnsFrom": ["project_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -2070,8 +2220,12 @@
           "tableFrom": "expenditures",
           "tableTo": "events",
           "schemaTo": "activities",
-          "columnsFrom": ["event_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -2080,8 +2234,12 @@
           "tableFrom": "expenditures",
           "tableTo": "organizations",
           "schemaTo": "core",
-          "columnsFrom": ["vendor_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "vendor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -2125,17 +2283,24 @@
         "payment_method": {
           "name": "payment_method",
           "type": "payment_method",
-          "typeSchema": "public",
+          "typeSchema": "finance",
           "primaryKey": false,
           "notNull": true
         },
         "status": {
           "name": "status",
           "type": "transaction_status",
-          "typeSchema": "public",
+          "typeSchema": "finance",
           "primaryKey": false,
           "notNull": true,
           "default": "'PENDING'"
+        },
+        "external_provider": {
+          "name": "external_provider",
+          "type": "external_provider",
+          "typeSchema": "finance",
+          "primaryKey": false,
+          "notNull": true
         },
         "external_ref": {
           "name": "external_ref",
@@ -2147,7 +2312,15 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "financial_transactions_external_ref_unique": {
+          "name": "financial_transactions_external_ref_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "external_ref"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -2220,8 +2393,12 @@
           "tableFrom": "partnerships",
           "tableTo": "organizations",
           "schemaTo": "core",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -2230,8 +2407,12 @@
           "tableFrom": "partnerships",
           "tableTo": "projects",
           "schemaTo": "activities",
-          "columnsFrom": ["project_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -2240,8 +2421,12 @@
           "tableFrom": "partnerships",
           "tableTo": "events",
           "schemaTo": "activities",
-          "columnsFrom": ["event_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -2295,8 +2480,12 @@
           "tableFrom": "announcement_broadcasts",
           "tableTo": "announcements",
           "schemaTo": "communications",
-          "columnsFrom": ["announcement_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "announcement_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2305,8 +2494,12 @@
           "tableFrom": "announcement_broadcasts",
           "tableTo": "chapters",
           "schemaTo": "core",
-          "columnsFrom": ["chapter_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "chapter_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2315,8 +2508,12 @@
           "tableFrom": "announcement_broadcasts",
           "tableTo": "committees",
           "schemaTo": "core",
-          "columnsFrom": ["committee_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "committee_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2371,8 +2568,12 @@
           "tableFrom": "announcements",
           "tableTo": "constituents",
           "schemaTo": "core",
-          "columnsFrom": ["created_by"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -2426,8 +2627,12 @@
           "tableFrom": "order_items",
           "tableTo": "orders",
           "schemaTo": "shop",
-          "columnsFrom": ["order_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "order_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2436,8 +2641,12 @@
           "tableFrom": "order_items",
           "tableTo": "products",
           "schemaTo": "shop",
-          "columnsFrom": ["product_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "product_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -2500,8 +2709,12 @@
           "tableFrom": "orders",
           "tableTo": "constituents",
           "schemaTo": "core",
-          "columnsFrom": ["customer_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "customer_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -2563,8 +2776,12 @@
           "tableFrom": "product_photos",
           "tableTo": "products",
           "schemaTo": "shop",
-          "columnsFrom": ["product_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "product_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2652,7 +2869,9 @@
         "products_sku_unique": {
           "name": "products_sku_unique",
           "nullsNotDistinct": false,
-          "columns": ["sku"]
+          "columns": [
+            "sku"
+          ]
         }
       },
       "policies": {},
@@ -2664,62 +2883,123 @@
     "public.attendance_status": {
       "name": "attendance_status",
       "schema": "public",
-      "values": ["INVITED", "ACCEPTED", "DECLINED", "ATTENDED"]
+      "values": [
+        "INVITED",
+        "ACCEPTED",
+        "DECLINED",
+        "ATTENDED"
+      ]
     },
     "public.contact_type": {
       "name": "contact_type",
       "schema": "public",
-      "values": ["EMAIL", "PHONE", "WHATSAPP"]
+      "values": [
+        "EMAIL",
+        "PHONE",
+        "WHATSAPP"
+      ]
     },
     "public.event_status": {
       "name": "event_status",
       "schema": "public",
-      "values": ["UPCOMING", "ONGOING", "COMPLETED", "CANCELLED"]
+      "values": [
+        "UPCOMING",
+        "ONGOING",
+        "COMPLETED",
+        "CANCELLED"
+      ]
     },
     "public.gender": {
       "name": "gender",
       "schema": "public",
-      "values": ["MALE", "FEMALE", "OTHER"]
+      "values": [
+        "MALE",
+        "FEMALE",
+        "OTHER"
+      ]
     },
     "public.media_type": {
       "name": "media_type",
       "schema": "public",
-      "values": ["PICTURE", "VIDEO"]
+      "values": [
+        "PICTURE",
+        "VIDEO"
+      ]
     },
     "public.notification_type": {
       "name": "notification_type",
       "schema": "public",
-      "values": ["OTHER", "MEETING_INVITE", "DONATION_RECEIPT", "ANNOUNCEMENT"]
+      "values": [
+        "OTHER",
+        "MEETING_INVITE",
+        "DONATION_RECEIPT",
+        "ANNOUNCEMENT"
+      ]
     },
     "public.partnership_type": {
       "name": "partnership_type",
       "schema": "public",
-      "values": ["SPONSOR", "IN_KIND", "TECHNICAL", "VENUE", "OTHER"]
-    },
-    "public.payment_method": {
-      "name": "payment_method",
-      "schema": "public",
-      "values": ["CREDIT_CARD", "BANK_TRANSFER", "MOBILE_MONEY", "CASH"]
+      "values": [
+        "SPONSOR",
+        "IN_KIND",
+        "TECHNICAL",
+        "VENUE",
+        "OTHER"
+      ]
     },
     "public.project_status": {
       "name": "project_status",
       "schema": "public",
-      "values": ["UPCOMING", "IN_PROGRESS", "COMPLETED", "CANCELLED"]
-    },
-    "public.transaction_status": {
-      "name": "transaction_status",
-      "schema": "public",
-      "values": ["PENDING", "COMPLETED", "FAILED", "REFUNDED"]
+      "values": [
+        "UPCOMING",
+        "IN_PROGRESS",
+        "COMPLETED",
+        "CANCELLED"
+      ]
     },
     "core.admin_roles": {
       "name": "admin_roles",
       "schema": "core",
-      "values": ["SUPER_ADMIN", "REGULAR_ADMIN"]
+      "values": [
+        "SUPER_ADMIN",
+        "REGULAR_ADMIN"
+      ]
+    },
+    "finance.external_provider": {
+      "name": "external_provider",
+      "schema": "finance",
+      "values": [
+        "PAYSTACK"
+      ]
+    },
+    "finance.payment_method": {
+      "name": "payment_method",
+      "schema": "finance",
+      "values": [
+        "CREDIT_CARD",
+        "BANK_TRANSFER",
+        "MOBILE_MONEY",
+        "CASH"
+      ]
+    },
+    "finance.transaction_status": {
+      "name": "transaction_status",
+      "schema": "finance",
+      "values": [
+        "PENDING",
+        "COMPLETED",
+        "FAILED",
+        "REFUNDED"
+      ]
     },
     "shop.shop_order_status": {
       "name": "shop_order_status",
       "schema": "shop",
-      "values": ["PENDING", "COMPLETED", "CANCELLED"]
+      "values": [
+        "PENDING",
+        "COMPLETED",
+        "CANCELLED"
+      ]
     }
   },
   "schemas": {

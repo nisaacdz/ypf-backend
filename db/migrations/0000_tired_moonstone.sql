@@ -17,10 +17,11 @@ CREATE TYPE "public"."gender" AS ENUM('MALE', 'FEMALE', 'OTHER');--> statement-b
 CREATE TYPE "public"."media_type" AS ENUM('PICTURE', 'VIDEO');--> statement-breakpoint
 CREATE TYPE "public"."notification_type" AS ENUM('OTHER', 'MEETING_INVITE', 'DONATION_RECEIPT', 'ANNOUNCEMENT');--> statement-breakpoint
 CREATE TYPE "public"."partnership_type" AS ENUM('SPONSOR', 'IN_KIND', 'TECHNICAL', 'VENUE', 'OTHER');--> statement-breakpoint
-CREATE TYPE "public"."payment_method" AS ENUM('CREDIT_CARD', 'BANK_TRANSFER', 'MOBILE_MONEY', 'CASH');--> statement-breakpoint
 CREATE TYPE "public"."project_status" AS ENUM('UPCOMING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED');--> statement-breakpoint
-CREATE TYPE "public"."transaction_status" AS ENUM('PENDING', 'COMPLETED', 'FAILED', 'REFUNDED');--> statement-breakpoint
 CREATE TYPE "core"."admin_roles" AS ENUM('SUPER_ADMIN', 'REGULAR_ADMIN');--> statement-breakpoint
+CREATE TYPE "finance"."external_provider" AS ENUM('PAYSTACK');--> statement-breakpoint
+CREATE TYPE "finance"."payment_method" AS ENUM('CREDIT_CARD', 'BANK_TRANSFER', 'MOBILE_MONEY', 'CASH');--> statement-breakpoint
+CREATE TYPE "finance"."transaction_status" AS ENUM('PENDING', 'COMPLETED', 'FAILED', 'REFUNDED');--> statement-breakpoint
 CREATE TYPE "shop"."shop_order_status" AS ENUM('PENDING', 'COMPLETED', 'CANCELLED');--> statement-breakpoint
 CREATE TABLE "app"."notifications" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
@@ -98,8 +99,7 @@ CREATE TABLE "core"."chapter_memberships" (
 	"member_id" uuid NOT NULL,
 	"chapter_id" uuid NOT NULL,
 	"started_at" timestamp with time zone NOT NULL,
-	"ended_at" timestamp with time zone,
-	"is_active" boolean DEFAULT true NOT NULL
+	"ended_at" timestamp with time zone
 );
 --> statement-breakpoint
 CREATE TABLE "core"."chapters" (
@@ -108,7 +108,7 @@ CREATE TABLE "core"."chapters" (
 	"country" text NOT NULL,
 	"description" text,
 	"founding_date" date NOT NULL,
-	"is_active" boolean DEFAULT true NOT NULL,
+	"archived_at" date,
 	"parent_id" uuid
 );
 --> statement-breakpoint
@@ -125,8 +125,7 @@ CREATE TABLE "core"."committee_memberships" (
 	"member_id" uuid NOT NULL,
 	"committee_id" uuid NOT NULL,
 	"started_at" timestamp with time zone NOT NULL,
-	"ended_at" timestamp with time zone,
-	"is_active" boolean DEFAULT true NOT NULL
+	"ended_at" timestamp with time zone
 );
 --> statement-breakpoint
 CREATE TABLE "core"."committees" (
@@ -134,6 +133,7 @@ CREATE TABLE "core"."committees" (
 	"name" text NOT NULL,
 	"description" text,
 	"chapter_id" uuid,
+	"archived_at" date,
 	CONSTRAINT "committees_name_unique" UNIQUE("name")
 );
 --> statement-breakpoint
@@ -158,12 +158,6 @@ CREATE TABLE "core"."contact_informations" (
 	"value" text NOT NULL,
 	"is_primary" boolean DEFAULT false NOT NULL,
 	CONSTRAINT "contact_informations_constituent_id_contact_type_value_unique" UNIQUE("constituent_id","contact_type","value")
-);
---> statement-breakpoint
-CREATE TABLE "core"."donors" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"constituent_id" uuid NOT NULL,
-	CONSTRAINT "donors_constituent_id_unique" UNIQUE("constituent_id")
 );
 --> statement-breakpoint
 CREATE TABLE "core"."media" (
@@ -271,7 +265,7 @@ CREATE TABLE "activities"."projects" (
 CREATE TABLE "finance"."donations" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"transaction_id" uuid NOT NULL,
-	"donor_id" uuid NOT NULL,
+	"constituent_id" uuid,
 	"project_id" uuid,
 	"event_id" uuid,
 	CONSTRAINT "donations_transaction_id_unique" UNIQUE("transaction_id")
@@ -311,9 +305,11 @@ CREATE TABLE "finance"."financial_transactions" (
 	"amount" numeric(10, 2) NOT NULL,
 	"currency" varchar(3) NOT NULL,
 	"transaction_date" timestamp with time zone DEFAULT now() NOT NULL,
-	"payment_method" "payment_method" NOT NULL,
-	"status" "transaction_status" DEFAULT 'PENDING' NOT NULL,
-	"external_ref" text
+	"payment_method" "finance"."payment_method" NOT NULL,
+	"status" "finance"."transaction_status" DEFAULT 'PENDING' NOT NULL,
+	"external_provider" "finance"."external_provider" NOT NULL,
+	"external_ref" text,
+	CONSTRAINT "financial_transactions_external_ref_unique" UNIQUE("external_ref")
 );
 --> statement-breakpoint
 CREATE TABLE "finance"."partnerships" (
@@ -402,7 +398,6 @@ ALTER TABLE "core"."committee_memberships" ADD CONSTRAINT "committee_memberships
 ALTER TABLE "core"."committees" ADD CONSTRAINT "committees_chapter_id_chapters_id_fk" FOREIGN KEY ("chapter_id") REFERENCES "core"."chapters"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."constituents" ADD CONSTRAINT "constituents_profile_photo_id_media_id_fk" FOREIGN KEY ("profile_photo_id") REFERENCES "core"."media"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."contact_informations" ADD CONSTRAINT "contact_informations_constituent_id_constituents_id_fk" FOREIGN KEY ("constituent_id") REFERENCES "core"."constituents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "core"."donors" ADD CONSTRAINT "donors_constituent_id_constituents_id_fk" FOREIGN KEY ("constituent_id") REFERENCES "core"."constituents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."media" ADD CONSTRAINT "media_uploaded_by_constituents_id_fk" FOREIGN KEY ("uploaded_by") REFERENCES "core"."constituents"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."member_titles" ADD CONSTRAINT "member_titles_chapter_id_chapters_id_fk" FOREIGN KEY ("chapter_id") REFERENCES "core"."chapters"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."member_titles" ADD CONSTRAINT "member_titles_committee_id_committees_id_fk" FOREIGN KEY ("committee_id") REFERENCES "core"."committees"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -419,7 +414,7 @@ ALTER TABLE "activities"."project_media" ADD CONSTRAINT "project_media_project_i
 ALTER TABLE "activities"."project_media" ADD CONSTRAINT "project_media_medium_id_media_id_fk" FOREIGN KEY ("medium_id") REFERENCES "core"."media"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activities"."projects" ADD CONSTRAINT "projects_chapter_id_chapters_id_fk" FOREIGN KEY ("chapter_id") REFERENCES "core"."chapters"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "finance"."donations" ADD CONSTRAINT "donations_transaction_id_financial_transactions_id_fk" FOREIGN KEY ("transaction_id") REFERENCES "finance"."financial_transactions"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "finance"."donations" ADD CONSTRAINT "donations_donor_id_donors_id_fk" FOREIGN KEY ("donor_id") REFERENCES "core"."donors"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "finance"."donations" ADD CONSTRAINT "donations_constituent_id_constituents_id_fk" FOREIGN KEY ("constituent_id") REFERENCES "core"."constituents"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "finance"."donations" ADD CONSTRAINT "donations_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "activities"."projects"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "finance"."donations" ADD CONSTRAINT "donations_event_id_events_id_fk" FOREIGN KEY ("event_id") REFERENCES "activities"."events"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "finance"."dues" ADD CONSTRAINT "dues_chapter_id_chapters_id_fk" FOREIGN KEY ("chapter_id") REFERENCES "core"."chapters"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
