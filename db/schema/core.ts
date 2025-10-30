@@ -81,14 +81,6 @@ export const Members = core.table("members", {
   endedAt: timestamp("ended_at", { withTimezone: true }),
 });
 
-export const Donors = core.table("donors", {
-  id: uuid().defaultRandom().primaryKey(),
-  constituentId: uuid("constituent_id")
-    .notNull()
-    .unique()
-    .references(() => Constituents.id, { onDelete: "cascade" }),
-});
-
 // ensure non overlapping periods of volunteering at dbms level
 export const Volunteers = core.table("volunteers", {
   id: uuid().defaultRandom().primaryKey(),
@@ -286,12 +278,6 @@ export const mediaRelations = relations(Medium, ({ one }) => ({
 export const constituentsRelations = relations(
   Constituents,
   ({ one, many }) => ({
-    // A Constituent can have only ONE Donor profile (One-to-One)
-    donorProfile: one(Donors, {
-      fields: [Constituents.id],
-      references: [Donors.constituentId],
-    }),
-
     // A Constituent can have MANY historical periods for these roles (One-to-Many)
     membershipPeriods: many(Members),
     volunteerPeriods: many(Volunteers),
@@ -328,14 +314,6 @@ export const membersRelations = relations(Members, ({ one, many }) => ({
   chapterMemberships: many(ChapterMemberships),
   committeeMemberships: many(CommitteeMemberships),
   titleAssignments: many(MemberTitlesAssignments),
-}));
-
-export const donorsRelations = relations(Donors, ({ one }) => ({
-  // Each donor profile belongs to one constituent
-  constituent: one(Constituents, {
-    fields: [Donors.constituentId],
-    references: [Constituents.id],
-  }),
 }));
 
 export const volunteersRelations = relations(Volunteers, ({ one }) => ({
