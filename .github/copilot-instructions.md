@@ -117,10 +117,10 @@ router.post("/events", validateBody(CreateEventSchema), async (req, res) => {
 All API responses should follow the `ApiResponse` type:
 
 ```typescript
-type ApiResponse<T = unknown> = {
+type ApiResponse<T> = {
   success: boolean;
-  message: string;
-  data?: T;
+  data: T;
+  message?: string;
 };
 ```
 
