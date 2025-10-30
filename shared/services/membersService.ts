@@ -76,26 +76,30 @@ export async function getMembers(
     whereClauses.push(ilike(fullName, `%${search}%`));
   }
 
-  // Filter for members active in a specific chapter
   if (chapterId) {
     whereClauses.push(
       sql`EXISTS (
-        SELECT 1 FROM ${schema.ChapterMemberships} cm
-        JOIN ${schema.Members} m ON cm.member_id = m.id
+        SELECT 1
+        FROM ${schema.ChapterMemberships} cm
+        INNER JOIN ${schema.Members} m ON cm.member_id = m.id
         WHERE m.constituent_id = ${schema.Constituents.id}
-        AND cm.chapter_id = ${chapterId} AND cm.is_active = true
+          AND cm.chapter_id = ${chapterId}
+          AND cm.started_at <= now()
+          AND (cm.ended_at IS NULL OR cm.ended_at >= now())
       )`,
     );
   }
 
-  // Filter for members active in a specific committee
   if (committeeId) {
     whereClauses.push(
       sql`EXISTS (
-        SELECT 1 FROM ${schema.CommitteeMemberships} com
-        JOIN ${schema.Members} m ON com.member_id = m.id
+        SELECT 1
+        FROM ${schema.CommitteeMemberships} com
+        INNER JOIN ${schema.Members} m ON com.member_id = m.id
         WHERE m.constituent_id = ${schema.Constituents.id}
-        AND com.committee_id = ${committeeId} AND com.is_active = true
+          AND com.committee_id = ${committeeId}
+          AND com.started_at <= now()
+          AND (com.ended_at IS NULL OR com.ended_at >= now())
       )`,
     );
   }
