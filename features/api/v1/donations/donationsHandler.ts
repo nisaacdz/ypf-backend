@@ -1,8 +1,5 @@
 import { ApiResponse, AppError } from "@/shared/types";
-import {
-  CreateDonationSchema,
-  DonationIdParamsSchema,
-} from "@/shared/validators/donations";
+import { CreateDonationSchema } from "@/shared/validators/donations";
 import z from "zod";
 import * as donationsService from "@/shared/services/donationsService";
 
@@ -48,9 +45,9 @@ export async function createDonation(
  * Handler for verifying a donation
  */
 export async function verifyDonation(
-  params: z.infer<typeof DonationIdParamsSchema>,
+  id: string,
 ): Promise<ApiResponse<{ status: string }>> {
-  const result = await donationsService.verifyDonation(params.id);
+  const result = await donationsService.verifyDonation(id);
 
   return {
     success: true,
@@ -63,11 +60,11 @@ export async function verifyDonation(
  * Handler for checking donation status
  */
 export async function checkDonation(
-  params: z.infer<typeof DonationIdParamsSchema>,
+  id: string,
 ): Promise<
   ApiResponse<{ completed: boolean; status: string; updatedAt: Date }>
 > {
-  const result = await donationsService.checkDonationStatus(params.id);
+  const result = await donationsService.checkDonationStatus(id);
 
   return {
     success: true,

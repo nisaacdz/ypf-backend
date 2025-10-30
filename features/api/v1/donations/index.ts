@@ -165,7 +165,7 @@ donationsRouter.patch(
   ),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const response = await donationsHandler.verifyDonation(req.Params);
+      const response = await donationsHandler.verifyDonation(req.Params.id);
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -225,7 +225,7 @@ donationsRouter.get(
   ),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const response = await donationsHandler.checkDonation(req.Params);
+      const response = await donationsHandler.checkDonation(req.Params.id);
       res.status(200).json(response);
     } catch (error) {
       next(error);
