@@ -11,11 +11,25 @@ import {
 import { relations } from "drizzle-orm";
 import { Chapters, Donors, Members, Organizations } from "./core";
 import { Events, Projects } from "./activities";
-import { PaymentMethod, TransactionStatus, PartnershipType } from "./enums";
+import { PartnershipType } from "./enums";
 
 export const finance = pgSchema("finance");
 
 // === TABLES ===
+
+export const ExternalProvider = finance.enum("external_provider", ["PAYSTACK"]);
+export const PaymentMethod = finance.enum("payment_method", [
+  "CREDIT_CARD",
+  "BANK_TRANSFER",
+  "MOBILE_MONEY",
+  "CASH", // for in-person donations
+]);
+export const TransactionStatus = finance.enum("transaction_status", [
+  "PENDING",
+  "COMPLETED",
+  "FAILED",
+  "REFUNDED",
+]);
 
 export const FinancialTransactions = finance.table("financial_transactions", {
   id: uuid().defaultRandom().primaryKey(),
@@ -26,7 +40,8 @@ export const FinancialTransactions = finance.table("financial_transactions", {
     .notNull(),
   paymentMethod: PaymentMethod("payment_method").notNull(),
   status: TransactionStatus().default("PENDING").notNull(),
-  externalRef: text("external_ref"),
+  externalProvider: ExternalProvider("external_provider").notNull(),
+  externalRef: text("external_ref").unique(),
 });
 
 // Null donorId means anonymous donation

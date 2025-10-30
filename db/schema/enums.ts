@@ -18,18 +18,6 @@ export const EventStatus = pgEnum("event_status", [
   "COMPLETED",
   "CANCELLED",
 ]);
-export const PaymentMethod = pgEnum("payment_method", [
-  "CREDIT_CARD",
-  "BANK_TRANSFER",
-  "MOBILE_MONEY",
-  "CASH",
-]);
-export const TransactionStatus = pgEnum("transaction_status", [
-  "PENDING",
-  "COMPLETED",
-  "FAILED",
-  "REFUNDED",
-]);
 export const AttendanceStatus = pgEnum("attendance_status", [
   "INVITED",
   "ACCEPTED",

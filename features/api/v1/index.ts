@@ -6,6 +6,7 @@ import eventsRouter from "./events";
 import membersRouter from "./members";
 import chaptersRouter from "./chapters";
 import committeesRouter from "./committees";
+import webhooksRouter from "./webhooks";
 
 const apiRouter = Router();
 
@@ -16,5 +17,6 @@ apiRouter.use("/events", eventsRouter);
 apiRouter.use("/members", membersRouter);
 apiRouter.use("/chapters", chaptersRouter);
 apiRouter.use("/committees", committeesRouter);
+apiRouter.use("/webhooks", webhooksRouter);
 
 export default apiRouter;

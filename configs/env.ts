@@ -32,7 +32,10 @@ const envSchema = z
     IMAGEKIT_PRIVATE_KEY: z.string().min(1, "IMAGEKIT_PRIVATE_KEY is required"),
 
     // Paystack Configuration
-    PAYSTACK_SECRET: z.string().min(1, "PAYSTACK_SECRET is required"),
+    PAYSTACK_SECRET: z
+      .string()
+      .min(1, "PAYSTACK_SECRET is required")
+      .optional(), // TODO remove optional soon!
 
     // SMTP Email Configuration
     SMTP_HOST: z.string().min(1, "SMTP_HOST is required"),
