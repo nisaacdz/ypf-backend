@@ -27,10 +27,25 @@ function normalizeEmail(email: string): string {
 
 /**
  * Normalizes phone numbers for comparison
+ * Removes spaces, dashes, parentheses, plus signs, and handles common variations
  */
 function normalizePhone(phone: string): string {
-  // Remove spaces, dashes, parentheses, and plus signs
-  return phone.replace(/[\s\-\(\)\+]/g, "").trim();
+  // Remove all non-digit characters
+  const normalized = phone.replace(/\D/g, "");
+
+  // If it starts with country code 233 (Ghana) and has extra digits, keep full number
+  // Otherwise, keep the normalized version
+  // This handles cases like +233 XX XXX XXXX, 0XX XXX XXXX, etc.
+  // For Ghana: +233 24 123 4567 => 233241234567, 024 123 4567 => 241234567 (remove leading 0)
+  if (normalized.startsWith("233") && normalized.length > 10) {
+    // Keep full international format
+    return normalized;
+  } else if (normalized.startsWith("0") && normalized.length > 9) {
+    // Remove leading 0 for local numbers (common in Ghana: 024 => 24)
+    return normalized.substring(1);
+  }
+
+  return normalized;
 }
 
 /**

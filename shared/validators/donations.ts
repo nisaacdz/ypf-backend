@@ -25,25 +25,15 @@ export const CreateDonationSchema = z
   })
   .refine(
     (data) => {
-      // If not anonymous and not authenticated, donorInfo is required
-      // This will be checked at the handler level with authenticatedConstituentId
-      return data.anonymous || data.donorInfo;
-    },
-    {
-      message: "Donor information is required for non-anonymous donations",
-      path: ["donorInfo"],
-    },
-  )
-  .refine(
-    (data) => {
-      // If donorInfo is provided, at least email or phone is required
+      // If donorInfo is provided and not anonymous, at least email or phone is required
       if (data.donorInfo && !data.anonymous) {
         return data.donorInfo.email || data.donorInfo.phone;
       }
       return true;
     },
     {
-      message: "Either email or phone is required",
+      message:
+        "Either email or phone is required when providing donor information",
       path: ["donorInfo"],
     },
   );

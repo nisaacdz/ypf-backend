@@ -162,7 +162,7 @@ export async function createDonation(input: CreateDonationInput): Promise<{
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          amount: Math.round(amount * 100), // Paystack expects amount in kobo/pesewas
+          amount: Math.floor(amount * 100), // Paystack expects amount in kobo/pesewas (use floor to avoid overcharging)
           currency,
           reference: transaction.id, // Use transaction ID as reference
           callback_url: `${variables.app.host}/donations/callback`,
@@ -314,7 +314,7 @@ export async function verifyDonation(donationId: string): Promise<{
       paymentMethodMap[verifyData.data.channel] || "CREDIT_CARD";
 
     // Update transaction status only if still pending
-    await pgPool.db
+    const updateResult = await pgPool.db
       .update(schema.FinancialTransactions)
       .set({
         status: newStatus,
@@ -325,7 +325,19 @@ export async function verifyDonation(donationId: string): Promise<{
           eq(schema.FinancialTransactions.id, donation.transaction.id),
           eq(schema.FinancialTransactions.status, "PENDING"),
         ),
+      )
+      .returning({ id: schema.FinancialTransactions.id });
+
+    // Check if update was successful
+    if (updateResult.length === 0) {
+      logger.warn(
+        `Transaction ${donation.transaction.id} was not updated - may have been processed already`,
       );
+      // Return current status from database instead of from Paystack
+      return {
+        status: donation.transaction.status,
+      };
+    }
 
     logger.info(`Verified donation ${donationId} with status: ${newStatus}`);
 

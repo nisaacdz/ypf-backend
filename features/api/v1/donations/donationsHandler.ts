@@ -1,4 +1,4 @@
-import { ApiResponse } from "@/shared/types";
+import { ApiResponse, AppError } from "@/shared/types";
 import {
   CreateDonationSchema,
   DonationIdParamsSchema,
@@ -24,6 +24,14 @@ export async function createDonation(
   body: z.infer<typeof CreateDonationSchema>,
   authenticatedConstituentId?: string,
 ): Promise<ApiResponse<{ donation: DonationResponse; paymentUrl: string }>> {
+  // Validate that donor info is provided if not authenticated and not anonymous
+  if (!authenticatedConstituentId && !body.anonymous && !body.donorInfo) {
+    throw new AppError(
+      "Donor information is required for non-anonymous guest donations",
+      400,
+    );
+  }
+
   const result = await donationsService.createDonation({
     ...body,
     authenticatedConstituentId,
