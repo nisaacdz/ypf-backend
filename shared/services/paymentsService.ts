@@ -5,17 +5,17 @@ import { AppError } from "@/shared/types";
 import logger from "@/configs/logger";
 
 // ... (type definitions and maps remain the same)
-type TransactionStatusValue =
-  (typeof schema.TransactionStatus.enumValues)[number];
-type PaymentMethodValue = (typeof schema.PaymentMethod.enumValues)[number];
+type TransactionStatus =
+  (typeof schema.TransactionStatusEnum.enumValues)[number];
+type PaymentMethod = (typeof schema.PaymentMethodEnum.enumValues)[number];
 
-const statusMap: Record<string, TransactionStatusValue> = {
+const statusMap: Record<string, TransactionStatus> = {
   success: "COMPLETED",
   failed: "FAILED",
   reversed: "REFUNDED",
 };
 
-const paymentMethodMap: Record<string, PaymentMethodValue> = {
+const paymentMethodMap: Record<string, PaymentMethod> = {
   card: "CREDIT_CARD",
   bank: "BANK_TRANSFER",
   bank_transfer: "BANK_TRANSFER",

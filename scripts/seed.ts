@@ -16,7 +16,7 @@ async function seed(
         firstName: faker.person.firstName(),
         lastName: faker.person.lastName(),
         dateOfBirth: faker.date.birthdate({ min: 18, max: 65, mode: "age" }),
-        gender: faker.helpers.arrayElement(schema.Gender.enumValues),
+        gender: faker.helpers.arrayElement(schema.GenderEnum.enumValues),
       })),
     )
     .returning();
@@ -64,7 +64,7 @@ async function seed(
     .values(
       Array.from({ length: 15 }, () => ({
         externalId: faker.string.uuid(),
-        type: faker.helpers.arrayElement(schema.MediumType.enumValues),
+        type: faker.helpers.arrayElement(schema.MediumTypeEnum.enumValues),
         width: faker.number.int({ min: 800, max: 1920 }),
         height: faker.number.int({ min: 600, max: 1080 }),
         sizeInBytes: faker.number.int({ min: 50000, max: 5000000 }),
@@ -330,7 +330,7 @@ async function seed(
         description: faker.lorem.paragraphs(3),
         scheduledStart: faker.date.future(),
         scheduledEnd: faker.date.future(),
-        status: faker.helpers.arrayElement(schema.ProjectStatus.enumValues),
+        status: faker.helpers.arrayElement(schema.ProjectStatusEnum.enumValues),
         chapterId: faker.helpers.arrayElement(chapters).id,
       })),
     )
@@ -356,7 +356,7 @@ async function seed(
         objective: faker.lorem.sentence(),
         scheduledStart: faker.date.future(),
         scheduledEnd: faker.date.future(),
-        status: faker.helpers.arrayElement(schema.EventStatus.enumValues),
+        status: faker.helpers.arrayElement(schema.EventStatusEnum.enumValues),
         projectId: faker.helpers.arrayElement(projects).id,
       })),
     )
@@ -384,10 +384,12 @@ async function seed(
         currency: "USD",
         transactionDate: faker.date.recent(),
         paymentMethod: faker.helpers.arrayElement(
-          schema.PaymentMethod.enumValues,
+          schema.PaymentMethodEnum.enumValues,
         ),
         externalProvider: "PAYSTACK" as const,
-        status: faker.helpers.arrayElement(schema.TransactionStatus.enumValues),
+        status: faker.helpers.arrayElement(
+          schema.TransactionStatusEnum.enumValues,
+        ),
       })),
     )
     .returning();
@@ -425,7 +427,7 @@ async function seed(
         currency: "USD",
         transactionDate: faker.date.recent(),
         paymentMethod: faker.helpers.arrayElement(
-          schema.PaymentMethod.enumValues,
+          schema.PaymentMethodEnum.enumValues,
         ),
         externalProvider: "PAYSTACK" as const,
         status: "COMPLETED" as const,

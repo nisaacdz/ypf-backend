@@ -285,7 +285,7 @@ export async function verifyDonation(donationId: string): Promise<{
     // Map Paystack status to our status
     const statusMap: Record<
       string,
-      (typeof schema.TransactionStatus.enumValues)[number]
+      (typeof schema.TransactionStatusEnum.enumValues)[number]
     > = {
       success: "COMPLETED",
       failed: "FAILED",
@@ -297,7 +297,7 @@ export async function verifyDonation(donationId: string): Promise<{
     // Map Paystack channel to our payment method
     const paymentMethodMap: Record<
       string,
-      (typeof schema.PaymentMethod.enumValues)[number]
+      (typeof schema.PaymentMethodEnum.enumValues)[number]
     > = {
       card: "CREDIT_CARD",
       bank: "BANK_TRANSFER",

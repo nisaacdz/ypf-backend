@@ -1,8 +1,5 @@
-import {
-  MediumType as MediumTypeEnum,
-  EventStatus,
-  ProjectStatus,
-} from "@/db/schema/enums";
+import { MediumTypeEnum } from "@/db/schema/core";
+import { EventStatusEnum, ProjectStatusEnum } from "@/db/schema/activities";
 
 export * from "./core";
 export * from "./shop";
@@ -24,5 +21,5 @@ export type Notification = {
 };
 
 export type MediumType = (typeof MediumTypeEnum.enumValues)[number];
-export type EventStatus = (typeof EventStatus.enumValues)[number];
-export type ProjectStatus = (typeof ProjectStatus.enumValues)[number];
+export type EventStatus = (typeof EventStatusEnum.enumValues)[number];
+export type ProjectStatus = (typeof ProjectStatusEnum.enumValues)[number];

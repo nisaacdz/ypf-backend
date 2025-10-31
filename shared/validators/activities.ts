@@ -1,9 +1,6 @@
 import z from "zod";
-import {
-  ProjectStatus as ProjectStatusEnum,
-  EventStatus as EventStatusEnum,
-  MediumType as MediaTypeEnum,
-} from "@/db/schema/enums";
+import { ProjectStatusEnum, EventStatusEnum } from "@/db/schema/activities";
+import { MediumTypeEnum } from "@/db/schema/core";
 import { PaginationQuery } from ".";
 
 export const GetProjectsQuerySchema = z.object({
@@ -17,12 +14,12 @@ export const GetEventsQuerySchema = z.object({
 
 export const GetEventMediaQuerySchema = z.object({
   ...PaginationQuery.shape,
-  mediaType: z.enum(MediaTypeEnum.enumValues).optional(),
+  mediaType: z.enum(MediumTypeEnum.enumValues).optional(),
 });
 
 export const GetProjectMediaQuerySchema = z.object({
   ...PaginationQuery.shape,
-  mediaType: z.enum(MediaTypeEnum.enumValues).optional(),
+  mediaType: z.enum(MediumTypeEnum.enumValues).optional(),
 });
 
 export const CreateEventSchema = z.object({
