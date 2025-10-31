@@ -9,6 +9,7 @@ import {
   or,
   lte,
   gte,
+  exists,
 } from "drizzle-orm";
 import z from "zod";
 
@@ -23,7 +24,7 @@ export async function getMembers(
   query: z.infer<typeof GetMembersQuerySchema>,
 ): Promise<Paginated<YPFMember>> {
   const { page, pageSize, search, chapterId, committeeId } = query;
-  const now = sql`now()`;
+  const now = sql<Date>`now()`;
 
   // --- SUBQUERIES ---
 
@@ -78,34 +79,55 @@ export async function getMembers(
 
   if (chapterId) {
     whereClauses.push(
-      sql`EXISTS (
-        SELECT 1
-        FROM ${schema.ChapterMemberships} cm
-        INNER JOIN ${schema.Members} m ON cm.member_id = m.id
-        WHERE m.constituent_id = ${schema.Constituents.id}
-          AND cm.chapter_id = ${chapterId}
-          AND cm.started_at <= now()
-          AND (cm.ended_at IS NULL OR cm.ended_at >= now())
-      )`,
+      exists(
+        pgPool.db
+          .select()
+          .from(schema.ChapterMemberships)
+          .innerJoin(
+            schema.Members,
+            eq(schema.ChapterMemberships.memberId, schema.Members.id),
+          )
+          .where(
+            and(
+              eq(schema.Members.constituentId, schema.Constituents.id),
+              eq(schema.ChapterMemberships.chapterId, chapterId),
+              lte(schema.ChapterMemberships.startedAt, now),
+              or(
+                isNull(schema.ChapterMemberships.endedAt),
+                gte(schema.ChapterMemberships.endedAt, now),
+              ),
+            ),
+          ),
+      ),
     );
   }
 
   if (committeeId) {
     whereClauses.push(
-      sql`EXISTS (
-        SELECT 1
-        FROM ${schema.CommitteeMemberships} com
-        INNER JOIN ${schema.Members} m ON com.member_id = m.id
-        WHERE m.constituent_id = ${schema.Constituents.id}
-          AND com.committee_id = ${committeeId}
-          AND com.started_at <= now()
-          AND (com.ended_at IS NULL OR com.ended_at >= now())
-      )`,
+      exists(
+        pgPool.db
+          .select()
+          .from(schema.CommitteeMemberships)
+          .innerJoin(
+            schema.Members,
+            eq(schema.CommitteeMemberships.memberId, schema.Members.id),
+          )
+          .where(
+            and(
+              eq(schema.Members.constituentId, schema.Constituents.id),
+              eq(schema.CommitteeMemberships.committeeId, committeeId),
+              lte(schema.CommitteeMemberships.startedAt, now),
+              or(
+                isNull(schema.CommitteeMemberships.endedAt),
+                gte(schema.CommitteeMemberships.endedAt, now),
+              ),
+            ),
+          ),
+      ),
     );
   }
 
   // --- BASE QUERY CONSTRUCTION ---
-
   const baseQuery = pgPool.db
     .select({
       id: schema.Constituents.id,
@@ -115,11 +137,21 @@ export async function getMembers(
           "full_name",
         ),
       // Check if any active membership period exists for the constituent
-      isActive: sql<boolean>`EXISTS (
-        SELECT 1 FROM ${schema.Members} m
-        WHERE m.constituent_id = ${schema.Constituents.id}
-        AND m.started_at <= ${now} AND (m.ended_at IS NULL OR m.ended_at >= ${now})
-      )`.as("is_active"),
+      isActive: exists(
+        pgPool.db
+          .select()
+          .from(schema.Members)
+          .where(
+            and(
+              eq(schema.Members.constituentId, schema.Constituents.id),
+              lte(schema.Members.startedAt, now),
+              or(
+                isNull(schema.Members.endedAt),
+                gte(schema.Members.endedAt, now),
+              ),
+            ),
+          ),
+      ).as<boolean>("is_active"),
       joinedAt: firstMembershipSubquery.joinedAt,
       title: topTitleSubquery.titleName,
     })
@@ -190,11 +222,21 @@ export async function getMemberByConstituentId(
       profilePhotoUploadedAt: schema.Medium.uploadedAt,
       profilePhotoUploadedBy: schema.Medium.uploadedBy,
       joinedAt: min(schema.Members.startedAt).as("joined_at"),
-      isActive: sql<boolean>`EXISTS (
-        SELECT 1 FROM ${schema.Members} m
-        WHERE m.constituent_id = ${schema.Constituents.id}
-        AND m.started_at <= ${now} AND (m.ended_at IS NULL OR m.ended_at >= ${now})
-      )`.as("is_active"),
+      isActive: exists(
+        pgPool.db
+          .select()
+          .from(schema.Members)
+          .where(
+            and(
+              eq(schema.Members.constituentId, schema.Constituents.id),
+              lte(schema.Members.startedAt, now),
+              or(
+                isNull(schema.Members.endedAt),
+                gte(schema.Members.endedAt, now),
+              ),
+            ),
+          ),
+      ).as<boolean>("is_active"),
     })
     .from(schema.Constituents)
     .leftJoin(
