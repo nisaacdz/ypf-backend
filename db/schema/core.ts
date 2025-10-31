@@ -12,16 +12,23 @@ import {
   check,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
-import { MediumType, ContactType, Gender } from "./enums";
 
 export const core = pgSchema("core");
+
+export const GenderEnum = core.enum("gender", ["MALE", "FEMALE", "OTHER"]);
+export const MediumTypeEnum = core.enum("media_type", ["PICTURE", "VIDEO"]);
+export const ContactTypeEnum = core.enum("contact_type", [
+  "EMAIL",
+  "PHONE",
+  "WHATSAPP",
+]);
 
 // === TABLES ===
 
 export const Medium = core.table("media", {
   id: uuid().defaultRandom().primaryKey(),
   externalId: text("external_id").notNull().unique(),
-  type: MediumType().notNull(),
+  type: MediumTypeEnum().notNull(),
   width: integer().notNull(),
   height: integer().notNull(),
   sizeInBytes: integer().notNull(),
@@ -44,7 +51,7 @@ export const Constituents = core.table("constituents", {
   }),
   salutation: text(),
   dateOfBirth: date("date_of_birth", { mode: "date" }),
-  gender: Gender(),
+  gender: GenderEnum(),
   joinDate: timestamp("join_date", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -64,7 +71,7 @@ export const ContactInformations = core.table(
     constituentId: uuid("constituent_id")
       .notNull()
       .references(() => Constituents.id, { onDelete: "cascade" }),
-    contactType: ContactType("contact_type").notNull(),
+    contactType: ContactTypeEnum("contact_type").notNull(),
     value: text().notNull(),
     isPrimary: boolean("is_primary").default(false).notNull(),
   },

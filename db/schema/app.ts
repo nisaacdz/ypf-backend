@@ -12,10 +12,16 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { Constituents } from "./core";
-import { AnnouncementBroadCasts } from "./communications";
-import { NotificationType } from "./enums";
+import { AnnouncementBroadCasts } from "./activities";
 
 export const app = pgSchema("app");
+
+export const NotificationTypeEnum = app.enum("notification_type", [
+  "OTHER",
+  "MEETING_INVITE",
+  "DONATION_RECEIPT",
+  "ANNOUNCEMENT",
+]);
 
 export const Users = app.table("users", {
   id: uuid().defaultRandom().primaryKey(),
@@ -54,7 +60,7 @@ export const Notifications = app.table(
     userId: uuid("user_id")
       .notNull()
       .references(() => Users.id, { onDelete: "cascade" }),
-    type: NotificationType().notNull(),
+    type: NotificationTypeEnum().notNull(),
     title: text(),
     message: text(),
     broadcastId: serial("broadcast_id").references(

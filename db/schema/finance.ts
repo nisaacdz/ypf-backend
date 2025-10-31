@@ -11,24 +11,33 @@ import {
 import { relations } from "drizzle-orm";
 import { Chapters, Constituents, Members, Organizations } from "./core";
 import { Events, Projects } from "./activities";
-import { PartnershipType } from "./enums";
 
 export const finance = pgSchema("finance");
 
 // === TABLES ===
 
-export const ExternalProvider = finance.enum("external_provider", ["PAYSTACK"]);
-export const PaymentMethod = finance.enum("payment_method", [
+export const ExternalProviderEnum = finance.enum("external_provider", [
+  "PAYSTACK",
+]);
+export const PaymentMethodEnum = finance.enum("payment_method", [
   "CREDIT_CARD",
   "BANK_TRANSFER",
   "MOBILE_MONEY",
   "CASH", // for in-person donations
 ]);
-export const TransactionStatus = finance.enum("transaction_status", [
+export const TransactionStatusEnum = finance.enum("transaction_status", [
   "PENDING",
   "COMPLETED",
   "FAILED",
   "REFUNDED",
+]);
+
+export const PartnershipTypeEnum = finance.enum("partnership_type", [
+  "SPONSOR",
+  "IN_KIND",
+  "TECHNICAL",
+  "VENUE",
+  "OTHER",
 ]);
 
 export const FinancialTransactions = finance.table("financial_transactions", {
@@ -38,9 +47,9 @@ export const FinancialTransactions = finance.table("financial_transactions", {
   transactionDate: timestamp("transaction_date", { withTimezone: true })
     .defaultNow()
     .notNull(),
-  paymentMethod: PaymentMethod("payment_method"),
-  status: TransactionStatus().default("PENDING").notNull(),
-  externalProvider: ExternalProvider("external_provider").notNull(),
+  paymentMethod: PaymentMethodEnum("payment_method"),
+  status: TransactionStatusEnum().default("PENDING").notNull(),
+  externalProvider: ExternalProviderEnum("external_provider").notNull(),
   externalRef: text("external_ref").unique(),
 });
 
@@ -110,7 +119,7 @@ export const Partnerships = finance.table("partnerships", {
   organizationId: uuid("organization_id")
     .notNull()
     .references(() => Organizations.id, { onDelete: "restrict" }),
-  partnershipType: PartnershipType("partnership_type").notNull(),
+  partnershipType: PartnershipTypeEnum("partnership_type").notNull(),
   projectId: uuid("project_id").references(() => Projects.id, {
     onDelete: "set null",
   }),
