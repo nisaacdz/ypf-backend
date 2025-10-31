@@ -1,5 +1,5 @@
 {
-  "id": "2ad63ad3-d524-4869-b81a-7a9af2a8c99e",
+  "id": "5b63988d-cf57-4b41-a7af-7a9eb884941f",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -24,7 +24,7 @@
         "type": {
           "name": "type",
           "type": "notification_type",
-          "typeSchema": "public",
+          "typeSchema": "app",
           "primaryKey": false,
           "notNull": true
         },
@@ -93,7 +93,7 @@
           "name": "notifications_broadcast_id_announcement_broadcasts_id_fk",
           "tableFrom": "notifications",
           "tableTo": "announcement_broadcasts",
-          "schemaTo": "communications",
+          "schemaTo": "activities",
           "columnsFrom": ["broadcast_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
@@ -874,7 +874,7 @@
         "gender": {
           "name": "gender",
           "type": "gender",
-          "typeSchema": "public",
+          "typeSchema": "core",
           "primaryKey": false,
           "notNull": false
         },
@@ -938,7 +938,7 @@
         "contact_type": {
           "name": "contact_type",
           "type": "contact_type",
-          "typeSchema": "public",
+          "typeSchema": "core",
           "primaryKey": false,
           "notNull": true
         },
@@ -1001,7 +1001,7 @@
         "type": {
           "name": "type",
           "type": "media_type",
-          "typeSchema": "public",
+          "typeSchema": "core",
           "primaryKey": false,
           "notNull": true
         },
@@ -1435,6 +1435,137 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "activities.announcement_broadcasts": {
+      "name": "announcement_broadcasts",
+      "schema": "activities",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "announcement_id": {
+          "name": "announcement_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "chapter_id": {
+          "name": "chapter_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "committee_id": {
+          "name": "committee_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_archived": {
+          "name": "is_archived",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "announcement_broadcasts_announcement_id_announcements_id_fk": {
+          "name": "announcement_broadcasts_announcement_id_announcements_id_fk",
+          "tableFrom": "announcement_broadcasts",
+          "tableTo": "announcements",
+          "schemaTo": "activities",
+          "columnsFrom": ["announcement_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "announcement_broadcasts_chapter_id_chapters_id_fk": {
+          "name": "announcement_broadcasts_chapter_id_chapters_id_fk",
+          "tableFrom": "announcement_broadcasts",
+          "tableTo": "chapters",
+          "schemaTo": "core",
+          "columnsFrom": ["chapter_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "announcement_broadcasts_committee_id_committees_id_fk": {
+          "name": "announcement_broadcasts_committee_id_committees_id_fk",
+          "tableFrom": "announcement_broadcasts",
+          "tableTo": "committees",
+          "schemaTo": "core",
+          "columnsFrom": ["committee_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "activities.announcements": {
+      "name": "announcements",
+      "schema": "activities",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "announcements_created_by_constituents_id_fk": {
+          "name": "announcements_created_by_constituents_id_fk",
+          "tableFrom": "announcements",
+          "tableTo": "constituents",
+          "schemaTo": "core",
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "activities.event_media": {
       "name": "event_media",
       "schema": "activities",
@@ -1544,7 +1675,7 @@
         "status": {
           "name": "status",
           "type": "event_status",
-          "typeSchema": "public",
+          "typeSchema": "activities",
           "primaryKey": false,
           "notNull": true,
           "default": "'UPCOMING'"
@@ -1684,7 +1815,7 @@
         "status": {
           "name": "status",
           "type": "project_status",
-          "typeSchema": "public",
+          "typeSchema": "activities",
           "primaryKey": false,
           "notNull": true,
           "default": "'UPCOMING'"
@@ -2075,7 +2206,7 @@
           "type": "payment_method",
           "typeSchema": "finance",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "status": {
           "name": "status",
@@ -2133,7 +2264,7 @@
         "partnership_type": {
           "name": "partnership_type",
           "type": "partnership_type",
-          "typeSchema": "public",
+          "typeSchema": "finance",
           "primaryKey": false,
           "notNull": true
         },
@@ -2204,137 +2335,6 @@
           "columnsFrom": ["event_id"],
           "columnsTo": ["id"],
           "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "communications.announcement_broadcasts": {
-      "name": "announcement_broadcasts",
-      "schema": "communications",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "announcement_id": {
-          "name": "announcement_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "chapter_id": {
-          "name": "chapter_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "committee_id": {
-          "name": "committee_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "is_archived": {
-          "name": "is_archived",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "announcement_broadcasts_announcement_id_announcements_id_fk": {
-          "name": "announcement_broadcasts_announcement_id_announcements_id_fk",
-          "tableFrom": "announcement_broadcasts",
-          "tableTo": "announcements",
-          "schemaTo": "communications",
-          "columnsFrom": ["announcement_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "announcement_broadcasts_chapter_id_chapters_id_fk": {
-          "name": "announcement_broadcasts_chapter_id_chapters_id_fk",
-          "tableFrom": "announcement_broadcasts",
-          "tableTo": "chapters",
-          "schemaTo": "core",
-          "columnsFrom": ["chapter_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "announcement_broadcasts_committee_id_committees_id_fk": {
-          "name": "announcement_broadcasts_committee_id_committees_id_fk",
-          "tableFrom": "announcement_broadcasts",
-          "tableTo": "committees",
-          "schemaTo": "core",
-          "columnsFrom": ["committee_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "communications.announcements": {
-      "name": "announcements",
-      "schema": "communications",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "title": {
-          "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "content": {
-          "name": "content",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "announcements_created_by_constituents_id_fk": {
-          "name": "announcements_created_by_constituents_id_fk",
-          "tableFrom": "announcements",
-          "tableTo": "constituents",
-          "schemaTo": "core",
-          "columnsFrom": ["created_by"],
-          "columnsTo": ["id"],
-          "onDelete": "restrict",
           "onUpdate": "no action"
         }
       },
@@ -2622,55 +2622,55 @@
     }
   },
   "enums": {
-    "public.attendance_status": {
-      "name": "attendance_status",
-      "schema": "public",
-      "values": ["INVITED", "ACCEPTED", "DECLINED", "ATTENDED"]
-    },
-    "public.contact_type": {
-      "name": "contact_type",
-      "schema": "public",
-      "values": ["EMAIL", "PHONE", "WHATSAPP"]
-    },
-    "public.event_status": {
-      "name": "event_status",
-      "schema": "public",
-      "values": ["UPCOMING", "ONGOING", "COMPLETED", "CANCELLED"]
-    },
-    "public.gender": {
-      "name": "gender",
-      "schema": "public",
-      "values": ["MALE", "FEMALE", "OTHER"]
-    },
-    "public.media_type": {
-      "name": "media_type",
-      "schema": "public",
-      "values": ["PICTURE", "VIDEO"]
-    },
-    "public.notification_type": {
+    "app.notification_type": {
       "name": "notification_type",
-      "schema": "public",
+      "schema": "app",
       "values": ["OTHER", "MEETING_INVITE", "DONATION_RECEIPT", "ANNOUNCEMENT"]
-    },
-    "public.partnership_type": {
-      "name": "partnership_type",
-      "schema": "public",
-      "values": ["SPONSOR", "IN_KIND", "TECHNICAL", "VENUE", "OTHER"]
-    },
-    "public.project_status": {
-      "name": "project_status",
-      "schema": "public",
-      "values": ["UPCOMING", "IN_PROGRESS", "COMPLETED", "CANCELLED"]
     },
     "core.admin_roles": {
       "name": "admin_roles",
       "schema": "core",
       "values": ["SUPER_ADMIN", "REGULAR_ADMIN"]
     },
+    "core.contact_type": {
+      "name": "contact_type",
+      "schema": "core",
+      "values": ["EMAIL", "PHONE", "WHATSAPP"]
+    },
+    "core.gender": {
+      "name": "gender",
+      "schema": "core",
+      "values": ["MALE", "FEMALE", "OTHER"]
+    },
+    "core.media_type": {
+      "name": "media_type",
+      "schema": "core",
+      "values": ["PICTURE", "VIDEO"]
+    },
+    "activities.attendance_status": {
+      "name": "attendance_status",
+      "schema": "activities",
+      "values": ["INVITED", "ACCEPTED", "DECLINED", "ATTENDED"]
+    },
+    "activities.event_status": {
+      "name": "event_status",
+      "schema": "activities",
+      "values": ["UPCOMING", "ONGOING", "COMPLETED", "CANCELLED"]
+    },
+    "activities.project_status": {
+      "name": "project_status",
+      "schema": "activities",
+      "values": ["UPCOMING", "IN_PROGRESS", "COMPLETED", "CANCELLED"]
+    },
     "finance.external_provider": {
       "name": "external_provider",
       "schema": "finance",
       "values": ["PAYSTACK"]
+    },
+    "finance.partnership_type": {
+      "name": "partnership_type",
+      "schema": "finance",
+      "values": ["SPONSOR", "IN_KIND", "TECHNICAL", "VENUE", "OTHER"]
     },
     "finance.payment_method": {
       "name": "payment_method",
@@ -2693,7 +2693,6 @@
     "core": "core",
     "activities": "activities",
     "finance": "finance",
-    "communications": "communications",
     "shop": "shop"
   },
   "sequences": {},
