@@ -36,7 +36,7 @@ export const Medium = core.table("media", {
     (): AnyPgColumn => Constituents.id,
     { onDelete: "set null" },
   ),
-  uploadedAt: timestamp("created_at", { withTimezone: true })
+  uploadedAt: timestamp("uploaded_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
 });

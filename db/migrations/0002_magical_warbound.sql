@@ -1,0 +1,1 @@
+ALTER TABLE "core"."media" RENAME COLUMN "created_at" TO "uploaded_at";
