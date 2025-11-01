@@ -178,7 +178,7 @@ export async function send_otp_email(to: string, otp: string): Promise<void> {
  * @param currency - The currency code (e.g., GHS, USD).
  * @param donationId - The unique donation ID for reference.
  */
-export async function sendDonationAcknowledgementEmail(
+export async function sendAcknowledgementEmail(
   to: string,
   donorName: string,
   amount: string,
@@ -189,20 +189,12 @@ export async function sendDonationAcknowledgementEmail(
 
   const content = `
     <p>Dear ${donorName},</p>
-    <p>Thank you for your generous donation to YPF Africa! Your support makes a tremendous difference in empowering young professionals across the continent.</p>
+    <p>Thank you for your generous donation to YPF Africa!</p>
     <div style="background-color: ${colors.containerBackground}; padding: 20px; border-radius: 8px; margin: 20px 0;">
       <p style="margin: 0; font-size: 14px; color: ${colors.footerText};">Donation Details:</p>
       <p style="margin: 10px 0 5px 0; font-size: 18px; font-weight: bold; color: ${colors.primaryText};">Amount: ${currency} ${amount}</p>
       <p style="margin: 0; font-size: 12px; color: ${colors.footerText};">Reference ID: ${donationId}</p>
     </div>
-    <p>Your contribution helps us:</p>
-    <ul>
-      <li>Organize impactful events and programs</li>
-      <li>Support professional development initiatives</li>
-      <li>Build stronger communities across Africa</li>
-    </ul>
-    <p>This email serves as your receipt for tax purposes. Please keep it for your records.</p>
-    <p>If you have any questions about your donation, please don't hesitate to contact us.</p>
     <br>
     <p>With gratitude,<br>The YPF Africa Team</p>
   `;
@@ -217,10 +209,6 @@ export async function sendDonationAcknowledgementEmail(
     "Donation Details:",
     `Amount: ${currency} ${amount}`,
     `Reference ID: ${donationId}`,
-    "",
-    "Your contribution helps us organize impactful events, support professional development, and build stronger communities across Africa.",
-    "",
-    "This email serves as your receipt for tax purposes.",
     "",
     "With gratitude,",
     "The YPF Africa Team",

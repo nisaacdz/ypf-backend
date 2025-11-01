@@ -4,31 +4,17 @@ import schema from "@/db/schema";
 import variables from "@/configs/env";
 import { AppError, AuthenticatedUser } from "@/shared/types";
 import logger from "@/configs/logger";
-import { sendDonationAcknowledgementEmail } from "@/shared/utils/email";
+import { sendAcknowledgementEmail } from "@/shared/utils/email";
 import { v4 as uuidv4 } from "uuid";
-
-/**
- * Masks an email address for privacy in logs
- * Example: john.doe@example.com -> j***@example.com
- */
-function maskEmail(email: string | null): string {
-  if (!email) return "unknown";
-  const [localPart, domain] = email.split("@");
-  if (!domain) return "invalid-email";
-  const maskedLocal = localPart.charAt(0) + "***";
-  return `${maskedLocal}@${domain}`;
-}
 
 type CreateDonationInput = {
   amount: number;
   currency: string;
   anonymous?: boolean;
   donorInfo?: {
-    firstName: string;
-    lastName: string;
+    name: string;
     email?: string;
     phone?: string;
-    salutation?: string;
   };
   projectId?: string;
   eventId?: string;
@@ -39,9 +25,7 @@ type DonationResponse = {
   amount: string;
   currency: string;
   donor?: {
-    firstName: string;
-    lastName: string;
-    salutation?: string | null;
+    name: string;
   };
 };
 
@@ -92,9 +76,7 @@ export async function createDonation(
     let guestName: string | null = null;
     let guestEmail: string | null = null;
     let constituentForResponse: {
-      firstName: string;
-      lastName: string;
-      salutation: string | null;
+      name: string;
     } | null = null;
 
     // Determine constituent based on authentication status and anonymous flag
@@ -109,31 +91,16 @@ export async function createDonation(
         });
         if (constituent) {
           constituentForResponse = {
-            firstName: constituent.firstName,
-            lastName: constituent.lastName,
-            salutation: constituent.salutation,
+            name: `${constituent.firstName} ${constituent.lastName}`,
           };
         }
       } else if (donorInfo) {
         // Guest donation - store guest information for later reconciliation
-        // Trim and validate both firstName and lastName
-        const firstName = donorInfo.firstName?.trim();
-        const lastName = donorInfo.lastName?.trim();
-        
-        if (!firstName || !lastName) {
-          throw new AppError(
-            "Both first name and last name are required (whitespace-only names are not accepted)",
-            400,
-          );
-        }
-        
-        guestName = `${firstName} ${lastName}`;
+        guestName = donorInfo.name;
         guestEmail = donorInfo.email || null;
         
         constituentForResponse = {
-          firstName,
-          lastName,
-          salutation: donorInfo.salutation || null,
+          name: donorInfo.name,
         };
       } else {
         throw new AppError(
@@ -214,11 +181,7 @@ export async function createDonation(
     };
 
     if (constituentForResponse && !anonymous) {
-      donationResponse.donor = {
-        firstName: constituentForResponse.firstName,
-        lastName: constituentForResponse.lastName,
-        salutation: constituentForResponse.salutation,
-      };
+      donationResponse.donor = constituentForResponse;
     }
 
     logger.info(
@@ -236,98 +199,32 @@ export async function createDonation(
 }
 
 /**
- * Sends acknowledgement email for a completed donation if not already sent
- * Returns true if email was sent, false if already sent or no email available
+ * Sends acknowledgement email for a donation
  */
-async function sendAcknowledgementIfNeeded(
+async function sendDonationAcknowledgementEmail(params: {
+  email: string;
+  name: string;
   donation: {
     id: string;
-    constituentId: string | null;
-    guestName: string | null;
-    guestEmail: string | null;
-    acknowledgementSent: boolean;
-    transaction: {
-      amount: string;
-      currency: string;
-      status: string;
-    };
-  },
-): Promise<boolean> {
-  // Skip if already sent
-  if (donation.acknowledgementSent) {
-    logger.info(
-      `Acknowledgement already sent for donation ${donation.id}, skipping`,
-    );
-    return false;
-  }
+    amount: string;
+    currency: string;
+  };
+}): Promise<void> {
+  await sendAcknowledgementEmail(
+    params.email,
+    params.name,
+    params.donation.amount,
+    params.donation.currency,
+    params.donation.id,
+  );
 
-  // Skip if not completed
-  if (donation.transaction.status !== "COMPLETED") {
-    return false;
-  }
+  // Mark as sent
+  await pgPool.db
+    .update(schema.Donations)
+    .set({ acknowledgementSent: true })
+    .where(eq(schema.Donations.id, params.donation.id));
 
-  let donorEmail: string | null = null;
-  let donorName: string | null = null;
-
-  try {
-    // For authenticated donors, fetch constituent details
-    if (donation.constituentId) {
-      const constituent = await pgPool.db.query.Constituents.findFirst({
-        where: eq(schema.Constituents.id, donation.constituentId),
-        with: {
-          contactInformations: {
-            where: eq(schema.ContactInformations.contactType, "EMAIL"),
-            orderBy: (contactInfo, { desc }) => [desc(contactInfo.isPrimary)],
-            limit: 1,
-          },
-        },
-      });
-
-      if (constituent && constituent.contactInformations.length > 0) {
-        donorEmail = constituent.contactInformations[0].value;
-        donorName = `${constituent.firstName} ${constituent.lastName}`;
-      }
-    } else if (donation.guestEmail && donation.guestName) {
-      // For guest donors, use stored guest information
-      donorEmail = donation.guestEmail;
-      donorName = donation.guestName;
-    }
-
-    // Send acknowledgement email if we have the donor's email
-    if (donorEmail && donorName) {
-      await sendDonationAcknowledgementEmail(
-        donorEmail,
-        donorName,
-        donation.transaction.amount,
-        donation.transaction.currency,
-        donation.id,
-      );
-
-      // Mark as sent
-      await pgPool.db
-        .update(schema.Donations)
-        .set({ acknowledgementSent: true })
-        .where(eq(schema.Donations.id, donation.id));
-
-      logger.info(
-        `Sent acknowledgement email to ${maskEmail(donorEmail)} for donation ${donation.id}`,
-      );
-      return true;
-    }
-
-    return false;
-  } catch (emailError) {
-    // Log email errors but don't fail the operation
-    logger.error(
-      {
-        error: emailError,
-        donationId: donation.id,
-        recipientEmail: maskEmail(donorEmail),
-      },
-      `Failed to send acknowledgement email for donation ${donation.id} to ${maskEmail(donorEmail)}`,
-    );
-    return false;
-  }
+  logger.info(`Sent acknowledgement email for donation ${params.donation.id}`);
 }
 
 /**
@@ -451,8 +348,55 @@ export async function verifyDonation(donationId: string): Promise<{
     logger.info(`Verified donation ${donationId} with status: ${newStatus}`);
 
     // Send acknowledgement email for successful non-anonymous donations
-    if (newStatus === "COMPLETED") {
-      await sendAcknowledgementIfNeeded(donation);
+    if (
+      newStatus === "COMPLETED" &&
+      !donation.acknowledgementSent &&
+      (donation.constituentId || donation.guestEmail)
+    ) {
+      try {
+        let email: string | null = null;
+        let name: string | null = null;
+
+        if (donation.constituentId) {
+          // Authenticated donor - fetch from constituent
+          const constituent = await pgPool.db.query.Constituents.findFirst({
+            where: eq(schema.Constituents.id, donation.constituentId),
+            with: {
+              contactInformations: {
+                where: eq(schema.ContactInformations.contactType, "EMAIL"),
+                orderBy: (contactInfo, { desc }) => [
+                  desc(contactInfo.isPrimary),
+                ],
+                limit: 1,
+              },
+            },
+          });
+
+          if (constituent && constituent.contactInformations.length > 0) {
+            email = constituent.contactInformations[0].value;
+            name = `${constituent.firstName} ${constituent.lastName}`;
+          }
+        } else if (donation.guestEmail && donation.guestName) {
+          // Guest donor - use stored info
+          email = donation.guestEmail;
+          name = donation.guestName;
+        }
+
+        if (email && name) {
+          await sendDonationAcknowledgementEmail({
+            email,
+            name,
+            donation: {
+              id: donation.id,
+              amount: donation.transaction.amount,
+              currency: donation.transaction.currency,
+            },
+          });
+        }
+      } catch (emailError) {
+        // Log but don't fail verification
+        logger.error({ error: emailError }, "Failed to send acknowledgement");
+      }
     }
 
     return {
@@ -489,8 +433,55 @@ export async function checkDonationStatus(donationId: string): Promise<{
     }
 
     // Send acknowledgement email if donation is completed and email not yet sent
-    if (donation.transaction.status === "COMPLETED") {
-      await sendAcknowledgementIfNeeded(donation);
+    if (
+      donation.transaction.status === "COMPLETED" &&
+      !donation.acknowledgementSent &&
+      (donation.constituentId || donation.guestEmail)
+    ) {
+      try {
+        let email: string | null = null;
+        let name: string | null = null;
+
+        if (donation.constituentId) {
+          // Authenticated donor - fetch from constituent
+          const constituent = await pgPool.db.query.Constituents.findFirst({
+            where: eq(schema.Constituents.id, donation.constituentId),
+            with: {
+              contactInformations: {
+                where: eq(schema.ContactInformations.contactType, "EMAIL"),
+                orderBy: (contactInfo, { desc }) => [
+                  desc(contactInfo.isPrimary),
+                ],
+                limit: 1,
+              },
+            },
+          });
+
+          if (constituent && constituent.contactInformations.length > 0) {
+            email = constituent.contactInformations[0].value;
+            name = `${constituent.firstName} ${constituent.lastName}`;
+          }
+        } else if (donation.guestEmail && donation.guestName) {
+          // Guest donor - use stored info
+          email = donation.guestEmail;
+          name = donation.guestName;
+        }
+
+        if (email && name) {
+          await sendDonationAcknowledgementEmail({
+            email,
+            name,
+            donation: {
+              id: donation.id,
+              amount: donation.transaction.amount,
+              currency: donation.transaction.currency,
+            },
+          });
+        }
+      } catch (emailError) {
+        // Log but don't fail status check
+        logger.error({ error: emailError }, "Failed to send acknowledgement");
+      }
     }
 
     return {

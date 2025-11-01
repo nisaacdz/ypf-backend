@@ -8,9 +8,7 @@ type DonationResponse = {
   amount: string;
   currency: string;
   donor?: {
-    firstName: string;
-    lastName: string;
-    salutation?: string | null;
+    name: string;
   };
 };
 

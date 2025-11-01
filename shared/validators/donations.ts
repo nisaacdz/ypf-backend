@@ -13,11 +13,9 @@ export const CreateDonationSchema = z
     anonymous: z.boolean().optional().default(false),
     donorInfo: z
       .object({
-        firstName: z.string().min(1, "First name is required"),
-        lastName: z.string().min(1, "Last name is required"),
+        name: z.string().min(1, "Name is required"),
         email: z.email("Invalid email address").optional(),
         phone: z.string().min(1, "Phone number is required").optional(),
-        salutation: z.string().optional(),
       })
       .optional(),
     projectId: z.uuid("Invalid project ID").optional(),
