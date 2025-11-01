@@ -2,15 +2,16 @@ import { ApiResponse, AppError, AuthenticatedUser } from "@/shared/types";
 import { CreateDonationSchema } from "@/shared/validators/donations";
 import z from "zod";
 import * as donationsService from "@/shared/services/donationsService";
+import pgPool from "@/configs/db";
+import { and, eq, getTableColumns } from "drizzle-orm";
+import schema from "@/db/schema";
 
 type DonationResponse = {
   id: string;
   amount: string;
   currency: string;
   donor?: {
-    firstName: string;
-    lastName: string;
-    salutation?: string | null;
+    name: string;
   };
 };
 
@@ -48,8 +49,31 @@ export async function createDonation(
  */
 export async function verifyDonation(
   id: string,
+  user: AuthenticatedUser | null,
 ): Promise<ApiResponse<{ status: string }>> {
-  const result = await donationsService.verifyDonation(id);
+  const [donation] = await pgPool.db
+    .select({
+      ...getTableColumns(schema.Donations),
+      transaction: schema.FinancialTransactions,
+    })
+    .from(schema.Donations)
+    .innerJoin(
+      schema.FinancialTransactions,
+      eq(schema.Donations.transactionId, schema.FinancialTransactions.id),
+    )
+    .where(
+      and(
+        eq(schema.Donations.id, id),
+        eq(schema.FinancialTransactions.externalProvider, "PAYSTACK"),
+      ),
+    )
+    .limit(1);
+
+  if (!donation) {
+    throw new AppError("Donation not found", 404);
+  }
+
+  const result = await donationsService.verifyPaystackDonation(donation, user);
 
   return {
     success: true,

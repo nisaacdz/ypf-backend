@@ -164,7 +164,10 @@ donationsRouter.patch(
   ),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const response = await donationsHandler.verifyDonation(req.Params.id);
+      const response = await donationsHandler.verifyDonation(
+        req.Params.id,
+        req.User ?? null,
+      );
       res.status(200).json(response);
     } catch (error) {
       next(error);

@@ -69,6 +69,8 @@ export const Donations = finance.table("donations", {
   eventId: uuid("event_id").references(() => Events.id, {
     onDelete: "set null",
   }),
+  guestName: text("guest_name"),
+  guestEmail: text("guest_email"),
 });
 
 export const Dues = finance.table("dues", {

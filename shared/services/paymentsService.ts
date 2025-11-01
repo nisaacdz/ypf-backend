@@ -3,26 +3,7 @@ import pgPool from "@/configs/db";
 import schema from "@/db/schema";
 import { AppError } from "@/shared/types";
 import logger from "@/configs/logger";
-
-// ... (type definitions and maps remain the same)
-type TransactionStatus =
-  (typeof schema.TransactionStatusEnum.enumValues)[number];
-type PaymentMethod = (typeof schema.PaymentMethodEnum.enumValues)[number];
-
-const statusMap: Record<string, TransactionStatus> = {
-  success: "COMPLETED",
-  failed: "FAILED",
-  reversed: "REFUNDED",
-};
-
-const paymentMethodMap: Record<string, PaymentMethod> = {
-  card: "CREDIT_CARD",
-  bank: "BANK_TRANSFER",
-  bank_transfer: "BANK_TRANSFER",
-  transfer: "BANK_TRANSFER",
-  mobile_money: "MOBILE_MONEY",
-  ussd: "BANK_TRANSFER",
-};
+import { transactionStatusMap, paymentMethodMap } from "../utils";
 
 export type PaystackWebhookPayload = {
   event: "charge.success" | "charge.failed";
@@ -46,7 +27,7 @@ export async function updatePaystackTransaction(
 
   const { reference, status, channel } = data;
 
-  const newStatus = statusMap[status];
+  const newStatus = transactionStatusMap[status];
   const newPaymentMethod = paymentMethodMap[channel];
 
   if (!newStatus) {

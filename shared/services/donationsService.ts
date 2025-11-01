@@ -4,19 +4,18 @@ import schema from "@/db/schema";
 import variables from "@/configs/env";
 import { AppError, AuthenticatedUser } from "@/shared/types";
 import logger from "@/configs/logger";
-import { findOrCreateConstituent } from "./donorMatchingService";
+import { sendAcknowledgementEmail } from "@/shared/utils/email";
 import { v4 as uuidv4 } from "uuid";
+import { paymentMethodMap, transactionStatusMap } from "../utils";
 
 type CreateDonationInput = {
   amount: number;
   currency: string;
   anonymous?: boolean;
   donorInfo?: {
-    firstName: string;
-    lastName: string;
+    name: string;
     email?: string;
     phone?: string;
-    salutation?: string;
   };
   projectId?: string;
   eventId?: string;
@@ -27,9 +26,7 @@ type DonationResponse = {
   amount: string;
   currency: string;
   donor?: {
-    firstName: string;
-    lastName: string;
-    salutation?: string | null;
+    name: string;
   };
 };
 
@@ -56,6 +53,31 @@ type PaystackVerifyResponse = {
   };
 };
 
+type Donation = {
+  transaction: {
+    id: string;
+    amount: string;
+    currency: string;
+    transactionDate: Date;
+    paymentMethod:
+      | "CREDIT_CARD"
+      | "BANK_TRANSFER"
+      | "MOBILE_MONEY"
+      | "CASH"
+      | null;
+    status: "COMPLETED" | "PENDING" | "FAILED" | "REFUNDED";
+    externalProvider: "PAYSTACK";
+    externalRef: string | null;
+  };
+  id: string;
+  transactionId: string;
+  constituentId: string | null;
+  projectId: string | null;
+  eventId: string | null;
+  guestName: string | null;
+  guestEmail: string | null;
+};
+
 /**
  * Creates a new donation and generates Paystack payment URL
  */
@@ -77,10 +99,10 @@ export async function createDonation(
 
   try {
     let constituentId: string | null = null;
+    let guestName: string | null = null;
+    let guestEmail: string | null = null;
     let constituentForResponse: {
-      firstName: string;
-      lastName: string;
-      salutation: string | null;
+      name: string;
     } | null = null;
 
     // Determine constituent based on authentication status and anonymous flag
@@ -95,29 +117,17 @@ export async function createDonation(
         });
         if (constituent) {
           constituentForResponse = {
-            firstName: constituent.firstName,
-            lastName: constituent.lastName,
-            salutation: constituent.salutation,
+            name: `${constituent.firstName} ${constituent.lastName}`,
           };
         }
       } else if (donorInfo) {
-        // Guest donation - apply matching logic
-        const matchResult = await findOrCreateConstituent(donorInfo, false);
-        if (matchResult) {
-          constituentId = matchResult.constituentId;
+        // Guest donation - store guest information for later reconciliation
+        guestName = donorInfo.name;
+        guestEmail = donorInfo.email || null;
 
-          // Fetch constituent details for response
-          const constituent = await pgPool.db.query.Constituents.findFirst({
-            where: eq(schema.Constituents.id, matchResult.constituentId),
-          });
-          if (constituent) {
-            constituentForResponse = {
-              firstName: constituent.firstName,
-              lastName: constituent.lastName,
-              salutation: constituent.salutation,
-            };
-          }
-        }
+        constituentForResponse = {
+          name: donorInfo.name,
+        };
       } else {
         throw new AppError(
           "Donor information is required for non-anonymous donations",
@@ -143,6 +153,8 @@ export async function createDonation(
       .values({
         transactionId: transaction.id,
         constituentId,
+        guestName,
+        guestEmail,
         projectId: projectId || null,
         eventId: eventId || null,
       })
@@ -195,11 +207,7 @@ export async function createDonation(
     };
 
     if (constituentForResponse && !anonymous) {
-      donationResponse.donor = {
-        firstName: constituentForResponse.firstName,
-        lastName: constituentForResponse.lastName,
-        salutation: constituentForResponse.salutation,
-      };
+      donationResponse.donor = constituentForResponse;
     }
 
     logger.info(
@@ -217,34 +225,42 @@ export async function createDonation(
 }
 
 /**
+ * Sends acknowledgement email for a donation
+ */
+async function sendDonationAcknowledgementEmail(params: {
+  email: string;
+  name: string;
+  donation: {
+    id: string;
+    amount: string;
+    currency: string;
+  };
+}): Promise<void> {
+  await sendAcknowledgementEmail(
+    params.email,
+    params.name,
+    params.donation.amount,
+    params.donation.currency,
+    params.donation.id,
+  );
+
+  logger.info(`Sent acknowledgement email for donation ${params.donation.id}`);
+}
+
+/**
  * Verifies a donation using Paystack's verification API
  */
-export async function verifyDonation(donationId: string): Promise<{
+export async function verifyPaystackDonation(
+  donation: Donation,
+  user: AuthenticatedUser | null,
+): Promise<{
   status: string;
 }> {
   try {
     // Fetch donation with transaction
-    const donation = await pgPool.db.query.Donations.findFirst({
-      where: eq(schema.Donations.id, donationId),
-      with: {
-        transaction: true,
-      },
-    });
-
-    if (!donation) {
-      throw new AppError("Donation not found", 404);
-    }
 
     if (!donation.transaction) {
       throw new AppError("Transaction not found for this donation", 404);
-    }
-
-    // Verify it's a Paystack transaction
-    if (donation.transaction.externalProvider !== "PAYSTACK") {
-      throw new AppError(
-        "Only Paystack donations can be verified through this endpoint",
-        400,
-      );
     }
 
     if (!donation.transaction.externalRef) {
@@ -282,28 +298,7 @@ export async function verifyDonation(donationId: string): Promise<{
       throw new AppError(verifyData.message || "Failed to verify payment", 500);
     }
 
-    // Map Paystack status to our status
-    const statusMap: Record<
-      string,
-      (typeof schema.TransactionStatusEnum.enumValues)[number]
-    > = {
-      success: "COMPLETED",
-      failed: "FAILED",
-      abandoned: "FAILED",
-    };
-
-    const newStatus = statusMap[verifyData.data.status] || "PENDING";
-
-    // Map Paystack channel to our payment method
-    const paymentMethodMap: Record<
-      string,
-      (typeof schema.PaymentMethodEnum.enumValues)[number]
-    > = {
-      card: "CREDIT_CARD",
-      bank: "BANK_TRANSFER",
-      bank_transfer: "BANK_TRANSFER",
-      mobile_money: "MOBILE_MONEY",
-    };
+    const newStatus = transactionStatusMap[verifyData.data.status] || "PENDING";
 
     const paymentMethod =
       paymentMethodMap[verifyData.data.channel] || "CREDIT_CARD";
@@ -334,7 +329,27 @@ export async function verifyDonation(donationId: string): Promise<{
       };
     }
 
-    logger.info(`Verified donation ${donationId} with status: ${newStatus}`);
+    logger.info(`Verified donation ${donation.id} with status: ${newStatus}`);
+
+    // Send acknowledgement email for successful non-anonymous donations
+
+    if (
+      newStatus === "COMPLETED" &&
+      (donation.constituentId === user?.constituentId ||
+        (donation.guestEmail && donation.guestName))
+    ) {
+      const email = String(donation.guestEmail || user?.email);
+      const name = String(donation.guestName || user?.fullName);
+      await sendDonationAcknowledgementEmail({
+        email,
+        name,
+        donation: {
+          id: donation.id,
+          amount: donation.transaction.amount,
+          currency: donation.transaction.currency,
+        },
+      });
+    }
 
     return {
       status: newStatus,
@@ -363,10 +378,6 @@ export async function checkDonationStatus(donationId: string): Promise<{
 
     if (!donation) {
       throw new AppError("Donation not found", 404);
-    }
-
-    if (!donation.transaction) {
-      throw new AppError("Transaction not found for this donation", 404);
     }
 
     return {

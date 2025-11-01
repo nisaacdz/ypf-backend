@@ -169,3 +169,50 @@ export async function send_otp_email(to: string, otp: string): Promise<void> {
 
   await sendEmail(to, subject, htmlBody, textContent);
 }
+
+/**
+ * Sends a donation acknowledgement email to a donor.
+ * @param to - The recipient's email address.
+ * @param donorName - The donor's name to personalize the email.
+ * @param amount - The donation amount.
+ * @param currency - The currency code (e.g., GHS, USD).
+ * @param donationId - The unique donation ID for reference.
+ */
+export async function sendAcknowledgementEmail(
+  to: string,
+  donorName: string,
+  amount: string,
+  currency: string,
+  donationId: string,
+): Promise<void> {
+  const subject = "Thank You for Your Donation!";
+
+  const content = `
+    <p>Dear ${donorName},</p>
+    <p>Thank you for your generous donation to YPF Africa!</p>
+    <div style="background-color: ${colors.containerBackground}; padding: 20px; border-radius: 8px; margin: 20px 0;">
+      <p style="margin: 0; font-size: 14px; color: ${colors.footerText};">Donation Details:</p>
+      <p style="margin: 10px 0 5px 0; font-size: 18px; font-weight: bold; color: ${colors.primaryText};">Amount: ${currency} ${amount}</p>
+      <p style="margin: 0; font-size: 12px; color: ${colors.footerText};">Reference ID: ${donationId}</p>
+    </div>
+    <br>
+    <p>With gratitude,<br>The YPF Africa Team</p>
+  `;
+
+  const htmlBody = generateBaseHtml(subject, content);
+
+  const textContent = [
+    `Dear ${donorName},`,
+    "",
+    "Thank you for your generous donation to YPF Africa!",
+    "",
+    "Donation Details:",
+    `Amount: ${currency} ${amount}`,
+    `Reference ID: ${donationId}`,
+    "",
+    "With gratitude,",
+    "The YPF Africa Team",
+  ].join("\n");
+
+  await sendEmail(to, subject, htmlBody, textContent);
+}
