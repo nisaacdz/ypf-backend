@@ -1,112 +1,88 @@
-# YPF Backend Codebase Review
+# YPF Backend Codebase Review (Updated)
 
-**Review Date:** 2025-10-30  
+**Review Date:** 2025-11-01  
 **Reviewer:** GitHub Copilot  
-**Purpose:** Comprehensive analysis of consistency, errors, and potential issues
+**Purpose:** Fresh comprehensive analysis of consistency, errors, and potential issues
+
+---
+
+## Executive Summary
+
+This review identifies **3 critical bugs**, **5 moderate issues**, and several minor concerns in the YPF Backend codebase. The most severe issue is a **runtime-breaking SQL error** that will cause application crashes when filtering members by chapter or committee. All critical issues have straightforward fixes that won't require architectural changes.
+
+**Key Findings:**
+- ✅ **Strengths:** Excellent type safety, security practices, and architecture
+- ⚠️ **Critical:** SQL queries reference non-existent database columns
+- ⚠️ **Moderate:** Race conditions, security vulnerabilities, implementation gaps
+- 📝 **Minor:** Naming inconsistencies, code quality improvements
 
 ---
 
 ## Table of Contents
 1. [Critical Issues](#critical-issues)
-2. [Database Schema Naming Consistency](#database-schema-naming-consistency)
-3. [Potential Implementation Issues](#potential-implementation-issues)
-4. [Security Concerns](#security-concerns)
-5. [Minor Issues and Improvements](#minor-issues-and-improvements)
+2. [Moderate Issues](#moderate-issues)
+3. [Database Schema Consistency](#database-schema-consistency)
+4. [Minor Issues](#minor-issues)
+5. [Security Analysis](#security-analysis)
 6. [Positive Observations](#positive-observations)
+7. [Recommendations](#recommendations)
 
 ---
 
 ## Critical Issues
 
-### 1. **Non-existent Database Columns Referenced in Queries** ⚠️ **CRITICAL**
+### 1. **Non-Existent Column: `is_active` in Membership Tables** ⚠️ **CRITICAL**
 
 **Location:** `shared/services/membersService.ts` lines 86, 98
 
 **Issue:**  
-The service queries reference `cm.is_active` and `com.is_active` columns that do not exist in the database schema.
+SQL queries reference `cm.is_active` and `com.is_active` columns that do **not** exist in the `ChapterMemberships` and `CommitteeMemberships` tables.
 
 **Evidence:**
-1. **Database Schema** (`db/schema/core.ts` lines 179-189, 204-214):
-   ```typescript
-   export const ChapterMemberships = core.table("chapter_memberships", {
-     id: serial().primaryKey(),
-     memberId: uuid("member_id")...,
-     chapterId: uuid("chapter_id")...,
-     startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
-     endedAt: timestamp("ended_at", { withTimezone: true }),
-     // ❌ No is_active column defined
-   });
-   
-   export const CommitteeMemberships = core.table("committee_memberships", {
-     id: serial().primaryKey(),
-     memberId: uuid("member_id")...,
-     committeeId: uuid("committee_id")...,
-     startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
-     endedAt: timestamp("ended_at", { withTimezone: true }),
-     // ❌ No is_active column defined
-   });
-   ```
 
-2. **Migration File** (`db/migrations/0000_tired_moonstone.sql`):
-   ```sql
-   CREATE TABLE "core"."chapter_memberships" (
-     "id" serial PRIMARY KEY NOT NULL,
-     "member_id" uuid NOT NULL,
-     "chapter_id" uuid NOT NULL,
-     "started_at" timestamp with time zone NOT NULL,
-     "ended_at" timestamp with time zone
-     -- ❌ No is_active column
-   );
-   
-   CREATE TABLE "core"."committee_memberships" (
-     "id" serial PRIMARY KEY NOT NULL,
-     "member_id" uuid NOT NULL,
-     "committee_id" uuid NOT NULL,
-     "started_at" timestamp with time zone NOT NULL,
-     "ended_at" timestamp with time zone
-     -- ❌ No is_active column
-   );
-   ```
+Database Schema (`db/schema/core.ts`):
+```typescript
+export const ChapterMemberships = core.table("chapter_memberships", {
+  id: serial().primaryKey(),
+  memberId: uuid("member_id")...,
+  chapterId: uuid("chapter_id")...,
+  startedAt: timestamp("started_at"...).notNull(),
+  endedAt: timestamp("ended_at"...),
+  // ❌ NO is_active column
+});
+```
 
-3. **Erroneous Code** (`shared/services/membersService.ts`):
-   ```typescript
-   // Line 82-88: ChapterMemberships filter
-   sql`EXISTS (
-     SELECT 1 FROM ${schema.ChapterMemberships} cm
-     JOIN ${schema.Members} m ON cm.member_id = m.id
-     WHERE m.constituent_id = ${schema.Constituents.id}
-     AND cm.chapter_id = ${chapterId} AND cm.is_active = true  // ❌ Column doesn't exist
-   )`
-   
-   // Line 94-100: CommitteeMemberships filter
-   sql`EXISTS (
-     SELECT 1 FROM ${schema.CommitteeMemberships} com
-     JOIN ${schema.Members} m ON com.member_id = m.id
-     WHERE m.constituent_id = ${schema.Constituents.id}
-     AND com.committee_id = ${committeeId} AND com.is_active = true  // ❌ Column doesn't exist
-   )`
-   ```
+Erroneous Code (`shared/services/membersService.ts`):
+```typescript
+// Line 82-88
+sql`EXISTS (
+  SELECT 1 FROM ${schema.ChapterMemberships} cm
+  JOIN ${schema.Members} m ON cm.member_id = m.id
+  WHERE m.constituent_id = ${schema.Constituents.id}
+  AND cm.chapter_id = ${chapterId} AND cm.is_active = true  // ❌ Column doesn't exist
+)`
 
-**Note:** The `is_active` column ONLY exists in:
-- `core.organizations` table (line 222 in schema)
-- `shop.products` table (line 30 in shop schema)
+// Line 94-100
+sql`EXISTS (
+  SELECT 1 FROM ${schema.CommitteeMemberships} com
+  JOIN ${schema.Members} m ON com.member_id = m.id
+  WHERE m.constituent_id = ${schema.Constituents.id}
+  AND com.committee_id = ${committeeId} AND com.is_active = true  // ❌ Column doesn't exist
+)`
+```
 
-**Context:**  
-`is_active` is an application-level concept dynamically computed from `startedAt` and `endedAt` dates. It should NOT be referenced as a database column for membership tables.
+**Impact:**
+- **PostgreSQL Error:** `column "is_active" does not exist`
+- **Application Crash:** Any API call with `chapterId` or `committeeId` query params will fail
+- **Affected Endpoints:** 
+  - `GET /api/v1/members?chapterId=xxx`
+  - `GET /api/v1/members?committeeId=xxx`
 
-**Impact:**  
-- **Runtime Error:** These queries will fail with PostgreSQL error: `column "is_active" does not exist`
-- **Severity:** Application-breaking - prevents filtering members by chapter/committee
-- **Affected Features:** 
-  - GET /api/v1/members?chapterId=xxx
-  - GET /api/v1/members?committeeId=xxx
-  - Any member listing with chapter/committee filters
-
-**Recommended Fix:**  
-Replace the `is_active` check with proper date range logic matching the pattern used elsewhere in the same file:
+**Fix:**
+Replace with date-based active check (pattern already used elsewhere in the same file):
 
 ```typescript
-// For ChapterMemberships (lines 82-88)
+// For ChapterMemberships
 sql`EXISTS (
   SELECT 1 FROM ${schema.ChapterMemberships} cm
   JOIN ${schema.Members} m ON cm.member_id = m.id
@@ -116,7 +92,7 @@ sql`EXISTS (
   AND (cm.ended_at IS NULL OR cm.ended_at >= now())
 )`
 
-// For CommitteeMemberships (lines 94-100)
+// For CommitteeMemberships
 sql`EXISTS (
   SELECT 1 FROM ${schema.CommitteeMemberships} com
   JOIN ${schema.Members} m ON com.member_id = m.id
@@ -127,8 +103,6 @@ sql`EXISTS (
 )`
 ```
 
-This pattern is already correctly used in the same file at lines 114-118 and 189-192 for checking active membership status.
-
 **Label:** CRITICAL
 
 ---
@@ -138,256 +112,375 @@ This pattern is already correctly used in the same file at lines 114-118 and 189
 **Location:** `shared/services/donationsService.ts` lines 129-188
 
 **Issue:**  
-The donation creation process lacks atomic transaction handling. If the Paystack API call fails after creating database records, it leaves orphaned records with no external reference.
+Donation creation lacks atomic transaction handling. If the Paystack API call fails after database inserts, it leaves orphaned records.
 
+**Flow:**
 ```typescript
-// Step 1: Create financial transaction (DB insert)
-const [transaction] = await pgPool.db
-  .insert(schema.FinancialTransactions)
-  .values({...})
-  .returning();
+// Step 1: Insert FinancialTransaction (DB commit)
+const [transaction] = await pgPool.db.insert(...).returning();
 
-// Step 2: Create donation (DB insert)
-const [donation] = await pgPool.db
-  .insert(schema.Donations)
-  .values({...})
-  .returning();
+// Step 2: Insert Donation (DB commit)
+const [donation] = await pgPool.db.insert(...).returning();
 
-// Step 3: Call external API (can fail)
+// Step 3: Call Paystack API (can fail) ⚠️
 const paystackResponse = await fetch("https://api.paystack.co/transaction/initialize", ...);
 
-// Step 4: Update transaction with reference (may never execute if step 3 fails)
-await pgPool.db
-  .update(schema.FinancialTransactions)
-  .set({ externalRef: paystackData.data.reference })
-  .where(eq(schema.FinancialTransactions.id, transaction.id));
+// Step 4: Update transaction with externalRef (may never execute)
+await pgPool.db.update(schema.FinancialTransactions).set({ externalRef: ... });
 ```
 
-**Impact:**  
-- **Data Integrity:** Orphaned donation records in `PENDING` state with no external reference
-- **Financial Risk:** Tracking issues for failed payment initializations
-- **Severity:** High - affects financial transactions
+**Problems:**
+1. **Orphaned Records:** If Paystack call fails, DB has transactions with `status: "PENDING"` and `externalRef: null`
+2. **No Rollback:** Failed API call doesn't rollback database changes
+3. **Webhook Mismatch:** Transactions without `externalRef` can't be matched to webhooks
 
-**Recommended Fix:**  
-Wrap the entire operation in a database transaction with rollback capability:
+**Impact:**
+- Data integrity issues
+- Manual cleanup required
+- Financial tracking problems
+
+**Fix:**
+Wrap in database transaction:
+
 ```typescript
-return await pgPool.db.transaction(async (tx) => {
-  // Create records
-  // Call Paystack API
-  // Update with reference
-  // If any step fails, entire transaction rolls back
-});
+export async function createDonation(input, user) {
+  return await pgPool.db.transaction(async (tx) => {
+    // All DB operations use tx instead of pgPool.db
+    const [transaction] = await tx.insert(schema.FinancialTransactions)...
+    const [donation] = await tx.insert(schema.Donations)...
+    
+    // Call Paystack - if this throws, entire transaction rolls back
+    const paystackResponse = await fetch(...);
+    
+    // Update with reference
+    await tx.update(schema.FinancialTransactions)...
+    
+    return { donation, paymentUrl };
+  });
+}
 ```
 
 **Label:** CRITICAL
 
 ---
 
-### 3. **Missing Reference Generation in Paystack Request** ⚠️ **CRITICAL**
+### 3. **Paystack Reference Generation Inconsistency** ⚠️ **CRITICAL**
 
 **Location:** `shared/services/donationsService.ts` line 162
 
 **Issue:**  
-A new UUID is generated for the Paystack reference instead of using the transaction ID or a predictable reference. This creates a mismatch between what's sent to Paystack and what can be looked up in the webhook.
+A new UUID is generated for the Paystack request, but the transaction is later updated with a *different* reference from Paystack's response. This creates a mismatch.
 
+**Current Code:**
 ```typescript
 body: JSON.stringify({
   amount: Math.floor(amount * 100),
   currency,
-  reference: uuidv4(), // ❌ New random UUID
+  reference: uuidv4(),  // ❌ New random UUID generated here
   callback_url: `${variables.app.host}/donations/callback`,
 }),
 ```
 
-Later, the code updates with `paystackData.data.reference` (line 187), but if this step fails, the webhook handler won't be able to match the transaction.
-
-**Impact:**  
-- **Webhook Failures:** Paystack webhooks may not find matching transactions
-- **Payment Verification Issues:** Manual reconciliation may be required
-- **Severity:** High - affects payment tracking
-
-**Recommended Fix:**  
-Use the transaction ID as the reference or store the generated UUID before the API call:
+Later:
 ```typescript
-const reference = transaction.id; // or store uuidv4() before API call
-body: JSON.stringify({
-  amount: Math.floor(amount * 100),
-  currency,
-  reference: reference,
-  callback_url: `${variables.app.host}/donations/callback`,
-}),
+// Updates with DIFFERENT reference from Paystack response
+await pgPool.db
+  .update(schema.FinancialTransactions)
+  .set({ externalRef: paystackData.data.reference })  // ⚠️ Different from what we sent
+  .where(eq(schema.FinancialTransactions.id, transaction.id));
+```
+
+**Problems:**
+1. If the update fails, the webhook uses Paystack's reference but DB has no matching record
+2. The randomly generated UUID is never stored anywhere
+3. Can't look up transaction by the reference sent to Paystack
+
+**Impact:**
+- Webhook failures
+- Payment verification issues
+- Manual reconciliation needed
+
+**Fix:**
+```typescript
+// Generate and store reference before API call
+const reference = transaction.id; // or uuidv4() stored beforehand
+
+const paystackResponse = await fetch("https://api.paystack.co/transaction/initialize", {
+  method: "POST",
+  headers: {...},
+  body: JSON.stringify({
+    amount: Math.floor(amount * 100),
+    currency,
+    reference: reference,  // ✅ Use consistent reference
+    callback_url: `${variables.app.host}/donations/callback`,
+  }),
+});
+
+// Store the same reference (or verify Paystack returned the same one)
+await pgPool.db
+  .update(schema.FinancialTransactions)
+  .set({ externalRef: reference })
+  .where(eq(schema.FinancialTransactions.id, transaction.id));
 ```
 
 **Label:** CRITICAL
 
 ---
 
-## Database Schema Naming Consistency
+## Moderate Issues
 
-### 1. **Inconsistent Timestamp Column Naming** ⚠️ **MILD**
+### 1. **Dependency Security Vulnerabilities** ⚠️ **MODERATE**
+
+**Source:** `npm audit`
+
+**Found:**
+- **esbuild** ≤0.24.2: Dev server request vulnerability (Moderate)
+- **nodemailer** <7.0.7: Email misdelivery risk (Moderate)
+- **validator** <13.15.20: URL validation bypass (Moderate)  
+- **vite** 7.1.0-7.1.10: Path bypass on Windows (Moderate)
+
+**Total:** 7 moderate severity vulnerabilities
+
+**Impact:**
+- Development environment security risks
+- Email delivery issues possible
+- URL validation can be bypassed
+
+**Fix:**
+```bash
+npm audit fix
+```
+
+Review breaking changes if `npm audit fix --force` is required.
+
+**Label:** MODERATE
+
+---
+
+### 2. **Webhook Signature Verification Issue** ⚠️ **MODERATE**
+
+**Location:** `shared/middlewares/webhooks.ts` lines 15-18
+
+**Issue:**  
+Signature verification uses `JSON.stringify(req.body)` which may not produce the same byte representation as Paystack's signed payload (due to key ordering, whitespace).
+
+**Current Code:**
+```typescript
+const hash = crypto
+  .createHmac("sha512", String(variables.services.paystack.secretHash))
+  .update(JSON.stringify(req.body))  // ⚠️ May differ from Paystack's representation
+  .digest("hex");
+```
+
+**Impact:**
+- Valid webhooks may be rejected
+- Intermittent authentication failures
+
+**Fix:**
+Use raw body buffer for webhook routes:
+
+```typescript
+// In server.ts, add raw body middleware for webhooks
+app.use('/api/v1/webhooks', express.raw({ type: 'application/json' }));
+
+// In webhooks.ts
+const hash = crypto
+  .createHmac("sha512", String(variables.services.paystack.secretHash))
+  .update(req.body)  // req.body is now a Buffer with original bytes
+  .digest("hex");
+```
+
+**Label:** MODERATE
+
+---
+
+### 3. **Media Upload Storage Leak** ⚠️ **MODERATE**
+
+**Location:** `shared/services/mediaService.ts`
+
+**Issue:**  
+When media upload transaction fails and rolls back, the file may already be uploaded to external storage (ImageKit/Azure), creating orphaned files.
+
+**Flow:**
+```typescript
+await pgPool.db.transaction(async (tx) => {
+  // Upload to external storage first
+  const uploadResult = await uploadToImageKit(...);
+  
+  // Create Medium record
+  const [newMedium] = await tx.insert(schema.Medium)...
+  
+  // If this fails, transaction rolls back but file stays in storage
+  await tx.insert(schema.EventMedia)...
+});
+```
+
+**Impact:**
+- Storage cost waste
+- Orphaned files accumulate
+
+**Fix Options:**
+1. Upload to storage AFTER transaction succeeds
+2. Implement cleanup logic on transaction failure
+3. Use two-phase commit pattern
+
+**Label:** MODERATE
+
+---
+
+### 4. **Optional Paystack Secret** ⚠️ **MODERATE**
+
+**Location:** `configs/env.ts` line 38
+
+**Issue:**  
+Paystack secret is marked optional, allowing app to start without payment capability.
+
+```typescript
+PAYSTACK_SECRET: z
+  .string()
+  .min(1, "PAYSTACK_SECRET is required")
+  .optional(), // TODO remove optional soon!
+```
+
+**Impact:**
+- Runtime failures during payment operations
+- Late error detection (should fail at startup)
+
+**Fix:**
+Remove `.optional()` once testing complete:
+
+```typescript
+PAYSTACK_SECRET: z
+  .string()
+  .min(1, "PAYSTACK_SECRET is required"),
+```
+
+**Label:** MODERATE
+
+---
+
+### 5. **Hardcoded Cookie Security Settings** ⚠️ **MODERATE**
+
+**Location:** `shared/middlewares/auth.ts` lines 67-72, 159-164
+
+**Issue:**  
+Cookie settings hardcoded with `secure: true` and `sameSite: "none"` break local HTTP development.
+
+```typescript
+res.cookie("access_token", newAccessToken, {
+  httpOnly: true,
+  secure: true,  // ⚠️ Requires HTTPS
+  sameSite: "none",  // ⚠️ Requires secure context
+  maxAge: 3 * 24 * 60 * 60 * 1000,
+  path: "/",
+});
+```
+
+**Impact:**
+- Cookies don't work in local development
+- Developer experience degraded
+
+**Fix:**
+Make environment-dependent:
+
+```typescript
+res.cookie("access_token", newAccessToken, {
+  httpOnly: true,
+  secure: variables.app.isProduction,
+  sameSite: variables.app.isProduction ? "none" : "lax",
+  maxAge: 3 * 24 * 60 * 60 * 1000,
+  path: "/",
+});
+```
+
+**Label:** MODERATE
+
+---
+
+## Database Schema Consistency
+
+### 1. **Timestamp Column Naming Inconsistency** ⚠️ **MILD**
 
 **Location:** `db/schema/core.ts` line 32
 
 **Issue:**  
-The `Medium.uploadedAt` property is mapped to the database column `"created_at"`, creating semantic confusion.
+`Medium.uploadedAt` property maps to database column `"created_at"`, creating semantic confusion.
 
 ```typescript
 export const Medium = core.table("media", {
-  // ...
+  // ...other fields...
   uploadedAt: timestamp("created_at", { withTimezone: true })  // ❌ Inconsistent
     .defaultNow()
     .notNull(),
 });
 ```
 
-**Comparison:**  
-- `Constituents` table uses: `createdAt: timestamp("created_at")`
-- `Medium` table uses: `uploadedAt: timestamp("created_at")`  
-Both map to the same column name but have different semantic meanings.
+**Comparison:**
+| Table | TypeScript Property | DB Column | Consistent? |
+|-------|-------------------|-----------|-------------|
+| Constituents | `createdAt` | `created_at` | ✅ Yes |
+| Users | `createdAt` | `created_at` | ✅ Yes |
+| Medium | `uploadedAt` | `created_at` | ❌ No |
 
-**Impact:**  
-- **Confusion:** Developers may expect a `created_at` column in the database
-- **Maintenance:** Harder to understand the actual database schema
-- **Severity:** Low - functional but confusing
+**Impact:**
+- Developer confusion
+- Maintenance difficulty
+- Semantic mismatch
 
-**Recommended Fix:**  
+**Recommendation:**
 Either:
-1. Rename the TypeScript property to `createdAt` to match other tables
-2. Change the database column to `"uploaded_at"` to match the property name
+1. Rename TypeScript property to `createdAt` (matches other tables), OR
+2. Change DB column to `uploaded_at` (matches property name)
+
+**Preference:** Option 2 better reflects the semantic meaning
 
 **Label:** MILD
 
 ---
 
-### 2. **Mixed Naming Convention for External References** ⚠️ **MILD**
+### 2. **External Reference Naming Variance** ⚠️ **MILD**
 
-**Location:** `db/schema/core.ts` line 23, `db/schema/finance.ts` line 44
+**Location:** Multiple schema files
 
 **Issue:**  
-Inconsistent naming between `externalId` and `externalRef` for similar concepts.
+Inconsistent suffix for external system references:
+- `Medium.externalId` (core.ts line 23)
+- `FinancialTransactions.externalRef` (finance.ts line 44)
 
-```typescript
-// core.ts - Medium table
-externalId: text("external_id").notNull().unique(),
+**Impact:**
+- Minor stylistic inconsistency
+- No functional impact
 
-// finance.ts - FinancialTransactions table  
-externalRef: text("external_ref").unique(),
-```
-
-Both represent external system references but use different suffixes (`Id` vs `Ref`).
-
-**Impact:**  
-- **Consistency:** Minor inconsistency in naming patterns
-- **Severity:** Very low - purely stylistic
-
-**Recommended Fix:**  
-Standardize on one pattern (prefer `externalId` or `externalRef` consistently).
+**Recommendation:**
+Standardize on one pattern (suggest `externalId` throughout)
 
 **Label:** MILD
 
 ---
 
-### 3. **Size Column Naming** ⚠️ **MILD**
+## Minor Issues
 
-**Location:** `db/schema/core.ts` line 27
-
-**Issue:**  
-The `sizeInBytes` property uses camelCase in the TypeScript property name but no explicit snake_case mapping is shown. This is actually correct based on Drizzle's default behavior, but worth noting for consistency.
-
-```typescript
-sizeInBytes: integer().notNull(),
-// Drizzle automatically converts to size_in_bytes
-```
-
-**Impact:**  
-- None - this is correct usage
-- Noted for awareness
-
-**Label:** INFO (Not an issue)
-
----
-
-## Potential Implementation Issues
-
-### 1. **Webhook Signature Verification Timing** ⚠️ **MODERATE**
-
-**Location:** `shared/middlewares/webhooks.ts` lines 15-18
-
-**Issue:**  
-The signature verification uses `JSON.stringify(req.body)` which may not produce the same byte-for-byte representation as what Paystack signed, due to JSON key ordering or whitespace differences.
-
-```typescript
-const hash = crypto
-  .createHmac("sha512", String(variables.services.paystack.secretHash))
-  .update(JSON.stringify(req.body))  // ⚠️ May not match Paystack's signature
-  .digest("hex");
-```
-
-**Impact:**  
-- **Authentication Failures:** Valid webhooks may be rejected
-- **Security Risk:** If using raw body would be more reliable
-- **Severity:** Moderate - may cause webhook failures
-
-**Recommended Fix:**  
-Use raw body buffer for signature verification:
-```typescript
-// In server setup, add raw body middleware for webhook routes
-app.use('/api/v1/webhooks', express.raw({ type: 'application/json' }));
-
-// In webhook middleware
-const hash = crypto
-  .createHmac("sha512", String(variables.services.paystack.secretHash))
-  .update(req.body) // req.body is now a Buffer
-  .digest("hex");
-```
-
-**Label:** MODERATE
-
----
-
-### 2. **Missing Transaction Rollback in Media Upload** ⚠️ **MODERATE**
-
-**Location:** `shared/services/mediaService.ts`
-
-**Issue:**  
-If the media upload transaction creates a `Medium` record but fails to create the association record (e.g., `EventMedia`), the transaction is rolled back. However, the external storage (ImageKit/Azure) may already have the uploaded file.
-
-**Impact:**  
-- **Storage Leaks:** Orphaned files in external storage
-- **Cost:** Unnecessary storage costs
-- **Severity:** Moderate - causes resource waste
-
-**Recommended Fix:**  
-1. Upload to external storage AFTER database transaction succeeds, OR
-2. Implement cleanup logic to delete external files on transaction rollback, OR  
-3. Use a two-phase commit pattern
-
-**Label:** MODERATE
-
----
-
-### 3. **Email Normalization Edge Cases** ⚠️ **LOW**
+### 1. **Email Normalization Edge Cases** ⚠️ **LOW**
 
 **Location:** `shared/services/donorMatchingService.ts` line 23-25
 
 **Issue:**  
-Email normalization only performs `toLowerCase().trim()` but doesn't handle:
-- Plus addressing (e.g., `user+tag@example.com`)
-- Dot variations in Gmail (e.g., `user.name@gmail.com` === `username@gmail.com`)
-- Domain aliases
+Email normalization only does `toLowerCase().trim()`, missing:
+- Plus addressing: `user+tag@example.com`
+- Gmail dot-insensitivity: `user.name@gmail.com` === `username@gmail.com`
+- Domain aliases: `googlemail.com` vs `gmail.com`
 
 ```typescript
 function normalizeEmail(email: string): string {
-  return email.toLowerCase().trim();
+  return email.toLowerCase().trim();  // ⚠️ Too simplistic
 }
 ```
 
-**Impact:**  
-- **Duplicate Constituents:** Same person might be created multiple times
-- **Severity:** Low - edge case but can happen
+**Impact:**
+- Duplicate constituent records
+- Donor matching failures
 
-**Recommended Fix:**  
-Implement more robust email normalization:
+**Recommendation:**
 ```typescript
 function normalizeEmail(email: string): string {
   const trimmed = email.toLowerCase().trim();
@@ -409,61 +502,89 @@ function normalizeEmail(email: string): string {
 
 ---
 
-### 4. **Phone Normalization Assumptions** ⚠️ **LOW**
+### 2. **Phone Normalization Ghana-Specific** ⚠️ **LOW**
 
 **Location:** `shared/services/donorMatchingService.ts` lines 31-48
 
 **Issue:**  
-The phone normalization logic is Ghana-specific but might receive international numbers from other countries. The logic may incorrectly normalize non-Ghanaian numbers.
+Phone normalization assumes Ghanaian format. International numbers may be incorrectly normalized.
 
-```typescript
-function normalizePhone(phone: string): string {
-  const normalized = phone.replace(/\D/g, "");
-  
-  // Ghana-specific logic
-  if (normalized.startsWith("233") && normalized.length > 10) {
-    return normalized;
-  } else if (normalized.startsWith("0") && normalized.length > 9) {
-    return normalized.substring(1);
-  }
-  
-  return normalized;
-}
-```
+**Impact:**
+- International donor matching issues
+- Inconsistent phone storage
 
-**Impact:**  
-- **Duplicate Matching:** International numbers may not match correctly
-- **Data Quality:** Inconsistent phone number storage
-- **Severity:** Low - organization may only operate in Ghana
-
-**Recommended Fix:**  
-Use a library like `libphonenumber-js` for proper international phone number parsing and formatting.
+**Recommendation:**
+Use `libphonenumber-js` for proper international parsing
 
 **Label:** LOW
 
 ---
 
-### 5. **Missing Error Context in Catch Blocks** ⚠️ **LOW**
+### 3. **Large Commented Code Blocks** ⚠️ **LOW**
 
-**Location:** Multiple service files (e.g., `authService.ts`, `donationsService.ts`)
+**Locations:**
+- `features/api/v1/auth/authHandler.ts` lines 115-193 (Google OAuth)
+- `db/schema/communications.ts` lines 43-110 (Meetings tables)
+
+**Issue:**
+Large commented blocks should be removed or documented with clear intent.
+
+**Impact:**
+- Code readability
+- Maintenance confusion
+
+**Recommendation:**
+- Remove if not needed (use git history)
+- Add clear documentation if intentionally disabled
+- Move to feature branch if WIP
+
+**Label:** LOW
+
+---
+
+### 4. **Magic Numbers Throughout Code** ⚠️ **LOW**
+
+**Examples:**
+- Token expiration: `30m`, `3d`, `3 * 24 * 60 * 60`
+- Rate limiting: `15 * 60 * 1000`, `99`
+- OTP expiry: `'6 minutes'`
+- Bcrypt rounds: `10`
+
+**Recommendation:**
+```typescript
+const AUTH_CONFIG = {
+  ACCESS_TOKEN_EXPIRY: '30m',
+  REFRESH_TOKEN_EXPIRY: '3d',
+  REFRESH_WINDOW_DAYS: 3,
+  OTP_EXPIRY_MINUTES: 6,
+  BCRYPT_ROUNDS: 10,
+};
+
+const RATE_LIMIT_CONFIG = {
+  WINDOW_MS: 15 * 60 * 1000,
+  MAX_REQUESTS: 99,
+};
+```
+
+**Label:** LOW
+
+---
+
+### 5. **Missing Error Context** ⚠️ **LOW**
+
+**Location:** Multiple service files
 
 **Issue:**  
-Some try-catch blocks re-throw errors without adding context or use generic error messages.
+Some catch blocks re-throw errors without adding context.
 
 ```typescript
 } catch (error) {
   logger.error({ error }, "Error creating donation");
-  throw error; // Original error thrown, but user sees generic message
+  throw error;  // ⚠️ Generic error to user
 }
 ```
 
-**Impact:**  
-- **Debugging Difficulty:** Harder to trace error origins
-- **User Experience:** Generic error messages
-- **Severity:** Low - logging helps but could be better
-
-**Recommended Fix:**  
-Wrap in AppError with context:
+**Recommendation:**
 ```typescript
 } catch (error) {
   logger.error({ error }, "Error creating donation");
@@ -477,315 +598,149 @@ Wrap in AppError with context:
 
 ---
 
-### 6. **TODO Items in Codebase** ⚠️ **INFO**
+### 6. **TODO Items** ℹ️ **INFO**
 
-**Locations:**
+**Found:**
 1. `db/schema/core.ts` line 156: "TODO review Roles and Assignments"
 2. `configs/env.ts` line 38: "TODO remove optional soon!" (PAYSTACK_SECRET)
 
-**Issue:**  
-Pending work items that should be addressed:
-1. The admin roles and assignments structure may need review
-2. Paystack secret should be made required once testing is complete
-
-**Impact:**  
-- **Technical Debt:** Items marked for future work
-- **Security:** Paystack secret should eventually be required
-- **Severity:** Info - intentional temporary decisions
+**Status:** Noted for tracking - intentional temporary decisions
 
 **Label:** INFO
 
 ---
 
-## Security Concerns
+## Security Analysis
 
-### 1. **Dependency Vulnerabilities** ⚠️ **MODERATE**
+### ✅ **Strong Security Practices**
 
-**Source:** `npm audit` results
+1. **Password Hashing**
+   - bcrypt with 10 rounds ✅
+   - Secure configuration
 
-**Found Issues:**
-1. **esbuild** ≤0.24.2 - Enables requests to development server (Moderate)
-2. **nodemailer** <7.0.7 - Email to unintended domain (Moderate)
-3. **validator** <13.15.20 - URL validation bypass (Moderate)
-4. **vite** 7.1.0-7.1.10 - server.fs.deny bypass on Windows (Moderate)
+2. **JWT Secrets**
+   - Validated ≥32 characters ✅
+   - Proper enforcement
 
-**Impact:**  
-- **Development Risk:** esbuild and vite issues affect dev environment
-- **Email Security:** Nodemailer issue could cause email misdelivery
-- **Validation Bypass:** Validator issue affects URL validation
-- **Severity:** Moderate - 7 moderate vulnerabilities
+3. **Webhook Signatures**
+   - HMAC-SHA512 verification ✅
+   - Prevents spoofing (with caveat from Moderate Issue #2)
 
-**Recommended Fix:**  
-Run `npm audit fix` to update packages to secure versions.
+4. **Input Validation**
+   - Comprehensive Zod schemas ✅
+   - Type-safe validation
 
-**Label:** MODERATE
+5. **Security Headers**
+   - Helmet middleware ✅
+   - CORS properly configured
 
----
+6. **Rate Limiting**
+   - Implemented for all routes ✅
 
-### 2. **Optional Paystack Secret** ⚠️ **MODERATE**
-
-**Location:** `configs/env.ts` line 38
-
-**Issue:**  
-The Paystack secret key is marked as optional, which could allow the application to start without payment processing capability.
-
-```typescript
-PAYSTACK_SECRET: z
-  .string()
-  .min(1, "PAYSTACK_SECRET is required")
-  .optional(), // TODO remove optional soon!
-```
-
-**Impact:**  
-- **Payment Failures:** Application may fail at runtime during payment operations
-- **Late Error Detection:** Errors caught at runtime instead of startup
-- **Severity:** Moderate - affects critical payment functionality
-
-**Recommended Fix:**  
-Remove `.optional()` once testing phase is complete and make it required.
-
-**Label:** MODERATE
-
----
-
-### 3. **Password Hashing Configuration** ✅ **SECURE**
-
-**Location:** `shared/services/authService.ts` line 234
-
-**Issue:** None - properly configured!
-
-**Observation:**  
-Password hashing uses bcrypt with 10 rounds, which is secure and recommended.
-
-```typescript
-const hashedPassword = await bcrypt.hash(newPassword, 10);
-```
-
-**Label:** SECURE ✅
-
----
-
-### 4. **JWT Secret Validation** ✅ **SECURE**
-
-**Location:** `configs/env.ts` lines 16-18
-
-**Issue:** None - properly validated!
-
-**Observation:**  
-JWT secret is validated to be at least 32 characters, which is secure.
-
-```typescript
-JWT_SECRET: z
-  .string()
-  .min(32, "JWT_SECRET must be at least 32 characters long"),
-```
-
-**Label:** SECURE ✅
-
----
-
-### 5. **HMAC Signature Verification for Webhooks** ✅ **SECURE**
-
-**Location:** `shared/middlewares/webhooks.ts` lines 15-24
-
-**Issue:** None - properly implemented!
-
-**Observation:**  
-Paystack webhook signatures are verified using HMAC-SHA512, preventing webhook spoofing.
-
-```typescript
-const hash = crypto
-  .createHmac("sha512", String(variables.services.paystack.secretHash))
-  .update(JSON.stringify(req.body))
-  .digest("hex");
-
-if (hash !== signature) {
-  return res.status(400).json({ success: false, message: "Invalid signature" });
-}
-```
-
-**Label:** SECURE ✅ (with caveat from Potential Issue #1)
-
----
-
-## Minor Issues and Improvements
-
-### 1. **Commented Out Code** ⚠️ **MINOR**
-
-**Locations:**
-- `shared/validators/activities.ts` - Commented out Google OAuth code (lines 115-193)
-- `db/schema/communications.ts` - Commented out Meetings tables (lines 43-110)
-
-**Issue:**  
-Large blocks of commented code should either be:
-1. Removed and tracked in git history if not needed
-2. Moved to feature branches if work-in-progress
-3. Documented with a clear reason if intentionally disabled
-
-**Impact:**  
-- **Code Clarity:** Makes codebase harder to read
-- **Maintenance:** Unclear if code should be restored or removed
-- **Severity:** Minor - doesn't affect functionality
-
-**Recommended Fix:**  
-If the code is truly temporary, add clear documentation. Otherwise, remove it and rely on git history.
-
-**Label:** MINOR
-
----
-
-### 2. **Hardcoded Cookie Settings** ⚠️ **MINOR**
-
-**Location:** `shared/middlewares/auth.ts` lines 67-72, 79-84, etc.
-
-**Issue:**  
-Cookie security settings are hardcoded with `secure: true` and `sameSite: "none"`, which may not be appropriate for local development.
-
-```typescript
-res.cookie("access_token", newAccessToken, {
-  httpOnly: true,
-  secure: true,  // ⚠️ Requires HTTPS, breaks in local dev
-  sameSite: "none",  // ⚠️ Requires secure context
-  maxAge: 3 * 24 * 60 * 60 * 1000,
-  path: "/",
-});
-```
-
-**Impact:**  
-- **Development Experience:** Cookies may not work in local HTTP environment
-- **Severity:** Minor - can be worked around
-
-**Recommended Fix:**  
-Make cookie settings environment-dependent:
-```typescript
-res.cookie("access_token", newAccessToken, {
-  httpOnly: true,
-  secure: variables.app.isProduction,
-  sameSite: variables.app.isProduction ? "none" : "lax",
-  maxAge: 3 * 24 * 60 * 60 * 1000,
-  path: "/",
-});
-```
-
-**Label:** MINOR
-
----
-
-### 3. **Magic Numbers in Code** ⚠️ **MINOR**
-
-**Locations:** Multiple files
-
-**Issue:**  
-Several magic numbers appear without named constants:
-- Token expiration times: `30m`, `3d`, `3 * 24 * 60 * 60` (auth.ts)
-- Rate limiting: `15 * 60 * 1000`, `99` (server.ts line 38)
-- OTP expiration: `'6 minutes'` (authService.ts line 177)
-- Bcrypt rounds: `10` (authService.ts line 234)
-
-**Impact:**  
-- **Maintainability:** Changes require finding all occurrences
-- **Clarity:** Intent not always clear
-- **Severity:** Minor - conventional values
-
-**Recommended Fix:**  
-Define constants:
-```typescript
-const AUTH_CONFIG = {
-  ACCESS_TOKEN_EXPIRY: '30m',
-  REFRESH_TOKEN_EXPIRY: '3d',
-  REFRESH_WINDOW_DAYS: 3,
-  OTP_EXPIRY_MINUTES: 6,
-  BCRYPT_ROUNDS: 10,
-};
-```
-
-**Label:** MINOR
-
----
-
-### 4. **Missing Input Validation for Money Amounts** ⚠️ **MINOR**
-
-**Location:** `shared/services/donationsService.ts`
-
-**Issue:**  
-The `amount` parameter should be validated for:
-- Positive values
-- Reasonable maximum values
-- Precision (2 decimal places)
-
-Currently relies on Zod schema validation but no explicit boundary checks in service.
-
-**Impact:**  
-- **Data Quality:** Could accept $0.001 donations or negative amounts
-- **Severity:** Minor - likely caught by validators
-
-**Recommended Fix:**  
-Add validation in the service layer as a defense-in-depth measure:
-```typescript
-if (amount <= 0 || amount > 1000000) {
-  throw new AppError("Invalid donation amount", 400);
-}
-```
-
-**Label:** MINOR
+7. **Database Security**
+   - Proper foreign key constraints ✅
+   - Cascade delete rules defined
+   - UUID primary keys for better security
 
 ---
 
 ## Positive Observations
 
-### ✅ **Excellent Practices Found**
+### ✅ **Architectural Excellence**
 
-1. **Environment Variable Validation**  
-   - Comprehensive Zod schema for environment variables
-   - Application fails fast if configuration is invalid
-   - Clear error messages for missing variables
+1. **Type Safety**
+   - Strong TypeScript usage
+   - Drizzle ORM provides compile-time checks
+   - Minimal use of `any`
 
-2. **Import Path Aliases**  
-   - Consistent use of `@/` alias throughout codebase
-   - No relative paths like `../../..`
-   - Follows the project's documented conventions
-
-3. **Type Safety**  
-   - Strong TypeScript usage throughout
-   - Zod schemas for runtime validation
-   - Drizzle ORM provides type-safe database queries
-
-4. **Error Handling Structure**  
-   - Custom `AppError` class with status codes
-   - Centralized error handler middleware
-   - Proper error logging with structured logs (Pino)
-
-5. **Security Measures**  
-   - Helmet for security headers
-   - CORS configuration with allowed origins
-   - Rate limiting implemented
-   - Webhook signature verification
-   - Bcrypt for password hashing (10 rounds)
-
-6. **Database Design**  
-   - Proper use of foreign keys and cascading deletes
-   - Timestamps with timezone awareness
-   - UUID primary keys for better security and distribution
-   - Relations properly defined with Drizzle
-
-7. **API Documentation**  
-   - Swagger/OpenAPI documentation setup
-   - JSDoc comments on route handlers
-   - Comprehensive request/response schemas
-
-8. **Service Layer Architecture**  
+2. **Service Layer Design**
    - Clear separation of concerns
-   - Business logic in services, not controllers
+   - Business logic isolated from controllers
    - Reusable service functions
 
-9. **Transaction Usage**  
-   - Database transactions used for critical operations (OTP, media upload)
-   - Proper rollback handling in transactions
+3. **Import Conventions**
+   - Consistent use of `@/` alias
+   - No relative path imports (`../../`)
+   - Follows documented guidelines
 
-10. **Logging**  
-    - Structured logging with Pino
-    - Appropriate log levels (info, warn, error)
-    - Contextual information in logs
+4. **Error Handling**
+   - Custom `AppError` class
+   - Centralized error handler
+   - Proper HTTP status codes
+
+5. **Logging**
+   - Structured logging with Pino
+   - Appropriate log levels
+   - Contextual information included
+
+6. **API Documentation**
+   - Swagger/OpenAPI setup
+   - JSDoc comments on routes
+   - Comprehensive schemas
+
+7. **Environment Configuration**
+   - Comprehensive Zod validation
+   - Fail-fast on invalid config
+   - Clear error messages
+
+8. **Database Design**
+   - Proper normalization
+   - Timestamp columns with timezone
+   - Well-defined relations
+
+9. **Transaction Usage**
+   - Used for critical operations
+   - Proper rollback handling
+
+10. **Testing Infrastructure**
+    - Vitest configured
+    - Factory patterns for test data
+    - Integration test structure
+
+---
+
+## Recommendations
+
+### Immediate Actions (Critical)
+
+1. ✅ **Fix `is_active` SQL bug** in `membersService.ts`
+   - Replace with date-range checks
+   - Test with chapter/committee filters
+
+2. ✅ **Wrap donation creation** in database transaction
+   - Ensure atomic operations
+   - Test failure scenarios
+
+3. ✅ **Fix Paystack reference** generation
+   - Use consistent reference
+   - Verify webhook matching
+
+### Short Term (Moderate)
+
+4. ⚠️ **Update dependencies**
+   - Run `npm audit fix`
+   - Review breaking changes
+   - Test thoroughly
+
+5. ⚠️ **Fix webhook signature verification**
+   - Use raw body buffer
+   - Test with actual Paystack webhooks
+
+6. ⚠️ **Make PAYSTACK_SECRET required**
+   - Remove `.optional()`
+   - Update deployment docs
+
+7. ⚠️ **Environment-aware cookie settings**
+   - Conditional security flags
+   - Improve dev experience
+
+### Medium Term (Low Priority)
+
+8. 📋 **Improve email/phone normalization**
+9. 📋 **Remove commented code**
+10. 📋 **Extract magic numbers to constants**
+11. 📋 **Add error context to catch blocks**
+12. 📋 **Fix schema naming inconsistencies**
 
 ---
 
@@ -795,60 +750,40 @@ if (amount <= 0 || amount > 1000000) {
 |----------|-------|
 | **Critical Issues** | 3 |
 | **Moderate Issues** | 5 |
-| **Low/Minor Issues** | 9 |
-| **Mild Consistency Issues** | 2 |
-| **Info/Documentation** | 2 |
-| **Security Vulnerabilities (Dependencies)** | 7 |
-| **Total Issues Found** | 28 |
-
----
-
-## Priority Action Items
-
-### Immediate (Critical)
-1. ✅ Fix `is_active` column references in membersService.ts
-2. ✅ Implement atomic transaction for donation creation
-3. ✅ Fix Paystack reference generation logic
-
-### Short Term (Moderate)  
-4. ⚠️ Update dependencies to fix security vulnerabilities (`npm audit fix`)
-5. ⚠️ Make PAYSTACK_SECRET required in production
-6. ⚠️ Fix webhook signature verification to use raw body
-7. ⚠️ Add cleanup logic for orphaned external storage files
-
-### Medium Term (Low/Minor)
-8. 📋 Improve email normalization for duplicate prevention
-9. 📋 Make cookie settings environment-aware
-10. 📋 Remove or document commented code blocks
-11. 📋 Extract magic numbers to named constants
-
-### Long Term (Improvements)
-12. 💡 Enhance error context in catch blocks
-13. 💡 Use international phone number library
-14. 💡 Review and address TODO comments
+| **Minor Issues** | 6 |
+| **Naming Inconsistencies** | 2 |
+| **Info/Documentation** | 1 |
+| **Security Vulnerabilities** | 7 |
+| **Positive Observations** | 10+ |
+| **Total Issues** | 24 |
 
 ---
 
 ## Conclusion
 
-The YPF Backend codebase demonstrates **strong architectural foundations** with excellent practices in type safety, security, and separation of concerns. The critical issues found are **localized and fixable** without major refactoring.
+The YPF Backend codebase demonstrates **excellent architectural foundations** with strong type safety, security practices, and clean code organization. The identified issues are **localized and fixable** without requiring major refactoring.
 
-**Key Strengths:**
-- Well-structured service layer
-- Comprehensive validation
-- Good security practices
-- Clear coding conventions
+**Critical Issues Summary:**
+- All 3 critical issues are **SQL/database-related bugs**
+- All have **straightforward fixes**
+- No architectural changes required
 
-**Key Concerns:**
-- Database query bugs referencing non-existent columns
-- Race condition in financial transactions  
-- Dependency vulnerabilities need updating
+**Security Posture:**
+- **Strong:** Password hashing, JWT, HMAC signatures
+- **Good:** Input validation, rate limiting, CORS
+- **Action Needed:** Update vulnerable dependencies
 
-**Overall Assessment:** The codebase is production-ready with the critical issues addressed. The identified problems are primarily **bugs in specific queries** rather than fundamental architectural flaws.
+**Code Quality:**
+- **Excellent:** Type safety, service layer, error handling
+- **Good:** Logging, documentation, testing setup
+- **Improve:** Naming consistency, magic numbers, commented code
+
+**Overall Assessment:** ⭐⭐⭐⭐ (4/5)  
+Production-ready once critical bugs are fixed. Strong foundation with minor improvements needed.
 
 ---
 
 **Reviewed by:** GitHub Copilot  
-**Review Type:** Comprehensive Static Analysis  
+**Review Date:** 2025-11-01  
 **Scope:** Database schema, services, API handlers, middleware, security  
-**Excluded:** Test files, build configuration, chat features (outside review scope)
+**Methodology:** Static analysis, schema verification, security audit, best practices review
