@@ -209,7 +209,22 @@ export async function sendDonationAcknowledgementEmail(
 
   const htmlBody = generateBaseHtml(subject, content);
 
-  const textContent = `Dear ${donorName},\n\nThank you for your generous donation to YPF Africa!\n\nDonation Details:\nAmount: ${currency} ${amount}\nReference ID: ${donationId}\n\nYour contribution helps us organize impactful events, support professional development, and build stronger communities across Africa.\n\nThis email serves as your receipt for tax purposes.\n\nWith gratitude,\nThe YPF Africa Team`;
+  const textContent = [
+    `Dear ${donorName},`,
+    "",
+    "Thank you for your generous donation to YPF Africa!",
+    "",
+    "Donation Details:",
+    `Amount: ${currency} ${amount}`,
+    `Reference ID: ${donationId}`,
+    "",
+    "Your contribution helps us organize impactful events, support professional development, and build stronger communities across Africa.",
+    "",
+    "This email serves as your receipt for tax purposes.",
+    "",
+    "With gratitude,",
+    "The YPF Africa Team",
+  ].join("\n");
 
   await sendEmail(to, subject, htmlBody, textContent);
 }

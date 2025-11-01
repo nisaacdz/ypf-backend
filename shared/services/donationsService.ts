@@ -122,7 +122,7 @@ export async function createDonation(
         
         if (!firstName || !lastName) {
           throw new AppError(
-            "Both first name and last name are required for non-anonymous donations",
+            "Both first name and last name are required (whitespace-only names are not accepted)",
             400,
           );
         }
@@ -277,6 +277,7 @@ async function sendAcknowledgementIfNeeded(
         with: {
           contactInformations: {
             where: eq(schema.ContactInformations.contactType, "EMAIL"),
+            orderBy: (contactInfo, { desc }) => [desc(contactInfo.isPrimary)],
             limit: 1,
           },
         },
