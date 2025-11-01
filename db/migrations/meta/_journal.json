@@ -15,6 +15,13 @@
       "when": 1761988589963,
       "tag": "0001_nifty_frightful_four",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1761989231261,
+      "tag": "0002_next_firestar",
+      "breakpoints": true
     }
   ]
 }

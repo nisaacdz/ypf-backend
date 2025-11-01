@@ -1,0 +1,1 @@
+ALTER TABLE "finance"."donations" ADD COLUMN "acknowledgement_sent" boolean DEFAULT false NOT NULL;

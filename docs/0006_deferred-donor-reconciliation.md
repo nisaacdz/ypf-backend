@@ -84,18 +84,17 @@ Payment verified → Send acknowledgement email →
   id: UUID (PK),
   transactionId: UUID (FK → financial_transactions.id),
   constituentId: UUID? (FK → constituents.id),  // NULL for anonymous or unreconciled
-  guestName: TEXT?,      // NEW: Guest's full name
-  guestEmail: TEXT?,     // NEW: Guest's email for reconciliation
+  guestName: TEXT?,           // NEW: Guest's full name
+  guestEmail: TEXT?,          // NEW: Guest's email for reconciliation
+  acknowledgementSent: BOOLEAN,  // NEW: Tracks if thank you email was sent
   projectId: UUID?,
   eventId: UUID?
 }
 ```
 
-**Migration:** `0001_nifty_frightful_four.sql`
-```sql
-ALTER TABLE "finance"."donations" ADD COLUMN "guest_name" text;
-ALTER TABLE "finance"."donations" ADD COLUMN "guest_email" text;
-```
+**Migrations:**
+- `0001_nifty_frightful_four.sql` - Added `guestName` and `guestEmail` columns
+- `0002_next_firestar.sql` - Added `acknowledgementSent` column
 
 ### Donation States
 
@@ -150,9 +149,28 @@ if (anonymous) {
 }
 ```
 
-### 2. Acknowledgement Emails (`verifyDonation`)
+### 2. Acknowledgement Emails (`verifyDonation` and `checkDonationStatus`)
 
-After successful payment verification, the system automatically sends acknowledgement emails:
+Both endpoints now send acknowledgement emails for completed donations:
+
+**Centralized Email Logic:**
+```typescript
+async function sendAcknowledgementIfNeeded(donation) {
+  // Skip if already sent
+  if (donation.acknowledgementSent) {
+    return false;
+  }
+  
+  // Skip if not completed
+  if (donation.transaction.status !== "COMPLETED") {
+    return false;
+  }
+  
+  // Determine donor email and name
+  // Send email
+  // Mark as sent in database
+}
+```
 
 **For Authenticated Donors:**
 ```typescript
@@ -166,15 +184,17 @@ if (donation.constituentId) {
 ```typescript
 else if (donation.guestEmail && donation.guestName) {
   // Send acknowledgement using stored guest info
-  await sendDonationAcknowledgementEmail(
-    donation.guestEmail,
-    donation.guestName,
-    amount,
-    currency,
-    donationId
-  );
+  await sendDonationAcknowledgementEmail(...);
+  
+  // Mark as sent to prevent duplicates
+  await updateDonation({ acknowledgementSent: true });
 }
 ```
+
+**Benefits:**
+- No duplicate emails - tracked via `acknowledgementSent` flag
+- Works from both `/verify` and `/check` endpoints
+- Graceful error handling - email failures don't fail the verification
 
 ### 3. New Email Function
 
@@ -195,6 +215,21 @@ export async function sendDonationAcknowledgementEmail(
 - Donation details and receipt information
 - Tax receipt notice
 - Reference ID for tracking
+
+### 4. Privacy and Security
+
+**Email Masking in Logs:**
+```typescript
+function maskEmail(email: string | null): string {
+  // john.doe@example.com -> j***@example.com
+}
+```
+
+All email addresses are masked in logs to protect donor privacy while maintaining debugging capability.
+
+**Input Validation:**
+- First and last names are trimmed of whitespace
+- Validation ensures no undefined/null values in guest names
 
 ---
 

@@ -7,6 +7,7 @@ import {
   text,
   date,
   serial,
+  boolean,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { Chapters, Constituents, Members, Organizations } from "./core";
@@ -65,6 +66,7 @@ export const Donations = finance.table("donations", {
   }),
   guestName: text("guest_name"),
   guestEmail: text("guest_email"),
+  acknowledgementSent: boolean("acknowledgement_sent").default(false).notNull(),
   projectId: uuid("project_id").references(() => Projects.id, {
     onDelete: "set null",
   }),
