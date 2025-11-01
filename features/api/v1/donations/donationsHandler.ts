@@ -5,32 +5,16 @@ import * as donationsService from "@/shared/services/donationsService";
 import pgPool from "@/configs/db";
 import { and, eq, getTableColumns } from "drizzle-orm";
 import schema from "@/db/schema";
-
-type DonationResponse = {
-  id: string;
-  amount: string;
-  currency: string;
-  donor?: {
-    name: string;
-  };
-};
+import { DonationResponse } from "@/shared/dtos/donation";
 
 /**
  * Handler for creating a new donation
  */
-export async function createDonation(
+export async function initiatePaystackDonation(
   body: z.infer<typeof CreateDonationSchema>,
   user: AuthenticatedUser | null,
 ): Promise<ApiResponse<{ donation: DonationResponse; paymentUrl: string }>> {
-  // Validate that donor info is provided if not authenticated and not anonymous
-  if (!user && !body.anonymous && !body.donorInfo) {
-    throw new AppError(
-      "Donor information is required for non-anonymous guest donations",
-      400,
-    );
-  }
-
-  const result = await donationsService.createDonation(
+  const result = await donationsService.startPaystackDonation(
     {
       ...body,
     },

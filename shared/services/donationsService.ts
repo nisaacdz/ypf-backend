@@ -7,6 +7,7 @@ import logger from "@/configs/logger";
 import { sendAcknowledgementEmail } from "@/shared/utils/email";
 import { v4 as uuidv4 } from "uuid";
 import { paymentMethodMap, transactionStatusMap } from "../utils";
+import { DonationResponse } from "../dtos/donation";
 
 type CreateDonationInput = {
   amount: number;
@@ -19,15 +20,6 @@ type CreateDonationInput = {
   };
   projectId?: string;
   eventId?: string;
-};
-
-type DonationResponse = {
-  id: string;
-  amount: string;
-  currency: string;
-  donor?: {
-    name: string;
-  };
 };
 
 type PaystackInitializeResponse = {
@@ -79,87 +71,73 @@ type Donation = {
 };
 
 /**
- * Creates a new donation and generates Paystack payment URL
+ * Creates a new donation and generates a Paystack payment URL.
+ * This uses a "save-then-call" pattern for scalability.
  */
-export async function createDonation(
-  input: CreateDonationInput,
-  user: AuthenticatedUser | null,
-): Promise<{
-  donation: DonationResponse;
-  paymentUrl: string;
-}> {
-  const {
+export async function startPaystackDonation(
+  {
     amount,
     currency,
     anonymous = false,
     donorInfo,
     projectId,
     eventId,
-  } = input;
+  }: CreateDonationInput,
+  user: AuthenticatedUser | null,
+): Promise<{
+  donation: DonationResponse;
+  paymentUrl: string;
+}> {
+  const constituentId = !anonymous ? (user?.constituentId ?? null) : null;
+  const guestName = !anonymous ? (donorInfo?.name ?? null) : null;
+  const guestEmail = !anonymous ? (donorInfo?.email ?? null) : null;
+
+  const paymentReference = uuidv4();
+
+  let transactionId: string;
+  let newDonation;
+  let newTransaction;
 
   try {
-    let constituentId: string | null = null;
-    let guestName: string | null = null;
-    let guestEmail: string | null = null;
-    let constituentForResponse: {
-      name: string;
-    } | null = null;
+    const { donation, transaction } = await pgPool.db.transaction(
+      async (tx) => {
+        const [newTransaction] = await tx
+          .insert(schema.FinancialTransactions)
+          .values({
+            amount: amount.toFixed(2),
+            currency,
+            status: "PENDING",
+            externalProvider: "PAYSTACK",
+            externalRef: paymentReference,
+          })
+          .returning();
 
-    // Determine constituent based on authentication status and anonymous flag
-    if (!anonymous) {
-      if (user) {
-        // Authenticated user donation
-        constituentId = user.constituentId;
+        const [newDonation] = await tx
+          .insert(schema.Donations)
+          .values({
+            transactionId: newTransaction.id,
+            constituentId,
+            guestName,
+            guestEmail,
+            projectId: projectId || null,
+            eventId: eventId || null,
+          })
+          .returning();
 
-        // Fetch constituent details for response
-        const constituent = await pgPool.db.query.Constituents.findFirst({
-          where: eq(schema.Constituents.id, user.constituentId),
-        });
-        if (constituent) {
-          constituentForResponse = {
-            name: `${constituent.firstName} ${constituent.lastName}`,
-          };
-        }
-      } else if (donorInfo) {
-        // Guest donation - store guest information for later reconciliation
-        guestName = donorInfo.name;
-        guestEmail = donorInfo.email || null;
+        return { donation: newDonation, transaction: newTransaction };
+      },
+    );
 
-        constituentForResponse = {
-          name: donorInfo.name,
-        };
-      } else {
-        throw new AppError(
-          "Donor information is required for non-anonymous donations",
-          400,
-        );
-      }
-    }
+    newDonation = donation;
+    newTransaction = transaction;
+    transactionId = newTransaction.id;
+  } catch (dbError) {
+    logger.error(dbError, "Failed to create initial donation records:");
+    throw new AppError("Failed to save donation intent.", 500);
+  }
 
-    // Create financial transaction
-    const [transaction] = await pgPool.db
-      .insert(schema.FinancialTransactions)
-      .values({
-        amount: amount.toFixed(2),
-        currency,
-        status: "PENDING",
-        externalProvider: "PAYSTACK",
-      })
-      .returning();
-
-    // Create donation record
-    const [donation] = await pgPool.db
-      .insert(schema.Donations)
-      .values({
-        transactionId: transaction.id,
-        constituentId,
-        guestName,
-        guestEmail,
-        projectId: projectId || null,
-        eventId: eventId || null,
-      })
-      .returning();
-
+  let paystackData: PaystackInitializeResponse;
+  try {
     const paystackResponse = await fetch(
       "https://api.paystack.co/transaction/initialize",
       {
@@ -169,10 +147,11 @@ export async function createDonation(
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          amount: Math.floor(amount * 100), // Paystack expects amount in kobo/pesewas (use floor to avoid overcharging)
+          amount: Math.round(amount * 100),
           currency,
-          reference: uuidv4(),
+          reference: paymentReference,
           callback_url: `${variables.app.host}/donations/callback`,
+          email: guestEmail ?? user?.email,
         }),
       },
     );
@@ -180,48 +159,47 @@ export async function createDonation(
     if (!paystackResponse.ok) {
       const errorData = await paystackResponse.json();
       logger.error("Paystack initialization failed:", errorData);
-      throw new AppError("Failed to initialize payment", 500);
-    }
-
-    const paystackData: PaystackInitializeResponse =
-      await paystackResponse.json();
-
-    if (!paystackData.status) {
       throw new AppError(
-        paystackData.message || "Failed to initialize payment",
+        `Failed to initialize payment: ${errorData.message || "Unknown error"}`,
         500,
       );
     }
-
-    // Update transaction with Paystack reference
-    await pgPool.db
-      .update(schema.FinancialTransactions)
-      .set({ externalRef: paystackData.data.reference })
-      .where(eq(schema.FinancialTransactions.id, transaction.id));
-
-    // Build response
-    const donationResponse: DonationResponse = {
-      id: donation.id,
-      amount: transaction.amount,
-      currency: transaction.currency,
-    };
-
-    if (constituentForResponse && !anonymous) {
-      donationResponse.donor = constituentForResponse;
-    }
-
-    logger.info(
-      `Created donation ${donation.id} with Paystack reference ${paystackData.data.reference}`,
+    paystackData =
+      (await paystackResponse.json()) as PaystackInitializeResponse;
+  } catch (apiError) {
+    logger.warn(
+      `Compensating transaction for [${transactionId}] due to API failure.`,
     );
-
-    return {
-      donation: donationResponse,
-      paymentUrl: paystackData.data.authorization_url,
-    };
-  } catch (error) {
-    logger.error({ error }, "Error creating donation");
-    throw error;
+    try {
+      await pgPool.db
+        .update(schema.FinancialTransactions)
+        .set({ status: "FAILED" })
+        .where(eq(schema.FinancialTransactions.id, transactionId));
+    } catch (compensationError) {
+      logger.error(
+        compensationError,
+        `CRITICAL: Failed to compensate (mark as FAILED) transaction [${transactionId}].`,
+      );
+    }
+    throw apiError;
   }
+
+  const donor = anonymous
+    ? undefined
+    : {
+        name: guestName ?? user?.fullName,
+        email: guestEmail ?? user?.email,
+      };
+
+  return {
+    donation: {
+      id: newDonation.id,
+      amount: newTransaction.amount,
+      currency: newTransaction.currency,
+      donor,
+    },
+    paymentUrl: paystackData.data.authorization_url,
+  };
 }
 
 /**
@@ -272,9 +250,6 @@ export async function verifyPaystackDonation(
 
     // Call Paystack verification API
     const paystackSecretKey = variables.services.paystack.secretHash;
-    if (!paystackSecretKey) {
-      throw new AppError("Paystack configuration is missing", 500);
-    }
 
     const verifyResponse = await fetch(
       `https://api.paystack.co/transaction/verify/${donation.transaction.externalRef}`,

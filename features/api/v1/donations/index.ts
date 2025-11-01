@@ -106,7 +106,7 @@ donationsRouter.post(
   validateBody(CreateDonationSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const response = await donationsHandler.createDonation(
+      const response = await donationsHandler.initiatePaystackDonation(
         req.Body,
         req.User || null,
       );

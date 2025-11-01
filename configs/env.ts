@@ -35,7 +35,7 @@ const envSchema = z
     PAYSTACK_SECRET: z
       .string()
       .min(1, "PAYSTACK_SECRET is required")
-      .optional(), // TODO remove optional soon!
+      .default(""), // TODO remove default soon!
 
     // SMTP Email Configuration
     SMTP_HOST: z.string().min(1, "SMTP_HOST is required"),
