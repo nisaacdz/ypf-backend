@@ -104,6 +104,13 @@ export async function createDonation(
         }
       } else if (donorInfo) {
         // Guest donation - store guest information for later reconciliation
+        // Ensure both firstName and lastName are present before creating guestName
+        if (!donorInfo.firstName || !donorInfo.lastName) {
+          throw new AppError(
+            "Both first name and last name are required for non-anonymous donations",
+            400,
+          );
+        }
         guestName = `${donorInfo.firstName} ${donorInfo.lastName}`;
         guestEmail = donorInfo.email || null;
         
@@ -334,10 +341,10 @@ export async function verifyDonation(donationId: string): Promise<{
 
     // Send acknowledgement email for successful non-anonymous donations
     if (newStatus === "COMPLETED") {
-      try {
-        let donorEmail: string | null = null;
-        let donorName: string | null = null;
+      let donorEmail: string | null = null;
+      let donorName: string | null = null;
 
+      try {
         // For authenticated donors, fetch constituent details
         if (donation.constituentId) {
           const constituent = await pgPool.db.query.Constituents.findFirst({
@@ -374,8 +381,12 @@ export async function verifyDonation(donationId: string): Promise<{
       } catch (emailError) {
         // Log email errors but don't fail the verification
         logger.error(
-          { error: emailError },
-          "Failed to send acknowledgement email",
+          { 
+            error: emailError, 
+            donationId: donation.id,
+            recipientEmail: donorEmail 
+          },
+          `Failed to send acknowledgement email for donation ${donation.id} to ${donorEmail || 'unknown'}`,
         );
       }
     }
