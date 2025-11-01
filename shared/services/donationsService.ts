@@ -4,7 +4,7 @@ import schema from "@/db/schema";
 import variables from "@/configs/env";
 import { AppError, AuthenticatedUser } from "@/shared/types";
 import logger from "@/configs/logger";
-import { findOrCreateConstituent } from "./donorMatchingService";
+import { sendDonationAcknowledgementEmail } from "@/shared/utils/email";
 import { v4 as uuidv4 } from "uuid";
 
 type CreateDonationInput = {
@@ -77,6 +77,8 @@ export async function createDonation(
 
   try {
     let constituentId: string | null = null;
+    let guestName: string | null = null;
+    let guestEmail: string | null = null;
     let constituentForResponse: {
       firstName: string;
       lastName: string;
@@ -101,23 +103,15 @@ export async function createDonation(
           };
         }
       } else if (donorInfo) {
-        // Guest donation - apply matching logic
-        const matchResult = await findOrCreateConstituent(donorInfo, false);
-        if (matchResult) {
-          constituentId = matchResult.constituentId;
-
-          // Fetch constituent details for response
-          const constituent = await pgPool.db.query.Constituents.findFirst({
-            where: eq(schema.Constituents.id, matchResult.constituentId),
-          });
-          if (constituent) {
-            constituentForResponse = {
-              firstName: constituent.firstName,
-              lastName: constituent.lastName,
-              salutation: constituent.salutation,
-            };
-          }
-        }
+        // Guest donation - store guest information for later reconciliation
+        guestName = `${donorInfo.firstName} ${donorInfo.lastName}`;
+        guestEmail = donorInfo.email || null;
+        
+        constituentForResponse = {
+          firstName: donorInfo.firstName,
+          lastName: donorInfo.lastName,
+          salutation: donorInfo.salutation || null,
+        };
       } else {
         throw new AppError(
           "Donor information is required for non-anonymous donations",
@@ -143,6 +137,8 @@ export async function createDonation(
       .values({
         transactionId: transaction.id,
         constituentId,
+        guestName,
+        guestEmail,
         projectId: projectId || null,
         eventId: eventId || null,
       })
@@ -335,6 +331,54 @@ export async function verifyDonation(donationId: string): Promise<{
     }
 
     logger.info(`Verified donation ${donationId} with status: ${newStatus}`);
+
+    // Send acknowledgement email for successful non-anonymous donations
+    if (newStatus === "COMPLETED") {
+      try {
+        let donorEmail: string | null = null;
+        let donorName: string | null = null;
+
+        // For authenticated donors, fetch constituent details
+        if (donation.constituentId) {
+          const constituent = await pgPool.db.query.Constituents.findFirst({
+            where: eq(schema.Constituents.id, donation.constituentId),
+            with: {
+              contactInformations: {
+                where: eq(schema.ContactInformations.contactType, "EMAIL"),
+                limit: 1,
+              },
+            },
+          });
+
+          if (constituent && constituent.contactInformations.length > 0) {
+            donorEmail = constituent.contactInformations[0].value;
+            donorName = `${constituent.firstName} ${constituent.lastName}`;
+          }
+        } else if (donation.guestEmail && donation.guestName) {
+          // For guest donors, use stored guest information
+          donorEmail = donation.guestEmail;
+          donorName = donation.guestName;
+        }
+
+        // Send acknowledgement email if we have the donor's email
+        if (donorEmail && donorName) {
+          await sendDonationAcknowledgementEmail(
+            donorEmail,
+            donorName,
+            donation.transaction.amount,
+            donation.transaction.currency,
+            donation.id,
+          );
+          logger.info(`Sent acknowledgement email to ${donorEmail}`);
+        }
+      } catch (emailError) {
+        // Log email errors but don't fail the verification
+        logger.error(
+          { error: emailError },
+          "Failed to send acknowledgement email",
+        );
+      }
+    }
 
     return {
       status: newStatus,

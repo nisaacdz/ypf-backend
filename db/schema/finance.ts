@@ -53,7 +53,7 @@ export const FinancialTransactions = finance.table("financial_transactions", {
   externalRef: text("external_ref").unique(),
 });
 
-// Null constituentId means anonymous donation
+// Null constituentId means anonymous donation or not yet reconciled guest donation
 export const Donations = finance.table("donations", {
   id: uuid("id").defaultRandom().primaryKey(),
   transactionId: uuid("transaction_id")
@@ -63,6 +63,8 @@ export const Donations = finance.table("donations", {
   constituentId: uuid("constituent_id").references(() => Constituents.id, {
     onDelete: "restrict",
   }),
+  guestName: text("guest_name"),
+  guestEmail: text("guest_email"),
   projectId: uuid("project_id").references(() => Projects.id, {
     onDelete: "set null",
   }),
