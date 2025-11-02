@@ -49,8 +49,8 @@ const generateBaseHtml = (subject: string, contentHtml: string): string => {
               
               <!-- Header with Logo, Title and Subtitle -->
               <tr>
-                <td align="center" style="padding: 30px 20px; border-bottom: 2px solid ${colors.primary}; background: linear-gradient(to bottom, ${colors.background} 0%, ${colors.muted} 100%);">
-                  <img src="${logoUrl}" alt="YPF Africa Logo" width="80" height="80" style="display: block; margin: 0 auto 15px auto; max-width: 80px; height: auto;">
+                <td align="center" style="padding: 30px 20px; border-bottom: 2px solid ${colors.primary}; background-color: ${colors.background};">
+                  <img src="${logoUrl}" alt="YPF Africa Logo" width="80" style="display: block; margin: 0 auto 15px auto; max-width: 80px; height: auto;">
                   <h1 style="margin: 0 0 8px 0; font-size: 26px; font-weight: bold; color: ${colors.primary}; font-family: Arial, sans-serif;">YPF Africa</h1>
                   <p style="margin: 0; font-size: 14px; color: ${colors.mutedForeground}; font-style: italic;">Empowering Youths to Change Ghana and Africa</p>
                 </td>
