@@ -131,7 +131,7 @@ export async function getMembers(
   const baseQuery = pgPool.db
     .select({
       id: schema.Constituents.id,
-      profilePhotoExternalId: schema.Medium.externalId,
+      profilePhotoExternalId: schema.Media.externalId,
       fullName:
         sql<string>`concat(${schema.Constituents.firstName}, ' ', ${schema.Constituents.lastName})`.as(
           "full_name",
@@ -161,8 +161,8 @@ export async function getMembers(
       eq(schema.Constituents.id, firstMembershipSubquery.constituentId),
     )
     .leftJoin(
-      schema.Medium,
-      eq(schema.Constituents.profilePhotoId, schema.Medium.id),
+      schema.Media,
+      eq(schema.Constituents.profilePhotoId, schema.Media.id),
     )
     .leftJoin(
       topTitleSubquery,
@@ -214,13 +214,13 @@ export async function getMemberByConstituentId(
       firstName: schema.Constituents.firstName,
       lastName: schema.Constituents.lastName,
       salutation: schema.Constituents.salutation,
-      profilePhotoExternalId: schema.Medium.externalId,
-      profilePhotoType: schema.Medium.type,
-      profilePhotoWidth: schema.Medium.width,
-      profilePhotoHeight: schema.Medium.height,
-      profilePhotoSizeInBytes: schema.Medium.sizeInBytes,
-      profilePhotoUploadedAt: schema.Medium.uploadedAt,
-      profilePhotoUploadedBy: schema.Medium.uploadedBy,
+      profilePhotoExternalId: schema.Media.externalId,
+      profilePhotoType: schema.Media.type,
+      profilePhotoWidth: schema.Media.width,
+      profilePhotoHeight: schema.Media.height,
+      profilePhotoSizeInBytes: schema.Media.sizeInBytes,
+      profilePhotoUploadedAt: schema.Media.uploadedAt,
+      profilePhotoUploadedBy: schema.Media.uploadedBy,
       joinedAt: min(schema.Members.startedAt).as("joined_at"),
       isActive: exists(
         pgPool.db
@@ -240,8 +240,8 @@ export async function getMemberByConstituentId(
     })
     .from(schema.Constituents)
     .leftJoin(
-      schema.Medium,
-      eq(schema.Constituents.profilePhotoId, schema.Medium.id),
+      schema.Media,
+      eq(schema.Constituents.profilePhotoId, schema.Media.id),
     )
     .leftJoin(
       schema.Members,
@@ -250,13 +250,13 @@ export async function getMemberByConstituentId(
     .where(eq(schema.Constituents.id, constituentId))
     .groupBy(
       schema.Constituents.id,
-      schema.Medium.externalId,
-      schema.Medium.type,
-      schema.Medium.width,
-      schema.Medium.height,
-      schema.Medium.sizeInBytes,
-      schema.Medium.uploadedAt,
-      schema.Medium.uploadedBy,
+      schema.Media.externalId,
+      schema.Media.type,
+      schema.Media.width,
+      schema.Media.height,
+      schema.Media.sizeInBytes,
+      schema.Media.uploadedAt,
+      schema.Media.uploadedBy,
     );
 
   if (!constituent) {

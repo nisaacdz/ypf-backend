@@ -9,7 +9,7 @@ import {
   jsonb,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { Constituents } from "./core";
+import { Constituents, Media } from "./core";
 
 export const shop = pgSchema("shop");
 
@@ -36,12 +36,14 @@ export const Products = shop.table("products", {
     .notNull(),
 });
 
-export const ProductPhotos = shop.table("product_photos", {
+export const ProductMedia = shop.table("product_photos", {
   id: uuid().defaultRandom().primaryKey(),
   productId: uuid("product_id")
     .notNull()
     .references(() => Products.id, { onDelete: "cascade" }),
-  photoUrl: text("photo_url").notNull(), // deliberate, not mediumId
+  mediumId: uuid("medium_id")
+    .notNull()
+    .references(() => Media.id, { onDelete: "cascade" }),
   caption: text(),
   isFeatured: boolean("is_featured").default(false).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
@@ -91,9 +93,9 @@ export const productsRelations = relations(Products, ({ many }) => ({
   orderItems: many(OrderItems),
 }));
 
-export const productPhotosRelations = relations(ProductPhotos, ({ one }) => ({
+export const productMediaRelations = relations(ProductMedia, ({ one }) => ({
   product: one(Products, {
-    fields: [ProductPhotos.productId],
+    fields: [ProductMedia.productId],
     references: [Products.id],
   }),
 }));

@@ -27,7 +27,7 @@ export const Users = app.table("users", {
   id: uuid().defaultRandom().primaryKey(),
   email: varchar({ length: 255 }).notNull().unique(),
   password: text(),
-  username: text().unique(), // Initially set to Constituent.email
+  username: text().unique(),
   avatarUrl: text("avatar_url"),
   googleId: text("google_id").unique(),
   appleId: text("apple_id").unique(),

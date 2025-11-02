@@ -40,15 +40,15 @@ export async function getCommittees(
   const featuredPhotoSubquery = pgPool.db
     .select({
       committeeId: schema.CommitteeMedia.committeeId,
-      externalId: schema.Medium.externalId,
-      rn: sql<number>`row_number() OVER (PARTITION BY ${schema.CommitteeMedia.committeeId} ORDER BY ${schema.Medium.uploadedAt} DESC)`.as(
+      externalId: schema.Media.externalId,
+      rn: sql<number>`row_number() OVER (PARTITION BY ${schema.CommitteeMedia.committeeId} ORDER BY ${schema.Media.uploadedAt} DESC)`.as(
         "photo_rn",
       ),
     })
     .from(schema.CommitteeMedia)
     .innerJoin(
-      schema.Medium,
-      eq(schema.CommitteeMedia.mediumId, schema.Medium.id),
+      schema.Media,
+      eq(schema.CommitteeMedia.mediumId, schema.Media.id),
     )
     .where(eq(schema.CommitteeMedia.isFeatured, true))
     .as("featured_photos");
@@ -157,12 +157,12 @@ export async function getCommitteeById(
   const featuredMedia = await pgPool.db
     .select({
       caption: schema.CommitteeMedia.caption,
-      mediumExternalId: schema.Medium.externalId,
-      mediumType: schema.Medium.type,
-      mediumWidth: schema.Medium.width,
-      mediumHeight: schema.Medium.height,
-      mediumSizeInBytes: schema.Medium.sizeInBytes,
-      mediumUploadedAt: schema.Medium.uploadedAt,
+      mediumExternalId: schema.Media.externalId,
+      mediumType: schema.Media.type,
+      mediumWidth: schema.Media.width,
+      mediumHeight: schema.Media.height,
+      mediumSizeInBytes: schema.Media.sizeInBytes,
+      mediumUploadedAt: schema.Media.uploadedAt,
       mediumUploadedBy:
         sql<string>`concat(${schema.Constituents.firstName}, ' ', ${schema.Constituents.lastName})`.as(
           "uploader_name",
@@ -170,12 +170,12 @@ export async function getCommitteeById(
     })
     .from(schema.CommitteeMedia)
     .innerJoin(
-      schema.Medium,
-      eq(schema.CommitteeMedia.mediumId, schema.Medium.id),
+      schema.Media,
+      eq(schema.CommitteeMedia.mediumId, schema.Media.id),
     )
     .leftJoin(
       schema.Constituents,
-      eq(schema.Medium.uploadedBy, schema.Constituents.id),
+      eq(schema.Media.uploadedBy, schema.Constituents.id),
     )
     .where(
       and(
@@ -183,7 +183,7 @@ export async function getCommitteeById(
         eq(schema.CommitteeMedia.isFeatured, true),
       ),
     )
-    .orderBy(desc(schema.Medium.uploadedAt))
+    .orderBy(desc(schema.Media.uploadedAt))
     .limit(5);
 
   const detailedCommittee: DetailedCommittee = {

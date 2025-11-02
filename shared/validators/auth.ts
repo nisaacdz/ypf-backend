@@ -25,21 +25,19 @@ export const UsernameAndPasswordSchema = z.object({
 export const AuthCodeSchema = z.object({
   code: z.string({ message: "Authorization code is required." }),
   codeVerifier: z.string({ message: "Code verifier is required." }),
-  redirectUri: z
-    .url({ message: "Please enter a valid redirect URL." })
-    .refine(
-      (uri) => {
-        try {
-          const url = new URL(uri);
-          return variables.security.allowedOrigins.includes(url.origin);
-        } catch {
-          return false;
-        }
-      },
-      {
-        message: "The redirect URI is not from an allowed origin.",
-      },
-    ),
+  redirectUri: z.url({ message: "Please enter a valid redirect URL." }).refine(
+    (uri) => {
+      try {
+        const url = new URL(uri);
+        return variables.security.allowedOrigins.includes(url.origin);
+      } catch {
+        return false;
+      }
+    },
+    {
+      message: "The redirect URI is not from an allowed origin.",
+    },
+  ),
 });
 
 export const OtpSchema = z.object({

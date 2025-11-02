@@ -40,16 +40,13 @@ export async function getChapters(
   const featuredPhotoSubquery = pgPool.db
     .select({
       chapterId: schema.ChapterMedia.chapterId,
-      externalId: schema.Medium.externalId,
-      rn: sql<number>`row_number() OVER (PARTITION BY ${schema.ChapterMedia.chapterId} ORDER BY ${schema.Medium.uploadedAt} DESC)`.as(
+      externalId: schema.Media.externalId,
+      rn: sql<number>`row_number() OVER (PARTITION BY ${schema.ChapterMedia.chapterId} ORDER BY ${schema.Media.uploadedAt} DESC)`.as(
         "photo_rn",
       ),
     })
     .from(schema.ChapterMedia)
-    .innerJoin(
-      schema.Medium,
-      eq(schema.ChapterMedia.mediumId, schema.Medium.id),
-    )
+    .innerJoin(schema.Media, eq(schema.ChapterMedia.mediumId, schema.Media.id))
     .where(eq(schema.ChapterMedia.isFeatured, true))
     .as("featured_photos");
 
@@ -138,12 +135,12 @@ export async function getChapterById(
     pgPool.db
       .select({
         caption: schema.ChapterMedia.caption,
-        mediumExternalId: schema.Medium.externalId,
-        mediumType: schema.Medium.type,
-        mediumWidth: schema.Medium.width,
-        mediumHeight: schema.Medium.height,
-        mediumSizeInBytes: schema.Medium.sizeInBytes,
-        mediumUploadedAt: schema.Medium.uploadedAt,
+        mediumExternalId: schema.Media.externalId,
+        mediumType: schema.Media.type,
+        mediumWidth: schema.Media.width,
+        mediumHeight: schema.Media.height,
+        mediumSizeInBytes: schema.Media.sizeInBytes,
+        mediumUploadedAt: schema.Media.uploadedAt,
         mediumUploadedBy:
           sql<string>`concat(${schema.Constituents.firstName}, ' ', ${schema.Constituents.lastName})`.as(
             "uploader_name",
@@ -151,12 +148,12 @@ export async function getChapterById(
       })
       .from(schema.ChapterMedia)
       .innerJoin(
-        schema.Medium,
-        eq(schema.ChapterMedia.mediumId, schema.Medium.id),
+        schema.Media,
+        eq(schema.ChapterMedia.mediumId, schema.Media.id),
       )
       .leftJoin(
         schema.Constituents,
-        eq(schema.Medium.uploadedBy, schema.Constituents.id),
+        eq(schema.Media.uploadedBy, schema.Constituents.id),
       )
       .where(
         and(
@@ -164,7 +161,7 @@ export async function getChapterById(
           eq(schema.ChapterMedia.isFeatured, true),
         ),
       )
-      .orderBy(desc(schema.Medium.uploadedAt))
+      .orderBy(desc(schema.Media.uploadedAt))
       .limit(5),
     chapter.parentChapterId
       ? pgPool.db
