@@ -4,7 +4,11 @@ import { MediumTypeEnum } from "@/db/schema/core";
 import { PaginationQuery } from ".";
 
 export const GetProjectsQuerySchema = z.object({
-  filterStatus: z.enum(ProjectStatusEnum.enumValues).optional(),
+  filterStatus: z
+    .enum(ProjectStatusEnum.enumValues, {
+      message: "Invalid project status.",
+    })
+    .optional(),
   ...PaginationQuery.shape,
 });
 
@@ -14,26 +18,38 @@ export const GetEventsQuerySchema = z.object({
 
 export const GetEventMediaQuerySchema = z.object({
   ...PaginationQuery.shape,
-  mediaType: z.enum(MediumTypeEnum.enumValues).optional(),
+  mediaType: z
+    .enum(MediumTypeEnum.enumValues, { message: "Invalid media type." })
+    .optional(),
 });
 
 export const GetProjectMediaQuerySchema = z.object({
   ...PaginationQuery.shape,
-  mediaType: z.enum(MediumTypeEnum.enumValues).optional(),
+  mediaType: z
+    .enum(MediumTypeEnum.enumValues, { message: "Invalid media type." })
+    .optional(),
 });
 
 export const CreateEventSchema = z.object({
-  name: z.string().min(3).max(100),
+  name: z
+    .string({ message: "Event name is required." })
+    .min(3, { message: "Event name must be at least 3 characters." })
+    .max(100, { message: "Event name must not exceed 100 characters." }),
   objective: z.string().optional(),
-  location: z.string(),
-  scheduledStart: z.coerce.date(),
-  scheduledEnd: z.coerce.date(),
-  status: z.enum(EventStatusEnum.enumValues),
-  projectId: z.uuid(),
+  location: z.string({ message: "Location is required." }),
+  scheduledStart: z.coerce.date({ message: "Please enter a valid start date." }),
+  scheduledEnd: z.coerce.date({ message: "Please enter a valid end date." }),
+  status: z.enum(EventStatusEnum.enumValues, {
+    message: "Invalid event status.",
+  }),
+  projectId: z.uuid({ message: "Invalid project ID format." }),
 });
 
 export const UploadEventMediumOptionsSchema = z.object({
-  caption: z.string().max(255).optional(),
+  caption: z
+    .string()
+    .max(255, { message: "Caption must not exceed 255 characters." })
+    .optional(),
   isFeatured: z.coerce.boolean().optional().default(false),
 });
 
