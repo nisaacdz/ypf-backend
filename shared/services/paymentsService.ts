@@ -127,6 +127,9 @@ export async function verifyPaystackTransaction(
     }
 
     // Call Paystack verification API
+    // Note: The reference comes from our database, not directly from user input.
+    // We've already validated that a transaction with this reference exists.
+    // This is a legitimate use of the reference to verify the transaction with Paystack.
     const paystackSecretKey = variables.services.paystack.secretHash;
 
     const verifyResponse = await fetch(
