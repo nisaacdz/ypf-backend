@@ -119,64 +119,6 @@ donationsRouter.post(
 
 /**
  * @swagger
- * /api/v1/donations/{id}/verify:
- *   patch:
- *     summary: Verify a donation payment status
- *     tags: [Donations]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: Donation ID
- *     responses:
- *       200:
- *         description: Donation verified successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 message:
- *                   type: string
- *                 data:
- *                   type: object
- *                   properties:
- *                     status:
- *                       type: string
- *                       enum: [PENDING, COMPLETED, FAILED, REFUNDED]
- *       404:
- *         description: Donation not found
- *       500:
- *         description: Server error
- */
-donationsRouter.patch(
-  "/:id/verify",
-  authenticateLax,
-  validateParams(
-    z.object({
-      id: z.uuid("Invalid donation ID"),
-    }),
-  ),
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const response = await donationsHandler.verifyDonation(
-        req.Params.id,
-        req.User ?? null,
-      );
-      res.status(200).json(response);
-    } catch (error) {
-      next(error);
-    }
-  },
-);
-
-/**
- * @swagger
  * /api/v1/donations/{id}/check:
  *   get:
  *     summary: Check if a donation has been completed
