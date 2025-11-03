@@ -8,7 +8,7 @@ describe("Payment Service - Race Condition Logic", () => {
     // 2. Update transaction with WHERE status = PENDING clause
     // 3. Check if update affected any rows to determine if it was the first to process
     
-    const racConditionProtectionSteps = [
+    const raceConditionProtectionSteps = [
       "Check current status - return early if COMPLETED",
       "Call payment provider API for verification",
       "Update with WHERE status = PENDING (atomic operation)",
@@ -16,9 +16,9 @@ describe("Payment Service - Race Condition Logic", () => {
       "Return wasUpdated flag to indicate whether email should be sent"
     ];
     
-    expect(racConditionProtectionSteps).toHaveLength(5);
-    expect(racConditionProtectionSteps[0]).toContain("COMPLETED");
-    expect(racConditionProtectionSteps[2]).toContain("atomic");
+    expect(raceConditionProtectionSteps).toHaveLength(5);
+    expect(raceConditionProtectionSteps[0]).toContain("COMPLETED");
+    expect(raceConditionProtectionSteps[2]).toContain("atomic");
   });
 
   it("should understand the email sending logic", () => {
