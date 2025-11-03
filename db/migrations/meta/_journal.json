@@ -29,6 +29,13 @@
       "when": 1762124570123,
       "tag": "0003_silent_spiral",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1762134317472,
+      "tag": "0004_charming_squadron_sinister",
+      "breakpoints": true
     }
   ]
 }

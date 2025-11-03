@@ -36,7 +36,7 @@ export const Products = shop.table("products", {
     .notNull(),
 });
 
-export const ProductMedia = shop.table("product_photos", {
+export const ProductMedia = shop.table("product_media", {
   id: uuid().defaultRandom().primaryKey(),
   productId: uuid("product_id")
     .notNull()
