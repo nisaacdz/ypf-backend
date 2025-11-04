@@ -205,3 +205,203 @@ export async function sendDonationAcknowledgementEmail(params: {
 
   await sendEmail(params.email, subject, htmlBody, textContent);
 }
+
+/**
+ * Sends a transaction failure email to a user.
+ * @param params - Email parameters including recipient info and transaction details
+ */
+export async function sendTransactionFailureEmail(params: {
+  email: string;
+  name: string;
+  transaction: {
+    id: string;
+    amount: string;
+    currency: string;
+    type: string; // e.g., "donation", "dues payment", "order"
+  };
+}): Promise<void> {
+  const subject = "Payment Transaction Failed";
+
+  const content = `
+    <p>Dear ${params.name},</p>
+    <p>We regret to inform you that your recent ${params.transaction.type} payment could not be processed.</p>
+    <div style="background-color: ${colors.muted}; padding: 20px; border-radius: 8px; margin: 20px 0;">
+      <p style="margin: 0; font-size: 14px; color: ${colors.mutedForeground};">Transaction Details:</p>
+      <p style="margin: 10px 0 5px 0; font-size: 18px; font-weight: bold; color: ${colors.foreground};">Amount: ${params.transaction.currency} ${params.transaction.amount}</p>
+      <p style="margin: 0; font-size: 12px; color: ${colors.mutedForeground};">Reference ID: ${params.transaction.id}</p>
+    </div>
+    <p>This may have happened due to insufficient funds, card limitations, or network issues. Please try again or contact your bank for more information.</p>
+    <p>If you continue to experience issues, please contact our support team.</p>
+    <br>
+    <p>Best regards,<br>The YPF Africa Team</p>
+  `;
+
+  const htmlBody = generateBaseHtml(subject, content);
+
+  const textContent = [
+    `Dear ${params.name},`,
+    "",
+    `We regret to inform you that your recent ${params.transaction.type} payment could not be processed.`,
+    "",
+    "Transaction Details:",
+    `Amount: ${params.transaction.currency} ${params.transaction.amount}`,
+    `Reference ID: ${params.transaction.id}`,
+    "",
+    "This may have happened due to insufficient funds, card limitations, or network issues.",
+    "Please try again or contact your bank for more information.",
+    "",
+    "Best regards,",
+    "The YPF Africa Team",
+  ].join("\n");
+
+  await sendEmail(params.email, subject, htmlBody, textContent);
+}
+
+/**
+ * Sends a transaction refund email to a user.
+ * @param params - Email parameters including recipient info and transaction details
+ */
+export async function sendTransactionRefundEmail(params: {
+  email: string;
+  name: string;
+  transaction: {
+    id: string;
+    amount: string;
+    currency: string;
+    type: string; // e.g., "donation", "dues payment", "order"
+  };
+}): Promise<void> {
+  const subject = "Payment Refunded";
+
+  const content = `
+    <p>Dear ${params.name},</p>
+    <p>Your ${params.transaction.type} payment has been refunded.</p>
+    <div style="background-color: ${colors.muted}; padding: 20px; border-radius: 8px; margin: 20px 0;">
+      <p style="margin: 0; font-size: 14px; color: ${colors.mutedForeground};">Refund Details:</p>
+      <p style="margin: 10px 0 5px 0; font-size: 18px; font-weight: bold; color: ${colors.foreground};">Amount: ${params.transaction.currency} ${params.transaction.amount}</p>
+      <p style="margin: 0; font-size: 12px; color: ${colors.mutedForeground};">Reference ID: ${params.transaction.id}</p>
+    </div>
+    <p>The refunded amount should appear in your account within 5-10 business days, depending on your bank or payment provider.</p>
+    <p>If you have any questions about this refund, please contact our support team.</p>
+    <br>
+    <p>Best regards,<br>The YPF Africa Team</p>
+  `;
+
+  const htmlBody = generateBaseHtml(subject, content);
+
+  const textContent = [
+    `Dear ${params.name},`,
+    "",
+    `Your ${params.transaction.type} payment has been refunded.`,
+    "",
+    "Refund Details:",
+    `Amount: ${params.transaction.currency} ${params.transaction.amount}`,
+    `Reference ID: ${params.transaction.id}`,
+    "",
+    "The refunded amount should appear in your account within 5-10 business days.",
+    "",
+    "Best regards,",
+    "The YPF Africa Team",
+  ].join("\n");
+
+  await sendEmail(params.email, subject, htmlBody, textContent);
+}
+
+/**
+ * Sends a dues payment acknowledgement email.
+ * @param params - Email parameters including recipient info and payment details
+ */
+export async function sendDuesPaymentAcknowledgementEmail(params: {
+  email: string;
+  name: string;
+  payment: {
+    id: string;
+    amount: string;
+    currency: string;
+    period: string;
+  };
+}): Promise<void> {
+  const subject = "Dues Payment Received";
+
+  const content = `
+    <p>Dear ${params.name},</p>
+    <p>Thank you for your dues payment!</p>
+    <div style="background-color: ${colors.muted}; padding: 20px; border-radius: 8px; margin: 20px 0;">
+      <p style="margin: 0; font-size: 14px; color: ${colors.mutedForeground};">Payment Details:</p>
+      <p style="margin: 10px 0 5px 0; font-size: 18px; font-weight: bold; color: ${colors.foreground};">Amount: ${params.payment.currency} ${params.payment.amount}</p>
+      <p style="margin: 5px 0; font-size: 14px; color: ${colors.foreground};">Period: ${params.payment.period}</p>
+      <p style="margin: 0; font-size: 12px; color: ${colors.mutedForeground};">Reference ID: ${params.payment.id}</p>
+    </div>
+    <p>Your membership status has been updated. Thank you for your continued support of YPF Africa!</p>
+    <br>
+    <p>Best regards,<br>The YPF Africa Team</p>
+  `;
+
+  const htmlBody = generateBaseHtml(subject, content);
+
+  const textContent = [
+    `Dear ${params.name},`,
+    "",
+    "Thank you for your dues payment!",
+    "",
+    "Payment Details:",
+    `Amount: ${params.payment.currency} ${params.payment.amount}`,
+    `Period: ${params.payment.period}`,
+    `Reference ID: ${params.payment.id}`,
+    "",
+    "Your membership status has been updated.",
+    "",
+    "Best regards,",
+    "The YPF Africa Team",
+  ].join("\n");
+
+  await sendEmail(params.email, subject, htmlBody, textContent);
+}
+
+/**
+ * Sends an order confirmation email.
+ * @param params - Email parameters including recipient info and order details
+ */
+export async function sendOrderConfirmationEmail(params: {
+  email: string;
+  name: string;
+  order: {
+    id: string;
+    amount: string;
+    currency: string;
+  };
+}): Promise<void> {
+  const subject = "Order Confirmed";
+
+  const content = `
+    <p>Dear ${params.name},</p>
+    <p>Thank you for your order! We have received your payment and are processing your order.</p>
+    <div style="background-color: ${colors.muted}; padding: 20px; border-radius: 8px; margin: 20px 0;">
+      <p style="margin: 0; font-size: 14px; color: ${colors.mutedForeground};">Order Details:</p>
+      <p style="margin: 10px 0 5px 0; font-size: 18px; font-weight: bold; color: ${colors.foreground};">Total: ${params.order.currency} ${params.order.amount}</p>
+      <p style="margin: 0; font-size: 12px; color: ${colors.mutedForeground};">Order ID: ${params.order.id}</p>
+    </div>
+    <p>We will notify you once your order is ready for pickup or has been shipped.</p>
+    <br>
+    <p>Best regards,<br>The YPF Africa Team</p>
+  `;
+
+  const htmlBody = generateBaseHtml(subject, content);
+
+  const textContent = [
+    `Dear ${params.name},`,
+    "",
+    "Thank you for your order! We have received your payment and are processing your order.",
+    "",
+    "Order Details:",
+    `Total: ${params.order.currency} ${params.order.amount}`,
+    `Order ID: ${params.order.id}`,
+    "",
+    "We will notify you once your order is ready for pickup or has been shipped.",
+    "",
+    "Best regards,",
+    "The YPF Africa Team",
+  ].join("\n");
+
+  await sendEmail(params.email, subject, htmlBody, textContent);
+}

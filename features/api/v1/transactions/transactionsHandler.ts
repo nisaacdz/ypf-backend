@@ -2,12 +2,13 @@ import { ApiResponse } from "@/shared/types";
 import * as transactionsService from "@/shared/services/transactionsService";
 
 /**
- * Handler for verifying a transaction by reference
+ * Handler for verifying a transaction by reference.
+ * This checks the transaction provider type and calls the appropriate verification function.
  */
 export async function verifyTransaction(
   reference: string,
 ): Promise<ApiResponse<{ status: string }>> {
-  const result = await transactionsService.verifyPaystackTransaction(reference);
+  const result = await transactionsService.verifyTransaction(reference);
 
   // If transaction was just updated to completed, send success email
   if (result.wasUpdated && result.status === "COMPLETED") {
