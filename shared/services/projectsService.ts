@@ -2,7 +2,7 @@ import { Paginated } from "@/shared/dtos";
 import { YPFProject } from "@/shared/dtos";
 import pgPool from "@/configs/db";
 import { Projects, ProjectMedia } from "@/db/schema/activities";
-import { Medium, Chapters } from "@/db/schema/core";
+import { Media, Chapters } from "@/db/schema/core";
 import * as mediaUtils from "@/shared/utils/media";
 import { eq, and, ilike, count, sql } from "drizzle-orm";
 import z from "zod";
@@ -45,7 +45,7 @@ export async function fetchProjects(
       scheduledStart: Projects.scheduledStart,
       scheduledEnd: Projects.scheduledEnd,
       status: Projects.status,
-      featuredPhotoUrl: Medium.externalId,
+      featuredPhotoExternalId: Media.externalId,
       chapterName: Chapters.name,
     })
     .from(Projects)
@@ -57,7 +57,7 @@ export async function fetchProjects(
         eq(ProjectMedia.isFeatured, true),
       ),
     )
-    .leftJoin(Medium, eq(ProjectMedia.mediumId, Medium.id))
+    .leftJoin(Media, eq(ProjectMedia.mediumId, Media.id))
     .where(whereClause)
     .limit(pageSize)
     .offset(offset);
@@ -70,8 +70,8 @@ export async function fetchProjects(
     scheduledStart: project.scheduledStart,
     scheduledEnd: project.scheduledEnd,
     status: project.status,
-    featuredPhotoUrl: project.featuredPhotoUrl
-      ? mediaUtils.generateSignedMediaUrl(project.featuredPhotoUrl, {
+    featuredPhotoUrl: project.featuredPhotoExternalId
+      ? mediaUtils.generateSignedMediaUrl(project.featuredPhotoExternalId, {
           resolution: 720,
           expireSeconds: 60 * 60 * 24,
         })

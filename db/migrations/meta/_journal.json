@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1761892444108,
-      "tag": "0000_free_wolfsbane",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1762002878502,
-      "tag": "0001_yummy_mentor",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1762030936755,
-      "tag": "0002_magical_warbound",
+      "when": 1762260316639,
+      "tag": "0000_broad_vin_gonzales",
       "breakpoints": true
     }
   ]

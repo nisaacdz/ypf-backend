@@ -7,7 +7,7 @@ import {
   serial,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { Chapters, Committees, Constituents, Medium } from "./core";
+import { Chapters, Committees, Constituents, Media } from "./core";
 
 export const activities = pgSchema("activities");
 
@@ -65,7 +65,7 @@ export const ProjectMedia = activities.table("project_media", {
   projectId: uuid("project_id").references(() => Projects.id, {
     onDelete: "cascade",
   }),
-  mediumId: uuid("medium_id").references(() => Medium.id, {
+  mediumId: uuid("medium_id").references(() => Media.id, {
     onDelete: "cascade",
   }),
   caption: text(),
@@ -77,7 +77,7 @@ export const EventMedia = activities.table("event_media", {
   eventId: uuid("event_id").references(() => Events.id, {
     onDelete: "cascade",
   }),
-  mediumId: uuid("medium_id").references(() => Medium.id, {
+  mediumId: uuid("medium_id").references(() => Media.id, {
     onDelete: "cascade",
   }),
   caption: text(),

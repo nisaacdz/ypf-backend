@@ -25,9 +25,9 @@ export async function uploadEventMedium(
   try {
     const newMediumId = await pgPool.db.transaction(async (tx) => {
       const [newMedium] = await tx
-        .insert(schema.Medium)
+        .insert(schema.Media)
         .values(data.medium)
-        .returning({ id: schema.Medium.id });
+        .returning({ id: schema.Media.id });
       if (!newMedium?.id) {
         throw new Error(
           "Failed to create medium record, rolling back transaction.",
@@ -76,12 +76,12 @@ export async function backfillVideoMetadata(
     }
 
     await pgPool.db
-      .update(schema.Medium)
+      .update(schema.Media)
       .set({
         width: fileDetails.width,
         height: fileDetails.height,
       })
-      .where(eq(schema.Medium.id, mediumId));
+      .where(eq(schema.Media.id, mediumId));
 
     logger.info(`Successfully backfilled metadata for medium ID: ${mediumId}`);
   } catch (err) {

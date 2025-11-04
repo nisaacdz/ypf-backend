@@ -93,20 +93,17 @@ export async function fetchEventMedia(
         caption: schema.EventMedia.caption,
         isFeatured: schema.EventMedia.isFeatured,
         medium: {
-          id: schema.Medium.id,
-          externalId: schema.Medium.externalId,
-          type: schema.Medium.type,
-          width: schema.Medium.width,
-          height: schema.Medium.height,
-          sizeInBytes: schema.Medium.sizeInBytes,
-          uploadedAt: schema.Medium.uploadedAt,
+          id: schema.Media.id,
+          externalId: schema.Media.externalId,
+          type: schema.Media.type,
+          width: schema.Media.width,
+          height: schema.Media.height,
+          sizeInBytes: schema.Media.sizeInBytes,
+          uploadedAt: schema.Media.uploadedAt,
         },
       })
       .from(schema.EventMedia)
-      .innerJoin(
-        schema.Medium,
-        eq(schema.EventMedia.mediumId, schema.Medium.id),
-      )
+      .innerJoin(schema.Media, eq(schema.EventMedia.mediumId, schema.Media.id))
       .where(eq(schema.EventMedia.eventId, eventId))
       .limit(pageSize)
       .offset((page - 1) * pageSize),

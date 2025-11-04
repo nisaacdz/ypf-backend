@@ -166,7 +166,7 @@ CREATE TABLE "core"."media" (
 	"height" integer NOT NULL,
 	"sizeInBytes" integer NOT NULL,
 	"uploaded_by" uuid,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"uploaded_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "media_external_id_unique" UNIQUE("external_id")
 );
 --> statement-breakpoint
@@ -282,6 +282,8 @@ CREATE TABLE "finance"."donations" (
 	"constituent_id" uuid,
 	"project_id" uuid,
 	"event_id" uuid,
+	"guest_name" text,
+	"guest_email" text,
 	CONSTRAINT "donations_transaction_id_unique" UNIQUE("transaction_id")
 );
 --> statement-breakpoint
@@ -295,7 +297,7 @@ CREATE TABLE "finance"."dues" (
 );
 --> statement-breakpoint
 CREATE TABLE "finance"."dues_payments" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"transaction_id" uuid NOT NULL,
 	"dues_id" uuid NOT NULL,
 	"member_id" uuid NOT NULL,
@@ -346,19 +348,25 @@ CREATE TABLE "shop"."order_items" (
 	"price_at_purchase" numeric(10, 2) NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "shop"."order_payments" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"order_id" uuid NOT NULL,
+	"transaction_id" uuid NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "shop"."orders" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"customer_id" uuid NOT NULL,
+	"constituent_id" uuid NOT NULL,
 	"total_amount" numeric(10, 2) NOT NULL,
 	"status" "shop"."shop_order_status" DEFAULT 'PENDING' NOT NULL,
 	"delivery_address" jsonb,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "shop"."product_photos" (
+CREATE TABLE "shop"."product_media" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"product_id" uuid NOT NULL,
-	"photo_url" text NOT NULL,
+	"medium_id" uuid NOT NULL,
 	"caption" text,
 	"is_featured" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
@@ -431,6 +439,9 @@ ALTER TABLE "finance"."partnerships" ADD CONSTRAINT "partnerships_project_id_pro
 ALTER TABLE "finance"."partnerships" ADD CONSTRAINT "partnerships_event_id_events_id_fk" FOREIGN KEY ("event_id") REFERENCES "activities"."events"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shop"."order_items" ADD CONSTRAINT "order_items_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "shop"."orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shop"."order_items" ADD CONSTRAINT "order_items_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "shop"."products"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "shop"."orders" ADD CONSTRAINT "orders_customer_id_constituents_id_fk" FOREIGN KEY ("customer_id") REFERENCES "core"."constituents"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "shop"."product_photos" ADD CONSTRAINT "product_photos_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "shop"."products"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "shop"."order_payments" ADD CONSTRAINT "order_payments_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "shop"."orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "shop"."order_payments" ADD CONSTRAINT "order_payments_transaction_id_financial_transactions_id_fk" FOREIGN KEY ("transaction_id") REFERENCES "finance"."financial_transactions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "shop"."orders" ADD CONSTRAINT "orders_constituent_id_constituents_id_fk" FOREIGN KEY ("constituent_id") REFERENCES "core"."constituents"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "shop"."product_media" ADD CONSTRAINT "product_media_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "shop"."products"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "shop"."product_media" ADD CONSTRAINT "product_media_medium_id_media_id_fk" FOREIGN KEY ("medium_id") REFERENCES "core"."media"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "notifications_broadcast_id_index" ON "app"."notifications" USING btree ("broadcast_id");

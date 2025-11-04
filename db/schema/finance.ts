@@ -6,11 +6,11 @@ import {
   timestamp,
   text,
   date,
-  serial,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { Chapters, Constituents, Members, Organizations } from "./core";
 import { Events, Projects } from "./activities";
+import { OrderPayments } from "./shop";
 
 export const finance = pgSchema("finance");
 
@@ -85,7 +85,7 @@ export const Dues = finance.table("dues", {
 });
 
 export const DuesPayments = finance.table("dues_payments", {
-  id: serial("id").primaryKey(),
+  id: uuid().defaultRandom().primaryKey(),
   transactionId: uuid("transaction_id")
     .notNull()
     .unique()
@@ -150,6 +150,11 @@ export const financialTransactionsRelations = relations(
     duesPayment: one(DuesPayments, {
       fields: [FinancialTransactions.id],
       references: [DuesPayments.transactionId],
+    }),
+    // A financial transaction can be one orders payment (or null)
+    ordersPayment: one(OrderPayments, {
+      fields: [FinancialTransactions.id],
+      references: [OrderPayments.transactionId],
     }),
   }),
 );

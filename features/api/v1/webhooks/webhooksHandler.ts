@@ -1,14 +1,18 @@
 import { ApiResponse } from "@/shared/types";
-import * as paymentService from "@/shared/services/paymentsService";
+import * as transactionsService from "@/shared/services/transactionsService";
 
 export async function handlePaystackWebhook(
-  payload: paymentService.PaystackWebhookPayload,
+  payload: transactionsService.PaystackWebhookPayload,
 ): Promise<ApiResponse<null>> {
-  await paymentService.updatePaystackTransaction(payload);
+  const result = await transactionsService.handlePaystackWebhook(payload);
+
+  if (result.wasUpdated && result.transactionId) {
+    transactionsService.sendTransactionStatusChangeEmail(result.transactionId);
+  }
 
   return {
     success: true,
-    message: "Donation transaction updated",
+    message: "Webhook processed",
     data: null,
   };
 }

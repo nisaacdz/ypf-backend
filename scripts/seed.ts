@@ -60,7 +60,7 @@ async function seed(
 
   // Seed Media
   const media = await tx
-    .insert(schema.Medium)
+    .insert(schema.Media)
     .values(
       Array.from({ length: 15 }, () => ({
         externalId: faker.string.uuid(),
@@ -592,11 +592,25 @@ async function seed(
     ])
     .returning();
 
+  const productMediaIds = await tx
+    .insert(schema.Media)
+    .values(
+      products.map(() => ({
+        externalId: faker.string.uuid(),
+        type: faker.helpers.arrayElement(schema.MediumTypeEnum.enumValues),
+        width: faker.number.int({ min: 800, max: 1920 }),
+        height: faker.number.int({ min: 600, max: 1080 }),
+        sizeInBytes: faker.number.int({ min: 50000, max: 5000000 }),
+        uploadedBy: faker.helpers.arrayElement(constituents).id,
+      })),
+    )
+    .returning({ id: schema.Media.id });
+
   // Seed Product Photos
-  await tx.insert(schema.ProductPhotos).values(
-    products.map((p) => ({
+  await tx.insert(schema.ProductMedia).values(
+    products.map((p, idx) => ({
       productId: p.id,
-      photoUrl: `https://example.com/products/${p.sku.toLowerCase()}.jpg`,
+      mediumId: productMediaIds[idx].id,
       caption: `${p.name} photo`,
       isFeatured: true,
     })),
@@ -607,17 +621,17 @@ async function seed(
     .insert(schema.Orders)
     .values([
       {
-        customerId: constituents[5].id,
+        constituentId: constituents[5].id,
         totalAmount: "75.00",
         status: "COMPLETED",
       },
       {
-        customerId: constituents[8].id,
+        constituentId: constituents[8].id,
         totalAmount: "15.00",
         status: "PENDING",
       },
       {
-        customerId: constituents[10].id,
+        constituentId: constituents[10].id,
         totalAmount: "50.00",
         status: "COMPLETED",
       },

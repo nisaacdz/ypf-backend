@@ -25,7 +25,7 @@ export const ContactTypeEnum = core.enum("contact_type", [
 
 // === TABLES ===
 
-export const Medium = core.table("media", {
+export const Media = core.table("media", {
   id: uuid().defaultRandom().primaryKey(),
   externalId: text("external_id").notNull().unique(),
   type: MediumTypeEnum().notNull(),
@@ -46,7 +46,7 @@ export const Constituents = core.table("constituents", {
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   preferredName: text("preferred_name"),
-  profilePhotoId: uuid("profile_photo_id").references(() => Medium.id, {
+  profilePhotoId: uuid("profile_photo_id").references(() => Media.id, {
     onDelete: "set null",
   }),
   salutation: text(),
@@ -253,7 +253,7 @@ export const ChapterMedia = core.table("chapter_media", {
   chapterId: uuid("chapter_id").references(() => Chapters.id, {
     onDelete: "cascade",
   }),
-  mediumId: uuid("medium_id").references(() => Medium.id, {
+  mediumId: uuid("medium_id").references(() => Media.id, {
     onDelete: "cascade",
   }),
   caption: text(),
@@ -265,7 +265,7 @@ export const CommitteeMedia = core.table("committee_media", {
   committeeId: uuid("committee_id").references(() => Committees.id, {
     onDelete: "cascade",
   }),
-  mediumId: uuid("medium_id").references(() => Medium.id, {
+  mediumId: uuid("medium_id").references(() => Media.id, {
     onDelete: "cascade",
   }),
   caption: text(),
@@ -274,9 +274,9 @@ export const CommitteeMedia = core.table("committee_media", {
 
 // === RELATIONS ===
 
-export const mediaRelations = relations(Medium, ({ one }) => ({
+export const mediaRelations = relations(Media, ({ one }) => ({
   uploader: one(Constituents, {
-    fields: [Medium.uploadedBy],
+    fields: [Media.uploadedBy],
     references: [Constituents.id],
     relationName: "mediaUploader",
   }),
@@ -292,9 +292,9 @@ export const constituentsRelations = relations(
     adminPeriods: many(Admins),
 
     // Standard relations for other entities
-    profilePhoto: one(Medium, {
+    profilePhoto: one(Media, {
       fields: [Constituents.profilePhotoId],
-      references: [Medium.id],
+      references: [Media.id],
     }),
     contactInformations: many(ContactInformations),
     organizationContacts: many(OrganizationContacts),
@@ -462,9 +462,9 @@ export const chapterMediaRelations = relations(ChapterMedia, ({ one }) => ({
     fields: [ChapterMedia.chapterId],
     references: [Chapters.id],
   }),
-  medium: one(Medium, {
+  medium: one(Media, {
     fields: [ChapterMedia.mediumId],
-    references: [Medium.id],
+    references: [Media.id],
   }),
 }));
 
@@ -473,8 +473,8 @@ export const committeeMediaRelations = relations(CommitteeMedia, ({ one }) => ({
     fields: [CommitteeMedia.committeeId],
     references: [Committees.id],
   }),
-  medium: one(Medium, {
+  medium: one(Media, {
     fields: [CommitteeMedia.mediumId],
-    references: [Medium.id],
+    references: [Media.id],
   }),
 }));

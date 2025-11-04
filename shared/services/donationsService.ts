@@ -4,7 +4,7 @@ import schema from "@/db/schema";
 import variables from "@/configs/env";
 import { AppError, AuthenticatedUser } from "@/shared/types";
 import logger from "@/configs/logger";
-import { sendAcknowledgementEmail } from "@/shared/utils/email";
+import { sendDonationAcknowledgementEmail } from "@/shared/utils/email";
 import { v4 as uuidv4 } from "uuid";
 import { paymentMethodMap, transactionStatusMap } from "../utils";
 import { DonationResponse } from "../dtos/donation";
@@ -203,29 +203,6 @@ export async function startPaystackDonation(
 }
 
 /**
- * Sends acknowledgement email for a donation
- */
-async function sendDonationAcknowledgementEmail(params: {
-  email: string;
-  name: string;
-  donation: {
-    id: string;
-    amount: string;
-    currency: string;
-  };
-}): Promise<void> {
-  await sendAcknowledgementEmail(
-    params.email,
-    params.name,
-    params.donation.amount,
-    params.donation.currency,
-    params.donation.id,
-  );
-
-  logger.info(`Sent acknowledgement email for donation ${params.donation.id}`);
-}
-
-/**
  * Verifies a donation using Paystack's verification API
  */
 export async function verifyPaystackDonation(
@@ -331,37 +308,6 @@ export async function verifyPaystackDonation(
     };
   } catch (error) {
     logger.error({ error }, "Error verifying donation");
-    throw error;
-  }
-}
-
-/**
- * Checks if a donation has been completed
- */
-export async function checkDonationStatus(donationId: string): Promise<{
-  completed: boolean;
-  status: string;
-  updatedAt: Date;
-}> {
-  try {
-    const donation = await pgPool.db.query.Donations.findFirst({
-      where: eq(schema.Donations.id, donationId),
-      with: {
-        transaction: true,
-      },
-    });
-
-    if (!donation) {
-      throw new AppError("Donation not found", 404);
-    }
-
-    return {
-      completed: donation.transaction.status === "COMPLETED",
-      status: donation.transaction.status,
-      updatedAt: donation.transaction.transactionDate,
-    };
-  } catch (error) {
-    logger.error({ error }, "Error checking donation status");
     throw error;
   }
 }

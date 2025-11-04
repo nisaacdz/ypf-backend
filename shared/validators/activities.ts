@@ -37,7 +37,9 @@ export const CreateEventSchema = z.object({
     .max(100, { message: "Event name must not exceed 100 characters." }),
   objective: z.string().optional(),
   location: z.string({ message: "Location is required." }),
-  scheduledStart: z.coerce.date({ message: "Please enter a valid start date." }),
+  scheduledStart: z.coerce.date({
+    message: "Please enter a valid start date.",
+  }),
   scheduledEnd: z.coerce.date({ message: "Please enter a valid end date." }),
   status: z.enum(EventStatusEnum.enumValues, {
     message: "Invalid event status.",
