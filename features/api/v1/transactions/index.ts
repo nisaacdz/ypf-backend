@@ -59,3 +59,5 @@ transactionsRouter.post(
     }
   },
 );
+
+export default transactionsRouter;
