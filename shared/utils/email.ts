@@ -165,22 +165,24 @@ export async function send_otp_email(to: string, otp: string): Promise<void> {
  * @param currency - The currency code (e.g., GHS, USD).
  * @param donationId - The unique donation ID for reference.
  */
-export async function sendAcknowledgementEmail(
-  to: string,
-  donorName: string,
-  amount: string,
-  currency: string,
-  donationId: string,
-): Promise<void> {
+export async function sendDonationAcknowledgementEmail(params: {
+  email: string;
+  name: string;
+  donation: {
+    id: string;
+    amount: string;
+    currency: string;
+  };
+}): Promise<void> {
   const subject = "Thank You for Your Donation!";
 
   const content = `
-    <p>Dear ${donorName},</p>
+    <p>Dear ${params.name},</p>
     <p>Thank you for your generous donation to YPF Africa!</p>
     <div style="background-color: ${colors.muted}; padding: 20px; border-radius: 8px; margin: 20px 0;">
       <p style="margin: 0; font-size: 14px; color: ${colors.mutedForeground};">Donation Details:</p>
-      <p style="margin: 10px 0 5px 0; font-size: 18px; font-weight: bold; color: ${colors.foreground};">Amount: ${currency} ${amount}</p>
-      <p style="margin: 0; font-size: 12px; color: ${colors.mutedForeground};">Reference ID: ${donationId}</p>
+      <p style="margin: 10px 0 5px 0; font-size: 18px; font-weight: bold; color: ${colors.foreground};">Amount: ${params.donation.currency} ${params.donation.amount}</p>
+      <p style="margin: 0; font-size: 12px; color: ${colors.mutedForeground};">Reference ID: ${params.donation.id}</p>
     </div>
     <br>
     <p>With gratitude,<br>The YPF Africa Team</p>
@@ -189,17 +191,17 @@ export async function sendAcknowledgementEmail(
   const htmlBody = generateBaseHtml(subject, content);
 
   const textContent = [
-    `Dear ${donorName},`,
+    `Dear ${params.name},`,
     "",
     "Thank you for your generous donation to YPF Africa!",
     "",
     "Donation Details:",
-    `Amount: ${currency} ${amount}`,
-    `Reference ID: ${donationId}`,
+    `Amount: ${params.donation.currency} ${params.donation.amount}`,
+    `Reference ID: ${params.donation.id}`,
     "",
     "With gratitude,",
     "The YPF Africa Team",
   ].join("\n");
 
-  await sendEmail(to, subject, htmlBody, textContent);
+  await sendEmail(params.email, subject, htmlBody, textContent);
 }
