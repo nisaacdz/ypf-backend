@@ -621,17 +621,17 @@ async function seed(
     .insert(schema.Orders)
     .values([
       {
-        customerId: constituents[5].id,
+        constituentId: constituents[5].id,
         totalAmount: "75.00",
         status: "COMPLETED",
       },
       {
-        customerId: constituents[8].id,
+        constituentId: constituents[8].id,
         totalAmount: "15.00",
         status: "PENDING",
       },
       {
-        customerId: constituents[10].id,
+        constituentId: constituents[10].id,
         totalAmount: "50.00",
         status: "COMPLETED",
       },
