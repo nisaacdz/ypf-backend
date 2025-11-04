@@ -5,43 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1761892444108,
-      "tag": "0000_free_wolfsbane",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1762002878502,
-      "tag": "0001_yummy_mentor",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1762030936755,
-      "tag": "0002_magical_warbound",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1762124570123,
-      "tag": "0003_silent_spiral",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1762134317472,
-      "tag": "0004_charming_squadron_sinister",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1762229839927,
-      "tag": "0005_robust_triton",
+      "when": 1762260316639,
+      "tag": "0000_broad_vin_gonzales",
       "breakpoints": true
     }
   ]

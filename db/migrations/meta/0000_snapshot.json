@@ -1,5 +1,5 @@
 {
-  "id": "5b63988d-cf57-4b41-a7af-7a9eb884941f",
+  "id": "e271133b-d79b-4e52-bb4a-845b09b88180",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1029,8 +1029,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "created_at": {
-          "name": "created_at",
+        "uploaded_at": {
+          "name": "uploaded_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
@@ -1880,6 +1880,18 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
+        },
+        "guest_name": {
+          "name": "guest_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "guest_email": {
+          "name": "guest_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -2004,9 +2016,10 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "serial",
+          "type": "uuid",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "default": "gen_random_uuid()"
         },
         "transaction_id": {
           "name": "transaction_id",
@@ -2409,6 +2422,59 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "shop.order_payments": {
+      "name": "order_payments",
+      "schema": "shop",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "order_id": {
+          "name": "order_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "transaction_id": {
+          "name": "transaction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "order_payments_order_id_orders_id_fk": {
+          "name": "order_payments_order_id_orders_id_fk",
+          "tableFrom": "order_payments",
+          "tableTo": "orders",
+          "schemaTo": "shop",
+          "columnsFrom": ["order_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "order_payments_transaction_id_financial_transactions_id_fk": {
+          "name": "order_payments_transaction_id_financial_transactions_id_fk",
+          "tableFrom": "order_payments",
+          "tableTo": "financial_transactions",
+          "schemaTo": "finance",
+          "columnsFrom": ["transaction_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "shop.orders": {
       "name": "orders",
       "schema": "shop",
@@ -2420,8 +2486,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "customer_id": {
-          "name": "customer_id",
+        "constituent_id": {
+          "name": "constituent_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -2456,12 +2522,12 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "orders_customer_id_constituents_id_fk": {
-          "name": "orders_customer_id_constituents_id_fk",
+        "orders_constituent_id_constituents_id_fk": {
+          "name": "orders_constituent_id_constituents_id_fk",
           "tableFrom": "orders",
           "tableTo": "constituents",
           "schemaTo": "core",
-          "columnsFrom": ["customer_id"],
+          "columnsFrom": ["constituent_id"],
           "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
@@ -2473,8 +2539,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "shop.product_photos": {
-      "name": "product_photos",
+    "shop.product_media": {
+      "name": "product_media",
       "schema": "shop",
       "columns": {
         "id": {
@@ -2490,9 +2556,9 @@
           "primaryKey": false,
           "notNull": true
         },
-        "photo_url": {
-          "name": "photo_url",
-          "type": "text",
+        "medium_id": {
+          "name": "medium_id",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -2519,12 +2585,22 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "product_photos_product_id_products_id_fk": {
-          "name": "product_photos_product_id_products_id_fk",
-          "tableFrom": "product_photos",
+        "product_media_product_id_products_id_fk": {
+          "name": "product_media_product_id_products_id_fk",
+          "tableFrom": "product_media",
           "tableTo": "products",
           "schemaTo": "shop",
           "columnsFrom": ["product_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "product_media_medium_id_media_id_fk": {
+          "name": "product_media_medium_id_media_id_fk",
+          "tableFrom": "product_media",
+          "tableTo": "media",
+          "schemaTo": "core",
+          "columnsFrom": ["medium_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
