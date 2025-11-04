@@ -521,31 +521,22 @@ export async function getUserOrders(
   createdAt: Date;
   itemCount: number;
 }>> {
+  // Get orders with item counts in a single query using a subquery
   const orders = await pgPool.db
     .select({
       id: schema.Orders.id,
       totalAmount: schema.Orders.totalAmount,
       status: schema.Orders.status,
       createdAt: schema.Orders.createdAt,
+      itemCount: sql<number>`(
+        SELECT COUNT(*)::int
+        FROM ${schema.OrderItems}
+        WHERE ${schema.OrderItems.orderId} = ${schema.Orders.id}
+      )`,
     })
     .from(schema.Orders)
     .where(eq(schema.Orders.constituentId, user.constituentId))
     .orderBy(desc(schema.Orders.createdAt));
 
-  // Get item counts for each order
-  const ordersWithCounts = await Promise.all(
-    orders.map(async (order) => {
-      const items = await pgPool.db
-        .select()
-        .from(schema.OrderItems)
-        .where(eq(schema.OrderItems.orderId, order.id));
-
-      return {
-        ...order,
-        itemCount: items.length,
-      };
-    }),
-  );
-
-  return ordersWithCounts;
+  return orders;
 }
