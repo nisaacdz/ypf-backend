@@ -50,13 +50,18 @@ export type OrderDetail = {
   totalAmount: string;
   status: OrderStatus;
   createdAt: string;
-  deliveryAddress: {
+  deliveryAddress?: {
     recipientName: string;
     street: string;
     city: string;
     state?: string;
     postalCode: string;
     country: string;
-  };
+  } | null;
   items: OrderItem[];
+};
+
+export type OrderResponse = {
+  orderId: string;
+  paymentUrl: string;
 };

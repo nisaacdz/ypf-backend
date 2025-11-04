@@ -72,6 +72,11 @@ export async function handlePaystackWebhook(
     );
     wasUpdated = true;
     transactionId = result[0].id;
+
+    // If transaction is completed, update order status if applicable
+    if (newStatus === "COMPLETED") {
+      await updateOrderStatusOnPayment(result[0].id);
+    }
   } else {
     // This can happen if the webhook is sent twice, or if the transaction wasn't found.
     // It's not an error, just a state to be aware of.
@@ -216,6 +221,11 @@ export async function verifyPaystackTransaction(reference: string): Promise<{
       `Verified transaction ${transaction.id} with status: ${newStatus}`,
     );
 
+    // If transaction is for an order and was completed, update order status
+    if (newStatus === "COMPLETED" && wasUpdated) {
+      await updateOrderStatusOnPayment(transaction.id);
+    }
+
     return {
       transactionId: transaction.id,
       status: newStatus,
@@ -224,6 +234,39 @@ export async function verifyPaystackTransaction(reference: string): Promise<{
   } catch (error) {
     logger.error({ error }, "Error verifying transaction");
     throw error;
+  }
+}
+
+/**
+ * Updates order status when payment is completed.
+ * Called after a transaction status is updated to COMPLETED.
+ */
+async function updateOrderStatusOnPayment(transactionId: string): Promise<void> {
+  try {
+    // Find the order payment record
+    const [orderPayment] = await pgPool.db
+      .select()
+      .from(schema.OrderPayments)
+      .where(eq(schema.OrderPayments.transactionId, transactionId))
+      .limit(1);
+
+    if (orderPayment) {
+      // Update the order status to COMPLETED
+      await pgPool.db
+        .update(schema.Orders)
+        .set({ status: "COMPLETED" })
+        .where(
+          and(
+            eq(schema.Orders.id, orderPayment.orderId),
+            eq(schema.Orders.status, "PENDING"),
+          ),
+        );
+
+      logger.info(`Updated order ${orderPayment.orderId} to COMPLETED`);
+    }
+  } catch (error) {
+    logger.error({ error }, "Error updating order status");
+    // Don't throw - order status update failure shouldn't break payment flow
   }
 }
 
