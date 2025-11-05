@@ -54,3 +54,19 @@ export function generateTestEvent() {
     location: faker.location.city(),
   };
 }
+
+export function generateTestProject() {
+  const uniqueId = randomUUID().substring(0, 8);
+  const startDate = faker.date.future({ years: 1 });
+  const endDate = new Date(startDate);
+  endDate.setMonth(endDate.getMonth() + faker.number.int({ min: 1, max: 6 }));
+
+  return {
+    id: "",
+    title: `Test Project ${uniqueId}`,
+    abstract: faker.lorem.sentence(),
+    description: faker.lorem.paragraph(),
+    scheduledStart: startDate,
+    scheduledEnd: endDate,
+  };
+}
