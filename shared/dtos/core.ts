@@ -7,7 +7,7 @@ export type Medium = {
     width: number;
     height: number;
   };
-  sizeInBytes: number;
+  size: number;
   uploadedAt: Date;
   uploadedBy?: string; // fullName of uploader
 };
