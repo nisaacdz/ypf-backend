@@ -70,7 +70,7 @@ export type YPFEventMedium = {
 };
 
 export type YPFProjectMedium = {
-  id: string;
+  id: number;
   caption?: string;
   isFeatured: boolean;
   medium: Medium;

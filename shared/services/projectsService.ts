@@ -4,7 +4,7 @@ import pgPool from "@/configs/db";
 import { Projects, ProjectMedia } from "@/db/schema/activities";
 import { Media, Chapters } from "@/db/schema/core";
 import * as mediaUtils from "@/shared/utils/media";
-import { eq, and, ilike, count, sql } from "drizzle-orm";
+import { eq, and, ilike, count } from "drizzle-orm";
 import z from "zod";
 import {
   GetProjectsQuerySchema,
@@ -91,115 +91,59 @@ export async function fetchProjectMedia(
   projectId: string,
   query: z.infer<typeof GetProjectMediaQuerySchema>,
 ) {
-  const { page, pageSize, mediaType } = query;
-  const offset = (page - 1) * pageSize;
+  const { page, pageSize } = query;
 
-  // Use raw SQL for UNION query with proper database-level pagination
-  const mediaTypeCondition = mediaType ? sql`AND m.type = ${mediaType}` : sql``;
-
-  // Count total records
-  const totalQuery = sql`
-    SELECT COUNT(*) as total FROM (
-      SELECT pm.id
-      FROM activities.project_media pm
-      INNER JOIN core.media m ON pm.medium_id = m.id
-      WHERE pm.project_id = ${projectId} ${mediaTypeCondition}
-      
-      UNION ALL
-      
-      SELECT em.id
-      FROM activities.event_media em
-      INNER JOIN activities.events e ON em.event_id = e.id
-      INNER JOIN core.media m ON em.medium_id = m.id
-      WHERE e.project_id = ${projectId} ${mediaTypeCondition}
-    ) AS combined
-  `;
-
-  const [{ total }] = await pgPool.db.execute<{ total: number }>(totalQuery);
-
-  // Fetch paginated records
-  const itemsQuery = sql`
-    SELECT 
-      combined.id,
-      combined.caption,
-      combined.is_featured,
-      combined.medium_id,
-      combined.external_id,
-      combined.type,
-      combined.width,
-      combined.height,
-      combined.size_in_bytes,
-      combined.uploaded_at
-    FROM (
-      SELECT 
-        CAST(pm.id AS TEXT) as id,
-        pm.caption,
-        pm.is_featured,
-        m.id as medium_id,
-        m.external_id,
-        m.type,
-        m.width,
-        m.height,
-        m.size_in_bytes as size_in_bytes,
-        m.uploaded_at
-      FROM activities.project_media pm
-      INNER JOIN core.media m ON pm.medium_id = m.id
-      WHERE pm.project_id = ${projectId} ${mediaTypeCondition}
-      
-      UNION ALL
-      
-      SELECT 
-        CAST(em.id AS TEXT) as id,
-        em.caption,
-        false as is_featured,
-        m.id as medium_id,
-        m.external_id,
-        m.type,
-        m.width,
-        m.height,
-        m.size_in_bytes as size_in_bytes,
-        m.uploaded_at
-      FROM activities.event_media em
-      INNER JOIN activities.events e ON em.event_id = e.id
-      INNER JOIN core.media m ON em.medium_id = m.id
-      WHERE e.project_id = ${projectId} ${mediaTypeCondition}
-    ) AS combined
-    ORDER BY combined.uploaded_at DESC
-    LIMIT ${pageSize} OFFSET ${offset}
-  `;
-
-  const itemsItems = await pgPool.db.execute<{
-    id: string;
-    caption: string | null;
-    is_featured: boolean;
-    medium_id: string;
-    external_id: string;
-    type: string;
-    width: number;
-    height: number;
-    size_in_bytes: number;
-    uploaded_at: Date;
-  }>(itemsQuery);
+  const [itemsItems, total] = await Promise.all([
+    pgPool.db
+      .select({
+        id: ProjectMedia.id,
+        caption: ProjectMedia.caption,
+        isFeatured: ProjectMedia.isFeatured,
+        medium: {
+          id: Media.id,
+          externalId: Media.externalId,
+          type: Media.type,
+          width: Media.width,
+          height: Media.height,
+          sizeInBytes: Media.sizeInBytes,
+          uploadedAt: Media.uploadedAt,
+        },
+      })
+      .from(ProjectMedia)
+      .innerJoin(Media, eq(ProjectMedia.mediumId, Media.id))
+      .where(eq(ProjectMedia.projectId, projectId))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize),
+    pgPool.db
+      .select({ count: count() })
+      .from(ProjectMedia)
+      .where(eq(ProjectMedia.projectId, projectId))
+      .then((res) => res[0].count),
+  ]);
 
   const items = itemsItems.map((m) => ({
-    id: m.id,
+    ...m,
     caption: m.caption || undefined,
-    isFeatured: m.is_featured,
     medium: {
-      id: m.medium_id,
-      type: m.type as "PICTURE" | "VIDEO",
-      sizeInBytes: m.size_in_bytes,
-      uploadedAt: m.uploaded_at,
-      url: mediaUtils.generateSignedMediaUrl(m.external_id, {
+      id: m.medium.id,
+      type: m.medium.type,
+      sizeInBytes: m.medium.sizeInBytes,
+      uploadedAt: m.medium.uploadedAt,
+      url: mediaUtils.generateSignedMediaUrl(m.medium.externalId, {
         resolution: 480,
         expireSeconds: 60 * 60 * 24,
       }),
       dimensions: {
-        width: m.width,
-        height: m.height,
+        width: m.medium.width,
+        height: m.medium.height,
       },
     },
   }));
 
-  return { items, total };
+  return {
+    items,
+    page,
+    pageSize,
+    total,
+  };
 }
