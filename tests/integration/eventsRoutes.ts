@@ -223,7 +223,7 @@ describe("Events API", () => {
 
     it("should support search by project title", async () => {
       const response = await request(app)
-        .get("/api/v1/events?search=Test Project")
+        .get("/api/v1/events?search=Test Event")
         .expect(200);
 
       expect(response.body.success).toBe(true);
@@ -233,8 +233,8 @@ describe("Events API", () => {
       if (response.body.data.items.length > 0) {
         const hasMatchingProject = response.body.data.items.some(
           (e: EventResponse) =>
-            e.project?.title.toLowerCase().includes("test project") ||
-            e.name.toLowerCase().includes("test project"),
+            e.project?.title.toLowerCase().includes("test event") ||
+            e.name.toLowerCase().includes("test event"),
         );
         expect(hasMatchingProject).toBe(true);
       }

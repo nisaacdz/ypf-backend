@@ -58,21 +58,6 @@ async function seed(
     )
     .returning();
 
-  // Seed Media
-  const media = await tx
-    .insert(schema.Media)
-    .values(
-      Array.from({ length: 15 }, () => ({
-        externalId: faker.string.uuid(),
-        type: faker.helpers.arrayElement(schema.MediumTypeEnum.enumValues),
-        width: faker.number.int({ min: 800, max: 1920 }),
-        height: faker.number.int({ min: 600, max: 1080 }),
-        sizeInBytes: faker.number.int({ min: 50000, max: 5000000 }),
-        uploadedBy: faker.helpers.arrayElement(constituents).id,
-      })),
-    )
-    .returning();
-
   // Seed Chapters
   const chapters = await tx
     .insert(schema.Chapters)
@@ -105,26 +90,6 @@ async function seed(
       { name: "Events Committee", chapterId: chapters[2].id },
     ])
     .returning();
-
-  // Seed Chapter Media
-  await tx.insert(schema.ChapterMedia).values(
-    chapters.slice(0, 2).map((ch, i) => ({
-      chapterId: ch.id,
-      mediumId: media[i].id,
-      caption: `${ch.name} featured image`,
-      isFeatured: true,
-    })),
-  );
-
-  // Seed Committee Media
-  await tx.insert(schema.CommitteeMedia).values(
-    committees.slice(0, 2).map((com, i) => ({
-      committeeId: com.id,
-      mediumId: media[i + 2].id,
-      caption: `${com.name} photo`,
-      isFeatured: false,
-    })),
-  );
 
   // Seed Organizations
   const organizations = await tx
@@ -336,16 +301,6 @@ async function seed(
     )
     .returning();
 
-  // Seed Project Media
-  await tx.insert(schema.ProjectMedia).values(
-    projects.slice(0, 3).map((p, i) => ({
-      projectId: p.id,
-      mediumId: media[i + 4].id,
-      caption: `Project ${p.title} image`,
-      isFeatured: i === 0,
-    })),
-  );
-
   // Seed Events
   const events = await tx
     .insert(schema.Events)
@@ -361,16 +316,6 @@ async function seed(
       })),
     )
     .returning();
-
-  // Seed Event Media
-  await tx.insert(schema.EventMedia).values(
-    events.slice(0, 4).map((e, i) => ({
-      eventId: e.id,
-      mediumId: media[i + 7].id,
-      caption: `Event ${e.name} photo`,
-      isFeatured: i < 2,
-    })),
-  );
 
   console.log("✅ Activities seeded.");
 
@@ -591,30 +536,6 @@ async function seed(
       },
     ])
     .returning();
-
-  const productMediaIds = await tx
-    .insert(schema.Media)
-    .values(
-      products.map(() => ({
-        externalId: faker.string.uuid(),
-        type: faker.helpers.arrayElement(schema.MediumTypeEnum.enumValues),
-        width: faker.number.int({ min: 800, max: 1920 }),
-        height: faker.number.int({ min: 600, max: 1080 }),
-        sizeInBytes: faker.number.int({ min: 50000, max: 5000000 }),
-        uploadedBy: faker.helpers.arrayElement(constituents).id,
-      })),
-    )
-    .returning({ id: schema.Media.id });
-
-  // Seed Product Photos
-  await tx.insert(schema.ProductMedia).values(
-    products.map((p, idx) => ({
-      productId: p.id,
-      mediumId: productMediaIds[idx].id,
-      caption: `${p.name} photo`,
-      isFeatured: true,
-    })),
-  );
 
   // Seed Orders
   const orders = await tx
