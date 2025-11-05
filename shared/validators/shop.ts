@@ -46,27 +46,43 @@ const OrderItemSchema = z.object({
     .positive({ message: "You must order at least one of this item." }),
 });
 
-const DeliveryAddressSchema = z.object({
-  recipientName: z
-    .string()
-    .min(2, { message: "Please enter the recipient's full name." }),
-  street: z
-    .string()
-    .min(3, { message: "Please enter a valid street address." }),
-  city: z.string().min(2, { message: "Please enter a city." }),
-  state: z.string().optional(),
-  postalCode: z
-    .string()
-    .min(3, { message: "Please enter a valid postal code." }),
-  country: z.string().min(2, { message: "Please enter a country." }),
-});
-
+// Authenticated user order schema (no delivery address needed)
 export const CreateOrderSchema = z.object({
   items: z
     .array(OrderItemSchema)
     .nonempty({ message: "Your shopping cart cannot be empty." }),
+  currency: z
+    .string()
+    .length(3, "Currency must be a 3-letter code")
+    .default("GHS"),
+});
 
-  deliveryAddress: DeliveryAddressSchema,
+// Validate the items
+export const ValidateOrderItemsSchema = z.object({
+  items: z
+    .array(OrderItemSchema)
+    .nonempty({ message: "Your shopping cart cannot be empty." }),
+});
+
+// Guest order initiation schema
+export const InitiateGuestOrderSchema = z.object({
+  firstName: z.string().min(1, { message: "First name is required." }),
+  lastName: z.string().min(1, { message: "Last name is required." }),
+  email: z.email({ message: "Invalid email address." }),
+  phone: z.string().optional(),
+  items: z
+    .array(OrderItemSchema)
+    .nonempty({ message: "Your shopping cart cannot be empty." }),
+  currency: z
+    .string()
+    .length(3, "Currency must be a 3-letter code")
+    .default("GHS"),
+});
+
+// Guest order completion schema
+export const CompleteGuestOrderSchema = z.object({
+  email: z.email({ message: "Invalid email address." }),
+  otp: z.string().length(6, { message: "OTP must be 6 digits." }),
 });
 
 export const GetProductsQuerySchema = z.object({
