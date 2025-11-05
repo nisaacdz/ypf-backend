@@ -13,7 +13,7 @@ export type AddMediumRecord = {
     type: "PICTURE" | "VIDEO";
     width: number;
     height: number;
-    sizeInBytes: number;
+    size: number;
     uploadedBy: string;
   };
 };
