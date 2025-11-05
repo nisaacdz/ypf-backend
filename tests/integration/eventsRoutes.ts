@@ -66,6 +66,12 @@ describe("Events API", () => {
       startedAt: new Date(),
     });
 
+    // Create an admin for testing (needed for PUT/PATCH permissions)
+    await pgPool.db.insert(schema.Admins).values({
+      constituentId: testUser.constituentId,
+      startedAt: new Date(),
+    });
+
     // Create a test chapter
     const [newChapter] = await pgPool.db
       .insert(schema.Chapters)
@@ -412,11 +418,11 @@ describe("Events API", () => {
     let testMediaId: number;
 
     beforeAll(async () => {
-      // First, create a test medium in the Media table
+      // First, create a test medium in the Media table with a unique external_id
       const [newMedium] = await pgPool.db
         .insert(schema.Media)
         .values({
-          externalId: "test-external-id",
+          externalId: `test-external-id-${Date.now()}`,
           type: "PICTURE",
           width: 1920,
           height: 1080,
