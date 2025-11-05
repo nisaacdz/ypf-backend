@@ -46,7 +46,6 @@ export async function fetchEvents(
       scheduledEnd: schema.Events.scheduledEnd,
       location: schema.Events.location,
       status: schema.Events.status,
-      projectId: schema.Projects.id,
       projectTitle: schema.Projects.title,
     })
     .from(schema.Events)
@@ -63,13 +62,7 @@ export async function fetchEvents(
     scheduledEnd: event.scheduledEnd,
     location: event.location || undefined,
     status: event.status,
-    project:
-      event.projectId && event.projectTitle
-        ? {
-            id: event.projectId,
-            title: event.projectTitle,
-          }
-        : undefined,
+    projectTitle: event.projectTitle || undefined,
   }));
 
   return {

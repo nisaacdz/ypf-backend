@@ -37,10 +37,7 @@ export type YPFEvent = {
   scheduledEnd: Date;
   location?: string;
   status: EventStatus;
-  project?: {
-    id: string;
-    title: string;
-  };
+  projectTitle?: string;
 };
 
 export type YPFEventDetail = {
