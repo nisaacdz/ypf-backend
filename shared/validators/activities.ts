@@ -135,6 +135,48 @@ export const UploadProjectMediumOptionsSchema = z.object({
   isFeatured: z.coerce.boolean().optional().default(false),
 });
 
+export const CreateProjectSchema = z.object({
+  title: z
+    .string({ message: "Project title is required." })
+    .min(3, { message: "Project title must be at least 3 characters." })
+    .max(200, { message: "Project title must not exceed 200 characters." }),
+  abstract: z.string().optional(),
+  description: z.string().optional(),
+  scheduledStart: z.coerce.date({
+    message: "Please enter a valid start date.",
+  }),
+  scheduledEnd: z.coerce.date({ message: "Please enter a valid end date." }),
+  status: z.enum(ProjectStatusEnum.enumValues, {
+    message: "Invalid project status.",
+  }),
+  chapterId: z.uuid({ message: "Invalid chapter ID format." }).optional(),
+});
+
+export const UpdateProjectSchema = z.object({
+  title: z
+    .string()
+    .min(3, { message: "Project title must be at least 3 characters." })
+    .max(200, { message: "Project title must not exceed 200 characters." })
+    .optional(),
+  abstract: z.string().optional(),
+  description: z.string().optional(),
+  scheduledStart: z.coerce.date().optional(),
+  scheduledEnd: z.coerce.date().optional(),
+  status: z
+    .enum(ProjectStatusEnum.enumValues, {
+      message: "Invalid project status.",
+    })
+    .optional(),
+});
+
+export const UpdateProjectMediaSchema = z.object({
+  caption: z
+    .string()
+    .max(255, { message: "Caption must not exceed 255 characters." })
+    .optional(),
+  isFeatured: z.coerce.boolean().optional(),
+});
+
 export const UpdateEventSchema = z.object({
   name: z
     .string()

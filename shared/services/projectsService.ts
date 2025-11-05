@@ -1,5 +1,4 @@
-import { Paginated } from "@/shared/dtos";
-import { YPFProject } from "@/shared/dtos";
+import { Paginated, YPFProject, YPFProjectDetail } from "@/shared/dtos";
 import pgPool from "@/configs/db";
 import { Projects, ProjectMedia } from "@/db/schema/activities";
 import { Media, Chapters } from "@/db/schema/core";
@@ -9,7 +8,10 @@ import z from "zod";
 import {
   GetProjectsQuerySchema,
   GetProjectMediaQuerySchema,
+  CreateProjectSchema,
+  UpdateProjectSchema,
 } from "@/shared/validators/activities";
+import { AppError } from "@/shared/types";
 
 export async function fetchProjects(
   query: z.infer<typeof GetProjectsQuerySchema>,
@@ -146,4 +148,142 @@ export async function fetchProjectMedia(
     pageSize,
     total,
   };
+}
+
+export async function fetchProjectById(
+  projectId: string,
+): Promise<YPFProjectDetail> {
+  // Fetch project with chapter info
+  const [project] = await pgPool.db
+    .select({
+      id: Projects.id,
+      title: Projects.title,
+      abstract: Projects.abstract,
+      description: Projects.description,
+      scheduledStart: Projects.scheduledStart,
+      scheduledEnd: Projects.scheduledEnd,
+      status: Projects.status,
+      chapterId: Chapters.id,
+      chapterName: Chapters.name,
+    })
+    .from(Projects)
+    .leftJoin(Chapters, eq(Projects.chapterId, Chapters.id))
+    .where(eq(Projects.id, projectId));
+
+  if (!project) {
+    throw new AppError("Project not found", 404);
+  }
+
+  // Fetch featured media
+  const featuredMedia = await pgPool.db
+    .select({
+      caption: ProjectMedia.caption,
+      medium: {
+        id: Media.id,
+        externalId: Media.externalId,
+        type: Media.type,
+        width: Media.width,
+        height: Media.height,
+        sizeInBytes: Media.sizeInBytes,
+        uploadedAt: Media.uploadedAt,
+      },
+    })
+    .from(ProjectMedia)
+    .innerJoin(Media, eq(ProjectMedia.mediumId, Media.id))
+    .where(
+      and(
+        eq(ProjectMedia.projectId, projectId),
+        eq(ProjectMedia.isFeatured, true),
+      ),
+    );
+
+  return {
+    id: project.id,
+    title: project.title,
+    abstract: project.abstract || undefined,
+    description: project.description || undefined,
+    scheduledStart: project.scheduledStart,
+    scheduledEnd: project.scheduledEnd,
+    status: project.status,
+    featuredMedia: featuredMedia.length
+      ? featuredMedia.map((fm) => ({
+          caption: fm.caption || undefined,
+          medium: {
+            id: fm.medium.id,
+            type: fm.medium.type,
+            sizeInBytes: fm.medium.sizeInBytes,
+            uploadedAt: fm.medium.uploadedAt,
+            url: mediaUtils.generateSignedMediaUrl(fm.medium.externalId, {
+              resolution: 720,
+              expireSeconds: 60 * 60 * 24,
+            }),
+            dimensions: {
+              width: fm.medium.width,
+              height: fm.medium.height,
+            },
+          },
+        }))
+      : undefined,
+    chapter:
+      project.chapterId && project.chapterName
+        ? {
+            id: project.chapterId,
+            name: project.chapterName,
+          }
+        : undefined,
+  };
+}
+
+export async function createProject(
+  data: z.infer<typeof CreateProjectSchema>,
+): Promise<string> {
+  const [project] = await pgPool.db
+    .insert(Projects)
+    .values(data)
+    .returning({ id: Projects.id });
+
+  if (!project) {
+    throw new AppError("Failed to create project", 500);
+  }
+
+  return project.id;
+}
+
+export async function updateProject(
+  projectId: string,
+  data: z.infer<typeof UpdateProjectSchema>,
+): Promise<void> {
+  // Check if project exists
+  const [existingProject] = await pgPool.db
+    .select({ id: Projects.id })
+    .from(Projects)
+    .where(eq(Projects.id, projectId));
+
+  if (!existingProject) {
+    throw new AppError("Project not found", 404);
+  }
+
+  // Update project
+  await pgPool.db.update(Projects).set(data).where(eq(Projects.id, projectId));
+}
+
+export async function updateProjectMedia(
+  projectMediaId: number,
+  data: { caption?: string; isFeatured?: boolean },
+): Promise<void> {
+  // Check if project media exists
+  const [existingMedia] = await pgPool.db
+    .select({ id: ProjectMedia.id })
+    .from(ProjectMedia)
+    .where(eq(ProjectMedia.id, projectMediaId));
+
+  if (!existingMedia) {
+    throw new AppError("Project media not found", 404);
+  }
+
+  // Update project media
+  await pgPool.db
+    .update(ProjectMedia)
+    .set(data)
+    .where(eq(ProjectMedia.id, projectMediaId));
 }

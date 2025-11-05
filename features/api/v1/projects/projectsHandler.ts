@@ -1,8 +1,11 @@
 import { ApiResponse } from "@/shared/types";
-import { Paginated } from "@/shared/dtos";
+import { Paginated, YPFProjectDetail } from "@/shared/dtos";
 import {
   GetProjectsQuerySchema,
   GetProjectMediaQuerySchema,
+  CreateProjectSchema,
+  UpdateProjectSchema,
+  UpdateProjectMediaSchema,
 } from "@/shared/validators/activities";
 import z from "zod";
 import { YPFProject, YPFProjectMedium } from "@/shared/dtos";
@@ -79,4 +82,54 @@ export async function uploadProjectMedium({
     await mediaUtils.deleteMediumFile(uploadMeta.externalId);
     throw error;
   }
+}
+
+export async function getProject(
+  projectId: string,
+): Promise<ApiResponse<YPFProjectDetail>> {
+  const data = await projectsService.fetchProjectById(projectId);
+
+  return {
+    success: true,
+    message: "Project fetched successfully",
+    data,
+  };
+}
+
+export async function createProject(
+  newProject: z.infer<typeof CreateProjectSchema>,
+): Promise<ApiResponse<string>> {
+  const projectId = await projectsService.createProject(newProject);
+
+  return {
+    success: true,
+    message: "Project created successfully",
+    data: projectId,
+  };
+}
+
+export async function updateProject(
+  projectId: string,
+  updates: z.infer<typeof UpdateProjectSchema>,
+): Promise<ApiResponse<null>> {
+  await projectsService.updateProject(projectId, updates);
+
+  return {
+    success: true,
+    message: "Project updated successfully",
+    data: null,
+  };
+}
+
+export async function updateProjectMedia(
+  projectMediaId: number,
+  updates: z.infer<typeof UpdateProjectMediaSchema>,
+): Promise<ApiResponse<null>> {
+  await projectsService.updateProjectMedia(projectMediaId, updates);
+
+  return {
+    success: true,
+    message: "Project media updated successfully",
+    data: null,
+  };
 }
