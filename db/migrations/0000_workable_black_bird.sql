@@ -164,7 +164,7 @@ CREATE TABLE "core"."media" (
 	"type" "core"."media_type" NOT NULL,
 	"width" integer NOT NULL,
 	"height" integer NOT NULL,
-	"sizeInBytes" integer NOT NULL,
+	"size" integer NOT NULL,
 	"uploaded_by" uuid,
 	"uploaded_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "media_external_id_unique" UNIQUE("external_id")
