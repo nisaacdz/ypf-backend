@@ -31,7 +31,7 @@ export const Media = core.table("media", {
   type: MediumTypeEnum().notNull(),
   width: integer().notNull(),
   height: integer().notNull(),
-  sizeInBytes: integer().notNull(),
+  sizeInBytes: integer("size_in_bytes").notNull(),
   uploadedBy: uuid("uploaded_by").references(
     (): AnyPgColumn => Constituents.id,
     { onDelete: "set null" },
