@@ -1,14 +1,26 @@
 import { Request, Response, NextFunction } from "express";
 import { Router } from "express";
-import { authenticateLax, authorize } from "@/shared/middlewares/auth";
+import {
+  authenticate,
+  authenticateLax,
+  authorize,
+} from "@/shared/middlewares/auth";
 import {
   GetProjectsQuerySchema,
   GetProjectMediaQuerySchema,
+  UploadProjectFileSchema,
+  UploadProjectMediumOptionsSchema,
 } from "@/shared/validators/activities";
-import { validateQuery, validateParams } from "@/shared/middlewares/validate";
+import {
+  validateQuery,
+  validateParams,
+  validateFile,
+  validateBody,
+} from "@/shared/middlewares/validate";
 import * as projectsHandler from "./projectsHandler";
-import { Visitors } from "@/configs/authorizer";
+import { Visitors, MEMBER, anyOf } from "@/configs/authorizer";
 import z from "zod";
+import filesUpload from "@/shared/middlewares/multipart";
 
 const projectsRouter = Router();
 
@@ -154,6 +166,80 @@ projectsRouter.get(
         req.Params.id,
         req.Query,
       );
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/**
+ * @swagger
+ * /api/v1/projects/{id}/media:
+ *   post:
+ *     summary: Upload media file for a project
+ *     tags: [Projects]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Project ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - file
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: Media file (PNG, JPEG up to 50MB or MP4, AVI up to 250MB)
+ *               caption:
+ *                 type: string
+ *                 maxLength: 255
+ *               isFeatured:
+ *                 type: boolean
+ *                 default: false
+ *     responses:
+ *       200:
+ *         description: Media uploaded successfully
+ *       400:
+ *         description: Invalid file type, size, or payload
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ */
+projectsRouter.post(
+  "/:id/media",
+  validateParams(z.object({ id: z.uuid("Invalid Request") })),
+  authenticate,
+  authorize(
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
+  ),
+  filesUpload.single("file"),
+  validateFile(UploadProjectFileSchema),
+  validateBody(UploadProjectMediumOptionsSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await projectsHandler.uploadProjectMedium({
+        constituentId: req.User!.constituentId,
+        projectId: req.Params.id,
+        file: req.File,
+        options: req.Body,
+      });
       res.status(200).json(response);
     } catch (error) {
       next(error);

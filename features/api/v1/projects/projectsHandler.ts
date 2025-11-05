@@ -7,6 +7,8 @@ import {
 import z from "zod";
 import { YPFProject, YPFProjectMedium } from "@/shared/dtos";
 import * as projectsService from "@/shared/services/projectsService";
+import * as mediaUtils from "@/shared/utils/media";
+import * as mediaService from "@/shared/services/mediaService";
 
 export async function getProjects(
   query: z.infer<typeof GetProjectsQuerySchema>,
@@ -39,4 +41,42 @@ export async function getProjectMedia(
       total,
     },
   };
+}
+
+export async function uploadProjectMedium({
+  constituentId,
+  projectId,
+  file,
+  options,
+}: {
+  constituentId: string;
+  projectId: string;
+  file: Express.Multer.File;
+  options: { caption?: string; isFeatured: boolean };
+}): Promise<ApiResponse<string>> {
+  const uploadMeta = await mediaUtils.storeMediumFile(file);
+
+  try {
+    const newMediumId = await mediaService.uploadProjectMedium(projectId, {
+      caption: options.caption,
+      isFeatured: options.isFeatured,
+      medium: {
+        externalId: uploadMeta.externalId,
+        type: uploadMeta.type,
+        width: uploadMeta.dimensions.width,
+        height: uploadMeta.dimensions.height,
+        sizeInBytes: uploadMeta.sizeInBytes,
+        uploadedBy: constituentId,
+      },
+    });
+
+    return {
+      success: true,
+      message: "Media uploaded successfully",
+      data: newMediumId,
+    };
+  } catch (error) {
+    await mediaUtils.deleteMediumFile(uploadMeta.externalId);
+    throw error;
+  }
 }

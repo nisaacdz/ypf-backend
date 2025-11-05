@@ -64,6 +64,52 @@ export async function uploadEventMedium(
   }
 }
 
+export async function uploadProjectMedium(
+  projectId: string,
+  data: AddMediumRecord,
+): Promise<string> {
+  try {
+    const newMediumId = await pgPool.db.transaction(async (tx) => {
+      const [newMedium] = await tx
+        .insert(schema.Media)
+        .values(data.medium)
+        .returning({ id: schema.Media.id });
+      if (!newMedium?.id) {
+        throw new Error(
+          "Failed to create medium record, rolling back transaction.",
+        );
+      }
+
+      await tx.insert(schema.ProjectMedia).values({
+        projectId: projectId,
+        mediumId: newMedium.id,
+        caption: data.caption,
+        isFeatured: data.isFeatured,
+      });
+      return newMedium.id;
+    });
+
+    if (data.medium.type === "VIDEO") {
+      backfillVideoMetadata(newMediumId, data.medium.externalId).catch(
+        (err) => {
+          logger.error(
+            err,
+            `Error backfilling video metadata for medium ID: ${newMediumId}`,
+          );
+        },
+      );
+    }
+
+    return newMediumId;
+  } catch (err) {
+    logger.error(err);
+    throw new AppError(
+      "An error occurred while adding the event medium record.",
+      500,
+    );
+  }
+}
+
 export async function backfillVideoMetadata(
   mediumId: string,
   externalId: string,
