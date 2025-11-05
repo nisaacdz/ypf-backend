@@ -218,7 +218,7 @@ export async function getMemberByConstituentId(
       profilePhotoType: schema.Media.type,
       profilePhotoWidth: schema.Media.width,
       profilePhotoHeight: schema.Media.height,
-      profilePhotoSizeInBytes: schema.Media.sizeInBytes,
+      profilePhotoSize: schema.Media.size,
       profilePhotoUploadedAt: schema.Media.uploadedAt,
       profilePhotoUploadedBy: schema.Media.uploadedBy,
       joinedAt: min(schema.Members.startedAt).as("joined_at"),
@@ -254,7 +254,7 @@ export async function getMemberByConstituentId(
       schema.Media.type,
       schema.Media.width,
       schema.Media.height,
-      schema.Media.sizeInBytes,
+      schema.Media.size,
       schema.Media.uploadedAt,
       schema.Media.uploadedBy,
     );
@@ -326,7 +326,7 @@ export async function getMemberByConstituentId(
       constituent.profilePhotoType &&
       constituent.profilePhotoWidth !== null &&
       constituent.profilePhotoHeight !== null &&
-      constituent.profilePhotoSizeInBytes !== null &&
+      constituent.profilePhotoSize !== null &&
       constituent.profilePhotoUploadedAt
         ? {
             url: mediaUtils.generatePublicMediaUrl(
@@ -338,7 +338,7 @@ export async function getMemberByConstituentId(
               width: constituent.profilePhotoWidth,
               height: constituent.profilePhotoHeight,
             },
-            sizeInBytes: constituent.profilePhotoSizeInBytes,
+            size: constituent.profilePhotoSize,
             uploadedAt: constituent.profilePhotoUploadedAt,
           }
         : undefined,
