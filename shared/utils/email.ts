@@ -405,3 +405,82 @@ export async function sendOrderConfirmationEmail(params: {
 
   await sendEmail(params.email, subject, htmlBody, textContent);
 }
+
+/**
+ * Sends an order placement email with payment link.
+ * @param params - Email parameters including recipient info, order details, and payment URL
+ */
+export async function sendOrderPlacementEmail(params: {
+  email: string;
+  name: string;
+  order: {
+    id: string;
+    amount: string;
+    currency: string;
+    items: Array<{
+      name: string;
+      quantity: number;
+      price: string;
+    }>;
+  };
+  paymentUrl: string;
+}): Promise<void> {
+  const subject = "Complete Your Order Payment";
+
+  const itemsList = params.order.items
+    .map(
+      (item) =>
+        `<li style="margin: 5px 0;">${item.quantity}x ${item.name} - ${params.order.currency} ${item.price}</li>`,
+    )
+    .join("");
+
+  const content = `
+    <p>Dear ${params.name},</p>
+    <p>Thank you for placing an order with YPF Africa! Your order has been created and is awaiting payment.</p>
+    <div style="background-color: ${colors.muted}; padding: 20px; border-radius: 8px; margin: 20px 0;">
+      <p style="margin: 0 0 10px 0; font-size: 14px; color: ${colors.mutedForeground};">Order Details:</p>
+      <ul style="list-style: none; padding: 0; margin: 0 0 10px 0;">
+        ${itemsList}
+      </ul>
+      <p style="margin: 10px 0 5px 0; font-size: 18px; font-weight: bold; color: ${colors.foreground};">Total: ${params.order.currency} ${params.order.amount}</p>
+      <p style="margin: 0; font-size: 12px; color: ${colors.mutedForeground};">Order ID: ${params.order.id}</p>
+    </div>
+    <p>Please complete your payment to confirm your order:</p>
+    <br>
+    <a href="${params.paymentUrl}" class="button" style="background-color: ${colors.accent}; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">Complete Payment</a>
+    <br>
+    <p>Once payment is confirmed, we will send you a receipt and begin processing your order.</p>
+    <br>
+    <p>Best regards,<br>The YPF Africa Team</p>
+  `;
+
+  const htmlBody = generateBaseHtml(subject, content);
+
+  const itemsText = params.order.items
+    .map(
+      (item) =>
+        `  ${item.quantity}x ${item.name} - ${params.order.currency} ${item.price}`,
+    )
+    .join("\n");
+
+  const textContent = [
+    `Dear ${params.name},`,
+    "",
+    "Thank you for placing an order with YPF Africa! Your order has been created and is awaiting payment.",
+    "",
+    "Order Details:",
+    itemsText,
+    `Total: ${params.order.currency} ${params.order.amount}`,
+    `Order ID: ${params.order.id}`,
+    "",
+    "Please complete your payment to confirm your order:",
+    params.paymentUrl,
+    "",
+    "Once payment is confirmed, we will send you a receipt and begin processing your order.",
+    "",
+    "Best regards,",
+    "The YPF Africa Team",
+  ].join("\n");
+
+  await sendEmail(params.email, subject, htmlBody, textContent);
+}
