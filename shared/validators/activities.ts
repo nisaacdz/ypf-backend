@@ -137,7 +137,7 @@ export const UploadProjectMediumOptionsSchema = z.object({
 
 export const UpdateEventSchema = z.object({
   name: z
-    .string({ message: "Event name is required." })
+    .string()
     .min(3, { message: "Event name must be at least 3 characters." })
     .max(100, { message: "Event name must not exceed 100 characters." })
     .optional(),

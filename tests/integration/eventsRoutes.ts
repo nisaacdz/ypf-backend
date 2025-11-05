@@ -408,7 +408,7 @@ describe("Events API", () => {
     });
   });
 
-  describe("PATCH /api/v1/events/:id/media", () => {
+  describe("PATCH /api/v1/events/media/:id", () => {
     let testMediaId: number;
 
     beforeAll(async () => {
@@ -455,7 +455,7 @@ describe("Events API", () => {
       };
 
       const response = await request(app)
-        .patch(`/api/v1/events/${testMediaId}/media`)
+        .patch(`/api/v1/events/media/${testMediaId}`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
         .expect(200);
@@ -479,7 +479,7 @@ describe("Events API", () => {
       };
 
       const response = await request(app)
-        .patch(`/api/v1/events/${testMediaId}/media`)
+        .patch(`/api/v1/events/media/${testMediaId}`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
         .expect(200);
@@ -502,7 +502,7 @@ describe("Events API", () => {
       };
 
       const response = await request(app)
-        .patch(`/api/v1/events/${testMediaId}/media`)
+        .patch(`/api/v1/events/media/${testMediaId}`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
         .expect(200);
@@ -525,7 +525,7 @@ describe("Events API", () => {
       };
 
       await request(app)
-        .patch(`/api/v1/events/${testMediaId}/media`)
+        .patch(`/api/v1/events/media/${testMediaId}`)
         .send(updateData)
         .expect(401);
     });
@@ -537,7 +537,7 @@ describe("Events API", () => {
       };
 
       const response = await request(app)
-        .patch(`/api/v1/events/${fakeId}/media`)
+        .patch(`/api/v1/events/media/${fakeId}`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
         .expect(404);
@@ -552,7 +552,7 @@ describe("Events API", () => {
       };
 
       await request(app)
-        .patch(`/api/v1/events/${testMediaId}/media`)
+        .patch(`/api/v1/events/media/${testMediaId}`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
         .expect(400);
@@ -564,7 +564,7 @@ describe("Events API", () => {
       };
 
       await request(app)
-        .patch("/api/v1/events/invalid/media")
+        .patch("/api/v1/events/media/invalid")
         .set("Cookie", authTokenCookie)
         .send(updateData)
         .expect(400);

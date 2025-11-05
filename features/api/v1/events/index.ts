@@ -479,19 +479,19 @@ eventsRouter.put(
 
 /**
  * @swagger
- * /api/v1/events/{id}/media:
+ * /api/v1/events/media/{mediaId}:
  *   patch:
- *     summary: Update event media details
+ *     summary: Update event media details (caption and featured status)
  *     tags: [Events]
  *     security:
  *       - cookieAuth: []
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: mediaId
  *         required: true
  *         schema:
  *           type: integer
- *         description: Event media ID (not event ID)
+ *         description: The ID of the event media record to update (from EventMedia table)
  *     requestBody:
  *       required: true
  *       content:
@@ -521,7 +521,7 @@ eventsRouter.put(
  *         description: Event media not found
  */
 eventsRouter.patch(
-  "/:id/media",
+  "/media/:id",
   validateParams(z.object({ id: z.coerce.number().int().positive() })),
   authenticate,
   authorize(

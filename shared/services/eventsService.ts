@@ -190,10 +190,10 @@ export async function fetchEventById(
     location: event.location || undefined,
     objective: event.objective || undefined,
     status: event.status,
-    project: event.project?.id
+    project: event.project?.id && event.project.title
       ? {
           id: event.project.id,
-          title: event.project.title!,
+          title: event.project.title,
         }
       : undefined,
     featuredMedia:
