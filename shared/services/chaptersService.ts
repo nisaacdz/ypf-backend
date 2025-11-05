@@ -139,7 +139,7 @@ export async function getChapterById(
         mediumType: schema.Media.type,
         mediumWidth: schema.Media.width,
         mediumHeight: schema.Media.height,
-        mediumSizeInBytes: schema.Media.sizeInBytes,
+        mediumSize: schema.Media.size,
         mediumUploadedAt: schema.Media.uploadedAt,
         mediumUploadedBy:
           sql<string>`concat(${schema.Constituents.firstName}, ' ', ${schema.Constituents.lastName})`.as(
@@ -192,7 +192,7 @@ export async function getChapterById(
           width: m.mediumWidth,
           height: m.mediumHeight,
         },
-        sizeInBytes: m.mediumSizeInBytes,
+        size: m.mediumSize,
         uploadedAt: m.mediumUploadedAt,
         uploadedBy: m.mediumUploadedBy ?? undefined,
       },
