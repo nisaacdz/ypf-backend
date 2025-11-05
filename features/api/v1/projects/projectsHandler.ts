@@ -68,7 +68,7 @@ export async function uploadProjectMedium({
         type: uploadMeta.type,
         width: uploadMeta.dimensions.width,
         height: uploadMeta.dimensions.height,
-        sizeInBytes: uploadMeta.sizeInBytes,
+        size: uploadMeta.size,
         uploadedBy: constituentId,
       },
     });

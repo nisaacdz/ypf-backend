@@ -1,5 +1,5 @@
 {
-  "id": "7fe933e0-733f-4197-8439-4d2d996fac10",
+  "id": "61153111-0620-4743-ad92-fe73f5a38d08",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1017,8 +1017,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "size_in_bytes": {
-          "name": "size_in_bytes",
+        "size": {
+          "name": "size",
           "type": "integer",
           "primaryKey": false,
           "notNull": true

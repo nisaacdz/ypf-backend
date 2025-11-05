@@ -13,7 +13,7 @@ export interface MediaMeta {
     width: number;
     height: number;
   };
-  sizeInBytes: number;
+  size: number;
 }
 
 export async function storeMediumFile(
@@ -47,7 +47,7 @@ export async function storeMediumFile(
     externalId: blobName,
     type: isVideo ? "VIDEO" : "PICTURE",
     dimensions: dimensions,
-    sizeInBytes: file.size,
+    size: file.size,
   };
 }
 

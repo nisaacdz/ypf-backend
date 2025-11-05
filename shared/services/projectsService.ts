@@ -107,7 +107,7 @@ export async function fetchProjectMedia(
           type: Media.type,
           width: Media.width,
           height: Media.height,
-          sizeInBytes: Media.sizeInBytes,
+          size: Media.size,
           uploadedAt: Media.uploadedAt,
         },
       })
@@ -129,7 +129,7 @@ export async function fetchProjectMedia(
     medium: {
       id: m.medium.id,
       type: m.medium.type,
-      sizeInBytes: m.medium.sizeInBytes,
+      size: m.medium.size,
       uploadedAt: m.medium.uploadedAt,
       url: mediaUtils.generateSignedMediaUrl(m.medium.externalId, {
         resolution: 480,
@@ -184,7 +184,7 @@ export async function fetchProjectById(
         type: Media.type,
         width: Media.width,
         height: Media.height,
-        sizeInBytes: Media.sizeInBytes,
+        size: Media.size,
         uploadedAt: Media.uploadedAt,
       },
     })
@@ -211,7 +211,7 @@ export async function fetchProjectById(
           medium: {
             id: fm.medium.id,
             type: fm.medium.type,
-            sizeInBytes: fm.medium.sizeInBytes,
+            size: fm.medium.size,
             uploadedAt: fm.medium.uploadedAt,
             url: mediaUtils.generateSignedMediaUrl(fm.medium.externalId, {
               resolution: 720,

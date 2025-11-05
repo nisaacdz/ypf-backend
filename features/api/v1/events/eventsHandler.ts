@@ -3,6 +3,8 @@ import {
   CreateEventSchema,
   GetEventMediaQuerySchema,
   GetEventsQuerySchema,
+  UpdateEventSchema,
+  UpdateEventMediaSchema,
 } from "@/shared/validators/activities";
 import { Events } from "@/db/schema/activities";
 import z from "zod";
@@ -10,7 +12,12 @@ import pgPool from "@/configs/db";
 import * as mediaUtils from "@/shared/utils/media";
 import * as mediaService from "@/shared/services/mediaService";
 import * as eventsService from "@/shared/services/eventsService";
-import { YPFEventMedium, Paginated, YPFEvent } from "@/shared/dtos";
+import {
+  YPFEventMedium,
+  Paginated,
+  YPFEvent,
+  YPFEventDetail,
+} from "@/shared/dtos";
 
 export async function getEvents(
   query: z.infer<typeof GetEventsQuerySchema>,
@@ -63,7 +70,7 @@ export async function uploadEventMedium({
         type: uploadMeta.type,
         width: uploadMeta.dimensions.width,
         height: uploadMeta.dimensions.height,
-        sizeInBytes: uploadMeta.sizeInBytes,
+        size: uploadMeta.size,
         uploadedBy: constituentId,
       },
     });
@@ -94,5 +101,47 @@ export async function getEventMedia(
       pageSize,
       total,
     },
+  };
+}
+
+export async function getEventById(
+  eventId: string,
+): Promise<ApiResponse<YPFEventDetail>> {
+  const event = await eventsService.fetchEventById(eventId);
+
+  if (!event) {
+    throw new AppError("Event not found", 404);
+  }
+
+  return {
+    success: true,
+    message: "Event fetched successfully",
+    data: event,
+  };
+}
+
+export async function updateEvent(
+  eventId: string,
+  data: z.infer<typeof UpdateEventSchema>,
+): Promise<ApiResponse<null>> {
+  await eventsService.updateEvent(eventId, data);
+
+  return {
+    success: true,
+    message: "Event updated successfully",
+    data: null,
+  };
+}
+
+export async function updateEventMedia(
+  eventMediaId: number,
+  data: z.infer<typeof UpdateEventMediaSchema>,
+): Promise<ApiResponse<null>> {
+  await eventsService.updateEventMedia(eventMediaId, data);
+
+  return {
+    success: true,
+    message: "Event media updated successfully",
+    data: null,
   };
 }
