@@ -52,7 +52,6 @@ export type YPFEventDetail = {
     id: string;
     title: string;
   };
-  participantCount: number;
   featuredMedia?: {
     caption?: string;
     medium: Medium;
