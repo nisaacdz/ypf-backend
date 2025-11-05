@@ -6,7 +6,11 @@ import type { Express } from "express";
 import { hashSync } from "bcryptjs";
 import pgPool from "@/configs/db";
 import schema from "@/db/schema";
-import { generateTestUser, generateTestChapter } from "../factories";
+import {
+  generateTestUser,
+  generateTestChapter,
+  generateTestProject,
+} from "../factories";
 
 interface ProjectResponse {
   id: string;
@@ -22,6 +26,7 @@ describe("Projects API", () => {
 
   const testUser = generateTestUser();
   const testChapter = generateTestChapter();
+  const testProject = generateTestProject();
 
   const testData = {
     chapterId: "",
@@ -86,10 +91,10 @@ describe("Projects API", () => {
     const [newProject] = await pgPool.db
       .insert(schema.Projects)
       .values({
-        title: "Test Project",
-        abstract: "Test project abstract",
-        scheduledStart: new Date("2024-01-01"),
-        scheduledEnd: new Date("2024-12-31"),
+        title: testProject.title,
+        abstract: testProject.abstract,
+        scheduledStart: testProject.scheduledStart,
+        scheduledEnd: testProject.scheduledEnd,
         status: "IN_PROGRESS",
         chapterId: testData.chapterId,
       })
@@ -162,14 +167,14 @@ describe("Projects API", () => {
       expect(Array.isArray(response.body.data.items)).toBe(true);
 
       // Check if our test project is in the list
-      const testProject = response.body.data.items.find(
+      const foundProject = response.body.data.items.find(
         (p: ProjectResponse) => p.id === testData.projectId,
       );
-      if (testProject) {
-        expect(testProject.title).toBe("Test Project");
-        expect(testProject.abstract).toBe("Test project abstract");
-        expect(testProject.status).toBe("IN_PROGRESS");
-        expect(testProject.chapterName).toBe(testChapter.name);
+      if (foundProject) {
+        expect(foundProject.title).toBe(testProject.title);
+        expect(foundProject.abstract).toBe(testProject.abstract);
+        expect(foundProject.status).toBe("IN_PROGRESS");
+        expect(foundProject.chapterName).toBe(testChapter.name);
       }
     });
 
@@ -260,12 +265,13 @@ describe("Projects API", () => {
     });
 
     it("should create a new project with authentication", async () => {
+      const newProjectData = generateTestProject();
       const newProject = {
-        title: "New Test Project",
-        abstract: "This is a new test project",
-        description: "Detailed description of the new test project",
-        scheduledStart: new Date("2025-01-01").toISOString(),
-        scheduledEnd: new Date("2025-12-31").toISOString(),
+        title: newProjectData.title,
+        abstract: newProjectData.abstract,
+        description: newProjectData.description,
+        scheduledStart: newProjectData.scheduledStart.toISOString(),
+        scheduledEnd: newProjectData.scheduledEnd.toISOString(),
         status: "UPCOMING",
         chapterId: testData.chapterId,
       };
@@ -288,18 +294,21 @@ describe("Projects API", () => {
         .get(`/api/v1/projects/${createdProjectId}`)
         .expect(200);
 
-      expect(getResponse.body.data.title).toBe("New Test Project");
-      expect(getResponse.body.data.abstract).toBe(
-        "This is a new test project",
-      );
+      expect(getResponse.body.data.title).toBe(newProjectData.title);
+      expect(getResponse.body.data.abstract).toBe(newProjectData.abstract);
       expect(getResponse.body.data.status).toBe("UPCOMING");
     });
 
     it("should return 401 without authentication", async () => {
+      const futureStart = new Date();
+      futureStart.setMonth(futureStart.getMonth() + 1);
+      const futureEnd = new Date(futureStart);
+      futureEnd.setMonth(futureEnd.getMonth() + 6);
+
       const newProject = {
         title: "Unauthorized Project",
-        scheduledStart: new Date("2025-01-01").toISOString(),
-        scheduledEnd: new Date("2025-12-31").toISOString(),
+        scheduledStart: futureStart.toISOString(),
+        scheduledEnd: futureEnd.toISOString(),
         status: "UPCOMING",
       };
 
@@ -322,10 +331,15 @@ describe("Projects API", () => {
     });
 
     it("should return 400 for invalid title length", async () => {
+      const futureStart = new Date();
+      futureStart.setMonth(futureStart.getMonth() + 1);
+      const futureEnd = new Date(futureStart);
+      futureEnd.setMonth(futureEnd.getMonth() + 6);
+
       const invalidProject = {
         title: "AB", // Too short (min 3)
-        scheduledStart: new Date("2025-01-01").toISOString(),
-        scheduledEnd: new Date("2025-12-31").toISOString(),
+        scheduledStart: futureStart.toISOString(),
+        scheduledEnd: futureEnd.toISOString(),
         status: "UPCOMING",
       };
 
@@ -337,10 +351,15 @@ describe("Projects API", () => {
     });
 
     it("should return 400 for invalid status", async () => {
+      const futureStart = new Date();
+      futureStart.setMonth(futureStart.getMonth() + 1);
+      const futureEnd = new Date(futureStart);
+      futureEnd.setMonth(futureEnd.getMonth() + 6);
+
       const invalidProject = {
         title: "Project with Invalid Status",
-        scheduledStart: new Date("2025-01-01").toISOString(),
-        scheduledEnd: new Date("2025-12-31").toISOString(),
+        scheduledStart: futureStart.toISOString(),
+        scheduledEnd: futureEnd.toISOString(),
         status: "INVALID_STATUS",
       };
 
@@ -352,10 +371,15 @@ describe("Projects API", () => {
     });
 
     it("should return 400 for invalid chapter ID format", async () => {
+      const futureStart = new Date();
+      futureStart.setMonth(futureStart.getMonth() + 1);
+      const futureEnd = new Date(futureStart);
+      futureEnd.setMonth(futureEnd.getMonth() + 6);
+
       const invalidProject = {
         title: "Project with Invalid Chapter",
-        scheduledStart: new Date("2025-01-01").toISOString(),
-        scheduledEnd: new Date("2025-12-31").toISOString(),
+        scheduledStart: futureStart.toISOString(),
+        scheduledEnd: futureEnd.toISOString(),
         status: "UPCOMING",
         chapterId: "invalid-uuid",
       };
@@ -378,8 +402,8 @@ describe("Projects API", () => {
       expect(response.body.message).toBe("Project fetched successfully");
       expect(response.body.data).toBeDefined();
       expect(response.body.data.id).toBe(testData.projectId);
-      expect(response.body.data.title).toBe("Test Project");
-      expect(response.body.data.abstract).toBe("Test project abstract");
+      expect(response.body.data.title).toBe(testProject.title);
+      expect(response.body.data.abstract).toBe(testProject.abstract);
       expect(response.body.data.status).toBe("IN_PROGRESS");
       expect(response.body.data.chapter).toBeDefined();
       expect(response.body.data.chapter.id).toBe(testData.chapterId);
