@@ -12,6 +12,8 @@ import {
   GetEventsQuerySchema,
   UploadEventFileSchema,
   UploadEventMediumOptionsSchema,
+  UpdateEventSchema,
+  UpdateEventMediaSchema,
 } from "@/shared/validators/activities";
 import {
   authenticate,
@@ -311,6 +313,226 @@ eventsRouter.get(
       const response = await eventsHandler.getEventMedia(
         req.Params.id,
         req.Query,
+      );
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/**
+ * @swagger
+ * /api/v1/events/{id}:
+ *   get:
+ *     summary: Get event details
+ *     tags: [Events]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Event ID
+ *     responses:
+ *       200:
+ *         description: Event details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       format: uuid
+ *                     name:
+ *                       type: string
+ *                     scheduledStart:
+ *                       type: string
+ *                       format: date-time
+ *                     scheduledEnd:
+ *                       type: string
+ *                       format: date-time
+ *                     location:
+ *                       type: string
+ *                     objective:
+ *                       type: string
+ *                     status:
+ *                       type: string
+ *                       enum: [UPCOMING, ONGOING, COMPLETED, CANCELLED]
+ *                     project:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                           format: uuid
+ *                         title:
+ *                           type: string
+ *                     featuredMedia:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *       404:
+ *         description: Event not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+eventsRouter.get(
+  "/:id",
+  validateParams(z.object({ id: z.uuid("Invalid Request") })),
+  authenticateLax,
+  authorize(Visitors.ALL),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await eventsHandler.getEventById(req.Params.id);
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/**
+ * @swagger
+ * /api/v1/events/{id}:
+ *   put:
+ *     summary: Update event details
+ *     tags: [Events]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Event ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 minLength: 3
+ *                 maxLength: 100
+ *               location:
+ *                 type: string
+ *               scheduledStart:
+ *                 type: string
+ *                 format: date-time
+ *               scheduledEnd:
+ *                 type: string
+ *                 format: date-time
+ *               objective:
+ *                 type: string
+ *               status:
+ *                 type: string
+ *                 enum: [UPCOMING, ONGOING, COMPLETED, CANCELLED]
+ *     responses:
+ *       200:
+ *         description: Event updated successfully
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Unauthorized - authentication required
+ *       403:
+ *         description: Forbidden - insufficient permissions
+ *       404:
+ *         description: Event not found
+ */
+eventsRouter.put(
+  "/:id",
+  validateParams(z.object({ id: z.uuid("Invalid Request") })),
+  authenticate,
+  authorize(
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
+  ),
+  validateBody(UpdateEventSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await eventsHandler.updateEvent(
+        req.Params.id,
+        req.Body,
+      );
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/**
+ * @swagger
+ * /api/v1/events/{id}/media:
+ *   patch:
+ *     summary: Update event media details
+ *     tags: [Events]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Event media ID (not event ID)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               caption:
+ *                 type: string
+ *                 maxLength: 255
+ *               isFeatured:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Event media updated successfully
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Unauthorized - authentication required
+ *       403:
+ *         description: Forbidden - insufficient permissions
+ *       404:
+ *         description: Event media not found
+ */
+eventsRouter.patch(
+  "/:id/media",
+  validateParams(z.object({ id: z.coerce.number().int().positive() })),
+  authenticate,
+  authorize(
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
+  ),
+  validateBody(UpdateEventMediaSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await eventsHandler.updateEventMedia(
+        req.Params.id,
+        req.Body,
       );
       res.status(200).json(response);
     } catch (error) {

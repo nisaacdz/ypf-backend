@@ -134,3 +134,28 @@ export const UploadProjectMediumOptionsSchema = z.object({
     .optional(),
   isFeatured: z.coerce.boolean().optional().default(false),
 });
+
+export const UpdateEventSchema = z.object({
+  name: z
+    .string({ message: "Event name is required." })
+    .min(3, { message: "Event name must be at least 3 characters." })
+    .max(100, { message: "Event name must not exceed 100 characters." })
+    .optional(),
+  objective: z.string().optional(),
+  location: z.string().optional(),
+  scheduledStart: z.coerce.date({
+    message: "Please enter a valid start date.",
+  }).optional(),
+  scheduledEnd: z.coerce.date({ message: "Please enter a valid end date." }).optional(),
+  status: z.enum(EventStatusEnum.enumValues, {
+    message: "Invalid event status.",
+  }).optional(),
+});
+
+export const UpdateEventMediaSchema = z.object({
+  caption: z
+    .string()
+    .max(255, { message: "Caption must not exceed 255 characters." })
+    .optional(),
+  isFeatured: z.coerce.boolean().optional(),
+});
