@@ -575,6 +575,8 @@ describe("Projects API", () => {
   });
 
   describe("PATCH /api/v1/projects/:id/media", () => {
+    // Note: The route is /projects/:projectMediaId/media (not /projects/media/:projectMediaId like events)
+    // The :id parameter refers to the project media ID (number), not the project ID (UUID)
     beforeAll(async () => {
       // Create a test medium in the Media table
       const [newMedium] = await pgPool.db
