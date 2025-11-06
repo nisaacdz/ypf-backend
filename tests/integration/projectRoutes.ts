@@ -312,10 +312,7 @@ describe("Projects API", () => {
         status: "UPCOMING",
       };
 
-      await request(app)
-        .post("/api/v1/projects")
-        .send(newProject)
-        .expect(401);
+      await request(app).post("/api/v1/projects").send(newProject).expect(401);
     });
 
     it("should return 400 for missing required fields", async () => {
