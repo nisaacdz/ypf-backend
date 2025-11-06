@@ -175,11 +175,18 @@ export async function getConstituentProfiles(
     .where(activeCheck(schema.Auditors))
     .limit(1);
 
+  const advisorQuery = db
+    .select({ profile: sql<Profile>`'ADVISOR'` })
+    .from(schema.Advisors)
+    .where(activeCheck(schema.Advisors))
+    .limit(1);
+
   const result = await unionAll(
     memberQuery,
     adminQuery,
     volunteerQuery,
     auditorQuery,
+    advisorQuery,
   );
 
   return result.map((row) => row.profile);

@@ -118,6 +118,16 @@ export const Admins = core.table("admins", {
   endedAt: timestamp("ended_at", { withTimezone: true }),
 });
 
+// ensure non overlapping periods of board membership at dbms level
+export const Advisors = core.table("advisors", {
+  id: uuid().defaultRandom().primaryKey(),
+  constituentId: uuid("constituent_id")
+    .notNull()
+    .references(() => Constituents.id, { onDelete: "cascade" }),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+  endedAt: timestamp("ended_at", { withTimezone: true }),
+});
+
 export const MemberTitles = core.table(
   "member_titles",
   {

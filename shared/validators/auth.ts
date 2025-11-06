@@ -8,7 +8,7 @@ export const AuthenticatedUserSchema = z.object({
   fullName: z.string({ message: "Full name is required." }),
   roles: z.array(z.string(), { message: "Roles must be an array of strings." }), //eg 'ADMIN.REGULAR', 'MEMBER.president', 'MEMBER.chair.<committee_id>' etc
   profiles: z
-    .array(z.enum(["ADMIN", "MEMBER", "VOLUNTEER", "AUDITOR"]), {
+    .array(z.enum(["ADMIN", "MEMBER", "VOLUNTEER", "AUDITOR", "ADVISOR"]), {
       message: "Profiles must be an array.",
     })
     .max(5, { message: "You can have at most 5 active profiles." }), // active profiles
