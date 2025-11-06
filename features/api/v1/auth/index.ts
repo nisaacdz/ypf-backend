@@ -7,6 +7,7 @@ import {
   ForgotPasswordSchema,
   ResetPasswordSchema,
 } from "@/shared/validators";
+import { authenticateLax } from "@/shared/middlewares/auth";
 
 const authRouter = Router();
 
@@ -323,5 +324,58 @@ authRouter.post(
 //     }
 //   },
 // );
+
+/**
+ * @swagger
+ * /api/v1/auth/me:
+ *   get:
+ *     summary: Check authentication status
+ *     description: Returns the authenticated user if logged in, null otherwise
+ *     tags: [Authentication]
+ *     responses:
+ *       200:
+ *         description: Authentication status retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   oneOf:
+ *                     - type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                           format: uuid
+ *                         email:
+ *                           type: string
+ *                           format: email
+ *                         fullName:
+ *                           type: string
+ *                         profiles:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *                             enum: [ADMIN, MEMBER, VOLUNTEER, AUDITOR]
+ *                     - type: null
+ *                       description: User is not authenticated
+ */
+authRouter.get(
+  "/me",
+  authenticateLax,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(200).json({
+        success: true,
+        data: req.User ?? null,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 export default authRouter;

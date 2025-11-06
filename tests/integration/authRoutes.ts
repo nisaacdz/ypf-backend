@@ -391,4 +391,58 @@ describe("Authentication API", () => {
       expect(response.body.message).toBe("User successfully logged out");
     });
   });
+
+  describe("GET /api/v1/auth/me", () => {
+    it("should return user data when authenticated", async () => {
+      // First login to get auth cookies
+      const loginResponse = await request(app).post("/api/v1/auth/login").send({
+        username: testUser.email,
+        password: testUser.password,
+      });
+
+      const setCookieHeader = loginResponse.headers["set-cookie"];
+      const cookies = Array.isArray(setCookieHeader)
+        ? setCookieHeader
+        : [setCookieHeader];
+
+      const accessToken = cookies.find((c) => c.includes("access_token"));
+      const refreshToken = cookies.find((c) => c.includes("refresh_token"));
+
+      const authCookie = [accessToken, refreshToken]
+        .filter(Boolean)
+        .map((c) => c?.split(";")[0])
+        .join("; ");
+
+      // Call /auth/me with cookies
+      const response = await request(app)
+        .get("/api/v1/auth/me")
+        .set("Cookie", authCookie);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data).not.toBeNull();
+      expect(response.body.data).toHaveProperty("id");
+      expect(response.body.data.email).toBe(testUser.email);
+      expect(response.body.data).toHaveProperty("fullName");
+      expect(response.body.data).toHaveProperty("profiles");
+    });
+
+    it("should return null when not authenticated", async () => {
+      const response = await request(app).get("/api/v1/auth/me");
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data).toBeNull();
+    });
+
+    it("should return null with invalid token", async () => {
+      const response = await request(app)
+        .get("/api/v1/auth/me")
+        .set("Cookie", "access_token=invalid_token");
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data).toBeNull();
+    });
+  });
 });
