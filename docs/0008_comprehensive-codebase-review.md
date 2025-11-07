@@ -22,6 +22,7 @@ This document presents a comprehensive review of the YPF Backend codebase, cover
 **Issue:** Multiple tables store time-period data (e.g., `Members`, `Volunteers`, `Admins`, `MemberTitlesAssignments`) with `startedAt` and `endedAt` fields, but lack database-level constraints to prevent overlapping periods.
 
 **Example:**
+
 ```typescript
 // Members table has comments about non-overlapping periods
 // ensure non overlapping periods of membership at dbms level
@@ -36,11 +37,13 @@ export const Members = core.table("members", {
 ```
 
 **Risk:** Without exclusion constraints at the database level, the application could allow:
+
 - A constituent to be a member in multiple overlapping periods
 - A member to have overlapping title assignments
 - A member to have overlapping chapter/committee memberships
 
 **Recommendation:**
+
 ```sql
 -- Example exclusion constraint for Members table
 ALTER TABLE core.members
@@ -52,7 +55,8 @@ EXCLUDE USING gist (
 ```
 
 Apply similar constraints to:
-- `Volunteers`, `Auditors`, `Admins`, `Advisors`
+
+- `Volunteers`, `Auditors`, `Admins`, `Directors`
 - `MemberTitlesAssignments`
 - `AdminRolesAssignments`
 - `ChapterMemberships`, `CommitteeMemberships`
@@ -75,17 +79,19 @@ this.database =
 ```
 
 **Risk:**
+
 - Connection exhaustion under load
 - Suboptimal performance
 - Potential connection leaks
 
 **Recommendation:**
+
 ```typescript
 const sql = postgres(variables.database.url, {
-  max: 20,                    // Maximum pool size
-  idle_timeout: 20,           // Close idle connections after 20s
-  connect_timeout: 10,        // Connection timeout
-  max_lifetime: 60 * 30,      // Max connection lifetime (30 min)
+  max: 20, // Maximum pool size
+  idle_timeout: 20, // Close idle connections after 20s
+  connect_timeout: 10, // Connection timeout
+  max_lifetime: 60 * 30, // Max connection lifetime (30 min)
 });
 
 this.database = drizzle(sql, { schema });
@@ -105,10 +111,12 @@ const otp = randomInt(100000, 1000000).toString();
 ```
 
 **Risk:**
+
 - OTP brute-force attacks
 - Account takeover if rate limiting is insufficient
 
 **Recommendation:**
+
 1. Increase OTP length to at least 8 digits
 2. Add exponential backoff for failed verification attempts
 3. Implement account lockout after N failed attempts
@@ -141,9 +149,9 @@ export const AdminRolesAssignments = core.table("admin_roles_assignments", {
 
 ```typescript
 if (typeof r === "string") {
-  result = r == role;  // Using == instead of ===
+  result = r == role; // Using == instead of ===
 } else {
-  result = role == r(req);  // Using == instead of ===
+  result = role == r(req); // Using == instead of ===
 }
 ```
 
@@ -152,6 +160,7 @@ if (typeof r === "string") {
 **Risk:** Authorization bypass if types unexpectedly coerce (e.g., `0 == "0"` is true).
 
 **Recommendation:** Always use strict equality:
+
 ```typescript
 result = r === role;
 result = role === r(req);
@@ -168,25 +177,25 @@ result = role === r(req);
 
 ```typescript
 if (data.medium.type === "VIDEO") {
-  backfillVideoMetadata(newMediumId, data.medium.externalId).catch(
-    (err) => {
-      logger.error(
-        err,
-        `Error backfilling video metadata for medium ID: ${newMediumId}`,
-      );
-    },
-  );
+  backfillVideoMetadata(newMediumId, data.medium.externalId).catch((err) => {
+    logger.error(
+      err,
+      `Error backfilling video metadata for medium ID: ${newMediumId}`,
+    );
+  });
 }
 ```
 
 **Issue:** Video metadata backfilling failures are logged but not tracked. There's no retry mechanism or dead-letter queue for failed jobs.
 
 **Risk:**
+
 - Videos may be permanently missing width/height metadata
 - No way to retry failed operations
 - Silent failures may accumulate
 
 **Recommendation:**
+
 1. Implement a job queue system (e.g., BullMQ, pg-boss)
 2. Add retry logic with exponential backoff
 3. Track failed jobs in a dedicated table
@@ -208,11 +217,13 @@ const filesUpload = multer({
 **Issue:** Allowing 1GB file uploads to memory storage can cause memory exhaustion under concurrent uploads.
 
 **Risk:**
+
 - Server crash due to out-of-memory errors
 - Denial of service
 - Poor performance during large uploads
 
 **Recommendation:**
+
 1. Use disk-based temporary storage for large files
 2. Stream files directly to cloud storage
 3. Implement request-level memory limits
@@ -221,12 +232,12 @@ const filesUpload = multer({
 ```typescript
 const filesUpload = multer({
   storage: multer.diskStorage({
-    destination: '/tmp/uploads',
+    destination: "/tmp/uploads",
     filename: (req, file, cb) => {
       cb(null, `${uuidv4()}-${file.originalname}`);
     },
   }),
-  limits: { 
+  limits: {
     fileSize: 100 * 1024 * 1024, // Reduce to 100MB
   },
 });
@@ -250,11 +261,13 @@ export const Chapters = core.table("chapters", {
 ```
 
 **Risk:**
+
 - Cannot track when chapters/committees were created
 - Cannot detect stale or inactive records
 - Difficult to debug data issues
 
 **Recommendation:** Add standard audit timestamps to all entity tables:
+
 ```typescript
 createdAt: timestamp("created_at", { withTimezone: true })
   .defaultNow()
@@ -274,24 +287,27 @@ updatedAt: timestamp("updated_at", { withTimezone: true })
 ```typescript
 res.cookie("access_token", newAccessToken, {
   httpOnly: true,
-  secure: true,  // Always true, even in development
+  secure: true, // Always true, even in development
   sameSite: "none",
   maxAge: 3 * 24 * 60 * 60 * 1000,
   path: "/",
 });
 ```
 
-**Issue:** 
+**Issue:**
+
 1. `secure: true` is hardcoded, which will fail in local development (HTTP)
 2. `sameSite: "none"` requires `secure: true` and may not work with some browsers
 3. Cookie maxAge (3 days) is longer than token expiry (30 minutes)
 
 **Risk:**
+
 - Development environment authentication failures
 - Cross-site request forgery vulnerabilities
 - Stale tokens in cookies
 
 **Recommendation:**
+
 ```typescript
 res.cookie("access_token", newAccessToken, {
   httpOnly: true,
@@ -322,21 +338,24 @@ res.cookie("access_token", newAccessToken, {
 ```
 
 **Issue:** If initialization fails, the server still starts listening, which could lead to:
+
 - Server accepting requests before database is ready
 - Requests failing with cryptic errors
 - No clear indication that services are unhealthy
 
 **Risk:**
+
 - Inconsistent server state
 - Difficult debugging of startup issues
 - Health check failures
 
 **Recommendation:**
+
 ```typescript
 (async () => {
   try {
     await Promise.all([emailer.initialize(), pgPool.initialize()]);
-    
+
     server.listen(variables.app.port, () => {
       logger.info(
         `Server is live on http://${variables.app.host}:${variables.app.port}`,
@@ -359,10 +378,12 @@ res.cookie("access_token", newAccessToken, {
 **Location:** `package.json`
 
 **Issue:** Current npm audit reports 7 moderate vulnerabilities:
+
 1. **nodemailer@7.0.6** - Email to unintended domain (GHSA-mm7p-fcc7-pg87)
 2. **validator.js** - URL validation bypass (GHSA-9965-vmph-33xx)
 
 **Recommendation:**
+
 ```bash
 npm audit fix
 # For nodemailer, evaluate if upgrading to 7.0.10 is safe
@@ -377,28 +398,37 @@ npm install nodemailer@7.0.10
 **Location:** Various API endpoints
 
 **Issue:** While there's a global rate limiter in `server.ts` (99 requests per 15 minutes), critical security endpoints lack stricter limits:
+
 - Password reset request (`/auth/forgot-password`)
 - Password reset verification (`/auth/reset-password`)
 - Login endpoint (`/auth/login`)
 - OTP verification
 
 **Risk:**
+
 - Brute force attacks
 - OTP enumeration
 - Account enumeration
 - Denial of service
 
 **Recommendation:** Implement stricter rate limiting for auth endpoints:
-```typescript
-app.use("/api/v1/auth/login", rateLimit({ 
-  windowMs: 15 * 60 * 1000, 
-  maxRequests: 5 
-}));
 
-app.use("/api/v1/auth/forgot-password", rateLimit({ 
-  windowMs: 60 * 60 * 1000, 
-  maxRequests: 3 
-}));
+```typescript
+app.use(
+  "/api/v1/auth/login",
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    maxRequests: 5,
+  }),
+);
+
+app.use(
+  "/api/v1/auth/forgot-password",
+  rateLimit({
+    windowMs: 60 * 60 * 1000,
+    maxRequests: 3,
+  }),
+);
 ```
 
 ---
@@ -417,11 +447,12 @@ logger.error("Paystack initialization failed:", errorData);
 **Risk:** Logs could contain sensitive information about payment API responses.
 
 **Recommendation:** Sanitize logs to remove sensitive fields:
+
 ```typescript
 const sanitized = {
   ...errorData,
-  authorization: '[REDACTED]',
-  card: '[REDACTED]',
+  authorization: "[REDACTED]",
+  card: "[REDACTED]",
 };
 logger.error("Paystack initialization failed:", sanitized);
 ```
@@ -451,12 +482,14 @@ expiresAt: sql`now() + interval '6 minutes'`,
 **Location:** File upload handlers
 
 **Issue:** Uploaded file names are not sanitized before storage, potentially allowing:
+
 - Path traversal attacks
 - Special character injection
 
 **Recommendation:** Sanitize all uploaded file names:
+
 ```typescript
-import { sanitize } from 'sanitize-filename';
+import { sanitize } from "sanitize-filename";
 
 const safeFilename = sanitize(file.originalname);
 ```
@@ -477,11 +510,13 @@ const safeFilename = sanitize(file.originalname);
 ```
 
 **Considerations:**
+
 - Express 5.x is stable enough for production but still evolving
 - Breaking changes from Express 4.x have been handled correctly
 - Security updates may be slower than Express 4.x LTS
 
 **Recommendation:** This is acceptable, but:
+
 1. Monitor Express 5.x release notes for breaking changes
 2. Have rollback plan to Express 4.x if needed
 3. Test thoroughly before production deployment
@@ -500,7 +535,8 @@ const safeFilename = sanitize(file.originalname);
 "postgres": "3.4.7",
 ```
 
-**Context:** 
+**Context:**
+
 - `postgres` is used by Drizzle ORM
 - `pg` is likely a peer dependency
 
@@ -520,6 +556,7 @@ const safeFilename = sanitize(file.originalname);
 ```
 
 **Considerations:**
+
 - Zod 4.x may have different API than 3.x
 - Team should verify this isn't a typo (should it be 3.x?)
 - Some examples online may reference older API
@@ -542,18 +579,23 @@ await pgPool.db.transaction(async (tx) => {
 ```
 
 **Risk:**
+
 - Lock contention
 - Transaction blocking
 - Resource exhaustion
 
 **Recommendation:** Add transaction options:
+
 ```typescript
-await pgPool.db.transaction(async (tx) => {
-  // ... operations
-}, {
-  isolationLevel: 'read committed',
-  accessMode: 'read write',
-});
+await pgPool.db.transaction(
+  async (tx) => {
+    // ... operations
+  },
+  {
+    isolationLevel: "read committed",
+    accessMode: "read write",
+  },
+);
 ```
 
 Also consider adding application-level timeouts.
@@ -574,6 +616,7 @@ id: uuid().defaultRandom().primaryKey(),
 **Context:** UUIDv7 offers better database indexing performance than v4 due to time-ordering.
 
 **Recommendation:** Consider migrating to UUIDv7 for better database performance:
+
 ```typescript
 import { uuidv7 } from 'uuid';
 
@@ -591,11 +634,13 @@ id: uuid().default(sql`uuid_generate_v7()`).primaryKey(),
 **Location:** Various error handlers
 
 **Issue:** Error messages vary in format and detail level:
+
 - Some use generic messages: "A server error occurred"
 - Some expose internal details
 - No consistent error code system
 
 **Example:**
+
 ```typescript
 throw new AppError("A server error occurred", 500);
 // vs
@@ -603,10 +648,11 @@ throw new AppError("Invalid username or password", 401);
 ```
 
 **Recommendation:** Implement error code system:
+
 ```typescript
 export const ErrorCodes = {
-  AUTH_INVALID_CREDENTIALS: { code: 'AUTH001', message: 'Invalid credentials' },
-  SERVER_ERROR: { code: 'SRV001', message: 'Internal server error' },
+  AUTH_INVALID_CREDENTIALS: { code: "AUTH001", message: "Invalid credentials" },
+  SERVER_ERROR: { code: "SRV001", message: "Internal server error" },
   // ...
 };
 
@@ -621,25 +667,24 @@ throw new AppError(ErrorCodes.AUTH_INVALID_CREDENTIALS, 401);
 **Location:** Multiple service files
 
 **Issue:** Pagination logic is duplicated across services:
+
 - `chaptersService.ts`
 - `projectsService.ts`
 - `eventsService.ts`
 - `membersService.ts`
 
 **Example:**
+
 ```typescript
 const offset = (page - 1) * pageSize;
 // ... repeated in multiple files
 ```
 
 **Recommendation:** Create reusable pagination utility:
+
 ```typescript
 // shared/utils/pagination.ts
-export function paginate<T>({
-  query,
-  page,
-  pageSize,
-}: PaginationParams) {
+export function paginate<T>({ query, page, pageSize }: PaginationParams) {
   const offset = (page - 1) * pageSize;
   return query.limit(pageSize).offset(offset);
 }
@@ -653,12 +698,14 @@ export function paginate<T>({
 **Location:** Most handler and service functions
 
 **Issue:** While some functions have JSDoc comments (e.g., in `authService.ts`), most lack documentation about:
+
 - Parameters
 - Return types
 - Thrown errors
 - Side effects
 
 **Recommendation:** Add JSDoc comments to all public APIs:
+
 ```typescript
 /**
  * Creates a new event and returns its ID
@@ -691,6 +738,7 @@ export async function createEvent(
 ```
 
 While other handlers properly delegate:
+
 ```typescript
 export async function getEvents(
   query: z.infer<typeof GetEventsQuerySchema>,
@@ -698,12 +746,14 @@ export async function getEvents(
   const data = await eventsService.fetchEvents(query);
 ```
 
-**Risk:** 
+**Risk:**
+
 - Inconsistent architecture
 - Business logic in wrong layer
 - Harder to test and maintain
 
 **Recommendation:** Move all database operations to service layer:
+
 ```typescript
 // In eventsService.ts
 export async function createEvent(data: CreateEventInput): Promise<string> {
@@ -711,11 +761,11 @@ export async function createEvent(data: CreateEventInput): Promise<string> {
     .insert(Events)
     .values(data)
     .returning({ id: Events.id });
-  
+
   if (!event) {
     throw new AppError("Failed to create event", 500);
   }
-  
+
   return event.id;
 }
 
@@ -740,11 +790,13 @@ export async function createEvent(
 **Location:** `shared/dtos/`
 
 **Issue:** DTOs use inconsistent naming conventions:
+
 - `YPFChapter` vs `DetailedChapter`
 - `YPFEvent` vs `YPFEventDetail`
 - Mixed use of prefixes
 
 **Recommendation:** Adopt consistent naming:
+
 ```typescript
 // Summary DTOs (for lists)
 export type ChapterSummaryDTO = { ... }
@@ -778,11 +830,13 @@ beforeAll(async () => {
 ```
 
 **Risk:**
+
 - Test flakiness
 - Parallel test execution issues
 - Incomplete cleanup leading to test pollution
 
 **Recommendation:** Implement the proposed test isolation strategy:
+
 1. Create test database per test suite
 2. Use transactions that rollback after tests
 3. Or use database snapshots/clones
@@ -795,16 +849,19 @@ beforeAll(async () => {
 **Location:** API routes
 
 **Issue:** No health check endpoint for:
+
 - Database connectivity
 - External service availability (ImageKit, Azure, Paystack)
 - Server status
 
 **Risk:**
+
 - Difficult to monitor service health
 - Poor DevOps observability
 - Cannot implement proper load balancing health checks
 
 **Recommendation:** Add health check endpoint:
+
 ```typescript
 // features/api/v1/health/index.ts
 app.get("/api/v1/health", async (req, res) => {
@@ -813,9 +870,9 @@ app.get("/api/v1/health", async (req, res) => {
     email: await checkEmailService(),
     timestamp: new Date().toISOString(),
   };
-  
-  const healthy = Object.values(checks).every(c => c.status === 'ok');
-  
+
+  const healthy = Object.values(checks).every((c) => c.status === "ok");
+
   res.status(healthy ? 200 : 503).json({
     success: healthy,
     data: checks,
@@ -835,12 +892,14 @@ app.get("/api/v1/health", async (req, res) => {
 **Issue:** Drizzle ORM relations might cause N+1 queries if not properly loaded.
 
 **Example Risk:**
+
 ```typescript
 const chapters = await pgPool.db.query.Chapters.findMany();
 // If accessing chapter.members in a loop, this could cause N+1
 ```
 
 **Recommendation:**
+
 1. Use `with` clause to eager load relations
 2. Monitor query patterns in production
 3. Add query logging in development
@@ -863,23 +922,30 @@ const chapters = await pgPool.db.query.Chapters.findMany({
 **Location:** Database schema
 
 **Issue:** Several foreign key columns lack indexes, which could slow down queries:
+
 - `Members.constituentId`
 - `Donations.projectId`, `Donations.eventId`
 - All `*Memberships` join table foreign keys
 
 **Risk:**
+
 - Slow joins
 - Inefficient WHERE clauses
 - Poor pagination performance
 
 **Recommendation:** Add indexes to foreign key columns:
+
 ```typescript
-export const Members = core.table("members", {
-  // ... fields
-}, (table) => [
-  index().on(table.constituentId),
-  index().on(table.startedAt, table.endedAt), // For date range queries
-]);
+export const Members = core.table(
+  "members",
+  {
+    // ... fields
+  },
+  (table) => [
+    index().on(table.constituentId),
+    index().on(table.startedAt, table.endedAt), // For date range queries
+  ],
+);
 ```
 
 ---
@@ -892,11 +958,13 @@ export const Members = core.table("members", {
 **Issue:** Some endpoints may return large result sets without pagination enforcement.
 
 **Risk:**
+
 - Memory exhaustion
 - Slow response times
 - Poor user experience
 
 **Recommendation:** Enforce maximum page size:
+
 ```typescript
 const MAX_PAGE_SIZE = 100;
 const pageSize = Math.min(query.pageSize || 20, MAX_PAGE_SIZE);
@@ -1012,8 +1080,9 @@ The codebase demonstrates several strong practices:
 ## Conclusion
 
 The YPF Backend codebase is well-architected with good foundations. The issues identified are primarily around:
+
 - Missing database constraints
-- Security hardening opportunities  
+- Security hardening opportunities
 - Performance optimization potential
 - Developer experience improvements
 

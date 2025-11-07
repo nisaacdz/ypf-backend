@@ -17,5 +17,11 @@ declare global {
 }
 
 export type AuthenticatedUser = z.infer<typeof AuthenticatedUserSchema>;
-
-export type Profile = "ADMIN" | "MEMBER" | "VOLUNTEER" | "AUDITOR" | "ADVISOR";
+export const Profiles = [
+  "ADMIN",
+  "MEMBER",
+  "VOLUNTEER",
+  "AUDITOR",
+  "DIRECTOR",
+] as const;
+export type Profile = (typeof Profiles)[number];

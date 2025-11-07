@@ -119,7 +119,7 @@ export const Admins = core.table("admins", {
 });
 
 // ensure non overlapping periods of board membership at dbms level
-export const Advisors = core.table("advisors", {
+export const Directors = core.table("directors", {
   id: uuid().defaultRandom().primaryKey(),
   constituentId: uuid("constituent_id")
     .notNull()

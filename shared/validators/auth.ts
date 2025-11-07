@@ -1,5 +1,6 @@
 import variables from "@/configs/env";
 import z from "zod";
+import { Profiles } from "../types";
 
 export const AuthenticatedUserSchema = z.object({
   id: z.uuid({ message: "Invalid user ID format." }),
@@ -8,10 +9,12 @@ export const AuthenticatedUserSchema = z.object({
   fullName: z.string({ message: "Full name is required." }),
   roles: z.array(z.string(), { message: "Roles must be an array of strings." }), //eg 'ADMIN.REGULAR', 'MEMBER.president', 'MEMBER.chair.<committee_id>' etc
   profiles: z
-    .array(z.enum(["ADMIN", "MEMBER", "VOLUNTEER", "AUDITOR", "ADVISOR"]), {
+    .array(z.enum(Profiles), {
       message: "Profiles must be an array.",
     })
-    .max(5, { message: "You can have at most 5 active profiles." }), // active profiles
+    .max(Profiles.length, {
+      message: "You can have at most 5 active profiles.",
+    }), // active profiles
 });
 
 export const UsernameAndPasswordSchema = z.object({
