@@ -275,30 +275,26 @@ authRouter.post(
  */
 authRouter.post(
   "/logout",
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { response } = await authHandler.logout();
+  async (req: Request, res: Response) => {
+    const { response } = await authHandler.logout();
 
-      // Clear access_token cookie
-      res.clearCookie("access_token", {
-        httpOnly: true,
-        secure: true,
-        sameSite: "none",
-        path: "/",
-      });
+    // Clear access_token cookie
+    res.clearCookie("access_token", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+      path: "/",
+    });
 
-      // Clear refresh_token cookie
-      res.clearCookie("refresh_token", {
-        httpOnly: true,
-        secure: true,
-        sameSite: "none",
-        path: "/",
-      });
+    // Clear refresh_token cookie
+    res.clearCookie("refresh_token", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+      path: "/",
+    });
 
-      res.status(200).json(response);
-    } catch (error) {
-      next(error);
-    }
+    res.status(200).json(response);
   },
 );
 
@@ -366,15 +362,11 @@ authRouter.post(
 authRouter.get(
   "/me",
   authenticateLax,
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      res.status(200).json({
-        success: true,
-        data: req.User ?? null,
-      });
-    } catch (error) {
-      next(error);
-    }
+  async (req: Request, res: Response) => {
+    res.status(200).json({
+      success: true,
+      data: req.User ?? null,
+    });
   },
 );
 
