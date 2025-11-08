@@ -1,5 +1,5 @@
 import { Paginated, YPFProject, YPFProjectDetail } from "@/shared/dtos";
-import pgPool from "@/configs/db";
+import dbClient from "@/configs/db";
 import { Projects, ProjectMedia } from "@/db/schema/activities";
 import { Media, Chapters } from "@/db/schema/core";
 import * as mediaUtils from "@/shared/utils/media";
@@ -33,13 +33,13 @@ export async function fetchProjects(
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
   // Fetch total count
-  const [{ total }] = await pgPool.db
+  const [{ total }] = await dbClient.db
     .select({ total: count() })
     .from(Projects)
     .where(whereClause);
 
   // Fetch paginated projects with featured media and chapter info
-  const projects = await pgPool.db
+  const projects = await dbClient.db
     .select({
       id: Projects.id,
       title: Projects.title,
@@ -96,7 +96,7 @@ export async function fetchProjectMedia(
   const { page, pageSize } = query;
 
   const [itemsItems, total] = await Promise.all([
-    pgPool.db
+    dbClient.db
       .select({
         id: ProjectMedia.id,
         caption: ProjectMedia.caption,
@@ -116,7 +116,7 @@ export async function fetchProjectMedia(
       .where(eq(ProjectMedia.projectId, projectId))
       .limit(pageSize)
       .offset((page - 1) * pageSize),
-    pgPool.db
+    dbClient.db
       .select({ count: count() })
       .from(ProjectMedia)
       .where(eq(ProjectMedia.projectId, projectId))
@@ -154,7 +154,7 @@ export async function fetchProjectById(
   projectId: string,
 ): Promise<YPFProjectDetail> {
   // Fetch project with chapter info
-  const [project] = await pgPool.db
+  const [project] = await dbClient.db
     .select({
       id: Projects.id,
       title: Projects.title,
@@ -175,7 +175,7 @@ export async function fetchProjectById(
   }
 
   // Fetch featured media
-  const featuredMedia = await pgPool.db
+  const featuredMedia = await dbClient.db
     .select({
       caption: ProjectMedia.caption,
       medium: {
@@ -237,7 +237,7 @@ export async function fetchProjectById(
 export async function createProject(
   data: z.infer<typeof CreateProjectSchema>,
 ): Promise<string> {
-  const [project] = await pgPool.db
+  const [project] = await dbClient.db
     .insert(Projects)
     .values(data)
     .returning({ id: Projects.id });
@@ -254,7 +254,7 @@ export async function updateProject(
   data: z.infer<typeof UpdateProjectSchema>,
 ): Promise<void> {
   // Check if project exists
-  const [existingProject] = await pgPool.db
+  const [existingProject] = await dbClient.db
     .select({ id: Projects.id })
     .from(Projects)
     .where(eq(Projects.id, projectId));
@@ -264,7 +264,10 @@ export async function updateProject(
   }
 
   // Update project
-  await pgPool.db.update(Projects).set(data).where(eq(Projects.id, projectId));
+  await dbClient.db
+    .update(Projects)
+    .set(data)
+    .where(eq(Projects.id, projectId));
 }
 
 export async function updateProjectMedia(
@@ -272,7 +275,7 @@ export async function updateProjectMedia(
   data: { caption?: string; isFeatured?: boolean },
 ): Promise<void> {
   // Check if project media exists
-  const [existingMedia] = await pgPool.db
+  const [existingMedia] = await dbClient.db
     .select({ id: ProjectMedia.id })
     .from(ProjectMedia)
     .where(eq(ProjectMedia.id, projectMediaId));
@@ -282,7 +285,7 @@ export async function updateProjectMedia(
   }
 
   // Update project media
-  await pgPool.db
+  await dbClient.db
     .update(ProjectMedia)
     .set(data)
     .where(eq(ProjectMedia.id, projectMediaId));

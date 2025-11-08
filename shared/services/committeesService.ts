@@ -1,7 +1,7 @@
 import { sql, and, eq, count, ilike, isNull, desc, or } from "drizzle-orm";
 import z from "zod";
 
-import pgPool from "@/configs/db";
+import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { Paginated, YPFCommittee, DetailedCommittee } from "@/shared/dtos";
 import { GetCommitteesQuerySchema } from "@/shared/validators/core";
@@ -14,7 +14,7 @@ export async function getCommittees(
   const { page, pageSize, search, chapterId } = query;
 
   // --- SUBQUERY FOR MEMBER COUNT ---
-  const memberCountSubquery = pgPool.db
+  const memberCountSubquery = dbClient.db
     .select({
       committeeId: schema.CommitteeMemberships.committeeId,
       memberCount:
@@ -37,7 +37,7 @@ export async function getCommittees(
     .as("member_counts");
 
   // --- SUBQUERY FOR FEATURED PHOTO ---
-  const featuredPhotoSubquery = pgPool.db
+  const featuredPhotoSubquery = dbClient.db
     .select({
       committeeId: schema.CommitteeMedia.committeeId,
       externalId: schema.Media.externalId,
@@ -68,7 +68,7 @@ export async function getCommittees(
   }
 
   // --- BASE QUERY ---
-  const baseQuery = pgPool.db
+  const baseQuery = dbClient.db
     .select({
       id: schema.Committees.id,
       name: schema.Committees.name,
@@ -97,7 +97,7 @@ export async function getCommittees(
 
   // --- QUERY EXECUTION ---
   const [totalResult, dbCommittees] = await Promise.all([
-    pgPool.db.select({ total: count() }).from(baseQuery.as("sub")),
+    dbClient.db.select({ total: count() }).from(baseQuery.as("sub")),
     baseQuery.limit(pageSize).offset((page - 1) * pageSize),
   ]);
 
@@ -128,7 +128,7 @@ export async function getCommittees(
 export async function getCommitteeById(
   committeeId: string,
 ): Promise<DetailedCommittee> {
-  const [committee] = await pgPool.db
+  const [committee] = await dbClient.db
     .select({
       id: schema.Committees.id,
       name: schema.Committees.name,
@@ -154,7 +154,7 @@ export async function getCommitteeById(
     throw new AppError("Committee not found", 404);
   }
 
-  const featuredMedia = await pgPool.db
+  const featuredMedia = await dbClient.db
     .select({
       caption: schema.CommitteeMedia.caption,
       mediumExternalId: schema.Media.externalId,

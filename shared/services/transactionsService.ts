@@ -1,5 +1,5 @@
 import { and, eq, not, desc } from "drizzle-orm";
-import pgPool from "@/configs/db";
+import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { AppError } from "@/shared/types";
 import logger from "@/configs/logger";
@@ -41,7 +41,7 @@ export async function handlePaystackWebhook(
     (typeof schema.TransactionStatusEnum.enumValues)[number];
   type PaymentMethod = (typeof schema.PaymentMethodEnum.enumValues)[number];
 
-  const result = await pgPool.db
+  const result = await dbClient.db
     .update(schema.FinancialTransactions)
     .set({
       status: newStatus as TransactionStatus,
@@ -100,7 +100,7 @@ export async function verifyTransaction(reference: string): Promise<{
   wasUpdated: boolean;
 }> {
   // First, look up the transaction to determine the provider
-  const [transaction] = await pgPool.db
+  const [transaction] = await dbClient.db
     .select()
     .from(schema.FinancialTransactions)
     .where(eq(schema.FinancialTransactions.externalRef, reference))
@@ -140,7 +140,7 @@ export async function verifyPaystackTransaction(reference: string): Promise<{
 }> {
   try {
     // Fetch transaction by reference
-    const [transaction] = await pgPool.db
+    const [transaction] = await dbClient.db
       .select()
       .from(schema.FinancialTransactions)
       .where(
@@ -188,7 +188,7 @@ export async function verifyPaystackTransaction(reference: string): Promise<{
     type PaymentMethod = (typeof schema.PaymentMethodEnum.enumValues)[number];
 
     // Update transaction status only if still pending (race condition protection)
-    const updateResult = await pgPool.db
+    const updateResult = await dbClient.db
       .update(schema.FinancialTransactions)
       .set({
         status: newStatus as TransactionStatus,
@@ -246,7 +246,7 @@ async function updateOrderStatusOnPayment(
 ): Promise<void> {
   try {
     // Find the order payment record
-    const [orderPayment] = await pgPool.db
+    const [orderPayment] = await dbClient.db
       .select()
       .from(schema.OrderPayments)
       .where(eq(schema.OrderPayments.transactionId, transactionId))
@@ -254,7 +254,7 @@ async function updateOrderStatusOnPayment(
 
     if (orderPayment) {
       // Update the order status to COMPLETED
-      await pgPool.db
+      await dbClient.db
         .update(schema.Orders)
         .set({ status: "COMPLETED" })
         .where(
@@ -280,7 +280,7 @@ async function updateOrderStatusOnPayment(
 async function getConstituentEmail(
   constituentId: string,
 ): Promise<string | null> {
-  const contactInfos = await pgPool.db
+  const contactInfos = await dbClient.db
     .select()
     .from(schema.ContactInformations)
     .where(
@@ -307,38 +307,40 @@ export async function sendTransactionSuccessEmail(
 ): Promise<void> {
   try {
     // Fetch transaction with related entities
-    const transaction = await pgPool.db.query.FinancialTransactions.findFirst({
-      where: and(
-        eq(schema.FinancialTransactions.id, transactionId),
-        eq(schema.FinancialTransactions.status, "COMPLETED"),
-      ),
-      with: {
-        donation: {
-          with: {
-            constituent: true,
-          },
-        },
-        duesPayment: {
-          with: {
-            member: {
-              with: {
-                constituent: true,
-              },
+    const transaction = await dbClient.db.query.FinancialTransactions.findFirst(
+      {
+        where: and(
+          eq(schema.FinancialTransactions.id, transactionId),
+          eq(schema.FinancialTransactions.status, "COMPLETED"),
+        ),
+        with: {
+          donation: {
+            with: {
+              constituent: true,
             },
-            dues: true,
           },
-        },
-        ordersPayment: {
-          with: {
-            order: {
-              with: {
-                constituent: true,
+          duesPayment: {
+            with: {
+              member: {
+                with: {
+                  constituent: true,
+                },
+              },
+              dues: true,
+            },
+          },
+          ordersPayment: {
+            with: {
+              order: {
+                with: {
+                  constituent: true,
+                },
               },
             },
           },
         },
       },
-    });
+    );
 
     if (!transaction) {
       logger.warn(
@@ -464,35 +466,37 @@ export async function sendTransactionStatusChangeEmail(
 ): Promise<void> {
   try {
     // Fetch transaction with related entities
-    const transaction = await pgPool.db.query.FinancialTransactions.findFirst({
-      where: eq(schema.FinancialTransactions.id, transactionId),
-      with: {
-        donation: {
-          with: {
-            constituent: true,
-          },
-        },
-        duesPayment: {
-          with: {
-            member: {
-              with: {
-                constituent: true,
-              },
+    const transaction = await dbClient.db.query.FinancialTransactions.findFirst(
+      {
+        where: eq(schema.FinancialTransactions.id, transactionId),
+        with: {
+          donation: {
+            with: {
+              constituent: true,
             },
-            dues: true,
           },
-        },
-        ordersPayment: {
-          with: {
-            order: {
-              with: {
-                constituent: true,
+          duesPayment: {
+            with: {
+              member: {
+                with: {
+                  constituent: true,
+                },
+              },
+              dues: true,
+            },
+          },
+          ordersPayment: {
+            with: {
+              order: {
+                with: {
+                  constituent: true,
+                },
               },
             },
           },
         },
       },
-    });
+    );
 
     if (!transaction) {
       logger.warn(

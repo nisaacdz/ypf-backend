@@ -1,6 +1,6 @@
 import { eq, count, and, ilike, or } from "drizzle-orm";
 import schema from "@/db/schema";
-import pgPool from "@/configs/db";
+import dbClient from "@/configs/db";
 import z from "zod";
 import {
   GetEventMediaQuerySchema,
@@ -33,14 +33,14 @@ export async function fetchEvents(
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
   // Fetch total count
-  const [{ total }] = await pgPool.db
+  const [{ total }] = await dbClient.db
     .select({ total: count() })
     .from(schema.Events)
     .leftJoin(schema.Projects, eq(schema.Events.projectId, schema.Projects.id))
     .where(whereClause);
 
   // Fetch paginated events with project info
-  const events = await pgPool.db
+  const events = await dbClient.db
     .select({
       id: schema.Events.id,
       name: schema.Events.name,
@@ -82,7 +82,7 @@ export async function fetchEventMedia(
   const { page, pageSize } = query;
 
   const [itemsItems, total] = await Promise.all([
-    pgPool.db
+    dbClient.db
       .select({
         id: schema.EventMedia.id,
         caption: schema.EventMedia.caption,
@@ -102,7 +102,7 @@ export async function fetchEventMedia(
       .where(eq(schema.EventMedia.eventId, eventId))
       .limit(pageSize)
       .offset((page - 1) * pageSize),
-    pgPool.db
+    dbClient.db
       .select({ count: count() })
       .from(schema.EventMedia)
       .where(eq(schema.EventMedia.eventId, eventId))
@@ -134,7 +134,7 @@ export async function fetchEventMedia(
 export async function fetchEventById(
   eventId: string,
 ): Promise<YPFEventDetail | null> {
-  const eventResult = await pgPool.db
+  const eventResult = await dbClient.db
     .select({
       id: schema.Events.id,
       name: schema.Events.name,
@@ -160,7 +160,7 @@ export async function fetchEventById(
   const event = eventResult[0];
 
   // Fetch featured media for the event
-  const featuredMedia = await pgPool.db
+  const featuredMedia = await dbClient.db
     .select({
       caption: schema.EventMedia.caption,
       medium: {
@@ -225,7 +225,7 @@ export async function updateEvent(
   data: z.infer<typeof UpdateEventSchema>,
 ): Promise<void> {
   // Check if event exists
-  const existingEvent = await pgPool.db
+  const existingEvent = await dbClient.db
     .select({ id: schema.Events.id })
     .from(schema.Events)
     .where(eq(schema.Events.id, eventId))
@@ -244,7 +244,7 @@ export async function updateEvent(
     throw new AppError("No valid fields to update", 400);
   }
 
-  await pgPool.db
+  await dbClient.db
     .update(schema.Events)
     .set(updateData)
     .where(eq(schema.Events.id, eventId));
@@ -255,7 +255,7 @@ export async function updateEventMedia(
   data: { caption?: string; isFeatured?: boolean },
 ): Promise<void> {
   // Check if event media exists
-  const existingMedia = await pgPool.db
+  const existingMedia = await dbClient.db
     .select({ id: schema.EventMedia.id })
     .from(schema.EventMedia)
     .where(eq(schema.EventMedia.id, eventMediaId))
@@ -274,7 +274,7 @@ export async function updateEventMedia(
     throw new AppError("No valid fields to update", 400);
   }
 
-  await pgPool.db
+  await dbClient.db
     .update(schema.EventMedia)
     .set(updateData)
     .where(eq(schema.EventMedia.id, eventMediaId));

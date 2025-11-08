@@ -4,7 +4,7 @@ import request from "supertest";
 import { createTestApp } from "../app";
 import type { Express } from "express";
 import { hashSync } from "bcryptjs";
-import pgPool from "@/configs/db";
+import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { generateTestUser, generateTestChapter } from "../factories";
 
@@ -36,12 +36,12 @@ describe("Events API", () => {
     app = await createTestApp();
 
     // Clean up any existing test user
-    await pgPool.db
+    await dbClient.db
       .delete(schema.Users)
       .where(eq(schema.Users.email, testUser.email));
 
     // Create test constituent
-    const [newConstituent] = await pgPool.db
+    const [newConstituent] = await dbClient.db
       .insert(schema.Constituents)
       .values({
         firstName: testUser.name.firstName,
@@ -53,7 +53,7 @@ describe("Events API", () => {
 
     // Create test user
     const hashedPassword = hashSync(testUser.password, 10);
-    await pgPool.db.insert(schema.Users).values({
+    await dbClient.db.insert(schema.Users).values({
       email: testUser.email,
       password: hashedPassword,
       constituentId: testUser.constituentId,
@@ -61,19 +61,19 @@ describe("Events API", () => {
     });
 
     // Create a member for testing
-    await pgPool.db.insert(schema.Members).values({
+    await dbClient.db.insert(schema.Members).values({
       constituentId: testUser.constituentId,
       startedAt: new Date(),
     });
 
     // Create an admin for testing (needed for PUT/PATCH permissions)
-    await pgPool.db.insert(schema.Admins).values({
+    await dbClient.db.insert(schema.Admins).values({
       constituentId: testUser.constituentId,
       startedAt: new Date(),
     });
 
     // Create a test chapter
-    const [newChapter] = await pgPool.db
+    const [newChapter] = await dbClient.db
       .insert(schema.Chapters)
       .values({
         name: testChapter.name,
@@ -86,7 +86,7 @@ describe("Events API", () => {
     testData.chapterId = newChapter.id;
 
     // Create a test project
-    const [newProject] = await pgPool.db
+    const [newProject] = await dbClient.db
       .insert(schema.Projects)
       .values({
         title: "Test Project for Events",
@@ -100,7 +100,7 @@ describe("Events API", () => {
     testData.projectId = newProject.id;
 
     // Create a test event
-    const [newEvent] = await pgPool.db
+    const [newEvent] = await dbClient.db
       .insert(schema.Events)
       .values({
         name: "Test Event",
@@ -137,22 +137,22 @@ describe("Events API", () => {
   afterAll(async () => {
     // Clean up test data
     if (testData.eventId) {
-      await pgPool.db
+      await dbClient.db
         .delete(schema.Events)
         .where(eq(schema.Events.id, testData.eventId));
     }
     if (testData.projectId) {
-      await pgPool.db
+      await dbClient.db
         .delete(schema.Projects)
         .where(eq(schema.Projects.id, testData.projectId));
     }
     if (testData.chapterId) {
-      await pgPool.db
+      await dbClient.db
         .delete(schema.Chapters)
         .where(eq(schema.Chapters.id, testData.chapterId));
     }
     if (testUser.constituentId) {
-      await pgPool.db
+      await dbClient.db
         .delete(schema.Constituents)
         .where(eq(schema.Constituents.id, testUser.constituentId));
     }
@@ -419,7 +419,7 @@ describe("Events API", () => {
 
     beforeAll(async () => {
       // First, create a test medium in the Media table with a unique external_id
-      const [newMedium] = await pgPool.db
+      const [newMedium] = await dbClient.db
         .insert(schema.Media)
         .values({
           externalId: `test-external-id-${Date.now()}`,
@@ -432,7 +432,7 @@ describe("Events API", () => {
         .returning();
 
       // Then create an EventMedia record
-      const [eventMedia] = await pgPool.db
+      const [eventMedia] = await dbClient.db
         .insert(schema.EventMedia)
         .values({
           eventId: testData.eventId,
@@ -448,7 +448,7 @@ describe("Events API", () => {
     afterAll(async () => {
       // Clean up test media
       if (testMediaId) {
-        await pgPool.db
+        await dbClient.db
           .delete(schema.EventMedia)
           .where(eq(schema.EventMedia.id, testMediaId));
       }
@@ -470,7 +470,7 @@ describe("Events API", () => {
       expect(response.body.message).toBe("Event media updated successfully");
 
       // Verify the update
-      const [updatedMedia] = await pgPool.db
+      const [updatedMedia] = await dbClient.db
         .select()
         .from(schema.EventMedia)
         .where(eq(schema.EventMedia.id, testMediaId));
@@ -493,7 +493,7 @@ describe("Events API", () => {
       expect(response.body.success).toBe(true);
 
       // Verify the update
-      const [updatedMedia] = await pgPool.db
+      const [updatedMedia] = await dbClient.db
         .select()
         .from(schema.EventMedia)
         .where(eq(schema.EventMedia.id, testMediaId));
@@ -516,7 +516,7 @@ describe("Events API", () => {
       expect(response.body.success).toBe(true);
 
       // Verify the update
-      const [updatedMedia] = await pgPool.db
+      const [updatedMedia] = await dbClient.db
         .select()
         .from(schema.EventMedia)
         .where(eq(schema.EventMedia.id, testMediaId));

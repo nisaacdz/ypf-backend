@@ -1,9 +1,9 @@
-import pgPool from "@/configs/db";
+import dbClient from "@/configs/db";
 import logger from "@/configs/logger";
 
 async function runMigrations() {
   logger.info("Starting migrations...");
-  await pgPool.initialize();
+  await dbClient.initialize();
   // runs migrations within initialize
 }
 

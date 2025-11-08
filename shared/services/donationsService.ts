@@ -1,5 +1,5 @@
 import { eq, and } from "drizzle-orm";
-import pgPool from "@/configs/db";
+import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import variables from "@/configs/env";
 import { AppError, AuthenticatedUser } from "@/shared/types";
@@ -99,7 +99,7 @@ export async function startPaystackDonation(
   let newTransaction;
 
   try {
-    const { donation, transaction } = await pgPool.db.transaction(
+    const { donation, transaction } = await dbClient.db.transaction(
       async (tx) => {
         const [newTransaction] = await tx
           .insert(schema.FinancialTransactions)
@@ -171,7 +171,7 @@ export async function startPaystackDonation(
       `Compensating transaction for [${transactionId}] due to API failure.`,
     );
     try {
-      await pgPool.db
+      await dbClient.db
         .update(schema.FinancialTransactions)
         .set({ status: "FAILED" })
         .where(eq(schema.FinancialTransactions.id, transactionId));
@@ -256,7 +256,7 @@ export async function verifyPaystackDonation(
       paymentMethodMap[verifyData.data.channel] || "CREDIT_CARD";
 
     // Update transaction status only if still pending
-    const updateResult = await pgPool.db
+    const updateResult = await dbClient.db
       .update(schema.FinancialTransactions)
       .set({
         status: newStatus,

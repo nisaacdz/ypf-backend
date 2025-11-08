@@ -4,7 +4,7 @@ import request from "supertest";
 import { createTestApp } from "../app";
 import type { Express } from "express";
 import { hashSync } from "bcryptjs";
-import pgPool from "@/configs/db";
+import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import {
   generateTestUser,
@@ -25,20 +25,20 @@ describe("Committees API", () => {
     app = await createTestApp();
 
     // Clean up any existing test data first to avoid conflicts
-    await pgPool.db
+    await dbClient.db
       .delete(schema.Committees)
       .where(eq(schema.Committees.name, testCommittee.name));
-    await pgPool.db
+    await dbClient.db
       .delete(schema.Committees)
       .where(eq(schema.Committees.name, testCommitteeWithChapter.name));
 
     // Clean up any existing test user
-    await pgPool.db
+    await dbClient.db
       .delete(schema.Users)
       .where(eq(schema.Users.email, testUser.email));
 
     // Create test constituent
-    const [newConstituent] = await pgPool.db
+    const [newConstituent] = await dbClient.db
       .insert(schema.Constituents)
       .values({
         firstName: testUser.name.firstName,
@@ -50,7 +50,7 @@ describe("Committees API", () => {
 
     // Create test user
     const hashedPassword = hashSync(testUser.password, 10);
-    await pgPool.db.insert(schema.Users).values({
+    await dbClient.db.insert(schema.Users).values({
       email: testUser.email,
       password: hashedPassword,
       constituentId: testUser.constituentId,
@@ -58,13 +58,13 @@ describe("Committees API", () => {
     });
 
     // Create a member for testing (required for MEMBER profile)
-    await pgPool.db.insert(schema.Members).values({
+    await dbClient.db.insert(schema.Members).values({
       constituentId: testUser.constituentId,
       startedAt: new Date(),
     });
 
     // Create a test chapter
-    const [newChapter] = await pgPool.db
+    const [newChapter] = await dbClient.db
       .insert(schema.Chapters)
       .values({
         name: testChapter.name,
@@ -76,7 +76,7 @@ describe("Committees API", () => {
     testChapter.id = newChapter.id;
 
     // Create a test committee without chapter
-    const [newCommittee] = await pgPool.db
+    const [newCommittee] = await dbClient.db
       .insert(schema.Committees)
       .values({
         name: testCommittee.name,
@@ -87,7 +87,7 @@ describe("Committees API", () => {
     testCommittee.id = newCommittee.id;
 
     // Create a test committee with chapter
-    const [newChapterCommittee] = await pgPool.db
+    const [newChapterCommittee] = await dbClient.db
       .insert(schema.Committees)
       .values({
         name: testCommitteeWithChapter.name,
@@ -121,26 +121,26 @@ describe("Committees API", () => {
   afterAll(async () => {
     // Clean up test committees
     if (testCommittee.id) {
-      await pgPool.db
+      await dbClient.db
         .delete(schema.Committees)
         .where(eq(schema.Committees.id, testCommittee.id));
     }
     if (testCommitteeWithChapter.id) {
-      await pgPool.db
+      await dbClient.db
         .delete(schema.Committees)
         .where(eq(schema.Committees.id, testCommitteeWithChapter.id));
     }
 
     // Clean up test chapter
     if (testChapter.id) {
-      await pgPool.db
+      await dbClient.db
         .delete(schema.Chapters)
         .where(eq(schema.Chapters.id, testChapter.id));
     }
 
     // Clean up test user and constituent
     if (testUser.constituentId) {
-      await pgPool.db
+      await dbClient.db
         .delete(schema.Constituents)
         .where(eq(schema.Constituents.id, testUser.constituentId));
     }

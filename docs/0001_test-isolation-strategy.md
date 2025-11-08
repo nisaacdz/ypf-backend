@@ -135,12 +135,12 @@ The current implementation uses **manual cleanup** in `afterAll` hooks:
 ```typescript
 afterAll(async () => {
   // Delete test user by email
-  await pgPool.db
+  await dbClient.db
     .delete(schema.Users)
     .where(eq(schema.Users.email, testUser.email));
 
   // Delete test chapter by name
-  await pgPool.db
+  await dbClient.db
     .delete(schema.Chapters)
     .where(eq(schema.Chapters.name, testChapter.name));
 });
@@ -192,7 +192,7 @@ The application uses `postgres-js` with Drizzle ORM:
 
 ```typescript
 // configs/db.ts
-class PgPool {
+class DbClient {
   private database: PostgresJsDatabase<Schema> | null = null;
 
   async initialize() {
@@ -208,11 +208,11 @@ class PgPool {
 
 ```typescript
 beforeAll(async () => {
-  await Promise.all([emailer.initialize(), pgPool.initialize()]);
+  await Promise.all([emailer.initialize(), dbClient.initialize()]);
 });
 
 afterAll(async () => {
-  pgPool.reset();
+  dbClient.reset();
   logger.info("Test database cleaned up.");
 });
 ```
@@ -249,7 +249,7 @@ Wrap each test in a database transaction that rolls back:
 
 ```typescript
 beforeEach(async () => {
-  await pgPool.db.transaction(async (tx) => {
+  await dbClient.db.transaction(async (tx) => {
     // Store transaction for test
   });
 });
@@ -384,7 +384,7 @@ const testUser = generateTestUser();
 
 1. Verify database URL in `.env.test`
 2. Check connection pool configuration
-3. Ensure `pgPool.reset()` is called in `afterAll`
+3. Ensure `dbClient.reset()` is called in `afterAll`
 
 ---
 

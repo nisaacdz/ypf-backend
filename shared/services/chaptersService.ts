@@ -1,7 +1,7 @@
 import { sql, and, eq, count, ilike, isNull, desc } from "drizzle-orm";
 import z from "zod";
 
-import pgPool from "@/configs/db";
+import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { Paginated, YPFChapter, DetailedChapter } from "@/shared/dtos";
 import { GetChaptersQuerySchema } from "@/shared/validators/core";
@@ -14,7 +14,7 @@ export async function getChapters(
   const { page, pageSize, search } = query;
 
   // --- SUBQUERY FOR MEMBER COUNT ---
-  const memberCountSubquery = pgPool.db
+  const memberCountSubquery = dbClient.db
     .select({
       chapterId: schema.ChapterMemberships.chapterId,
       memberCount:
@@ -37,7 +37,7 @@ export async function getChapters(
     .as("member_counts");
 
   // --- SUBQUERY FOR FEATURED PHOTO ---
-  const featuredPhotoSubquery = pgPool.db
+  const featuredPhotoSubquery = dbClient.db
     .select({
       chapterId: schema.ChapterMedia.chapterId,
       externalId: schema.Media.externalId,
@@ -58,7 +58,7 @@ export async function getChapters(
   }
 
   // --- BASE QUERY ---
-  const baseQuery = pgPool.db
+  const baseQuery = dbClient.db
     .select({
       id: schema.Chapters.id,
       name: schema.Chapters.name,
@@ -83,7 +83,7 @@ export async function getChapters(
 
   // --- QUERY EXECUTION ---
   const [totalResult, dbChapters] = await Promise.all([
-    pgPool.db.select({ total: count() }).from(baseQuery.as("sub")),
+    dbClient.db.select({ total: count() }).from(baseQuery.as("sub")),
     baseQuery.limit(pageSize).offset((page - 1) * pageSize),
   ]);
 
@@ -114,7 +114,7 @@ export async function getChapters(
 export async function getChapterById(
   chapterId: string,
 ): Promise<DetailedChapter> {
-  const [chapter] = await pgPool.db
+  const [chapter] = await dbClient.db
     .select({
       id: schema.Chapters.id,
       name: schema.Chapters.name,
@@ -132,7 +132,7 @@ export async function getChapterById(
   }
 
   const [featuredMedia, parentChapter] = await Promise.all([
-    pgPool.db
+    dbClient.db
       .select({
         caption: schema.ChapterMedia.caption,
         mediumExternalId: schema.Media.externalId,
@@ -164,7 +164,7 @@ export async function getChapterById(
       .orderBy(desc(schema.Media.uploadedAt))
       .limit(5),
     chapter.parentChapterId
-      ? pgPool.db
+      ? dbClient.db
           .select({
             id: schema.Chapters.id,
             name: schema.Chapters.name,

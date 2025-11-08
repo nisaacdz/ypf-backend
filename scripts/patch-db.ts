@@ -1,12 +1,12 @@
-import pgPool from "@/configs/db";
+import dbClient from "@/configs/db";
 import { sql } from "drizzle-orm";
 
 /**
  * Applies exclusion constraints within a database transaction.
- * This function is designed to be called by pgPool.db.transaction().
+ * This function is designed to be called by dbClient.db.transaction().
  */
 async function applyExclusionConstraints(
-  tx: Parameters<Parameters<typeof pgPool.db.transaction>[0]>[0],
+  tx: Parameters<Parameters<typeof dbClient.db.transaction>[0]>[0],
 ) {
   console.log("Starting application of exclusion constraints...");
 
@@ -157,12 +157,12 @@ async function applyExclusionConstraints(
   console.log("🎉 Successfully applied all exclusion constraints!");
 }
 
-pgPool
+dbClient
   .initialize()
   .then(() => {
     console.log("Database connection initialized.");
     console.log("Running exclusion constraint script in transaction...");
-    return pgPool.db.transaction(applyExclusionConstraints);
+    return dbClient.db.transaction(applyExclusionConstraints);
   })
   .then(() => {
     console.log("🎉 Transaction committed successfully.");

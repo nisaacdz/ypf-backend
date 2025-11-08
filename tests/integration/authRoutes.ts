@@ -4,7 +4,7 @@ import request from "supertest";
 import { createTestApp } from "../app";
 import type { Express } from "express";
 import { hashSync } from "bcryptjs";
-import pgPool from "@/configs/db";
+import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import logger from "@/configs/logger";
 import { generateTestUser } from "../factories";
@@ -16,11 +16,11 @@ describe("Authentication API", () => {
   beforeAll(async () => {
     app = await createTestApp();
 
-    await pgPool.db
+    await dbClient.db
       .delete(schema.Users)
       .where(eq(schema.Users.email, testUser.email));
 
-    const [newConstituent] = await pgPool.db
+    const [newConstituent] = await dbClient.db
       .insert(schema.Constituents)
       .values({
         firstName: testUser.name.firstName,
@@ -32,7 +32,7 @@ describe("Authentication API", () => {
 
     const hashedPassword = hashSync(testUser.password, 10);
 
-    await pgPool.db.insert(schema.Users).values({
+    await dbClient.db.insert(schema.Users).values({
       email: testUser.email,
       password: hashedPassword,
       constituentId: testUser.constituentId,
@@ -42,7 +42,7 @@ describe("Authentication API", () => {
 
   afterAll(async () => {
     if (testUser.constituentId) {
-      await pgPool.db
+      await dbClient.db
         .delete(schema.Constituents)
         .where(eq(schema.Constituents.id, testUser.constituentId));
     }
@@ -125,7 +125,7 @@ describe("Authentication API", () => {
       expect(response.body.message).toContain("Password reset code sent");
 
       // Verify OTP was created in database
-      const [otp] = await pgPool.db
+      const [otp] = await dbClient.db
         .select()
         .from(schema.Otps)
         .where(eq(schema.Otps.email, testUser.email));
@@ -175,7 +175,7 @@ describe("Authentication API", () => {
       });
 
       // Fetch the OTP from the database
-      const [otpRecord] = await pgPool.db
+      const [otpRecord] = await dbClient.db
         .select()
         .from(schema.Otps)
         .where(eq(schema.Otps.email, testUser.email));
@@ -199,7 +199,7 @@ describe("Authentication API", () => {
       expect(response.body.message).toBe("Password reset successful");
 
       // Verify OTP was marked as used
-      const [usedOtp] = await pgPool.db
+      const [usedOtp] = await dbClient.db
         .select()
         .from(schema.Otps)
         .where(eq(schema.Otps.id, otpRecord.id));
@@ -236,7 +236,7 @@ describe("Authentication API", () => {
     it("should reject password reset with expired OTP", async () => {
       // Insert an expired OTP directly
       const expiredOtp = "123456";
-      await pgPool.db.insert(schema.Otps).values({
+      await dbClient.db.insert(schema.Otps).values({
         email: testUser.email,
         code: expiredOtp,
         expiresAt: new Date(Date.now() - 1000), // Already expired
@@ -255,7 +255,7 @@ describe("Authentication API", () => {
       expect(response.body.message).toBe("Invalid OTP");
 
       // Clean up the expired OTP
-      await pgPool.db
+      await dbClient.db
         .delete(schema.Otps)
         .where(eq(schema.Otps.code, expiredOtp));
     });
@@ -267,7 +267,7 @@ describe("Authentication API", () => {
       });
 
       // Fetch the OTP
-      const [otpRecord] = await pgPool.db
+      const [otpRecord] = await dbClient.db
         .select()
         .from(schema.Otps)
         .where(eq(schema.Otps.email, testUser.email));

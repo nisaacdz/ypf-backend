@@ -4,7 +4,7 @@ import request from "supertest";
 import { createTestApp } from "../app";
 import type { Express } from "express";
 import { hashSync } from "bcryptjs";
-import pgPool from "@/configs/db";
+import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { generateTestUser } from "../factories";
 
@@ -23,12 +23,12 @@ describe("Members API", () => {
     app = await createTestApp();
 
     // Clean up any existing test user
-    await pgPool.db
+    await dbClient.db
       .delete(schema.Users)
       .where(eq(schema.Users.email, testUser.email));
 
     // Create test constituent
-    const [newConstituent] = await pgPool.db
+    const [newConstituent] = await dbClient.db
       .insert(schema.Constituents)
       .values({
         firstName: testUser.name.firstName,
@@ -40,7 +40,7 @@ describe("Members API", () => {
 
     // Create test user
     const hashedPassword = hashSync(testUser.password, 10);
-    await pgPool.db.insert(schema.Users).values({
+    await dbClient.db.insert(schema.Users).values({
       email: testUser.email,
       password: hashedPassword,
       constituentId: testUser.constituentId,
@@ -48,7 +48,7 @@ describe("Members API", () => {
     });
 
     // Create a member for testing
-    const [newMember] = await pgPool.db
+    const [newMember] = await dbClient.db
       .insert(schema.Members)
       .values({
         constituentId: testUser.constituentId,
@@ -60,7 +60,7 @@ describe("Members API", () => {
     testMember.memberId = newMember.id;
 
     // Add a primary contact
-    await pgPool.db.insert(schema.ContactInformations).values({
+    await dbClient.db.insert(schema.ContactInformations).values({
       constituentId: testUser.constituentId,
       contactType: "EMAIL",
       value: testUser.email,
@@ -89,7 +89,7 @@ describe("Members API", () => {
 
   afterAll(async () => {
     if (testUser.constituentId) {
-      await pgPool.db
+      await dbClient.db
         .delete(schema.Constituents)
         .where(eq(schema.Constituents.id, testUser.constituentId));
     }

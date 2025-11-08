@@ -213,6 +213,7 @@ The system supports three donation types:
    - Full donation history tracking
 
 3. **Guest Donation**
+
    ```typescript
    {
      constituentId: null,
@@ -306,7 +307,7 @@ Send Order Confirmation Email
 export async function validateOrderItems(items: OrderItem[]) {
   // 1. Fetch all products in a SINGLE query
   const productIds = items.map((item) => item.productId);
-  const dbProducts = await pgPool.db
+  const dbProducts = await dbClient.db
     .select()
     .from(schema.Products)
     .where(inArray(schema.Products.id, productIds));
@@ -365,7 +366,7 @@ export async function validateOrderItems(items: OrderItem[]) {
 **Critical:** All database operations in a single transaction to ensure consistency
 
 ```typescript
-const result = await pgPool.db.transaction(async (tx) => {
+const result = await dbClient.db.transaction(async (tx) => {
   // 1. Create financial transaction
   const [newTransaction] = await tx
     .insert(schema.FinancialTransactions)
@@ -460,7 +461,7 @@ When payment completes, update order status:
 ```typescript
 async function updateOrderStatusOnPayment(transactionId: string) {
   // Find the order linked to this transaction
-  const orderPayment = await pgPool.db.query.OrderPayments.findFirst({
+  const orderPayment = await dbClient.db.query.OrderPayments.findFirst({
     where: eq(schema.OrderPayments.transactionId, transactionId),
     with: {
       order: true,
@@ -469,7 +470,7 @@ async function updateOrderStatusOnPayment(transactionId: string) {
 
   if (orderPayment && orderPayment.order.status === "PENDING") {
     // Update order status to PAID
-    await pgPool.db
+    await dbClient.db
       .update(schema.Orders)
       .set({ status: "PAID" })
       .where(eq(schema.Orders.id, orderPayment.orderId));
@@ -494,7 +495,7 @@ Users can manually verify transaction status:
 ```typescript
 export async function verifyTransaction(reference: string) {
   // 1. Find transaction by external reference
-  const transaction = await pgPool.db.query.FinancialTransactions.findFirst({
+  const transaction = await dbClient.db.query.FinancialTransactions.findFirst({
     where: and(
       eq(schema.FinancialTransactions.externalProvider, "PAYSTACK"),
       eq(schema.FinancialTransactions.externalRef, reference),
@@ -511,7 +512,7 @@ export async function verifyTransaction(reference: string) {
 
   // 3. Update transaction if status changed
   if (verifyResult.status !== transaction.status) {
-    await pgPool.db
+    await dbClient.db
       .update(schema.FinancialTransactions)
       .set({
         status: verifyResult.status,
@@ -610,7 +611,7 @@ export async function handlePaystackWebhook(payload: PaystackWebhookPayload) {
   const newPaymentMethod = paymentMethodMap[channel];
 
   // Update transaction (ONLY if status changed)
-  const result = await pgPool.db
+  const result = await dbClient.db
     .update(schema.FinancialTransactions)
     .set({
       status: newStatus,
@@ -794,7 +795,7 @@ if (donation.acknowledgementSent) {
 await sendDonationAcknowledgementEmail(/* ... */);
 
 // Mark as sent
-await pgPool.db
+await dbClient.db
   .update(schema.Donations)
   .set({ acknowledgementSent: true })
   .where(eq(schema.Donations.id, donation.id));

@@ -1,10 +1,10 @@
 import { faker } from "@faker-js/faker";
-import pgPool from "@/configs/db";
+import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import bcrypt from "bcryptjs";
 
 async function seed(
-  tx: Parameters<Parameters<typeof pgPool.db.transaction>[0]>[0],
+  tx: Parameters<Parameters<typeof dbClient.db.transaction>[0]>[0],
 ) {
   console.log("⚙️ Seeding core and app tables...");
 
@@ -589,9 +589,9 @@ async function seed(
   console.log("✅ Shop seeded.");
 }
 
-pgPool
+dbClient
   .initialize()
-  .then(() => pgPool.db.transaction((tx) => seed(tx)))
+  .then(() => dbClient.db.transaction((tx) => seed(tx)))
   .then(() => {
     console.log("Database seeded successfully with the new schema! 🎉");
     process.exit(0);

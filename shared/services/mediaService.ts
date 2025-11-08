@@ -1,4 +1,4 @@
-import pgPool from "@/configs/db";
+import dbClient from "@/configs/db";
 import { imagekit } from "@/configs/fs/cdn";
 import schema from "@/db/schema";
 import { AppError } from "@/shared/types";
@@ -23,7 +23,7 @@ export async function uploadEventMedium(
   data: AddMediumRecord,
 ): Promise<string> {
   try {
-    const newMediumId = await pgPool.db.transaction(async (tx) => {
+    const newMediumId = await dbClient.db.transaction(async (tx) => {
       const [newMedium] = await tx
         .insert(schema.Media)
         .values(data.medium)
@@ -69,7 +69,7 @@ export async function uploadProjectMedium(
   data: AddMediumRecord,
 ): Promise<string> {
   try {
-    const newMediumId = await pgPool.db.transaction(async (tx) => {
+    const newMediumId = await dbClient.db.transaction(async (tx) => {
       const [newMedium] = await tx
         .insert(schema.Media)
         .values(data.medium)
@@ -121,7 +121,7 @@ export async function backfillVideoMetadata(
       throw new Error(`Incomplete metadata from ImageKit for ${externalId}`);
     }
 
-    await pgPool.db
+    await dbClient.db
       .update(schema.Media)
       .set({
         width: fileDetails.width,

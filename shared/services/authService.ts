@@ -1,6 +1,6 @@
 import { eq, or, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import pgPool from "@/configs/db";
+import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { AppError } from "@/shared/types";
 import { AuthenticatedUser } from "@/shared/types";
@@ -21,7 +21,7 @@ export async function loginWithUsernameAndPassword(
   username: string,
   password: string,
 ): Promise<AuthenticatedUser> {
-  const [user] = await pgPool.db
+  const [user] = await dbClient.db
     .select({
       id: schema.Users.id,
       constituentId: schema.Constituents.id,
@@ -82,7 +82,7 @@ export async function loginWithUsernameAndPassword(
 export async function loginWithUsername(
   username: string,
 ): Promise<AuthenticatedUser> {
-  const [user] = await pgPool.db
+  const [user] = await dbClient.db
     .select({
       id: schema.Users.id,
       constituentId: schema.Constituents.id,
@@ -136,7 +136,7 @@ export async function linkGoogleIdToUser(
   userId: string,
   googleId: string,
 ): Promise<void> {
-  await pgPool.db
+  await dbClient.db
     .update(Users)
     .set({ googleId: googleId })
     .where(eq(Users.id, userId));
@@ -152,7 +152,7 @@ export async function linkGoogleIdToUser(
  */
 export async function forgotPassword(email: string): Promise<string> {
   // Check if user exists
-  const [user] = await pgPool.db
+  const [user] = await dbClient.db
     .select({
       email: schema.Users.email,
     })
@@ -166,7 +166,7 @@ export async function forgotPassword(email: string): Promise<string> {
   const otp = randomInt(100000, 1000000).toString();
 
   // Use transaction to ensure atomicity
-  await pgPool.db.transaction(async (tx) => {
+  await dbClient.db.transaction(async (tx) => {
     // Delete any existing OTPs for this email
     await tx.delete(schema.Otps).where(eq(schema.Otps.email, email));
 
@@ -195,7 +195,7 @@ export async function resetPassword(
   otp: string,
   newPassword: string,
 ): Promise<void> {
-  await pgPool.db.transaction(async (tx) => {
+  await dbClient.db.transaction(async (tx) => {
     // Fetch the OTP record for validation
     const [otpRecord] = await tx
       .select()

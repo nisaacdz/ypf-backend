@@ -8,7 +8,7 @@ import {
   getTableColumns,
   sql,
 } from "drizzle-orm";
-import pgPool from "@/configs/db";
+import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { AppError } from "@/shared/types";
 import { Users } from "@/db/schema/app";
@@ -39,7 +39,7 @@ const columns = Object.fromEntries(
 };
 
 export async function getUserById(userId: string) {
-  const user = await pgPool.db.query.Users.findFirst({
+  const user = await dbClient.db.query.Users.findFirst({
     columns,
     with: {
       constituent: true,
@@ -65,7 +65,7 @@ export async function getConstituentRoles(constituentId: string) {
   const now = new Date();
 
   // 1. Fetch Admin Roles
-  const adminRolesQuery = pgPool.db
+  const adminRolesQuery = dbClient.db
     .select({
       role: sql<string>`CONCAT('ADMIN.', ${schema.AdminRolesAssignments.role})`,
     })
@@ -87,7 +87,7 @@ export async function getConstituentRoles(constituentId: string) {
       ),
     );
 
-  const memberTitlesQuery = pgPool.db
+  const memberTitlesQuery = dbClient.db
     .select({
       role: sql<string>`
         CONCAT('MEMBER.', ${schema.MemberTitles.title},
@@ -143,7 +143,7 @@ interface ITimeBoundProfileTable {
 export async function getConstituentProfiles(
   constituentId: string,
 ): Promise<Profile[]> {
-  const db = pgPool.db;
+  const db = dbClient.db;
   const activeCheck = (table: ITimeBoundProfileTable) =>
     and(
       eq(table.constituentId, constituentId),
@@ -199,7 +199,7 @@ export async function getConstituentProfiles(
  * @returns A promise that resolves to the user object (with constituent data) or undefined if not found.
  */
 export async function findUserByEmail(email: string) {
-  const [user] = await pgPool.db
+  const [user] = await dbClient.db
     .select({
       id: schema.Users.id,
       email: schema.Users.email,

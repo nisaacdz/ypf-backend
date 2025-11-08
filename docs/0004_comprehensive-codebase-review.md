@@ -124,7 +124,7 @@ FinancialTransactions (parent)
 ```typescript
 // ❌ Handler doing database operations
 export async function createEvent(newEvent: CreateEventInput) {
-  const [event] = await pgPool.db
+  const [event] = await dbClient.db
     .insert(Events)
     .values(newEvent)
     .returning({ id: Events.id });
@@ -139,10 +139,10 @@ export async function createEvent(newEvent: CreateEventInput) {
 // ✅ Move to service layer
 // In eventsService.ts
 export async function createEvent(data: CreateEventInput): Promise<string> {
-  const [event] = await pgPool.db
+  const [event] = await dbClient.db
     .insert(Events)
     .values(data)
-    .returning({ id: Events.id });
+    .returning({ id: EvedbClient });
 
   if (!event) {
     throw new AppError("Failed to create event", 500);
@@ -391,7 +391,7 @@ this.database = drizzle(sql, { schema });
 
 ```typescript
 (async () => {
-  await Promise.all([emailer.initialize(), pgPool.initialize()]);
+  await Promise.all([emailer.initialize(), dbClient.initialize()]);
 
   server.listen(variables.app.port, () => {
     logger.info(`Server is live`);
@@ -399,7 +399,7 @@ this.database = drizzle(sql, { schema });
 })();
 ```
 
-**Risk:**
+**Risk:**dbClient
 
 - Server accepts requests before database is ready
 - Cryptic errors for users
@@ -410,7 +410,7 @@ this.database = drizzle(sql, { schema });
 ```typescript
 (async () => {
   try {
-    await Promise.all([emailer.initialize(), pgPool.initialize()]);
+    await Promise.all([emailer.initialize(), dbClient.initialize()]);
 
     server.listen(variables.app.port, () => {
       logger.info(`Server is live`);
@@ -420,6 +420,7 @@ this.database = drizzle(sql, { schema });
     process.exit(1); // Fail fast
   }
 })();
+dbClient;
 ```
 
 #### 3. Missing Error Handling in Background Jobs
@@ -526,7 +527,7 @@ export const Chapters = core.table("chapters", {
 
 ```typescript
 // ⚠️ Potential N+1 if accessing relations in a loop
-const chapters = await pgPool.db.query.Chapters.findMany();
+const chapters = await dbClient.db.query.Chapters.findMany();
 
 for (const chapter of chapters) {
   console.log(chapter.memberships); // Could trigger N+1
@@ -537,8 +538,8 @@ for (const chapter of chapters) {
 
 ```typescript
 // ✅ Eager load relations
-const chapters = await pgPool.db.query.Chapters.findMany({
-  with: {
+const chapters = await dbClient.db.query.Chapters.findMany({
+  with: {dbClient
     memberships: true,
     committees: true,
   },
@@ -550,7 +551,7 @@ const chapters = await pgPool.db.query.Chapters.findMany({
 1. Use `with` clause for eager loading
 2. Monitor query patterns in production
 3. Add query logging in development
-4. Use database query analysis tools
+4. Use database query adbClients tools
 
 #### 2. Missing Database Indexes
 

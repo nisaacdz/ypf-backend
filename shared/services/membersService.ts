@@ -13,7 +13,7 @@ import {
 } from "drizzle-orm";
 import z from "zod";
 
-import pgPool from "@/configs/db";
+import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { Paginated, YPFMember, MemberDetail } from "@/shared/dtos";
 import { GetMembersQuerySchema } from "@/shared/validators/core";
@@ -29,7 +29,7 @@ export async function getMembers(
   // --- SUBQUERIES ---
 
   // 1. Subquery to find the earliest membership start date for each constituent.
-  const firstMembershipSubquery = pgPool.db
+  const firstMembershipSubquery = dbClient.db
     .select({
       constituentId: schema.Members.constituentId,
       joinedAt: min(schema.Members.startedAt).as("joined_at"),
@@ -39,7 +39,7 @@ export async function getMembers(
     .as("first_membership");
 
   // 2. Subquery to find the most significant (highest priority) active title for each constituent.
-  const topTitleSubquery = pgPool.db
+  const topTitleSubquery = dbClient.db
     .select({
       constituentId: schema.Members.constituentId,
       titleName: schema.MemberTitles.title,
@@ -80,7 +80,7 @@ export async function getMembers(
   if (chapterId) {
     whereClauses.push(
       exists(
-        pgPool.db
+        dbClient.db
           .select()
           .from(schema.ChapterMemberships)
           .innerJoin(
@@ -105,7 +105,7 @@ export async function getMembers(
   if (committeeId) {
     whereClauses.push(
       exists(
-        pgPool.db
+        dbClient.db
           .select()
           .from(schema.CommitteeMemberships)
           .innerJoin(
@@ -128,7 +128,7 @@ export async function getMembers(
   }
 
   // --- BASE QUERY CONSTRUCTION ---
-  const baseQuery = pgPool.db
+  const baseQuery = dbClient.db
     .select({
       id: schema.Constituents.id,
       profilePhotoExternalId: schema.Media.externalId,
@@ -138,7 +138,7 @@ export async function getMembers(
         ),
       // Check if any active membership period exists for the constituent
       isActive: exists(
-        pgPool.db
+        dbClient.db
           .select()
           .from(schema.Members)
           .where(
@@ -175,7 +175,7 @@ export async function getMembers(
 
   // --- QUERY EXECUTION ---
   const [totalResult, dbMembers] = await Promise.all([
-    pgPool.db.select({ total: count() }).from(baseQuery.as("sub")),
+    dbClient.db.select({ total: count() }).from(baseQuery.as("sub")),
     baseQuery.limit(pageSize).offset((page - 1) * pageSize),
   ]);
 
@@ -208,7 +208,7 @@ export async function getMemberByConstituentId(
 ): Promise<MemberDetail> {
   const now = sql`now()`;
 
-  const [constituent] = await pgPool.db
+  const [constituent] = await dbClient.db
     .select({
       id: schema.Constituents.id,
       firstName: schema.Constituents.firstName,
@@ -223,7 +223,7 @@ export async function getMemberByConstituentId(
       profilePhotoUploadedBy: schema.Media.uploadedBy,
       joinedAt: min(schema.Members.startedAt).as("joined_at"),
       isActive: exists(
-        pgPool.db
+        dbClient.db
           .select()
           .from(schema.Members)
           .where(
@@ -264,7 +264,7 @@ export async function getMemberByConstituentId(
   }
 
   const [contacts, titles] = await Promise.all([
-    pgPool.db
+    dbClient.db
       .select({
         type: schema.ContactInformations.contactType,
         value: schema.ContactInformations.value,
@@ -276,7 +276,7 @@ export async function getMemberByConstituentId(
           eq(schema.ContactInformations.isPrimary, true),
         ),
       ),
-    pgPool.db
+    dbClient.db
       .select({
         name: schema.MemberTitles.title,
         _level: schema.MemberTitles._level,

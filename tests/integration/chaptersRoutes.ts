@@ -4,7 +4,7 @@ import request from "supertest";
 import { createTestApp } from "../app";
 import type { Express } from "express";
 import { hashSync } from "bcryptjs";
-import pgPool from "@/configs/db";
+import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { generateTestUser, generateTestChapter } from "../factories";
 
@@ -19,12 +19,12 @@ describe("Chapters API", () => {
     app = await createTestApp();
 
     // Clean up any existing test user
-    await pgPool.db
+    await dbClient.db
       .delete(schema.Users)
       .where(eq(schema.Users.email, testUser.email));
 
     // Create test constituent
-    const [newConstituent] = await pgPool.db
+    const [newConstituent] = await dbClient.db
       .insert(schema.Constituents)
       .values({
         firstName: testUser.name.firstName,
@@ -36,7 +36,7 @@ describe("Chapters API", () => {
 
     // Create test user
     const hashedPassword = hashSync(testUser.password, 10);
-    await pgPool.db.insert(schema.Users).values({
+    await dbClient.db.insert(schema.Users).values({
       email: testUser.email,
       password: hashedPassword,
       constituentId: testUser.constituentId,
@@ -44,13 +44,13 @@ describe("Chapters API", () => {
     });
 
     // Create a member for testing (required for MEMBER profile)
-    await pgPool.db.insert(schema.Members).values({
+    await dbClient.db.insert(schema.Members).values({
       constituentId: testUser.constituentId,
       startedAt: new Date(),
     });
 
     // Create a test chapter
-    const [newChapter] = await pgPool.db
+    const [newChapter] = await dbClient.db
       .insert(schema.Chapters)
       .values({
         name: testChapter.name,
@@ -85,14 +85,14 @@ describe("Chapters API", () => {
   afterAll(async () => {
     // Clean up test chapter
     if (testChapter.id) {
-      await pgPool.db
+      await dbClient.db
         .delete(schema.Chapters)
         .where(eq(schema.Chapters.id, testChapter.id));
     }
 
     // Clean up test user and constituent
     if (testUser.constituentId) {
-      await pgPool.db
+      await dbClient.db
         .delete(schema.Constituents)
         .where(eq(schema.Constituents.id, testUser.constituentId));
     }
