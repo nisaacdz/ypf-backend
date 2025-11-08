@@ -1,300 +1,30 @@
-# Test Isolation Strategy - Investigation and Solutions
+# Test Isolation Strategy
 
-## Executive Summary
+**Date:** November 8, 2025  
+**Project:** YPF Backend  
+**Status:** Implemented
 
-This document analyzes the test isolation issues in the YPF Backend test suite and proposes practical solutions to ensure reliable, concurrent test execution without requiring extensive codebase changes.
+---
 
-## Problem Statement
+## Overview
 
-Tests currently share the same `DATABASE_URL` and other resources with the development environment. When multiple test instances run simultaneously (e.g., in GitHub Actions CI runs, local development, or multiple CI jobs), tests experience intermittent failures that are difficult to reproduce.
+This document describes the test isolation strategy currently implemented in the YPF Backend codebase. The strategy focuses on using **UUID-based unique identifiers** for test data to prevent conflicts when tests run concurrently or sequentially.
 
-## Root Cause Analysis
+---
 
-### 1. **Shared Database Resource**
+## Core Strategy
 
-**Issue**: All test environments use the same `DATABASE_URL` from environment variables.
+### UUID-Based Test Data Generation
 
-**Evidence**:
+The primary mechanism for test isolation is generating unique test data using UUIDs. This approach ensures that each test run creates data that won't conflict with previous or concurrent test runs.
 
-- `vitest.config.ts` loads `.env.test` but falls back to default `.env`
-- `configs/env.ts` reads `DATABASE_URL` from `process.env`
-- GitHub Actions CI workflow uses the same `DATABASE_URL` secret for all runs
-- No database-level isolation mechanism exists
+**Location:** `tests/factories.ts`
 
-**Impact**: When tests run concurrently, they all operate on the same database tables simultaneously, causing:
+### Test Data Factories
 
-- Data race conditions
-- Unpredictable test data states
-- Cleanup operations affecting other running tests
-
-### 2. **Hardcoded Test Data Identifiers**
-
-**Issue**: Tests use hardcoded, predictable identifiers for test entities.
-
-**Evidence from codebase**:
+The codebase provides factory functions that generate unique test data:
 
 ```typescript
-// tests/integration/authRoutes.ts
-const testUser = {
-  email: "login-test@example.com", // Static, not unique
-  password: "SecurePassword123!",
-  // ...
-};
-
-// tests/integration/chaptersRoutes.ts
-const testUser = {
-  email: "chapters-test@example.com", // Static, not unique
-  // ...
-};
-
-// tests/integration/committeesRoutes.ts
-const testUser = {
-  email: "committees-test@example.com", // Static, not unique
-  // ...
-};
-
-// tests/integration/membersRoutes.ts
-const testUser = {
-  email: "members-test@example.com", // Static, not unique
-  // ...
-};
-```
-
-**Impact**: When the same test suite runs twice concurrently:
-
-1. First run's `beforeAll` creates user with email "login-test@example.com"
-2. Second run's `beforeAll` tries to create the same user → **Unique constraint violation**
-3. Or first run's `afterAll` deletes the user while second run is using it → **Test failures**
-
-### 3. **Shared Application Instance**
-
-**Issue**: The test Express application is cached and reused across all tests.
-
-**Evidence from `tests/app.ts`**:
-
-```typescript
-let app: Express | null = null;
-
-export async function createTestApp(): Promise<Express> {
-  if (app) return app; // Returns cached instance
-
-  app = express();
-  // ... setup
-  return app;
-}
-```
-
-**Impact**: All tests share the same Express instance, potentially causing:
-
-- Middleware state pollution
-- Route handler side effects affecting other tests
-- Socket/connection leaks
-
-### 4. **Global Database Connection Pool**
-
-**Issue**: A singleton database connection pool is shared across all tests.
-
-**Evidence from `configs/db.ts`**:
-
-```typescript
-class PgPool {
-  private database: PostgresJsDatabase<Schema> | null = null;
-
-  async initialize(db?: PostgresJsDatabase<Schema>) {
-    if (this.database) return; // Only initializes once
-    this.database = db ?? drizzle(postgres(variables.database.url), { schema });
-    // ...
-  }
-}
-
-const pgPool = new PgPool(); // Singleton instance
-export default pgPool;
-```
-
-**Impact**:
-
-- All tests share the same connection pool
-- No per-test transaction isolation
-- Cleanup operations affect all running tests
-
-### 5. **No Transaction-Level Isolation**
-
-**Issue**: Tests modify the database directly without transaction rollback mechanisms.
-
-**Evidence**:
-
-- Tests use `INSERT`, `DELETE`, `UPDATE` directly on the shared database
-- No transaction wrapping around test execution
-- Cleanup is done in `afterAll` hooks, not automatic rollback
-- If a test fails mid-execution, cleanup might not run, polluting the database
-
-### 6. **Vitest Configuration Limitations**
-
-**Current configuration** (`vitest.config.ts`):
-
-```typescript
-pool: "forks",
-poolOptions: {
-  forks: {
-    singleFork: true,  // Forces serial execution
-  },
-},
-```
-
-**Impact**: While `singleFork: true` prevents tests from running in parallel within a single process, it doesn't prevent:
-
-- Multiple CI jobs running simultaneously
-- Local development tests running while CI is running
-- Multiple developer machines running tests against the same database
-
-## Critical Scenarios Leading to Failures
-
-### Scenario 1: Concurrent Test Runs (Most Common)
-
-```
-Time    | CI Job 1                          | CI Job 2
---------|-----------------------------------|-----------------------------------
-T0      | Start authRoutes tests            | Start authRoutes tests
-T1      | Delete "login-test@example.com"   | Delete "login-test@example.com"
-T2      | Create user                       | Create user ❌ (Already exists)
-T3      | Run test                          | Test fails
-T4      | Delete user                       | User already deleted ❌
-```
-
-### Scenario 2: Cleanup Race Condition
-
-```
-Time    | Test Suite A                      | Test Suite B
---------|-----------------------------------|-----------------------------------
-T0      | Create constituent C1             | Create constituent C2
-T1      | Create user U1 with C1            | Create user U2 with C2
-T2      | Test completes                    | Using U2 in tests
-T3      | afterAll: Delete C1               | afterAll: Delete C2
-T4      | -                                 | Tests using U2 fail ❌ (C2 deleted)
-```
-
-### Scenario 3: Shared State Pollution
-
-```
-Time    | Test File 1                       | Test File 2
---------|-----------------------------------|-----------------------------------
-T0      | Create chapter "Test Chapter"     | Query all chapters
-T1      | Run tests                         | Expects N chapters
-T2      | -                                 | Finds N+1 chapters ❌
-```
-
-## Proposed Solutions
-
-### Solution 1: Database-Level Isolation (Recommended)
-
-**Approach**: Use unique database schemas or test databases for each test run.
-
-**Implementation**:
-
-1. **Modify `.env.test`** to use a template database URL:
-
-```env
-DATABASE_URL=postgresql://user:pass@localhost:5432/ypf_test_template
-TEST_DATABASE_PREFIX=ypf_test
-```
-
-2. **Create a test database helper** (`tests/helpers.ts`):
-
-```typescript
-import { randomUUID } from "crypto";
-import postgres from "postgres";
-
-export function getTestDatabaseUrl(): string {
-  const baseUrl = process.env.DATABASE_URL || "";
-  const testId = randomUUID().substring(0, 8);
-  const dbName = `${process.env.TEST_DATABASE_PREFIX || "ypf_test"}_${testId}`;
-
-  // Replace database name in URL
-  return baseUrl.replace(/\/[^\/]+$/, `/${dbName}`);
-}
-
-export async function createTestDatabase(url: string): Promise<void> {
-  const baseUrl = process.env.DATABASE_URL || "";
-  const sql = postgres(baseUrl);
-  const dbName = url.split("/").pop();
-
-  try {
-    await sql`CREATE DATABASE ${sql(dbName)} TEMPLATE ypf_test_template`;
-  } finally {
-    await sql.end();
-  }
-}
-
-export async function dropTestDatabase(url: string): Promise<void> {
-  const baseUrl = process.env.DATABASE_URL || "";
-  const sql = postgres(baseUrl);
-  const dbName = url.split("/").pop();
-
-  try {
-    await sql`DROP DATABASE IF EXISTS ${sql(dbName)}`;
-  } finally {
-    await sql.end();
-  }
-}
-```
-
-3. **Update `tests/setup.ts`**:
-
-```typescript
-import { beforeAll, afterAll } from "vitest";
-import pgPool from "@/configs/db";
-import emailer from "@/configs/emailer";
-import logger from "@/configs/logger";
-import {
-  createTestDatabase,
-  dropTestDatabase,
-  getTestDatabaseUrl,
-} from "./helpers";
-
-let testDbUrl: string;
-
-beforeAll(async () => {
-  testDbUrl = getTestDatabaseUrl();
-  await createTestDatabase(testDbUrl);
-
-  // Initialize pool with test database
-  process.env.DATABASE_URL = testDbUrl;
-  await pgPool.initialize();
-  await Promise.all([emailer.initialize()]);
-});
-
-afterAll(async () => {
-  pgPool.reset();
-  await dropTestDatabase(testDbUrl);
-  logger.info("Test database cleaned up.");
-});
-```
-
-**Pros**:
-
-- Complete isolation between test runs
-- No changes to individual test files
-- Works with concurrent CI jobs
-- Clean slate for each test run
-
-**Cons**:
-
-- Requires database creation permissions
-- Slightly slower setup time
-- Need to maintain a template database with schema
-
-### Solution 2: Dynamic Test Data (Simple, Immediate Fix)
-
-**Approach**: Use random identifiers for test data to avoid collisions.
-
-**Implementation**:
-
-1. **Create a test data factory** (`tests/factories.ts`):
-
-```typescript
-import { randomUUID } from "crypto";
-import { faker } from "@faker-js/faker";
-
 export function generateTestUser() {
   const uniqueId = randomUUID().substring(0, 8);
   return {
@@ -307,234 +37,354 @@ export function generateTestUser() {
     constituentId: "",
   };
 }
-
-export function generateTestChapter() {
-  const uniqueId = randomUUID().substring(0, 8);
-  return {
-    id: "",
-    name: `Test Chapter ${uniqueId}`,
-    country: faker.location.country(),
-    description: faker.lorem.sentence(),
-    foundingDate: faker.date.past(),
-  };
-}
-
-// Similar factories for other entities...
 ```
 
-2. **Update test files** (example for `authRoutes.ts`):
+### Available Factories
+
+1. **`generateTestUser()`** - Creates unique test user data
+   - Generates unique email: `test-{uuid}@example.com`
+   - Random password using faker
+   - Random first and last names
+
+2. **`generateTestChapter()`** - Creates unique test chapter data
+   - Unique name: `Test Chapter {uuid}`
+   - Random country, description, and founding date
+
+3. **`generateTestCommittee()`** - Creates unique test committee data
+   - Unique name: `Test Committee {uuid}`
+   - Random description
+
+4. **`generateTestEvent()`** - Creates unique test event data
+   - Unique name: `Test Event {uuid}`
+   - Random dates, location, and description
+
+5. **`generateTestProject()`** - Creates unique test project data
+   - Unique title: `Test Project {uuid}`
+   - Random abstract, description, and dates
+
+---
+
+## Benefits
+
+### 1. Fault Tolerance
+
+- **No Hardcoded IDs**: Tests don't rely on specific hardcoded IDs or emails
+- **Conflict Prevention**: Each test run generates unique data that won't conflict with existing data
+- **Concurrent Execution**: Multiple test suites can run simultaneously without interference
+
+### 2. Cleanup Resilience
+
+- **Idempotent**: Tests can be re-run even if cleanup failed previously
+- **No State Pollution**: Failed tests don't leave data that breaks subsequent tests
+- **Database Independence**: Tests work regardless of the initial database state
+
+### 3. Developer Experience
+
+- **Simple to Use**: Just import and call the factory functions
+- **Consistent Pattern**: All test data follows the same generation pattern
+- **Easy Debugging**: UUID prefixes in names make test data easily identifiable
+
+---
+
+## Usage Example
 
 ```typescript
-import { generateTestUser } from "../factories";
+import { generateTestUser, generateTestChapter } from "../factories";
 
-describe("Authentication API", () => {
-  let app: Express;
-  const testUser = generateTestUser(); // Now unique per run
+describe("Chapters API", () => {
+  let testUser;
+  let testChapter;
 
   beforeAll(async () => {
-    app = await createTestApp();
+    // Generate unique test data
+    testUser = generateTestUser();
+    testChapter = generateTestChapter();
 
-    // Cleanup is now safe as email is unique
-    await pgPool.db
-      .delete(schema.Users)
-      .where(eq(schema.Users.email, testUser.email));
-
-    // ... rest of setup
+    // Create the test user
+    await createUserInDatabase(testUser);
+    
+    // Create the test chapter
+    await createChapterInDatabase(testChapter);
   });
 
-  // ... tests
-});
-```
-
-**Pros**:
-
-- Simple to implement
-- Immediate benefit
-- No infrastructure changes
-- Minimal code changes
-
-**Cons**:
-
-- Doesn't solve all isolation issues
-- Database still shared (potential cleanup issues)
-- Doesn't prevent all race conditions
-
-### Solution 3: Transaction-Based Isolation (Advanced)
-
-**Approach**: Wrap each test in a database transaction that rolls back after completion.
-
-**Implementation**:
-
-1. **Create transaction wrapper** (`tests/helpers.ts`):
-
-```typescript
-import { beforeEach, afterEach } from "vitest";
-import pgPool from "@/configs/db";
-
-let transaction: any = null;
-
-export function setupTestTransaction() {
-  beforeEach(async () => {
-    transaction = await pgPool.db.transaction((tx) => {
-      return tx;
-    });
+  afterAll(async () => {
+    // Cleanup (optional - next run will have different IDs anyway)
+    await deleteUserByEmail(testUser.email);
+    await deleteChapterByName(testChapter.name);
   });
 
-  afterEach(async () => {
-    if (transaction) {
-      await transaction.rollback();
-      transaction = null;
-    }
-  });
-}
+  it("should retrieve chapter", async () => {
+    const response = await request(app)
+      .get(`/api/v1/chapters/${testChapter.id}`)
+      .set("Cookie", authCookie);
 
-export function getTestDb() {
-  return transaction || pgPool.db;
-}
-```
-
-2. **Use in tests**:
-
-```typescript
-import { setupTestTransaction, getTestDb } from "../helpers";
-
-describe("Authentication API", () => {
-  setupTestTransaction();
-
-  it("should create user", async () => {
-    const db = getTestDb();
-    await db.insert(schema.Users).values({
-      /* ... */
-    });
-    // Automatically rolled back after test
+    expect(response.status).toBe(200);
+    expect(response.body.data.name).toBe(testChapter.name);
   });
 });
 ```
 
-**Pros**:
+---
 
-- Automatic cleanup
-- True test isolation
-- Fast execution
+## Cleanup Strategy
 
-**Cons**:
+### Manual Cleanup
 
-- Complex to implement correctly
-- Requires significant refactoring
-- May not work with all database operations
-- External services (email, file storage) still need mocking
-
-## Recommended Implementation Plan
-
-### Phase 1: Immediate Fix (Low Effort, High Impact)
-
-**Implement Solution 2: Dynamic Test Data**
-
-1. Create `tests/factories.ts` with data generators
-2. Update each test file to use dynamic data (6 files)
-3. Verify tests pass locally and in CI
-
-**Estimated effort**: 2-4 hours
-**Risk**: Low
-
-### Phase 2: Complete Isolation (Medium Effort, Complete Solution)
-
-**Implement Solution 1: Database-Level Isolation**
-
-1. Set up template database with schema
-2. Create database helper functions
-3. Update `tests/setup.ts` to use per-run databases
-4. Update CI workflow to create template database
-5. Document database permissions required
-
-**Estimated effort**: 4-8 hours
-**Risk**: Medium (requires DBA permissions)
-
-### Phase 3: Advanced Optimization (Optional)
-
-**Implement Solution 3: Transaction-Based Isolation**
-
-1. Create transaction management utilities
-2. Refactor tests to use transaction wrapper
-3. Handle edge cases (migrations, external services)
-
-**Estimated effort**: 8-16 hours
-**Risk**: High (complex refactoring)
-
-## Additional Recommendations
-
-### 1. Separate Test Environment Configuration
-
-Create a dedicated `.env.test` file:
-
-```env
-NODE_ENV=test
-DATABASE_URL=postgresql://localhost:5432/ypf_test
-# Use separate test credentials/resources for:
-# - Azure Storage (separate container)
-# - ImageKit (test account)
-# - SMTP (test email service or mock)
-```
-
-### 2. Mock External Services
-
-Update `tests/setup.ts` to mock external services in test environment:
+The current implementation uses **manual cleanup** in `afterAll` hooks:
 
 ```typescript
-if (process.env.NODE_ENV === "test") {
-  // Mock imagekit
-  // Mock azure storage
-  // Mock email sender
-}
+afterAll(async () => {
+  // Delete test user by email
+  await pgPool.db
+    .delete(schema.Users)
+    .where(eq(schema.Users.email, testUser.email));
+
+  // Delete test chapter by name
+  await pgPool.db
+    .delete(schema.Chapters)
+    .where(eq(schema.Chapters.name, testChapter.name));
+});
 ```
 
-### 3. Improve Vitest Configuration
+### Why Manual Cleanup Works
 
-Remove `singleFork: true` once isolation is implemented:
+1. **UUID-based names are unique** - Cleanup can target specific test data without affecting other tests
+2. **Idempotent operations** - Delete by UUID/email will only remove the specific test data
+3. **Fault-tolerant** - If cleanup fails, next run generates new unique IDs
+
+---
+
+## Test Configuration
+
+### Vitest Configuration
+
+**Location:** `vitest.config.ts`
 
 ```typescript
-// vitest.config.ts
-pool: "forks",
-poolOptions: {
-  forks: {
-    singleFork: false,  // Allow parallel execution
-    maxForks: 4,        // Control concurrency
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: "node",
+    setupFiles: ["./tests/setup.ts"],
+    pool: "forks",
+    poolOptions: {
+      forks: {
+        singleFork: true,  // Ensures serial execution
+      },
+    },
   },
-},
+});
 ```
 
-### 4. CI/CD Improvements
+**Key Configuration:**
+- **Single Fork Mode**: Tests run serially within a single process
+- **Node Environment**: Standard Node.js environment for API testing
+- **Setup Files**: Initializes database and services before tests
 
-Update GitHub Actions workflow:
+---
 
-```yaml
-jobs:
-  test:
-    strategy:
-      matrix:
-        test-shard: [1, 2, 3, 4] # Parallel shards
-    steps:
-      # ... existing steps
-      - name: Run tests
-        run: npm run test -- --shard=${{ matrix.test-shard }}/4
-        env:
-          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
-          TEST_DATABASE_PREFIX: ypf_test_ci_${{ github.run_id }}_${{ matrix.test-shard }}
+## Database Management
+
+### Connection Pooling
+
+The application uses `postgres-js` with Drizzle ORM:
+
+```typescript
+// configs/db.ts
+class PgPool {
+  private database: PostgresJsDatabase<Schema> | null = null;
+
+  async initialize() {
+    if (this.database) return;
+    this.database = drizzle(postgres(variables.database.url), { schema });
+  }
+}
 ```
+
+### Test Setup
+
+**Location:** `tests/setup.ts`
+
+```typescript
+beforeAll(async () => {
+  await Promise.all([emailer.initialize(), pgPool.initialize()]);
+});
+
+afterAll(async () => {
+  pgPool.reset();
+  logger.info("Test database cleaned up.");
+});
+```
+
+---
+
+## Best Practices
+
+### DO ✅
+
+1. **Always use factory functions** for generating test data
+2. **Use unique identifiers** in all test data (emails, names, etc.)
+3. **Clean up in afterAll** hooks to keep database clean
+4. **Use descriptive test names** that include what they're testing
+5. **Check for existing data** before creating if necessary
+
+### DON'T ❌
+
+1. **Don't use hardcoded emails or IDs** (e.g., `test@example.com`)
+2. **Don't rely on specific database state** between tests
+3. **Don't skip cleanup** - always clean up test data
+4. **Don't share test data** between test suites
+5. **Don't use `beforeEach` for expensive operations** - use `beforeAll` instead
+
+---
+
+## Future Enhancements
+
+While the current UUID-based strategy works well, potential improvements include:
+
+### 1. Transaction-Based Isolation
+
+Wrap each test in a database transaction that rolls back:
+
+```typescript
+beforeEach(async () => {
+  await pgPool.db.transaction(async (tx) => {
+    // Store transaction for test
+  });
+});
+
+afterEach(async () => {
+  // Rollback transaction
+});
+```
+
+**Benefits:**
+- Automatic cleanup
+- Complete isolation
+- Faster test execution
+
+**Challenges:**
+- More complex to implement
+- May not work with all test scenarios
+- Requires refactoring of database access
+
+### 2. Test Database Per Suite
+
+Create a separate test database for each test suite:
+
+```typescript
+beforeAll(async () => {
+  const dbName = `ypf_test_${randomUUID().substring(0, 8)}`;
+  await createDatabase(dbName);
+  await runMigrations(dbName);
+});
+
+afterAll(async () => {
+  await dropDatabase(dbName);
+});
+```
+
+**Benefits:**
+- Complete isolation between suites
+- Can run suites in parallel
+- No cleanup needed (just drop database)
+
+**Challenges:**
+- Requires database creation permissions
+- Slower setup time
+- More complex infrastructure
+
+### 3. Dedicated Test Environment
+
+Use a separate test database with automatic cleanup:
+
+```typescript
+// .env.test
+DATABASE_URL=postgresql://localhost:5432/ypf_test
+```
+
+**Benefits:**
+- Isolated from development data
+- Can reset entire database between runs
+- Better separation of concerns
+
+**Challenges:**
+- Requires separate database setup
+- Need to manage multiple database instances
+- More complex CI/CD configuration
+
+---
+
+## Testing the Strategy
+
+To verify the test isolation strategy works:
+
+1. **Run tests multiple times:**
+   ```bash
+   npm test
+   npm test  # Should pass even if cleanup failed
+   ```
+
+2. **Run specific test suites:**
+   ```bash
+   npm test -- chaptersRoutes
+   npm test -- eventsRoutes
+   ```
+
+3. **Check for conflicts:**
+   ```bash
+   # Run the same test suite concurrently (in different terminals)
+   npm test & npm test
+   ```
+
+If all tests pass consistently, the isolation strategy is working correctly.
+
+---
+
+## Troubleshooting
+
+### Tests Fail with Unique Constraint Violations
+
+**Cause:** Test is using hardcoded data instead of factory functions
+
+**Solution:** Replace hardcoded data with factory-generated data:
+
+```typescript
+// ❌ Wrong
+const testUser = { email: "test@example.com" };
+
+// ✅ Correct
+const testUser = generateTestUser();
+```
+
+### Tests Fail Intermittently
+
+**Cause:** Tests might be sharing state or not cleaning up properly
+
+**Solution:** 
+1. Ensure each test generates unique data
+2. Verify cleanup in `afterAll` hooks
+3. Check if tests modify shared data
+
+### Database Connection Errors
+
+**Cause:** Database pool not initialized or connection limit reached
+
+**Solution:**
+1. Verify database URL in `.env.test`
+2. Check connection pool configuration
+3. Ensure `pgPool.reset()` is called in `afterAll`
+
+---
 
 ## Conclusion
 
-The test isolation issues stem from shared database resources and predictable test data identifiers. The recommended approach is a two-phase implementation:
+The UUID-based test isolation strategy provides a simple, effective approach to preventing test conflicts. By generating unique identifiers for all test data, tests can run reliably regardless of database state or execution order.
 
-1. **Phase 1 (Immediate)**: Implement dynamic test data generation to eliminate the most common failure mode
-2. **Phase 2 (Complete)**: Implement database-level isolation for true test independence
+This strategy balances simplicity with effectiveness, making it easy for developers to write and maintain tests while ensuring reliability in CI/CD environments.
 
-This strategy provides immediate relief while building toward a robust, scalable testing infrastructure that supports concurrent test execution across multiple environments.
+---
 
-## References
-
-- Test Setup: `tests/setup.ts`
-- Vitest Config: `vitest.config.ts`
-- Database Config: `configs/db.ts`
-- CI Workflow: `.github/workflows/ci.yml`
-- Integration Tests: `tests/integration/*.ts`
+**Document Version:** 2.0  
+**Last Updated:** November 8, 2025  
+**Status:** Implemented and Actively Used
