@@ -54,7 +54,15 @@ app.use((req, res) => {
   async function shutdown() {
     logger.info("Shutting down server...");
     emailer.transporter.close();
-    //dbClient.db.$pool.end();
+    
+    // Gracefully close database connection pool
+    try {
+      await dbClient.pool.end({ timeout: 5 });
+      logger.info("Database pool closed.");
+    } catch (error) {
+      logger.error(error, "Error closing database pool");
+    }
+    
     server.close(() => {
       logger.info("Server closed.");
       process.exit(0);
