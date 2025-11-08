@@ -273,30 +273,27 @@ authRouter.post(
  *                 data:
  *                   type: null
  */
-authRouter.post(
-  "/logout",
-  async (req: Request, res: Response) => {
-    const { response } = await authHandler.logout();
+authRouter.post("/logout", async (req: Request, res: Response) => {
+  const { response } = await authHandler.logout();
 
-    // Clear access_token cookie
-    res.clearCookie("access_token", {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      path: "/",
-    });
+  // Clear access_token cookie
+  res.clearCookie("access_token", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+    path: "/",
+  });
 
-    // Clear refresh_token cookie
-    res.clearCookie("refresh_token", {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      path: "/",
-    });
+  // Clear refresh_token cookie
+  res.clearCookie("refresh_token", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+    path: "/",
+  });
 
-    res.status(200).json(response);
-  },
-);
+  res.status(200).json(response);
+});
 
 // authRouter.post(
 //   "/google",
@@ -359,15 +356,11 @@ authRouter.post(
  *                     - type: null
  *                       description: User is not authenticated
  */
-authRouter.get(
-  "/me",
-  authenticateLax,
-  async (req: Request, res: Response) => {
-    res.status(200).json({
-      success: true,
-      data: req.User ?? null,
-    });
-  },
-);
+authRouter.get("/me", authenticateLax, async (req: Request, res: Response) => {
+  res.status(200).json({
+    success: true,
+    data: req.User ?? null,
+  });
+});
 
 export default authRouter;

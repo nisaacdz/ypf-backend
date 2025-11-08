@@ -53,15 +53,21 @@ app.use((req, res) => {
 
   async function shutdown() {
     logger.info("Shutting down server...");
-    emailer.transporter.close();
-    //dbClient.db.$pool.end();
+
+    try {
+      emailer.transporter.close();
+      await dbClient.pool.end({ timeout: 5 });
+      logger.info("Database pool closed.");
+    } catch (error) {
+      logger.error(error, "Error closing database pool");
+    }
+
     server.close(() => {
       logger.info("Server closed.");
       process.exit(0);
     });
   }
 
-  // Handle shutdown signals
   for (const signal of ["SIGINT", "SIGTERM"] as const) {
     process.on(signal, shutdown);
   }
