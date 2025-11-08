@@ -65,6 +65,7 @@ type CreateEventInput = z.infer<typeof CreateEventSchema>;
 ```
 
 **Benefits:**
+
 - Prevents runtime type errors
 - Self-documenting API contracts
 - Autocomplete in IDE
@@ -88,6 +89,7 @@ export default variables;
 ```
 
 **Benefits:**
+
 - Fail-fast on misconfiguration
 - Type-safe access to config
 - Clear documentation of required variables
@@ -106,6 +108,7 @@ FinancialTransactions (parent)
 ```
 
 **Benefits:**
+
 - Single source of truth for all transactions
 - Easy to add new transaction types
 - Consistent reporting and reconciliation
@@ -125,7 +128,7 @@ export async function createEvent(newEvent: CreateEventInput) {
     .insert(Events)
     .values(newEvent)
     .returning({ id: Events.id });
-  
+
   return { success: true, data: event.id };
 }
 ```
@@ -140,11 +143,11 @@ export async function createEvent(data: CreateEventInput): Promise<string> {
     .insert(Events)
     .values(data)
     .returning({ id: Events.id });
-  
+
   if (!event) {
     throw new AppError("Failed to create event", 500);
   }
-  
+
   return event.id;
 }
 
@@ -162,6 +165,7 @@ export async function createEvent(newEvent: CreateEventInput) {
 **Issue:** Tables with time periods lack database-level exclusion constraints to prevent overlaps.
 
 **Affected Tables:**
+
 - `Members` (membership periods)
 - `MemberTitlesAssignments`
 - `AdminRolesAssignments`
@@ -181,6 +185,7 @@ EXCLUDE USING gist (
 ```
 
 **Why Critical:**
+
 - Prevents data integrity violations
 - Application-level checks can fail in concurrent scenarios
 - Database constraints are the last line of defense
@@ -225,6 +230,7 @@ const otp = randomInt(100000, 1000000).toString();
 ```
 
 **Risk:**
+
 - ~166 attempts per second needed to brute force
 - Without rate limiting, account takeover is possible
 
@@ -280,6 +286,7 @@ res.cookie("access_token", newAccessToken, {
 **Issue:** Global rate limiter (99 requests per 15 minutes) is too permissive for auth endpoints.
 
 **Affected Endpoints:**
+
 - `/auth/login`
 - `/auth/forgot-password`
 - `/auth/reset-password`
@@ -295,7 +302,7 @@ app.use(
     windowMs: 15 * 60 * 1000,
     maxRequests: 5, // Only 5 login attempts
     message: "Too many login attempts",
-  })
+  }),
 );
 
 app.use(
@@ -304,7 +311,7 @@ app.use(
     windowMs: 60 * 60 * 1000, // 1 hour window
     maxRequests: 3, // Only 3 password resets
     message: "Too many password reset requests",
-  })
+  }),
 );
 ```
 
@@ -358,6 +365,7 @@ this.database = drizzle(postgres(variables.database.url), { schema });
 ```
 
 **Risk:**
+
 - Connection exhaustion under load
 - Suboptimal performance
 - Potential connection leaks
@@ -384,7 +392,7 @@ this.database = drizzle(sql, { schema });
 ```typescript
 (async () => {
   await Promise.all([emailer.initialize(), pgPool.initialize()]);
-  
+
   server.listen(variables.app.port, () => {
     logger.info(`Server is live`);
   });
@@ -392,6 +400,7 @@ this.database = drizzle(sql, { schema });
 ```
 
 **Risk:**
+
 - Server accepts requests before database is ready
 - Cryptic errors for users
 - Difficult debugging
@@ -402,7 +411,7 @@ this.database = drizzle(sql, { schema });
 (async () => {
   try {
     await Promise.all([emailer.initialize(), pgPool.initialize()]);
-    
+
     server.listen(variables.app.port, () => {
       logger.info(`Server is live`);
     });
@@ -428,6 +437,7 @@ if (data.medium.type === "VIDEO") {
 ```
 
 **Risk:**
+
 - Videos missing metadata permanently
 - No retry mechanism
 - Silent failures accumulate
@@ -453,6 +463,7 @@ const filesUpload = multer({
 ```
 
 **Risk:**
+
 - Memory exhaustion with concurrent uploads
 - Server crash
 - Denial of service
@@ -480,6 +491,7 @@ const filesUpload = multer({
 **Issue:** `Chapters` and `Committees` tables lack `createdAt` and `updatedAt` fields.
 
 **Impact:**
+
 - Cannot track when records were created
 - Cannot detect stale or inactive records
 - Difficult to debug data issues
@@ -534,6 +546,7 @@ const chapters = await pgPool.db.query.Chapters.findMany({
 ```
 
 **Action Items:**
+
 1. Use `with` clause for eager loading
 2. Monitor query patterns in production
 3. Add query logging in development
@@ -544,6 +557,7 @@ const chapters = await pgPool.db.query.Chapters.findMany({
 **Issue:** Foreign key columns lack indexes.
 
 **Affected Tables:**
+
 - `Members.constituentId`
 - `Donations.projectId`, `Donations.eventId`
 - All `*Memberships` join table foreign keys
@@ -559,11 +573,12 @@ export const Members = core.table(
   (table) => [
     index().on(table.constituentId),
     index().on(table.startedAt, table.endedAt), // For date range queries
-  ]
+  ],
 );
 ```
 
 **Impact:** Significant performance improvement for:
+
 - Joins
 - WHERE clauses on foreign keys
 - Pagination queries
@@ -580,6 +595,7 @@ const pageSize = Math.min(query.pageSize || 20, MAX_PAGE_SIZE);
 ```
 
 Enforce maximum page size to prevent:
+
 - Memory exhaustion
 - Slow response times
 - Poor user experience
@@ -628,6 +644,7 @@ export function paginate<T>(params: {
 **Issue:** Error messages vary in format and detail level.
 
 **Examples:**
+
 - "A server error occurred" (generic)
 - "Invalid username or password" (specific)
 - No consistent error code system
@@ -665,7 +682,7 @@ throw new AppError(ErrorCodes.AUTH_INVALID_CREDENTIALS, 401);
  * @throws {AppError} 500 if database insert fails
  */
 export async function createEvent(
-  newEvent: z.infer<typeof CreateEventSchema>
+  newEvent: z.infer<typeof CreateEventSchema>,
 ): Promise<ApiResponse<string>> {
   // ...
 }
@@ -676,6 +693,7 @@ export async function createEvent(
 **Issue:** DTOs use mixed naming conventions.
 
 **Examples:**
+
 - `YPFChapter` vs `DetailedChapter`
 - `YPFEvent` vs `YPFEventDetail`
 
@@ -701,6 +719,7 @@ export type YPFChapterDetail = { ... }
 **Test Isolation:** UUID-based unique identifiers (see document 0001)
 
 **Strengths:**
+
 - Simple and effective
 - Fault-tolerant
 - Easy to use
@@ -712,23 +731,27 @@ export type YPFChapterDetail = { ... }
 Current test coverage is limited. Recommend adding:
 
 **Unit Tests:**
+
 - Authorization logic edge cases
 - OTP generation and validation
 - Pagination utilities
 - Error handling paths
 
 **Integration Tests:**
+
 - Overlapping period creation (should fail)
 - Concurrent file uploads
 - Rate limiting enforcement
 - Payment webhooks with various scenarios
 
 **Load Tests:**
+
 - Database connection pool under load
 - File upload handling with concurrent requests
 - API rate limiting thresholds
 
 **Security Tests:**
+
 - SQL injection vectors
 - Authorization bypass attempts
 - OTP brute force protection
@@ -765,23 +788,28 @@ app.get("/api/v1/health", async (req, res) => {
 ### Current Dependencies
 
 **Framework & Core:**
+
 - Express 5.1.0 (beta/RC - acceptable for production)
 - TypeScript 5.x
 - Drizzle ORM 0.44.6
 - Zod 4.1.8 (verify this is intentional, not a typo)
 
 **Database:**
+
 - `postgres` 3.4.7 (used by Drizzle)
 - `pg` 8.16.3 (peer dependency)
 
 **Authentication:**
+
 - `jsonwebtoken` 9.1.2
 - `bcryptjs` 3.0.2
 
 **Validation:**
+
 - `zod` 4.1.8
 
 **Security:**
+
 - `helmet` 8.1.0
 - `cors` 2.8.5
 

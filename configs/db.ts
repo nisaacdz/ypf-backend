@@ -7,7 +7,7 @@ import logger from "./logger";
 
 type Schema = typeof schema;
 
-class PgPool {
+class DbClient {
   private database: PostgresJsDatabase<Schema> | null = null;
 
   async initialize(db?: PostgresJsDatabase<Schema>) {
@@ -37,6 +37,6 @@ class PgPool {
   }
 }
 
-const pgPool = new PgPool();
+const dbClient = new DbClient();
 
-export default pgPool;
+export default dbClient;

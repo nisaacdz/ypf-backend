@@ -102,7 +102,7 @@ describe("Chapters API", () => {
 
     // Create the test user
     await createUserInDatabase(testUser);
-    
+
     // Create the test chapter
     await createChapterInDatabase(testChapter);
   });
@@ -169,7 +169,7 @@ export default defineConfig({
     pool: "forks",
     poolOptions: {
       forks: {
-        singleFork: true,  // Ensures serial execution
+        singleFork: true, // Ensures serial execution
       },
     },
   },
@@ -177,6 +177,7 @@ export default defineConfig({
 ```
 
 **Key Configuration:**
+
 - **Single Fork Mode**: Tests run serially within a single process
 - **Node Environment**: Standard Node.js environment for API testing
 - **Setup Files**: Initializes database and services before tests
@@ -259,11 +260,13 @@ afterEach(async () => {
 ```
 
 **Benefits:**
+
 - Automatic cleanup
 - Complete isolation
 - Faster test execution
 
 **Challenges:**
+
 - More complex to implement
 - May not work with all test scenarios
 - Requires refactoring of database access
@@ -285,11 +288,13 @@ afterAll(async () => {
 ```
 
 **Benefits:**
+
 - Complete isolation between suites
 - Can run suites in parallel
 - No cleanup needed (just drop database)
 
 **Challenges:**
+
 - Requires database creation permissions
 - Slower setup time
 - More complex infrastructure
@@ -304,11 +309,13 @@ DATABASE_URL=postgresql://localhost:5432/ypf_test
 ```
 
 **Benefits:**
+
 - Isolated from development data
 - Can reset entire database between runs
 - Better separation of concerns
 
 **Challenges:**
+
 - Requires separate database setup
 - Need to manage multiple database instances
 - More complex CI/CD configuration
@@ -320,12 +327,14 @@ DATABASE_URL=postgresql://localhost:5432/ypf_test
 To verify the test isolation strategy works:
 
 1. **Run tests multiple times:**
+
    ```bash
    npm test
    npm test  # Should pass even if cleanup failed
    ```
 
 2. **Run specific test suites:**
+
    ```bash
    npm test -- chaptersRoutes
    npm test -- eventsRoutes
@@ -361,7 +370,8 @@ const testUser = generateTestUser();
 
 **Cause:** Tests might be sharing state or not cleaning up properly
 
-**Solution:** 
+**Solution:**
+
 1. Ensure each test generates unique data
 2. Verify cleanup in `afterAll` hooks
 3. Check if tests modify shared data
@@ -371,6 +381,7 @@ const testUser = generateTestUser();
 **Cause:** Database pool not initialized or connection limit reached
 
 **Solution:**
+
 1. Verify database URL in `.env.test`
 2. Check connection pool configuration
 3. Ensure `pgPool.reset()` is called in `afterAll`

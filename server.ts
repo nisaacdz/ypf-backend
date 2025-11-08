@@ -9,7 +9,7 @@ import { errorHandler } from "@/shared/middlewares/errorHandler";
 import variables from "@/configs/env";
 import { filter } from "./shared/middlewares";
 import emailer from "@/configs/emailer";
-import pgPool from "./configs/db";
+import dbClient from "./configs/db";
 import apiRouter from "@/features/api/v1";
 import logger from "@/configs/logger";
 import { swaggerSpec } from "@/configs/docs";
@@ -49,7 +49,22 @@ app.use((req, res) => {
 });
 
 (async () => {
-  await Promise.all([emailer.initialize(), pgPool.initialize()]);
+  await Promise.all([emailer.initialize(), dbClient.initialize()]);
+
+  async function shutdown() {
+    logger.info("Shutting down server...");
+    emailer.transporter.close();
+    //dbClient.db.$pool.end();
+    server.close(() => {
+      logger.info("Server closed.");
+      process.exit(0);
+    });
+  }
+
+  // Handle shutdown signals
+  for (const signal of ["SIGINT", "SIGTERM"] as const) {
+    process.on(signal, shutdown);
+  }
 
   server.listen(variables.app.port, () => {
     logger.info(

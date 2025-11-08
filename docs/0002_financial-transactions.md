@@ -39,6 +39,7 @@ FinancialTransactions (Parent Table)
 ```
 
 **Benefits:**
+
 - Single source of truth for all financial data
 - Consistent transaction tracking
 - Easy to add new transaction types
@@ -85,6 +86,7 @@ Send Acknowledgement Email
 **Endpoint:** `POST /api/v1/donations`
 
 **Input:**
+
 ```typescript
 {
   amount: number;           // e.g., 50.00
@@ -183,6 +185,7 @@ return {
 The system supports three donation types:
 
 1. **Anonymous Donation**
+
    ```typescript
    {
      constituentId: null,
@@ -190,11 +193,13 @@ The system supports three donation types:
      guestEmail: null,
    }
    ```
+
    - No donor information stored
    - No acknowledgement email sent
    - Completely anonymous
 
 2. **Authenticated User Donation**
+
    ```typescript
    {
      constituentId: user.constituentId,
@@ -202,6 +207,7 @@ The system supports three donation types:
      guestEmail: null,
    }
    ```
+
    - Linked to user's constituent record
    - Email sent to user's registered email
    - Full donation history tracking
@@ -214,6 +220,7 @@ The system supports three donation types:
      guestEmail: "john@example.com",
    }
    ```
+
    - Stores guest information for future reconciliation
    - Sends acknowledgement to guest email
    - Can be linked to constituent later
@@ -225,6 +232,7 @@ Users can verify their donation status:
 **Endpoint:** `POST /api/v1/donations/:reference/verify`
 
 This triggers:
+
 1. API call to Paystack to verify transaction
 2. Update transaction status if changed
 3. Send acknowledgement email if completed
@@ -268,6 +276,7 @@ Send Order Confirmation Email
 **Endpoint:** `POST /api/v1/shop/orders`
 
 **Input:**
+
 ```typescript
 {
   items: [
@@ -304,7 +313,7 @@ export async function validateOrderItems(items: OrderItem[]) {
 
   // 2. Create Map for O(1) lookups
   const productMap = new Map(
-    dbProducts.map((product) => [product.id, product])
+    dbProducts.map((product) => [product.id, product]),
   );
 
   let totalAmount = 0;
@@ -323,7 +332,7 @@ export async function validateOrderItems(items: OrderItem[]) {
     if (!product.isActive) {
       throw new AppError(
         `Product "${product.name}" is no longer available`,
-        400
+        400,
       );
     }
 
@@ -331,7 +340,7 @@ export async function validateOrderItems(items: OrderItem[]) {
     if (product.stockQuantity < item.quantity) {
       throw new AppError(
         `Insufficient stock for "${product.name}". Only ${product.stockQuantity} available.`,
-        400
+        400,
       );
     }
 
@@ -411,6 +420,7 @@ const result = await pgPool.db.transaction(async (tx) => {
 ```
 
 **Why a single transaction?**
+
 - If any step fails, everything rolls back
 - Prevents inventory overselling
 - Ensures data consistency
@@ -480,13 +490,14 @@ Users can manually verify transaction status:
 **Endpoint:** `POST /api/v1/transactions/:reference/verify`
 
 **Flow:**
+
 ```typescript
 export async function verifyTransaction(reference: string) {
   // 1. Find transaction by external reference
   const transaction = await pgPool.db.query.FinancialTransactions.findFirst({
     where: and(
       eq(schema.FinancialTransactions.externalProvider, "PAYSTACK"),
-      eq(schema.FinancialTransactions.externalRef, reference)
+      eq(schema.FinancialTransactions.externalRef, reference),
     ),
   });
 
@@ -544,7 +555,7 @@ export class PaystackProvider implements IPaymentProvider {
         headers: {
           Authorization: `Bearer ${variables.services.paystack.secretKey}`,
         },
-      }
+      },
     );
 
     const data = await response.json();
@@ -589,6 +600,7 @@ export class PaystackProvider implements IPaymentProvider {
 **Purpose:** Receive real-time payment status updates from Paystack
 
 **Flow:**
+
 ```typescript
 export async function handlePaystackWebhook(payload: PaystackWebhookPayload) {
   const { reference, status, channel, amount, currency } = payload.data;
@@ -611,7 +623,7 @@ export async function handlePaystackWebhook(payload: PaystackWebhookPayload) {
         eq(schema.FinancialTransactions.externalProvider, "PAYSTACK"),
         eq(schema.FinancialTransactions.externalRef, reference),
         not(eq(schema.FinancialTransactions.status, newStatus)),
-      )
+      ),
     )
     .returning();
 
@@ -641,7 +653,7 @@ export async function handlePaystackWebhook(payload: PaystackWebhookPayload) {
 export function verifyPaystackSignature(
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) {
   const hash = crypto
     .createHmac("sha512", variables.services.paystack.secretKey)
@@ -661,13 +673,13 @@ export function verifyPaystackSignature(
 
 ### Verification vs Webhook
 
-| Aspect | Verification Endpoint | Webhook |
-|--------|----------------------|---------|
-| **Initiated by** | User/Frontend | Payment Provider |
-| **API Call** | YES - calls provider API | NO - already verified by signature |
-| **When to use** | Manual status check | Automatic real-time updates |
-| **Idempotency** | Multiple calls safe | Duplicate webhooks handled |
-| **Response time** | Depends on provider API | Fast (no external calls) |
+| Aspect            | Verification Endpoint    | Webhook                            |
+| ----------------- | ------------------------ | ---------------------------------- |
+| **Initiated by**  | User/Frontend            | Payment Provider                   |
+| **API Call**      | YES - calls provider API | NO - already verified by signature |
+| **When to use**   | Manual status check      | Automatic real-time updates        |
+| **Idempotency**   | Multiple calls safe      | Duplicate webhooks handled         |
+| **Response time** | Depends on provider API  | Fast (no external calls)           |
 
 ---
 
@@ -676,6 +688,7 @@ export function verifyPaystackSignature(
 ### Email Types
 
 1. **Donation Acknowledgement**
+
    ```typescript
    sendDonationAcknowledgementEmail(
      to: string,
@@ -687,6 +700,7 @@ export function verifyPaystackSignature(
    ```
 
 2. **Dues Payment Acknowledgement**
+
    ```typescript
    sendDuesPaymentAcknowledgementEmail(
      to: string,
@@ -698,6 +712,7 @@ export function verifyPaystackSignature(
    ```
 
 3. **Order Confirmation**
+
    ```typescript
    sendOrderConfirmationEmail(
      to: string,
@@ -710,6 +725,7 @@ export function verifyPaystackSignature(
    ```
 
 4. **Transaction Failure**
+
    ```typescript
    sendTransactionFailureEmail(
      to: string,
@@ -737,7 +753,7 @@ export function verifyPaystackSignature(
 ```typescript
 async function sendTransactionStatusChangeEmail(
   transactionId: string,
-  newStatus: TransactionStatus
+  newStatus: TransactionStatus,
 ) {
   // Determine transaction type and recipient
   const transactionDetails = await getTransactionDetails(transactionId);
@@ -806,6 +822,7 @@ export const FinancialTransactions = finance.table("financial_transactions", {
 ```
 
 **Enums:**
+
 - `PaymentMethod`: CREDIT_CARD, BANK_TRANSFER, MOBILE_MONEY, CASH
 - `TransactionStatus`: PENDING, COMPLETED, FAILED, REFUNDED
 - `ExternalProvider`: PAYSTACK
@@ -819,12 +836,15 @@ export const Donations = finance.table("donations", {
     .notNull()
     .unique()
     .references(() => FinancialTransactions.id, { onDelete: "restrict" }),
-  constituentId: uuid("constituent_id")
-    .references(() => Constituents.id, { onDelete: "restrict" }),
-  projectId: uuid("project_id")
-    .references(() => Projects.id, { onDelete: "restrict" }),
-  eventId: uuid("event_id")
-    .references(() => Events.id, { onDelete: "restrict" }),
+  constituentId: uuid("constituent_id").references(() => Constituents.id, {
+    onDelete: "restrict",
+  }),
+  projectId: uuid("project_id").references(() => Projects.id, {
+    onDelete: "restrict",
+  }),
+  eventId: uuid("event_id").references(() => Events.id, {
+    onDelete: "restrict",
+  }),
   guestName: text("guest_name"),
   guestEmail: text("guest_email"),
   acknowledgementSent: boolean("acknowledgement_sent").default(false).notNull(),
@@ -851,24 +871,27 @@ export const OrderPayments = shop.table("order_payments", {
 ### Common Errors
 
 1. **Insufficient Stock**
+
    ```typescript
    throw new AppError(
      `Insufficient stock for "${product.name}". Only ${product.stockQuantity} available.`,
-     400
+     400,
    );
    ```
 
 2. **Invalid Product**
+
    ```typescript
    throw new AppError(`Product with ID ${productId} not found`, 404);
    ```
 
 3. **Payment Provider Error**
+
    ```typescript
    if (!paystackResponse.status) {
      throw new AppError(
        `Paystack initialization failed: ${paystackResponse.message}`,
-       500
+       500,
      );
    }
    ```
@@ -921,6 +944,7 @@ export const OrderPayments = shop.table("order_payments", {
 ## Conclusion
 
 The financial transaction system in YPF Backend is designed for:
+
 - **Reliability**: Database transactions ensure consistency
 - **Scalability**: Save-then-call pattern prevents blocking
 - **Extensibility**: Provider abstraction allows multiple payment gateways

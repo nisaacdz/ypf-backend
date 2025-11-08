@@ -27,12 +27,12 @@ YPF Backend is a Node.js/Express API server built with TypeScript, using Postgre
 
 ```typescript
 // ✅ Correct
-import pgPool from "@/configs/db";
+import dbClient from "@/configs/db";
 import { ApiResponse } from "@/shared/types";
 import apiRouter from "@/features/api/v1";
 
 // ❌ Incorrect
-import pgPool from "../../configs/db";
+import dbClient from "../../configs/db";
 import { ApiResponse } from "../../../shared/types";
 ```
 
@@ -142,16 +142,16 @@ if (!resource) {
 
 ## Database Operations
 
-- Use the `pgPool` connection from `@/configs/db`
-- Access the Drizzle client via `pgPool.db`
+- Use the `dbClient` connection from `@/configs/db`
+- Access the Drizzle client via `dbClient.db`
 - Schema definitions are in `db/schema/`
 - Use Drizzle's query builder for type-safe queries
 
 ```typescript
-import pgPool from "@/configs/db";
+import dbClient from "@/configs/db";
 import { Events } from "@/db/schema/activities";
 
-const events = await pgPool.db.select().from(Events).where(...);
+const events = await dbClient.db.select().from(Events).where(...);
 ```
 
 ## Testing Guidelines

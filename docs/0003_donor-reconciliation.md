@@ -36,6 +36,7 @@ The current implementation uses a **deferred reconciliation** strategy:
 3. **Later**: Reconciliation service processes unreconciled donations
 
 **Benefits:**
+
 - Non-blocking payment flow
 - Separation of concerns
 - Flexibility to refine matching algorithms
