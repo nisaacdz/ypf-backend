@@ -37,9 +37,9 @@ const hasRole = (
       let result = false;
       for (const r of roles) {
         if (typeof r === "string") {
-          result = r == role;
+          result = r === role;
         } else {
-          result = role == r(req);
+          result = role === r(req);
         }
         if (result) {
           break;
