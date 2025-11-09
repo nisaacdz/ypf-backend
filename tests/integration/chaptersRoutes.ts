@@ -1,29 +1,23 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq } from "drizzle-orm";
 import request from "supertest";
-import { createTestApp } from "../app";
-import type { Express } from "express";
+import server from "@/configs/server";
 import { hashSync } from "bcryptjs";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { generateTestUser, generateTestChapter } from "../factories";
 
 describe("Chapters API", () => {
-  let app: Express;
   let authTokenCookie: string;
 
   const testUser = generateTestUser();
   const testChapter = generateTestChapter();
 
   beforeAll(async () => {
-    app = await createTestApp();
-
-    // Clean up any existing test user
     await dbClient.db
       .delete(schema.Users)
       .where(eq(schema.Users.email, testUser.email));
 
-    // Create test constituent
     const [newConstituent] = await dbClient.db
       .insert(schema.Constituents)
       .values({
@@ -63,10 +57,12 @@ describe("Chapters API", () => {
     testChapter.id = newChapter.id;
 
     // Login to get auth token
-    const loginResponse = await request(app).post("/api/v1/auth/login").send({
-      username: testUser.email,
-      password: testUser.password,
-    });
+    const loginResponse = await request(server)
+      .post("/api/v1/auth/login")
+      .send({
+        username: testUser.email,
+        password: testUser.password,
+      });
 
     const setCookieHeader = loginResponse.headers["set-cookie"];
     const cookies = Array.isArray(setCookieHeader)
@@ -100,7 +96,7 @@ describe("Chapters API", () => {
 
   describe("GET /api/v1/chapters", () => {
     it("should get list of chapters", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/chapters")
         .set("Cookie", authTokenCookie)
         .expect(200);
@@ -116,7 +112,7 @@ describe("Chapters API", () => {
     });
 
     it("should get list of chapters with pagination parameters", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/chapters?page=1&pageSize=5")
         .set("Cookie", authTokenCookie)
         .expect(200);
@@ -128,7 +124,7 @@ describe("Chapters API", () => {
     });
 
     it("should search chapters by name", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get(`/api/v1/chapters?search=${encodeURIComponent(testChapter.name)}`)
         .set("Cookie", authTokenCookie)
         .expect(200);
@@ -144,14 +140,16 @@ describe("Chapters API", () => {
     });
 
     it("should reject request without session cookie", async () => {
-      const response = await request(app).get("/api/v1/chapters").expect(403);
+      const response = await request(server)
+        .get("/api/v1/chapters")
+        .expect(403);
 
       expect(response.body.success).toBe(false);
       expect(response.body.message).toBeDefined();
     });
 
     it("should reject request with invalid page parameter", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/chapters?page=0")
         .set("Cookie", authTokenCookie)
         .expect(400);
@@ -161,7 +159,7 @@ describe("Chapters API", () => {
     });
 
     it("should reject request with invalid pageSize parameter", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/chapters?pageSize=101")
         .set("Cookie", authTokenCookie)
         .expect(400);
@@ -173,7 +171,7 @@ describe("Chapters API", () => {
 
   describe("GET /api/v1/chapters/:id", () => {
     it("should get chapter details with valid session cookie", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get(`/api/v1/chapters/${testChapter.id}`)
         .set("Cookie", authTokenCookie)
         .expect(200);
@@ -192,7 +190,7 @@ describe("Chapters API", () => {
     });
 
     it("should reject request without session cookie", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get(`/api/v1/chapters/${testChapter.id}`)
         .expect(403);
 
@@ -201,7 +199,7 @@ describe("Chapters API", () => {
     });
 
     it("should return 400 for invalid chapter ID format", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/chapters/invalid-uuid")
         .set("Cookie", authTokenCookie)
         .expect(400);
@@ -212,7 +210,7 @@ describe("Chapters API", () => {
 
     it("should return 404 for non-existent chapter ID", async () => {
       const nonExistentId = "00000000-0000-0000-0000-000000000000";
-      const response = await request(app)
+      const response = await request(server)
         .get(`/api/v1/chapters/${nonExistentId}`)
         .set("Cookie", authTokenCookie)
         .expect(404);

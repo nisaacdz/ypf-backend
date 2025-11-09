@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq } from "drizzle-orm";
 import request from "supertest";
-import { createTestApp } from "../app";
-import type { Express } from "express";
+import server from "@/configs/server";
 import { hashSync } from "bcryptjs";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
@@ -10,12 +9,9 @@ import logger from "@/configs/logger";
 import { generateTestUser } from "../factories";
 
 describe("Authentication API", () => {
-  let app: Express;
   const testUser = generateTestUser();
 
   beforeAll(async () => {
-    app = await createTestApp();
-
     await dbClient.db
       .delete(schema.Users)
       .where(eq(schema.Users.email, testUser.email));
@@ -50,7 +46,7 @@ describe("Authentication API", () => {
 
   describe("POST /api/v1/auth/login", () => {
     it("should login with valid credentials and set an httpOnly cookie", async () => {
-      const response = await request(app).post("/api/v1/auth/login").send({
+      const response = await request(server).post("/api/v1/auth/login").send({
         username: testUser.email,
         password: testUser.password,
       });
@@ -88,7 +84,7 @@ describe("Authentication API", () => {
     });
 
     it("should reject login with wrong password", async () => {
-      const response = await request(app).post("/api/v1/auth/login").send({
+      const response = await request(server).post("/api/v1/auth/login").send({
         username: testUser.email,
         password: "WrongPassword123!",
       });
@@ -100,7 +96,7 @@ describe("Authentication API", () => {
     });
 
     it("should reject login with a non-existent email", async () => {
-      const response = await request(app).post("/api/v1/auth/login").send({
+      const response = await request(server).post("/api/v1/auth/login").send({
         username: "nosuchuser@example.com",
         password: "anypassword",
       });
@@ -114,7 +110,7 @@ describe("Authentication API", () => {
 
   describe("POST /api/v1/auth/forgot-password", () => {
     it("should send OTP email for existing user", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .post("/api/v1/auth/forgot-password")
         .send({
           email: testUser.email,
@@ -145,7 +141,7 @@ describe("Authentication API", () => {
     });
 
     it("should reject forgot-password for non-existent user", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .post("/api/v1/auth/forgot-password")
         .send({
           email: "nonexistent@example.com",
@@ -156,7 +152,7 @@ describe("Authentication API", () => {
     });
 
     it("should reject forgot-password with invalid email format", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .post("/api/v1/auth/forgot-password")
         .send({
           email: "invalid-email",
@@ -170,7 +166,7 @@ describe("Authentication API", () => {
   describe("POST /api/v1/auth/reset-password", () => {
     it("should reset password with valid OTP", async () => {
       // First, request a password reset to get an OTP
-      await request(app).post("/api/v1/auth/forgot-password").send({
+      await request(server).post("/api/v1/auth/forgot-password").send({
         email: testUser.email,
       });
 
@@ -186,7 +182,7 @@ describe("Authentication API", () => {
       const newPassword = "NewSecurePassword123!";
 
       // Reset the password
-      const response = await request(app)
+      const response = await request(server)
         .post("/api/v1/auth/reset-password")
         .send({
           email: testUser.email,
@@ -207,10 +203,12 @@ describe("Authentication API", () => {
       expect(usedOtp.usedAt).not.toBeNull();
 
       // Verify the new password works
-      const loginResponse = await request(app).post("/api/v1/auth/login").send({
-        username: testUser.email,
-        password: newPassword,
-      });
+      const loginResponse = await request(server)
+        .post("/api/v1/auth/login")
+        .send({
+          username: testUser.email,
+          password: newPassword,
+        });
 
       expect(loginResponse.status).toBe(200);
       expect(loginResponse.body.success).toBe(true);
@@ -220,7 +218,7 @@ describe("Authentication API", () => {
     });
 
     it("should reject password reset with invalid OTP", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .post("/api/v1/auth/reset-password")
         .send({
           email: testUser.email,
@@ -242,7 +240,7 @@ describe("Authentication API", () => {
         expiresAt: new Date(Date.now() - 1000), // Already expired
       });
 
-      const response = await request(app)
+      const response = await request(server)
         .post("/api/v1/auth/reset-password")
         .send({
           email: testUser.email,
@@ -262,7 +260,7 @@ describe("Authentication API", () => {
 
     it("should reject password reset with already used OTP", async () => {
       // Request a new OTP
-      await request(app).post("/api/v1/auth/forgot-password").send({
+      await request(server).post("/api/v1/auth/forgot-password").send({
         email: testUser.email,
       });
 
@@ -273,14 +271,14 @@ describe("Authentication API", () => {
         .where(eq(schema.Otps.email, testUser.email));
 
       // Use the OTP once
-      await request(app).post("/api/v1/auth/reset-password").send({
+      await request(server).post("/api/v1/auth/reset-password").send({
         email: testUser.email,
         otp: otpRecord.code,
         password: "AnotherPassword123!",
       });
 
       // Try to use the same OTP again
-      const response = await request(app)
+      const response = await request(server)
         .post("/api/v1/auth/reset-password")
         .send({
           email: testUser.email,
@@ -297,7 +295,7 @@ describe("Authentication API", () => {
     });
 
     it("should reject password reset with invalid email format", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .post("/api/v1/auth/reset-password")
         .send({
           email: "invalid-email",
@@ -310,7 +308,7 @@ describe("Authentication API", () => {
     });
 
     it("should reject password reset with non-existent user", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .post("/api/v1/auth/reset-password")
         .send({
           email: "nonexistent@example.com",
@@ -324,7 +322,7 @@ describe("Authentication API", () => {
     });
 
     it("should reject password reset with short password", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .post("/api/v1/auth/reset-password")
         .send({
           email: testUser.email,
@@ -337,7 +335,7 @@ describe("Authentication API", () => {
     });
 
     it("should reject password reset with invalid OTP length", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .post("/api/v1/auth/reset-password")
         .send({
           email: testUser.email,
@@ -352,7 +350,7 @@ describe("Authentication API", () => {
 
   describe("POST /api/v1/auth/logout", () => {
     it("should logout and clear cookies", async () => {
-      const response = await request(app).post("/api/v1/auth/logout");
+      const response = await request(server).post("/api/v1/auth/logout");
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -384,7 +382,7 @@ describe("Authentication API", () => {
     });
 
     it("should logout successfully even without existing cookies", async () => {
-      const response = await request(app).post("/api/v1/auth/logout");
+      const response = await request(server).post("/api/v1/auth/logout");
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -395,10 +393,12 @@ describe("Authentication API", () => {
   describe("GET /api/v1/auth/me", () => {
     it("should return user data when authenticated", async () => {
       // First login to get auth cookies
-      const loginResponse = await request(app).post("/api/v1/auth/login").send({
-        username: testUser.email,
-        password: testUser.password,
-      });
+      const loginResponse = await request(server)
+        .post("/api/v1/auth/login")
+        .send({
+          username: testUser.email,
+          password: testUser.password,
+        });
 
       const setCookieHeader = loginResponse.headers["set-cookie"];
       const cookies = Array.isArray(setCookieHeader)
@@ -414,7 +414,7 @@ describe("Authentication API", () => {
         .join("; ");
 
       // Call /auth/me with cookies
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/auth/me")
         .set("Cookie", authCookie);
 
@@ -428,7 +428,7 @@ describe("Authentication API", () => {
     });
 
     it("should return null when not authenticated", async () => {
-      const response = await request(app).get("/api/v1/auth/me");
+      const response = await request(server).get("/api/v1/auth/me");
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -436,7 +436,7 @@ describe("Authentication API", () => {
     });
 
     it("should return null with invalid token", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/auth/me")
         .set("Cookie", "access_token=invalid_token");
 

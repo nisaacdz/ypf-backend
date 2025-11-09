@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq } from "drizzle-orm";
 import request from "supertest";
-import { createTestApp } from "../app";
-import type { Express } from "express";
+import server from "@/configs/server";
 import { hashSync } from "bcryptjs";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
@@ -21,7 +20,6 @@ interface ProjectResponse {
 }
 
 describe("Projects API", () => {
-  let app: Express;
   let authTokenCookie: string;
 
   const testUser = generateTestUser();
@@ -35,9 +33,6 @@ describe("Projects API", () => {
   };
 
   beforeAll(async () => {
-    app = await createTestApp();
-
-    // Clean up any existing test user
     await dbClient.db
       .delete(schema.Users)
       .where(eq(schema.Users.email, testUser.email));
@@ -103,10 +98,12 @@ describe("Projects API", () => {
     testData.projectId = newProject.id;
 
     // Login to get auth token
-    const loginResponse = await request(app).post("/api/v1/auth/login").send({
-      username: testUser.email,
-      password: testUser.password,
-    });
+    const loginResponse = await request(server)
+      .post("/api/v1/auth/login")
+      .send({
+        username: testUser.email,
+        password: testUser.password,
+      });
 
     const setCookieHeader = loginResponse.headers["set-cookie"];
     const cookies = Array.isArray(setCookieHeader)
@@ -143,7 +140,9 @@ describe("Projects API", () => {
 
   describe("GET /api/v1/projects", () => {
     it("should get list of projects without authentication", async () => {
-      const response = await request(app).get("/api/v1/projects").expect(200);
+      const response = await request(server)
+        .get("/api/v1/projects")
+        .expect(200);
 
       expect(response.body.success).toBe(true);
       expect(response.body.message).toBe("Projects fetched successfully");
@@ -157,7 +156,7 @@ describe("Projects API", () => {
     });
 
     it("should get list of projects with authentication", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/projects")
         .set("Cookie", authTokenCookie)
         .expect(200);
@@ -179,7 +178,7 @@ describe("Projects API", () => {
     });
 
     it("should support pagination", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/projects?page=1&pageSize=5")
         .expect(200);
 
@@ -190,7 +189,7 @@ describe("Projects API", () => {
     });
 
     it("should support search by project title", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/projects?search=Test Project")
         .expect(200);
 
@@ -208,7 +207,7 @@ describe("Projects API", () => {
     });
 
     it("should support filtering by status", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/projects?filterStatus=IN_PROGRESS")
         .expect(200);
 
@@ -225,7 +224,7 @@ describe("Projects API", () => {
     });
 
     it("should return 400 for invalid pagination parameters", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/projects?page=0")
         .expect(400);
 
@@ -234,7 +233,7 @@ describe("Projects API", () => {
     });
 
     it("should return 400 for invalid pageSize", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/projects?pageSize=101")
         .expect(400);
 
@@ -243,7 +242,7 @@ describe("Projects API", () => {
     });
 
     it("should return 400 for invalid status filter", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/projects?filterStatus=INVALID_STATUS")
         .expect(400);
 
@@ -276,7 +275,7 @@ describe("Projects API", () => {
         chapterId: testData.chapterId,
       };
 
-      const response = await request(app)
+      const response = await request(server)
         .post("/api/v1/projects")
         .set("Cookie", authTokenCookie)
         .send(newProject)
@@ -290,7 +289,7 @@ describe("Projects API", () => {
       createdProjectId = response.body.data;
 
       // Verify the project was created
-      const getResponse = await request(app)
+      const getResponse = await request(server)
         .get(`/api/v1/projects/${createdProjectId}`)
         .expect(200);
 
@@ -312,7 +311,10 @@ describe("Projects API", () => {
         status: "UPCOMING",
       };
 
-      await request(app).post("/api/v1/projects").send(newProject).expect(401);
+      await request(server)
+        .post("/api/v1/projects")
+        .send(newProject)
+        .expect(401);
     });
 
     it("should return 400 for missing required fields", async () => {
@@ -320,7 +322,7 @@ describe("Projects API", () => {
         abstract: "Missing title and dates",
       };
 
-      await request(app)
+      await request(server)
         .post("/api/v1/projects")
         .set("Cookie", authTokenCookie)
         .send(invalidProject)
@@ -340,7 +342,7 @@ describe("Projects API", () => {
         status: "UPCOMING",
       };
 
-      await request(app)
+      await request(server)
         .post("/api/v1/projects")
         .set("Cookie", authTokenCookie)
         .send(invalidProject)
@@ -360,7 +362,7 @@ describe("Projects API", () => {
         status: "INVALID_STATUS",
       };
 
-      await request(app)
+      await request(server)
         .post("/api/v1/projects")
         .set("Cookie", authTokenCookie)
         .send(invalidProject)
@@ -381,7 +383,7 @@ describe("Projects API", () => {
         chapterId: "invalid-uuid",
       };
 
-      await request(app)
+      await request(server)
         .post("/api/v1/projects")
         .set("Cookie", authTokenCookie)
         .send(invalidProject)
@@ -391,7 +393,7 @@ describe("Projects API", () => {
 
   describe("GET /api/v1/projects/:id", () => {
     it("should get project details without authentication", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get(`/api/v1/projects/${testData.projectId}`)
         .expect(200);
 
@@ -408,7 +410,7 @@ describe("Projects API", () => {
     });
 
     it("should get project details with authentication", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get(`/api/v1/projects/${testData.projectId}`)
         .set("Cookie", authTokenCookie)
         .expect(200);
@@ -419,7 +421,7 @@ describe("Projects API", () => {
 
     it("should return 404 for non-existent project", async () => {
       const fakeId = "00000000-0000-0000-0000-000000000000";
-      const response = await request(app)
+      const response = await request(server)
         .get(`/api/v1/projects/${fakeId}`)
         .expect(404);
 
@@ -428,7 +430,7 @@ describe("Projects API", () => {
     });
 
     it("should return 400 for invalid project ID", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/projects/invalid-id")
         .expect(400);
 
@@ -445,7 +447,7 @@ describe("Projects API", () => {
         status: "COMPLETED",
       };
 
-      const response = await request(app)
+      const response = await request(server)
         .put(`/api/v1/projects/${testData.projectId}`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
@@ -455,7 +457,7 @@ describe("Projects API", () => {
       expect(response.body.message).toBe("Project updated successfully");
 
       // Verify the update by fetching the project
-      const getResponse = await request(app)
+      const getResponse = await request(server)
         .get(`/api/v1/projects/${testData.projectId}`)
         .expect(200);
 
@@ -470,7 +472,7 @@ describe("Projects API", () => {
         title: "Partially Updated Project",
       };
 
-      const response = await request(app)
+      const response = await request(server)
         .put(`/api/v1/projects/${testData.projectId}`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
@@ -479,7 +481,7 @@ describe("Projects API", () => {
       expect(response.body.success).toBe(true);
 
       // Verify the update
-      const getResponse = await request(app)
+      const getResponse = await request(server)
         .get(`/api/v1/projects/${testData.projectId}`)
         .expect(200);
 
@@ -492,7 +494,7 @@ describe("Projects API", () => {
         title: "Unauthorized Update",
       };
 
-      await request(app)
+      await request(server)
         .put(`/api/v1/projects/${testData.projectId}`)
         .send(updateData)
         .expect(401);
@@ -504,7 +506,7 @@ describe("Projects API", () => {
         title: "Update Non-existent",
       };
 
-      const response = await request(app)
+      const response = await request(server)
         .put(`/api/v1/projects/${fakeId}`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
@@ -519,7 +521,7 @@ describe("Projects API", () => {
         title: "AB", // Too short
       };
 
-      await request(app)
+      await request(server)
         .put(`/api/v1/projects/${testData.projectId}`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
@@ -531,7 +533,7 @@ describe("Projects API", () => {
         status: "INVALID_STATUS",
       };
 
-      await request(app)
+      await request(server)
         .put(`/api/v1/projects/${testData.projectId}`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
@@ -541,7 +543,7 @@ describe("Projects API", () => {
 
   describe("GET /api/v1/projects/:id/media", () => {
     it("should get empty media list for project without media", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get(`/api/v1/projects/${testData.projectId}/media`)
         .expect(200);
 
@@ -556,7 +558,7 @@ describe("Projects API", () => {
     });
 
     it("should support pagination for project media", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get(`/api/v1/projects/${testData.projectId}/media?page=1&pageSize=5`)
         .expect(200);
 
@@ -567,7 +569,9 @@ describe("Projects API", () => {
     });
 
     it("should return 400 for invalid project ID", async () => {
-      await request(app).get("/api/v1/projects/invalid-id/media").expect(400);
+      await request(server)
+        .get("/api/v1/projects/invalid-id/media")
+        .expect(400);
     });
   });
 
@@ -617,7 +621,7 @@ describe("Projects API", () => {
         isFeatured: true,
       };
 
-      const response = await request(app)
+      const response = await request(server)
         .patch(`/api/v1/projects/${testData.projectMediaId}/media`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
@@ -641,7 +645,7 @@ describe("Projects API", () => {
         caption: "Caption only update",
       };
 
-      const response = await request(app)
+      const response = await request(server)
         .patch(`/api/v1/projects/${testData.projectMediaId}/media`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
@@ -664,7 +668,7 @@ describe("Projects API", () => {
         isFeatured: false,
       };
 
-      const response = await request(app)
+      const response = await request(server)
         .patch(`/api/v1/projects/${testData.projectMediaId}/media`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
@@ -687,7 +691,7 @@ describe("Projects API", () => {
         caption: "Unauthorized update",
       };
 
-      await request(app)
+      await request(server)
         .patch(`/api/v1/projects/${testData.projectMediaId}/media`)
         .send(updateData)
         .expect(401);
@@ -699,7 +703,7 @@ describe("Projects API", () => {
         caption: "Update non-existent",
       };
 
-      const response = await request(app)
+      const response = await request(server)
         .patch(`/api/v1/projects/${fakeId}/media`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
@@ -714,7 +718,7 @@ describe("Projects API", () => {
         caption: "A".repeat(256), // Exceeds 255 characters
       };
 
-      await request(app)
+      await request(server)
         .patch(`/api/v1/projects/${testData.projectMediaId}/media`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
@@ -726,7 +730,7 @@ describe("Projects API", () => {
         caption: "Test",
       };
 
-      await request(app)
+      await request(server)
         .patch("/api/v1/projects/invalid/media")
         .set("Cookie", authTokenCookie)
         .send(updateData)

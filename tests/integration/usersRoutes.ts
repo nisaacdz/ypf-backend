@@ -1,22 +1,18 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq } from "drizzle-orm";
 import request from "supertest";
-import { createTestApp } from "../app";
-import type { Express } from "express";
+import server from "@/configs/server";
 import { hashSync } from "bcryptjs";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { generateTestUser } from "../factories";
 
 describe("Users API", () => {
-  let app: Express;
   let authTokenCookie: string;
 
   const testUser = generateTestUser();
 
   beforeAll(async () => {
-    app = await createTestApp();
-
     await dbClient.db
       .delete(schema.Users)
       .where(eq(schema.Users.email, testUser.email));
@@ -39,10 +35,12 @@ describe("Users API", () => {
       username: testUser.email,
     });
 
-    const loginResponse = await request(app).post("/api/v1/auth/login").send({
-      username: testUser.email,
-      password: testUser.password,
-    });
+    const loginResponse = await request(server)
+      .post("/api/v1/auth/login")
+      .send({
+        username: testUser.email,
+        password: testUser.password,
+      });
 
     const setCookieHeader = loginResponse.headers["set-cookie"];
     const cookies = Array.isArray(setCookieHeader)
@@ -69,7 +67,7 @@ describe("Users API", () => {
 
   describe("GET /api/v1/users/me", () => {
     it("should get the current user's profile with a valid session cookie", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/users/me")
         .set("Cookie", authTokenCookie)
         .expect(200);
@@ -88,7 +86,9 @@ describe("Users API", () => {
     });
 
     it("should reject the request if the session cookie is not provided", async () => {
-      const response = await request(app).get("/api/v1/users/me").expect(401);
+      const response = await request(server)
+        .get("/api/v1/users/me")
+        .expect(401);
 
       expect(response.body.success).toBe(false);
       expect(response.body.message).toBeDefined();

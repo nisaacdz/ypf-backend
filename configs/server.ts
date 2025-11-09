@@ -7,13 +7,10 @@ import cookieParser from "cookie-parser";
 import swaggerUi from "swagger-ui-express";
 import { errorHandler } from "@/shared/middlewares/errorHandler";
 import variables from "@/configs/env";
-import { filter } from "./shared/middlewares";
-import emailer from "@/configs/emailer";
-import dbClient from "./configs/db";
+import { filter } from "@/shared/middlewares";
 import apiRouter from "@/features/api/v1";
-import logger from "@/configs/logger";
 import { swaggerSpec } from "@/configs/docs";
-import { rateLimit } from "./shared/middlewares/rateLimit";
+import { rateLimit } from "@/shared/middlewares/rateLimit";
 
 const app: Express = express();
 
@@ -48,33 +45,4 @@ app.use((req, res) => {
   res.status(404).json({ success: false, message: "Resource not found" });
 });
 
-(async () => {
-  await Promise.all([emailer.initialize(), dbClient.initialize()]);
-
-  async function shutdown() {
-    logger.info("Shutting down server...");
-
-    try {
-      emailer.transporter.close();
-      await dbClient.pool.end({ timeout: 5 });
-      logger.info("Database pool closed.");
-    } catch (error) {
-      logger.error(error, "Error closing database pool");
-    }
-
-    server.close(() => {
-      logger.info("Server closed.");
-      process.exit(0);
-    });
-  }
-
-  for (const signal of ["SIGINT", "SIGTERM"] as const) {
-    process.on(signal, shutdown);
-  }
-
-  server.listen(variables.app.port, () => {
-    logger.info(
-      `Server is live on http://${variables.app.host}:${variables.app.port}`,
-    );
-  });
-})();
+export default server;

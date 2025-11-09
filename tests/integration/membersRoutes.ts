@@ -1,15 +1,13 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq } from "drizzle-orm";
 import request from "supertest";
-import { createTestApp } from "../app";
-import type { Express } from "express";
+import server from "@/configs/server";
 import { hashSync } from "bcryptjs";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { generateTestUser } from "../factories";
 
 describe("Members API", () => {
-  let app: Express;
   let authTokenCookie: string;
 
   const testUser = generateTestUser();
@@ -20,9 +18,6 @@ describe("Members API", () => {
   };
 
   beforeAll(async () => {
-    app = await createTestApp();
-
-    // Clean up any existing test user
     await dbClient.db
       .delete(schema.Users)
       .where(eq(schema.Users.email, testUser.email));
@@ -68,10 +63,12 @@ describe("Members API", () => {
     });
 
     // Login to get auth token
-    const loginResponse = await request(app).post("/api/v1/auth/login").send({
-      username: testUser.email,
-      password: testUser.password,
-    });
+    const loginResponse = await request(server)
+      .post("/api/v1/auth/login")
+      .send({
+        username: testUser.email,
+        password: testUser.password,
+      });
 
     const setCookieHeader = loginResponse.headers["set-cookie"];
     const cookies = Array.isArray(setCookieHeader)
@@ -97,7 +94,7 @@ describe("Members API", () => {
 
   describe("GET /api/v1/members/:id", () => {
     it("should get member details with a valid session cookie", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get(`/api/v1/members/${testMember.constituentId}`)
         .set("Cookie", authTokenCookie)
         .expect(200);
@@ -117,7 +114,7 @@ describe("Members API", () => {
     });
 
     it("should reject the request if the session cookie is not provided", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get(`/api/v1/members/${testMember.constituentId}`)
         .expect(403); // Theoretically could succeed without authentication if permissions allow
 
@@ -126,7 +123,7 @@ describe("Members API", () => {
     });
 
     it("should return 400 for invalid member ID format", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/members/invalid-uuid")
         .set("Cookie", authTokenCookie)
         .expect(400);
@@ -137,7 +134,7 @@ describe("Members API", () => {
 
     it("should return 404 for non-existent member ID", async () => {
       const nonExistentId = "00000000-0000-0000-0000-000000000000";
-      const response = await request(app)
+      const response = await request(server)
         .get(`/api/v1/members/${nonExistentId}`)
         .set("Cookie", authTokenCookie)
         .expect(404);

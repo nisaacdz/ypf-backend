@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq } from "drizzle-orm";
 import request from "supertest";
-import { createTestApp } from "../app";
-import type { Express } from "express";
+import server from "@/configs/server";
 import { hashSync } from "bcryptjs";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
@@ -13,7 +12,6 @@ import {
 } from "../factories";
 
 describe("Committees API", () => {
-  let app: Express;
   let authTokenCookie: string;
 
   const testUser = generateTestUser();
@@ -22,9 +20,6 @@ describe("Committees API", () => {
   const testCommitteeWithChapter = generateTestCommittee();
 
   beforeAll(async () => {
-    app = await createTestApp();
-
-    // Clean up any existing test data first to avoid conflicts
     await dbClient.db
       .delete(schema.Committees)
       .where(eq(schema.Committees.name, testCommittee.name));
@@ -99,10 +94,12 @@ describe("Committees API", () => {
     testCommitteeWithChapter.id = newChapterCommittee.id;
 
     // Login to get auth token
-    const loginResponse = await request(app).post("/api/v1/auth/login").send({
-      username: testUser.email,
-      password: testUser.password,
-    });
+    const loginResponse = await request(server)
+      .post("/api/v1/auth/login")
+      .send({
+        username: testUser.email,
+        password: testUser.password,
+      });
 
     const setCookieHeader = loginResponse.headers["set-cookie"];
     const cookies = Array.isArray(setCookieHeader)
@@ -148,7 +145,7 @@ describe("Committees API", () => {
 
   describe("GET /api/v1/committees", () => {
     it("should get list of committees with valid session cookie", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/committees")
         .set("Cookie", authTokenCookie)
         .expect(200);
@@ -164,7 +161,7 @@ describe("Committees API", () => {
     });
 
     it("should get list of committees with pagination parameters", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/committees?page=1&pageSize=5")
         .set("Cookie", authTokenCookie)
         .expect(200);
@@ -176,7 +173,7 @@ describe("Committees API", () => {
     });
 
     it("should search committees by name", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get(
           `/api/v1/committees?search=${encodeURIComponent(testCommittee.name)}`,
         )
@@ -194,7 +191,7 @@ describe("Committees API", () => {
     });
 
     it("should filter committees by chapterId", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get(`/api/v1/committees?chapterId=${testChapter.id}`)
         .set("Cookie", authTokenCookie)
         .expect(200);
@@ -211,14 +208,16 @@ describe("Committees API", () => {
     });
 
     it("should reject request without session cookie", async () => {
-      const response = await request(app).get("/api/v1/committees").expect(403);
+      const response = await request(server)
+        .get("/api/v1/committees")
+        .expect(403);
 
       expect(response.body.success).toBe(false);
       expect(response.body.message).toBeDefined();
     });
 
     it("should reject request with invalid page parameter", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/committees?page=0")
         .set("Cookie", authTokenCookie)
         .expect(400);
@@ -228,7 +227,7 @@ describe("Committees API", () => {
     });
 
     it("should reject request with invalid pageSize parameter", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/committees?pageSize=101")
         .set("Cookie", authTokenCookie)
         .expect(400);
@@ -238,7 +237,7 @@ describe("Committees API", () => {
     });
 
     it("should reject request with invalid chapterId format", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/committees?chapterId=invalid-uuid")
         .set("Cookie", authTokenCookie)
         .expect(400);
@@ -250,7 +249,7 @@ describe("Committees API", () => {
 
   describe("GET /api/v1/committees/:id", () => {
     it("should get committee details with valid session cookie", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get(`/api/v1/committees/${testCommittee.id}`)
         .set("Cookie", authTokenCookie)
         .expect(200);
@@ -268,7 +267,7 @@ describe("Committees API", () => {
     });
 
     it("should get committee details with chapter information", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get(`/api/v1/committees/${testCommitteeWithChapter.id}`)
         .set("Cookie", authTokenCookie)
         .expect(200);
@@ -284,7 +283,7 @@ describe("Committees API", () => {
     });
 
     it("should reject request without session cookie", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get(`/api/v1/committees/${testCommittee.id}`)
         .expect(403);
 
@@ -293,7 +292,7 @@ describe("Committees API", () => {
     });
 
     it("should return 400 for invalid committee ID format", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/committees/invalid-uuid")
         .set("Cookie", authTokenCookie)
         .expect(400);
@@ -304,7 +303,7 @@ describe("Committees API", () => {
 
     it("should return 404 for non-existent committee ID", async () => {
       const nonExistentId = "00000000-0000-0000-0000-000000000000";
-      const response = await request(app)
+      const response = await request(server)
         .get(`/api/v1/committees/${nonExistentId}`)
         .set("Cookie", authTokenCookie)
         .expect(404);

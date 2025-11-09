@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq } from "drizzle-orm";
 import request from "supertest";
-import { createTestApp } from "../app";
-import type { Express } from "express";
+import server from "@/configs/server";
 import { hashSync } from "bcryptjs";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
@@ -20,7 +19,6 @@ interface EventResponse {
 }
 
 describe("Events API", () => {
-  let app: Express;
   let authTokenCookie: string;
 
   const testUser = generateTestUser();
@@ -33,14 +31,10 @@ describe("Events API", () => {
   };
 
   beforeAll(async () => {
-    app = await createTestApp();
-
-    // Clean up any existing test user
     await dbClient.db
       .delete(schema.Users)
       .where(eq(schema.Users.email, testUser.email));
 
-    // Create test constituent
     const [newConstituent] = await dbClient.db
       .insert(schema.Constituents)
       .values({
@@ -51,7 +45,6 @@ describe("Events API", () => {
 
     testUser.constituentId = newConstituent.id;
 
-    // Create test user
     const hashedPassword = hashSync(testUser.password, 10);
     await dbClient.db.insert(schema.Users).values({
       email: testUser.email,
@@ -115,10 +108,12 @@ describe("Events API", () => {
     testData.eventId = newEvent.id;
 
     // Login to get auth token
-    const loginResponse = await request(app).post("/api/v1/auth/login").send({
-      username: testUser.email,
-      password: testUser.password,
-    });
+    const loginResponse = await request(server)
+      .post("/api/v1/auth/login")
+      .send({
+        username: testUser.email,
+        password: testUser.password,
+      });
 
     const setCookieHeader = loginResponse.headers["set-cookie"];
     const cookies = Array.isArray(setCookieHeader)
@@ -160,7 +155,7 @@ describe("Events API", () => {
 
   describe("GET /api/v1/events", () => {
     it("should get list of events without authentication", async () => {
-      const response = await request(app).get("/api/v1/events").expect(200);
+      const response = await request(server).get("/api/v1/events").expect(200);
 
       expect(response.body.success).toBe(true);
       expect(response.body.message).toBe("Events fetched successfully");
@@ -174,7 +169,7 @@ describe("Events API", () => {
     });
 
     it("should get list of events with authentication", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/events")
         .set("Cookie", authTokenCookie)
         .expect(200);
@@ -198,7 +193,7 @@ describe("Events API", () => {
     });
 
     it("should support pagination", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/events?page=1&pageSize=5")
         .expect(200);
 
@@ -209,7 +204,7 @@ describe("Events API", () => {
     });
 
     it("should support search by event name", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/events?search=Test Event")
         .expect(200);
 
@@ -228,7 +223,7 @@ describe("Events API", () => {
     });
 
     it("should support search by project title", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/events?search=Test Event")
         .expect(200);
 
@@ -247,7 +242,7 @@ describe("Events API", () => {
     });
 
     it("should return 400 for invalid pagination parameters", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/events?page=0")
         .expect(400);
 
@@ -256,7 +251,7 @@ describe("Events API", () => {
     });
 
     it("should return 400 for invalid pageSize", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/events?pageSize=101")
         .expect(400);
 
@@ -267,7 +262,7 @@ describe("Events API", () => {
 
   describe("GET /api/v1/events/:id", () => {
     it("should get event details without authentication", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get(`/api/v1/events/${testData.eventId}`)
         .expect(200);
 
@@ -283,7 +278,7 @@ describe("Events API", () => {
     });
 
     it("should get event details with authentication", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get(`/api/v1/events/${testData.eventId}`)
         .set("Cookie", authTokenCookie)
         .expect(200);
@@ -294,7 +289,7 @@ describe("Events API", () => {
 
     it("should return 404 for non-existent event", async () => {
       const fakeId = "00000000-0000-0000-0000-000000000000";
-      const response = await request(app)
+      const response = await request(server)
         .get(`/api/v1/events/${fakeId}`)
         .expect(404);
 
@@ -303,7 +298,7 @@ describe("Events API", () => {
     });
 
     it("should return 400 for invalid event ID", async () => {
-      const response = await request(app)
+      const response = await request(server)
         .get("/api/v1/events/invalid-id")
         .expect(400);
 
@@ -320,7 +315,7 @@ describe("Events API", () => {
         status: "ONGOING",
       };
 
-      const response = await request(app)
+      const response = await request(server)
         .put(`/api/v1/events/${testData.eventId}`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
@@ -330,7 +325,7 @@ describe("Events API", () => {
       expect(response.body.message).toBe("Event updated successfully");
 
       // Verify the update by fetching the event
-      const getResponse = await request(app)
+      const getResponse = await request(server)
         .get(`/api/v1/events/${testData.eventId}`)
         .expect(200);
 
@@ -345,7 +340,7 @@ describe("Events API", () => {
         name: "Partially Updated Event",
       };
 
-      const response = await request(app)
+      const response = await request(server)
         .put(`/api/v1/events/${testData.eventId}`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
@@ -354,7 +349,7 @@ describe("Events API", () => {
       expect(response.body.success).toBe(true);
 
       // Verify the update
-      const getResponse = await request(app)
+      const getResponse = await request(server)
         .get(`/api/v1/events/${testData.eventId}`)
         .expect(200);
 
@@ -367,7 +362,7 @@ describe("Events API", () => {
         name: "Unauthorized Update",
       };
 
-      await request(app)
+      await request(server)
         .put(`/api/v1/events/${testData.eventId}`)
         .send(updateData)
         .expect(401);
@@ -379,7 +374,7 @@ describe("Events API", () => {
         name: "Update Non-existent",
       };
 
-      const response = await request(app)
+      const response = await request(server)
         .put(`/api/v1/events/${fakeId}`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
@@ -394,7 +389,7 @@ describe("Events API", () => {
         name: "AB", // Too short
       };
 
-      await request(app)
+      await request(server)
         .put(`/api/v1/events/${testData.eventId}`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
@@ -406,7 +401,7 @@ describe("Events API", () => {
         status: "INVALID_STATUS",
       };
 
-      await request(app)
+      await request(server)
         .put(`/api/v1/events/${testData.eventId}`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
@@ -460,7 +455,7 @@ describe("Events API", () => {
         isFeatured: true,
       };
 
-      const response = await request(app)
+      const response = await request(server)
         .patch(`/api/v1/events/media/${testMediaId}`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
@@ -484,7 +479,7 @@ describe("Events API", () => {
         caption: "Caption only update",
       };
 
-      const response = await request(app)
+      const response = await request(server)
         .patch(`/api/v1/events/media/${testMediaId}`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
@@ -507,7 +502,7 @@ describe("Events API", () => {
         isFeatured: false,
       };
 
-      const response = await request(app)
+      const response = await request(server)
         .patch(`/api/v1/events/media/${testMediaId}`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
@@ -530,7 +525,7 @@ describe("Events API", () => {
         caption: "Unauthorized update",
       };
 
-      await request(app)
+      await request(server)
         .patch(`/api/v1/events/media/${testMediaId}`)
         .send(updateData)
         .expect(401);
@@ -542,7 +537,7 @@ describe("Events API", () => {
         caption: "Update non-existent",
       };
 
-      const response = await request(app)
+      const response = await request(server)
         .patch(`/api/v1/events/media/${fakeId}`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
@@ -557,7 +552,7 @@ describe("Events API", () => {
         caption: "A".repeat(256), // Exceeds 255 characters
       };
 
-      await request(app)
+      await request(server)
         .patch(`/api/v1/events/media/${testMediaId}`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
@@ -569,7 +564,7 @@ describe("Events API", () => {
         caption: "Test",
       };
 
-      await request(app)
+      await request(server)
         .patch("/api/v1/events/media/invalid")
         .set("Cookie", authTokenCookie)
         .send(updateData)
