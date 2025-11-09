@@ -31,7 +31,7 @@ async function shutdown() {
 
     server.listen(variables.app.port, () => {
       logger.info(
-        `Server is live on http://${variables.app.host}:${variables.app.port}`
+        `Server is live on http://${variables.app.host}:${variables.app.port}`,
       );
     });
   } catch (error) {

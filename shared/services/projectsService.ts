@@ -14,7 +14,7 @@ import {
 import { ApiError } from "@/shared/types";
 
 export async function fetchProjects(
-  query: z.infer<typeof GetProjectsQuerySchema>
+  query: z.infer<typeof GetProjectsQuerySchema>,
 ): Promise<Paginated<YPFProject>> {
   const { page, pageSize, search, filterStatus } = query;
   const offset = (page - 1) * pageSize;
@@ -56,8 +56,8 @@ export async function fetchProjects(
       ProjectMedia,
       and(
         eq(Projects.id, ProjectMedia.projectId),
-        eq(ProjectMedia.isFeatured, true)
-      )
+        eq(ProjectMedia.isFeatured, true),
+      ),
     )
     .leftJoin(Media, eq(ProjectMedia.mediumId, Media.id))
     .where(whereClause)
@@ -91,7 +91,7 @@ export async function fetchProjects(
 
 export async function fetchProjectMedia(
   projectId: string,
-  query: z.infer<typeof GetProjectMediaQuerySchema>
+  query: z.infer<typeof GetProjectMediaQuerySchema>,
 ) {
   const { page, pageSize } = query;
 
@@ -151,7 +151,7 @@ export async function fetchProjectMedia(
 }
 
 export async function fetchProjectById(
-  projectId: string
+  projectId: string,
 ): Promise<YPFProjectDetail> {
   // Fetch project with chapter info
   const [project] = await dbClient.db
@@ -193,8 +193,8 @@ export async function fetchProjectById(
     .where(
       and(
         eq(ProjectMedia.projectId, projectId),
-        eq(ProjectMedia.isFeatured, true)
-      )
+        eq(ProjectMedia.isFeatured, true),
+      ),
     );
 
   return {
@@ -235,7 +235,7 @@ export async function fetchProjectById(
 }
 
 export async function createProject(
-  data: z.infer<typeof CreateProjectSchema>
+  data: z.infer<typeof CreateProjectSchema>,
 ): Promise<string> {
   const [project] = await dbClient.db
     .insert(Projects)
@@ -251,7 +251,7 @@ export async function createProject(
 
 export async function updateProject(
   projectId: string,
-  data: z.infer<typeof UpdateProjectSchema>
+  data: z.infer<typeof UpdateProjectSchema>,
 ): Promise<void> {
   // Check if project exists
   const [existingProject] = await dbClient.db
@@ -272,7 +272,7 @@ export async function updateProject(
 
 export async function updateProjectMedia(
   projectMediaId: number,
-  data: { caption?: string; isFeatured?: boolean }
+  data: { caption?: string; isFeatured?: boolean },
 ): Promise<void> {
   // Check if project media exists
   const [existingMedia] = await dbClient.db

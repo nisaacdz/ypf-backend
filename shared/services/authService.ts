@@ -19,7 +19,7 @@ import { randomInt } from "crypto";
  */
 export async function loginWithUsernameAndPassword(
   username: string,
-  password: string
+  password: string,
 ): Promise<AuthenticatedUser> {
   const [user] = await dbClient.db
     .select({
@@ -34,10 +34,10 @@ export async function loginWithUsernameAndPassword(
     .from(schema.Users)
     .innerJoin(
       schema.Constituents,
-      eq(schema.Users.constituentId, schema.Constituents.id)
+      eq(schema.Users.constituentId, schema.Constituents.id),
     )
     .where(
-      or(eq(schema.Users.username, username), eq(schema.Users.email, username))
+      or(eq(schema.Users.username, username), eq(schema.Users.email, username)),
     );
 
   if (!user || !user.password) {
@@ -80,7 +80,7 @@ export async function loginWithUsernameAndPassword(
  * @throws ApiError if user is not found.
  */
 export async function loginWithUsername(
-  username: string
+  username: string,
 ): Promise<AuthenticatedUser> {
   const [user] = await dbClient.db
     .select({
@@ -94,10 +94,10 @@ export async function loginWithUsername(
     .from(schema.Users)
     .innerJoin(
       schema.Constituents,
-      eq(schema.Users.constituentId, schema.Constituents.id)
+      eq(schema.Users.constituentId, schema.Constituents.id),
     )
     .where(
-      or(eq(schema.Users.username, username), eq(schema.Users.email, username))
+      or(eq(schema.Users.username, username), eq(schema.Users.email, username)),
     );
 
   if (!user) {
@@ -134,7 +134,7 @@ export async function loginWithUsername(
  */
 export async function linkGoogleIdToUser(
   userId: string,
-  googleId: string
+  googleId: string,
 ): Promise<void> {
   await dbClient.db
     .update(Users)
@@ -193,7 +193,7 @@ export async function forgotPassword(email: string): Promise<string> {
 export async function resetPassword(
   email: string,
   otp: string,
-  newPassword: string
+  newPassword: string,
 ): Promise<void> {
   await dbClient.db.transaction(async (tx) => {
     // Fetch the OTP record for validation

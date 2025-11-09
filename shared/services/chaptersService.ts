@@ -9,7 +9,7 @@ import * as mediaUtils from "@/shared/utils/media";
 import { ApiError } from "@/shared/types";
 
 export async function getChapters(
-  query: z.infer<typeof GetChaptersQuerySchema>
+  query: z.infer<typeof GetChaptersQuerySchema>,
 ): Promise<Paginated<YPFChapter>> {
   const { page, pageSize, search } = query;
 
@@ -19,19 +19,19 @@ export async function getChapters(
       chapterId: schema.ChapterMemberships.chapterId,
       memberCount:
         sql<number>`COUNT(DISTINCT ${schema.Members.constituentId})`.as(
-          "member_count"
+          "member_count",
         ),
     })
     .from(schema.ChapterMemberships)
     .innerJoin(
       schema.Members,
-      eq(schema.ChapterMemberships.memberId, schema.Members.id)
+      eq(schema.ChapterMemberships.memberId, schema.Members.id),
     )
     .where(
       and(
         sql`${schema.ChapterMemberships.startedAt} <= now()`,
-        sql`(${schema.ChapterMemberships.endedAt} IS NULL OR ${schema.ChapterMemberships.endedAt} >= now())`
-      )
+        sql`(${schema.ChapterMemberships.endedAt} IS NULL OR ${schema.ChapterMemberships.endedAt} >= now())`,
+      ),
     )
     .groupBy(schema.ChapterMemberships.chapterId)
     .as("member_counts");
@@ -42,7 +42,7 @@ export async function getChapters(
       chapterId: schema.ChapterMedia.chapterId,
       externalId: schema.Media.externalId,
       rn: sql<number>`row_number() OVER (PARTITION BY ${schema.ChapterMedia.chapterId} ORDER BY ${schema.Media.uploadedAt} DESC)`.as(
-        "photo_rn"
+        "photo_rn",
       ),
     })
     .from(schema.ChapterMedia)
@@ -70,14 +70,14 @@ export async function getChapters(
     .from(schema.Chapters)
     .leftJoin(
       memberCountSubquery,
-      eq(schema.Chapters.id, memberCountSubquery.chapterId)
+      eq(schema.Chapters.id, memberCountSubquery.chapterId),
     )
     .leftJoin(
       featuredPhotoSubquery,
       and(
         eq(schema.Chapters.id, featuredPhotoSubquery.chapterId),
-        eq(featuredPhotoSubquery.rn, 1)
-      )
+        eq(featuredPhotoSubquery.rn, 1),
+      ),
     )
     .where(and(...whereClauses));
 
@@ -112,7 +112,7 @@ export async function getChapters(
 }
 
 export async function getChapterById(
-  chapterId: string
+  chapterId: string,
 ): Promise<YPFChapterDetail> {
   const [chapter] = await dbClient.db
     .select({
@@ -143,23 +143,23 @@ export async function getChapterById(
         mediumUploadedAt: schema.Media.uploadedAt,
         mediumUploadedBy:
           sql<string>`concat(${schema.Constituents.firstName}, ' ', ${schema.Constituents.lastName})`.as(
-            "uploader_name"
+            "uploader_name",
           ),
       })
       .from(schema.ChapterMedia)
       .innerJoin(
         schema.Media,
-        eq(schema.ChapterMedia.mediumId, schema.Media.id)
+        eq(schema.ChapterMedia.mediumId, schema.Media.id),
       )
       .leftJoin(
         schema.Constituents,
-        eq(schema.Media.uploadedBy, schema.Constituents.id)
+        eq(schema.Media.uploadedBy, schema.Constituents.id),
       )
       .where(
         and(
           eq(schema.ChapterMedia.chapterId, chapterId),
-          eq(schema.ChapterMedia.isFeatured, true)
-        )
+          eq(schema.ChapterMedia.isFeatured, true),
+        ),
       )
       .orderBy(desc(schema.Media.uploadedAt))
       .limit(5),

@@ -11,7 +11,7 @@ import * as authService from "../services/authService";
 export async function authenticate(
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) {
   if (req.User) {
     return next();
@@ -22,13 +22,13 @@ export async function authenticate(
 
   if (!accessToken) {
     return next(
-      new ApiError("You are not logged in. Please log in to get access.", 401)
+      new ApiError("You are not logged in. Please log in to get access.", 401),
     );
   }
 
   const accessTokenDecodeResult = decodeData(
     accessToken,
-    AuthenticatedUserSchema
+    AuthenticatedUserSchema,
   );
 
   if (!accessTokenDecodeResult) {
@@ -48,7 +48,7 @@ export async function authenticate(
 
     const refreshTokenDecodeResult = decodeData(
       refreshToken,
-      RefreshTokenPayloadSchema
+      RefreshTokenPayloadSchema,
     );
 
     if (!refreshTokenDecodeResult || "expired" in refreshTokenDecodeResult) {
@@ -95,7 +95,7 @@ export async function authenticate(
 export const authenticateLax = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     if (req.User) {
@@ -111,7 +111,7 @@ export const authenticateLax = async (
 
     const accessTokenDecodeResult = decodeData(
       accessToken,
-      AuthenticatedUserSchema
+      AuthenticatedUserSchema,
     );
 
     if (!accessTokenDecodeResult) {
@@ -140,7 +140,7 @@ export const authenticateLax = async (
 
     const refreshTokenDecodeResult = decodeData(
       refreshToken,
-      RefreshTokenPayloadSchema
+      RefreshTokenPayloadSchema,
     );
 
     if (!refreshTokenDecodeResult || "expired" in refreshTokenDecodeResult) {

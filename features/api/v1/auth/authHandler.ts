@@ -31,13 +31,13 @@ export async function loginWithUsernameAndPassword({
 
   const authenticatedUser = await authService.loginWithUsernameAndPassword(
     username,
-    password
+    password,
   );
 
   const accessToken = encodeData(authenticatedUser, { expiresIn: "30m" });
   const refreshToken = encodeData(
     { username: authenticatedUser.email || username },
-    { expiresIn: "3d" }
+    { expiresIn: "3d" },
   );
 
   return {

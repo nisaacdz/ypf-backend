@@ -12,7 +12,7 @@ import { Paginated, YPFEvent, YPFEventDetail } from "@/shared/dtos";
 import { ApiError } from "@/shared/types";
 
 export async function fetchEvents(
-  query: z.infer<typeof GetEventsQuerySchema>
+  query: z.infer<typeof GetEventsQuerySchema>,
 ): Promise<Paginated<YPFEvent>> {
   const { page, pageSize, search } = query;
   const offset = (page - 1) * pageSize;
@@ -25,8 +25,8 @@ export async function fetchEvents(
     conditions.push(
       or(
         ilike(schema.Events.name, `%${search}%`),
-        ilike(schema.Projects.title, `%${search}%`)
-      )
+        ilike(schema.Projects.title, `%${search}%`),
+      ),
     );
   }
 
@@ -77,7 +77,7 @@ export async function fetchEvents(
 
 export async function fetchEventMedia(
   eventId: string,
-  query: z.infer<typeof GetEventMediaQuerySchema>
+  query: z.infer<typeof GetEventMediaQuerySchema>,
 ) {
   const { page, pageSize } = query;
 
@@ -132,7 +132,7 @@ export async function fetchEventMedia(
 }
 
 export async function fetchEventById(
-  eventId: string
+  eventId: string,
 ): Promise<YPFEventDetail | null> {
   const eventResult = await dbClient.db
     .select({
@@ -178,8 +178,8 @@ export async function fetchEventById(
     .where(
       and(
         eq(schema.EventMedia.eventId, eventId),
-        eq(schema.EventMedia.isFeatured, true)
-      )
+        eq(schema.EventMedia.isFeatured, true),
+      ),
     );
 
   return {
@@ -222,7 +222,7 @@ export async function fetchEventById(
 
 export async function updateEvent(
   eventId: string,
-  data: z.infer<typeof UpdateEventSchema>
+  data: z.infer<typeof UpdateEventSchema>,
 ): Promise<void> {
   // Check if event exists
   const existingEvent = await dbClient.db
@@ -237,7 +237,7 @@ export async function updateEvent(
 
   // Filter out undefined values
   const updateData = Object.fromEntries(
-    Object.entries(data).filter(([, v]) => v !== undefined)
+    Object.entries(data).filter(([, v]) => v !== undefined),
   );
 
   if (Object.keys(updateData).length === 0) {
@@ -252,7 +252,7 @@ export async function updateEvent(
 
 export async function updateEventMedia(
   eventMediaId: number,
-  data: { caption?: string; isFeatured?: boolean }
+  data: { caption?: string; isFeatured?: boolean },
 ): Promise<void> {
   // Check if event media exists
   const existingMedia = await dbClient.db
@@ -267,7 +267,7 @@ export async function updateEventMedia(
 
   // Filter out undefined values
   const updateData = Object.fromEntries(
-    Object.entries(data).filter(([, v]) => v !== undefined)
+    Object.entries(data).filter(([, v]) => v !== undefined),
   );
 
   if (Object.keys(updateData).length === 0) {

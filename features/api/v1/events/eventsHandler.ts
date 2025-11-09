@@ -20,7 +20,7 @@ import {
 } from "@/shared/dtos";
 
 export async function getEvents(
-  query: z.infer<typeof GetEventsQuerySchema>
+  query: z.infer<typeof GetEventsQuerySchema>,
 ): Promise<ApiResponse<Paginated<YPFEvent>>> {
   const data = await eventsService.fetchEvents(query);
 
@@ -32,7 +32,7 @@ export async function getEvents(
 }
 
 export async function createEvent(
-  newEvent: z.infer<typeof CreateEventSchema>
+  newEvent: z.infer<typeof CreateEventSchema>,
 ): Promise<ApiResponse<string>> {
   const [event] = await dbClient.db
     .insert(Events)
@@ -88,7 +88,7 @@ export async function uploadEventMedium({
 
 export async function getEventMedia(
   eventId: string,
-  query: z.infer<typeof GetEventMediaQuerySchema>
+  query: z.infer<typeof GetEventMediaQuerySchema>,
 ): Promise<ApiResponse<Paginated<YPFEventMedium>>> {
   const { page, pageSize } = query;
   const { items, total } = await eventsService.fetchEventMedia(eventId, query);
@@ -105,7 +105,7 @@ export async function getEventMedia(
 }
 
 export async function getEventById(
-  eventId: string
+  eventId: string,
 ): Promise<ApiResponse<YPFEventDetail>> {
   const event = await eventsService.fetchEventById(eventId);
 
@@ -122,7 +122,7 @@ export async function getEventById(
 
 export async function updateEvent(
   eventId: string,
-  data: z.infer<typeof UpdateEventSchema>
+  data: z.infer<typeof UpdateEventSchema>,
 ): Promise<ApiResponse<null>> {
   await eventsService.updateEvent(eventId, data);
 
@@ -135,7 +135,7 @@ export async function updateEvent(
 
 export async function updateEventMedia(
   eventMediaId: number,
-  data: z.infer<typeof UpdateEventMediaSchema>
+  data: z.infer<typeof UpdateEventMediaSchema>,
 ): Promise<ApiResponse<null>> {
   await eventsService.updateEventMedia(eventMediaId, data);
 
