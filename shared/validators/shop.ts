@@ -58,7 +58,7 @@ export const CreateOrderSchema = z.object({
 });
 
 // Validate the items
-export const ValidateOrderItemsSchema = z.object({
+export const ValidatedOrderItemsSchema = z.object({
   items: z
     .array(OrderItemSchema)
     .nonempty({ message: "Your shopping cart cannot be empty." }),

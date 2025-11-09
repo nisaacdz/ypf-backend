@@ -10,7 +10,7 @@ import {
 } from "drizzle-orm";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
-import { AppError } from "@/shared/types";
+import { ApiError } from "@/shared/types";
 import { Users } from "@/db/schema/app";
 import { AnyPgColumn, unionAll } from "drizzle-orm/pg-core";
 import { Profile } from "@/shared/types";
@@ -28,9 +28,9 @@ const columns = Object.fromEntries(
   Object.keys(allColumns)
     .filter(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (col) => !excludedColumns.includes(col as any),
+      (col) => !excludedColumns.includes(col as any)
     )
-    .map((col) => [col, true]),
+    .map((col) => [col, true])
 ) as {
   [K in Exclude<
     keyof typeof allColumns,
@@ -47,7 +47,7 @@ export async function getUserById(userId: string) {
     where: eq(schema.Users.id, userId),
   });
   if (!user) {
-    throw new AppError("User not found", 404);
+    throw new ApiError("User not found", 404);
   }
   return user;
 }
@@ -72,7 +72,7 @@ export async function getConstituentRoles(constituentId: string) {
     .from(schema.Admins)
     .innerJoin(
       schema.AdminRolesAssignments,
-      eq(schema.Admins.id, schema.AdminRolesAssignments.adminId),
+      eq(schema.Admins.id, schema.AdminRolesAssignments.adminId)
     )
     .where(
       and(
@@ -82,9 +82,9 @@ export async function getConstituentRoles(constituentId: string) {
         lte(schema.AdminRolesAssignments.startedAt, now),
         or(
           isNull(schema.AdminRolesAssignments.endedAt),
-          gte(schema.AdminRolesAssignments.endedAt, now),
-        ),
-      ),
+          gte(schema.AdminRolesAssignments.endedAt, now)
+        )
+      )
     );
 
   const memberTitlesQuery = dbClient.db
@@ -102,11 +102,11 @@ export async function getConstituentRoles(constituentId: string) {
     .from(schema.Members)
     .innerJoin(
       schema.MemberTitlesAssignments,
-      eq(schema.Members.id, schema.MemberTitlesAssignments.memberId),
+      eq(schema.Members.id, schema.MemberTitlesAssignments.memberId)
     )
     .innerJoin(
       schema.MemberTitles,
-      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
+      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id)
     )
     .where(
       and(
@@ -116,9 +116,9 @@ export async function getConstituentRoles(constituentId: string) {
         lte(schema.MemberTitlesAssignments.startedAt, now),
         or(
           isNull(schema.MemberTitlesAssignments.endedAt),
-          gte(schema.MemberTitlesAssignments.endedAt, now),
-        ),
-      ),
+          gte(schema.MemberTitlesAssignments.endedAt, now)
+        )
+      )
     );
 
   const [adminRoles, memberTitles] = await Promise.all([
@@ -141,14 +141,14 @@ interface ITimeBoundProfileTable {
 }
 
 export async function getConstituentProfiles(
-  constituentId: string,
+  constituentId: string
 ): Promise<Profile[]> {
   const db = dbClient.db;
   const activeCheck = (table: ITimeBoundProfileTable) =>
     and(
       eq(table.constituentId, constituentId),
       lte(table.startedAt, sql`now()`),
-      or(isNull(table.endedAt), gte(table.endedAt, sql`now()`)),
+      or(isNull(table.endedAt), gte(table.endedAt, sql`now()`))
     );
 
   const memberQuery = db
@@ -186,7 +186,7 @@ export async function getConstituentProfiles(
     adminQuery,
     volunteerQuery,
     auditorQuery,
-    directorQuery,
+    directorQuery
   );
 
   return result.map((row) => row.profile);
@@ -211,7 +211,7 @@ export async function findUserByEmail(email: string) {
     .from(schema.Users)
     .leftJoin(
       schema.Constituents,
-      eq(schema.Users.constituentId, schema.Constituents.id),
+      eq(schema.Users.constituentId, schema.Constituents.id)
     )
     .where(eq(schema.Users.email, email));
 

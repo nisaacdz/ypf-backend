@@ -4,33 +4,38 @@ import dbClient from "./configs/db";
 import logger from "@/configs/logger";
 import server from "@/configs/server";
 
+async function shutdown() {
+  logger.info("Shutting down server...");
+
+  try {
+    emailer.transporter.close();
+    await dbClient.pool.end({ timeout: 5 });
+    logger.info("Database pool closed.");
+  } catch (error) {
+    logger.error(error, "Error closing database pool");
+  }
+
+  server.close(() => {
+    logger.info("Server closed.");
+    process.exit(0);
+  });
+}
+
 (async () => {
-  await Promise.all([emailer.initialize(), dbClient.initialize()]);
+  try {
+    await Promise.all([emailer.initialize(), dbClient.initialize()]);
 
-  async function shutdown() {
-    logger.info("Shutting down server...");
-
-    try {
-      emailer.transporter.close();
-      await dbClient.pool.end({ timeout: 5 });
-      logger.info("Database pool closed.");
-    } catch (error) {
-      logger.error(error, "Error closing database pool");
+    for (const signal of ["SIGINT", "SIGTERM"] as const) {
+      process.on(signal, shutdown);
     }
 
-    server.close(() => {
-      logger.info("Server closed.");
-      process.exit(0);
+    server.listen(variables.app.port, () => {
+      logger.info(
+        `Server is live on http://${variables.app.host}:${variables.app.port}`
+      );
     });
+  } catch (error) {
+    logger.error(error, "Failed to initialize server");
+    process.exit(1); // Fail fast
   }
-
-  for (const signal of ["SIGINT", "SIGTERM"] as const) {
-    process.on(signal, shutdown);
-  }
-
-  server.listen(variables.app.port, () => {
-    logger.info(
-      `Server is live on http://${variables.app.host}:${variables.app.port}`,
-    );
-  });
 })();

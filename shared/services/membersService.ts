@@ -15,13 +15,13 @@ import z from "zod";
 
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
-import { Paginated, YPFMember, MemberDetail } from "@/shared/dtos";
+import { Paginated, YPFMember, YPFMemberDetail } from "@/shared/dtos";
 import { GetMembersQuerySchema } from "@/shared/validators/core";
 import * as mediaUtils from "@/shared/utils/media";
-import { AppError } from "@/shared/types";
+import { ApiError } from "@/shared/types";
 
 export async function getMembers(
-  query: z.infer<typeof GetMembersQuerySchema>,
+  query: z.infer<typeof GetMembersQuerySchema>
 ): Promise<Paginated<YPFMember>> {
   const { page, pageSize, search, chapterId, committeeId } = query;
   const now = sql<Date>`now()`;
@@ -44,17 +44,17 @@ export async function getMembers(
       constituentId: schema.Members.constituentId,
       titleName: schema.MemberTitles.title,
       rn: sql<number>`row_number() OVER (PARTITION BY ${schema.Members.constituentId} ORDER BY ${schema.MemberTitles._level} ASC)`.as(
-        "title_rn",
+        "title_rn"
       ),
     })
     .from(schema.Members)
     .innerJoin(
       schema.MemberTitlesAssignments,
-      eq(schema.Members.id, schema.MemberTitlesAssignments.memberId),
+      eq(schema.Members.id, schema.MemberTitlesAssignments.memberId)
     )
     .innerJoin(
       schema.MemberTitles,
-      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
+      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id)
     )
     // Only consider titles that are currently active
     .where(
@@ -62,9 +62,9 @@ export async function getMembers(
         lte(schema.MemberTitlesAssignments.startedAt, now),
         or(
           isNull(schema.MemberTitlesAssignments.endedAt),
-          gte(schema.MemberTitlesAssignments.endedAt, now),
-        ),
-      ),
+          gte(schema.MemberTitlesAssignments.endedAt, now)
+        )
+      )
     )
     .as("top_title");
 
@@ -85,7 +85,7 @@ export async function getMembers(
           .from(schema.ChapterMemberships)
           .innerJoin(
             schema.Members,
-            eq(schema.ChapterMemberships.memberId, schema.Members.id),
+            eq(schema.ChapterMemberships.memberId, schema.Members.id)
           )
           .where(
             and(
@@ -94,11 +94,11 @@ export async function getMembers(
               lte(schema.ChapterMemberships.startedAt, now),
               or(
                 isNull(schema.ChapterMemberships.endedAt),
-                gte(schema.ChapterMemberships.endedAt, now),
-              ),
-            ),
-          ),
-      ),
+                gte(schema.ChapterMemberships.endedAt, now)
+              )
+            )
+          )
+      )
     );
   }
 
@@ -110,7 +110,7 @@ export async function getMembers(
           .from(schema.CommitteeMemberships)
           .innerJoin(
             schema.Members,
-            eq(schema.CommitteeMemberships.memberId, schema.Members.id),
+            eq(schema.CommitteeMemberships.memberId, schema.Members.id)
           )
           .where(
             and(
@@ -119,11 +119,11 @@ export async function getMembers(
               lte(schema.CommitteeMemberships.startedAt, now),
               or(
                 isNull(schema.CommitteeMemberships.endedAt),
-                gte(schema.CommitteeMemberships.endedAt, now),
-              ),
-            ),
-          ),
-      ),
+                gte(schema.CommitteeMemberships.endedAt, now)
+              )
+            )
+          )
+      )
     );
   }
 
@@ -134,7 +134,7 @@ export async function getMembers(
       profilePhotoExternalId: schema.Media.externalId,
       fullName:
         sql<string>`concat(${schema.Constituents.firstName}, ' ', ${schema.Constituents.lastName})`.as(
-          "full_name",
+          "full_name"
         ),
       // Check if any active membership period exists for the constituent
       isActive: exists(
@@ -147,10 +147,10 @@ export async function getMembers(
               lte(schema.Members.startedAt, now),
               or(
                 isNull(schema.Members.endedAt),
-                gte(schema.Members.endedAt, now),
-              ),
-            ),
-          ),
+                gte(schema.Members.endedAt, now)
+              )
+            )
+          )
       ).as<boolean>("is_active"),
       joinedAt: firstMembershipSubquery.joinedAt,
       title: topTitleSubquery.titleName,
@@ -158,18 +158,18 @@ export async function getMembers(
     .from(schema.Constituents)
     .innerJoin(
       firstMembershipSubquery,
-      eq(schema.Constituents.id, firstMembershipSubquery.constituentId),
+      eq(schema.Constituents.id, firstMembershipSubquery.constituentId)
     )
     .leftJoin(
       schema.Media,
-      eq(schema.Constituents.profilePhotoId, schema.Media.id),
+      eq(schema.Constituents.profilePhotoId, schema.Media.id)
     )
     .leftJoin(
       topTitleSubquery,
       and(
         eq(schema.Constituents.id, topTitleSubquery.constituentId),
-        eq(topTitleSubquery.rn, 1),
-      ),
+        eq(topTitleSubquery.rn, 1)
+      )
     )
     .where(and(...whereClauses));
 
@@ -204,8 +204,8 @@ export async function getMembers(
 }
 
 export async function getMemberByConstituentId(
-  constituentId: string,
-): Promise<MemberDetail> {
+  constituentId: string
+): Promise<YPFMemberDetail> {
   const now = sql`now()`;
 
   const [constituent] = await dbClient.db
@@ -232,20 +232,20 @@ export async function getMemberByConstituentId(
               lte(schema.Members.startedAt, now),
               or(
                 isNull(schema.Members.endedAt),
-                gte(schema.Members.endedAt, now),
-              ),
-            ),
-          ),
+                gte(schema.Members.endedAt, now)
+              )
+            )
+          )
       ).as<boolean>("is_active"),
     })
     .from(schema.Constituents)
     .leftJoin(
       schema.Media,
-      eq(schema.Constituents.profilePhotoId, schema.Media.id),
+      eq(schema.Constituents.profilePhotoId, schema.Media.id)
     )
     .leftJoin(
       schema.Members,
-      eq(schema.Constituents.id, schema.Members.constituentId),
+      eq(schema.Constituents.id, schema.Members.constituentId)
     )
     .where(eq(schema.Constituents.id, constituentId))
     .groupBy(
@@ -256,11 +256,11 @@ export async function getMemberByConstituentId(
       schema.Media.height,
       schema.Media.size,
       schema.Media.uploadedAt,
-      schema.Media.uploadedBy,
+      schema.Media.uploadedBy
     );
 
   if (!constituent) {
-    throw new AppError("Member not found", 404);
+    throw new ApiError("Member not found", 404);
   }
 
   const [contacts, titles] = await Promise.all([
@@ -273,8 +273,8 @@ export async function getMemberByConstituentId(
       .where(
         and(
           eq(schema.ContactInformations.constituentId, constituentId),
-          eq(schema.ContactInformations.isPrimary, true),
-        ),
+          eq(schema.ContactInformations.isPrimary, true)
+        )
       ),
     dbClient.db
       .select({
@@ -290,19 +290,19 @@ export async function getMemberByConstituentId(
       .from(schema.MemberTitlesAssignments)
       .innerJoin(
         schema.Members,
-        eq(schema.MemberTitlesAssignments.memberId, schema.Members.id),
+        eq(schema.MemberTitlesAssignments.memberId, schema.Members.id)
       )
       .innerJoin(
         schema.MemberTitles,
-        eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
+        eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id)
       )
       .leftJoin(
         schema.Chapters,
-        eq(schema.MemberTitles.chapterId, schema.Chapters.id),
+        eq(schema.MemberTitles.chapterId, schema.Chapters.id)
       )
       .leftJoin(
         schema.Committees,
-        eq(schema.MemberTitles.committeeId, schema.Committees.id),
+        eq(schema.MemberTitles.committeeId, schema.Committees.id)
       )
       .where(
         and(
@@ -310,13 +310,13 @@ export async function getMemberByConstituentId(
           lte(schema.MemberTitlesAssignments.startedAt, now),
           or(
             isNull(schema.MemberTitlesAssignments.endedAt),
-            gte(schema.MemberTitlesAssignments.endedAt, now),
-          ),
-        ),
+            gte(schema.MemberTitlesAssignments.endedAt, now)
+          )
+        )
       ),
   ]);
 
-  const memberDetail: MemberDetail = {
+  const memberDetail: YPFMemberDetail = {
     id: constituent.id,
     firstName: constituent.firstName,
     lastName: constituent.lastName,
@@ -331,7 +331,7 @@ export async function getMemberByConstituentId(
         ? {
             url: mediaUtils.generatePublicMediaUrl(
               constituent.profilePhotoExternalId,
-              { resolution: 720 },
+              { resolution: 720 }
             ),
             type: constituent.profilePhotoType,
             dimensions: {

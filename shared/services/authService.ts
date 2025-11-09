@@ -2,7 +2,7 @@ import { eq, or, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
-import { AppError } from "@/shared/types";
+import { ApiError } from "@/shared/types";
 import { AuthenticatedUser } from "@/shared/types";
 import { getConstituentProfiles, getConstituentRoles } from "./usersService";
 import { Users } from "@/db/schema/app";
@@ -15,11 +15,11 @@ import { randomInt } from "crypto";
  * @param username The user's username or email.
  * @param password The user's plain-text password.
  * @returns A promise that resolves to the fully constructed AuthenticatedUser.
- * @throws AppError if authentication fails.
+ * @throws ApiError if authentication fails.
  */
 export async function loginWithUsernameAndPassword(
   username: string,
-  password: string,
+  password: string
 ): Promise<AuthenticatedUser> {
   const [user] = await dbClient.db
     .select({
@@ -34,19 +34,19 @@ export async function loginWithUsernameAndPassword(
     .from(schema.Users)
     .innerJoin(
       schema.Constituents,
-      eq(schema.Users.constituentId, schema.Constituents.id),
+      eq(schema.Users.constituentId, schema.Constituents.id)
     )
     .where(
-      or(eq(schema.Users.username, username), eq(schema.Users.email, username)),
+      or(eq(schema.Users.username, username), eq(schema.Users.email, username))
     );
 
   if (!user || !user.password) {
-    throw new AppError("Invalid username or password", 401);
+    throw new ApiError("Invalid username or password", 401);
   }
 
   const isPasswordValid = await bcrypt.compare(password, user.password);
   if (!isPasswordValid) {
-    throw new AppError("Invalid username or password", 401);
+    throw new ApiError("Invalid username or password", 401);
   }
 
   const [roles, profiles] = await Promise.all([
@@ -77,10 +77,10 @@ export async function loginWithUsernameAndPassword(
  *
  * @param username The user's username or email.
  * @returns A promise that resolves to the fully constructed AuthenticatedUser.
- * @throws AppError if user is not found.
+ * @throws ApiError if user is not found.
  */
 export async function loginWithUsername(
-  username: string,
+  username: string
 ): Promise<AuthenticatedUser> {
   const [user] = await dbClient.db
     .select({
@@ -94,14 +94,14 @@ export async function loginWithUsername(
     .from(schema.Users)
     .innerJoin(
       schema.Constituents,
-      eq(schema.Users.constituentId, schema.Constituents.id),
+      eq(schema.Users.constituentId, schema.Constituents.id)
     )
     .where(
-      or(eq(schema.Users.username, username), eq(schema.Users.email, username)),
+      or(eq(schema.Users.username, username), eq(schema.Users.email, username))
     );
 
   if (!user) {
-    throw new AppError("User not found", 401);
+    throw new ApiError("User not found", 401);
   }
 
   const [roles, profiles] = await Promise.all([
@@ -134,7 +134,7 @@ export async function loginWithUsername(
  */
 export async function linkGoogleIdToUser(
   userId: string,
-  googleId: string,
+  googleId: string
 ): Promise<void> {
   await dbClient.db
     .update(Users)
@@ -148,7 +148,7 @@ export async function linkGoogleIdToUser(
  *
  * @param email The user's email address.
  * @returns The generated OTP code.
- * @throws AppError if user is not found.
+ * @throws ApiError if user is not found.
  */
 export async function forgotPassword(email: string): Promise<string> {
   // Check if user exists
@@ -160,7 +160,7 @@ export async function forgotPassword(email: string): Promise<string> {
     .where(eq(schema.Users.email, email));
 
   if (!user) {
-    throw new AppError("User not found", 404);
+    throw new ApiError("User not found", 404);
   }
 
   const otp = randomInt(100000, 1000000).toString();
@@ -188,12 +188,12 @@ export async function forgotPassword(email: string): Promise<string> {
  * @param email The user's email address.
  * @param otp The OTP code received via email.
  * @param newPassword The new password to set.
- * @throws AppError if user not found, OTP invalid/expired/used, or password update fails.
+ * @throws ApiError if user not found, OTP invalid/expired/used, or password update fails.
  */
 export async function resetPassword(
   email: string,
   otp: string,
-  newPassword: string,
+  newPassword: string
 ): Promise<void> {
   await dbClient.db.transaction(async (tx) => {
     // Fetch the OTP record for validation
@@ -204,24 +204,24 @@ export async function resetPassword(
 
     // Validate OTP exists
     if (!otpRecord) {
-      throw new AppError("Invalid OTP", 400);
+      throw new ApiError("Invalid OTP", 400);
     }
 
     // Validate OTP code matches
     if (otpRecord.code !== otp) {
-      throw new AppError("Invalid OTP", 400);
+      throw new ApiError("Invalid OTP", 400);
     }
 
     // Validate OTP has not been used
     if (otpRecord.usedAt) {
-      throw new AppError("OTP has already been used", 400);
+      throw new ApiError("OTP has already been used", 400);
     }
 
     // Validate OTP has not expired
     const now = new Date();
     const expiresAt = new Date(otpRecord.expiresAt);
     if (now > expiresAt) {
-      throw new AppError("OTP has expired", 400);
+      throw new ApiError("OTP has expired", 400);
     }
 
     // Mark OTP as used
@@ -242,7 +242,7 @@ export async function resetPassword(
 
     // Ensure user exists
     if (result.length === 0) {
-      throw new AppError("User not found", 404);
+      throw new ApiError("User not found", 404);
     }
   });
 }

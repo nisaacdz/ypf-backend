@@ -1,10 +1,10 @@
-export class AppError extends Error {
+export class ApiError extends Error {
   public statusCode: number;
 
   constructor(message: string, status: number = 500) {
     super(message);
     this.statusCode = status;
-    this.name = "AppError";
+    this.name = "ApiError";
   }
 }
 

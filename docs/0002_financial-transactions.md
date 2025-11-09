@@ -314,7 +314,7 @@ export async function validateOrderItems(items: OrderItem[]) {
 
   // 2. Create Map for O(1) lookups
   const productMap = new Map(
-    dbProducts.map((product) => [product.id, product]),
+    dbProducts.map((product) => [product.id, product])
   );
 
   let totalAmount = 0;
@@ -326,22 +326,22 @@ export async function validateOrderItems(items: OrderItem[]) {
 
     // Check product exists
     if (!product) {
-      throw new AppError(`Product with ID ${item.productId} not found`, 404);
+      throw new ApiError(`Product with ID ${item.productId} not found`, 404);
     }
 
     // Check product is active
     if (!product.isActive) {
-      throw new AppError(
+      throw new ApiError(
         `Product "${product.name}" is no longer available`,
-        400,
+        400
       );
     }
 
     // Check stock availability
     if (product.stockQuantity < item.quantity) {
-      throw new AppError(
+      throw new ApiError(
         `Insufficient stock for "${product.name}". Only ${product.stockQuantity} available.`,
-        400,
+        400
       );
     }
 
@@ -498,12 +498,12 @@ export async function verifyTransaction(reference: string) {
   const transaction = await dbClient.db.query.FinancialTransactions.findFirst({
     where: and(
       eq(schema.FinancialTransactions.externalProvider, "PAYSTACK"),
-      eq(schema.FinancialTransactions.externalRef, reference),
+      eq(schema.FinancialTransactions.externalRef, reference)
     ),
   });
 
   if (!transaction) {
-    throw new AppError("Transaction not found", 404);
+    throw new ApiError("Transaction not found", 404);
   }
 
   // 2. Call payment provider to get current status
@@ -556,7 +556,7 @@ export class PaystackProvider implements IPaymentProvider {
         headers: {
           Authorization: `Bearer ${variables.services.paystack.secretKey}`,
         },
-      },
+      }
     );
 
     const data = await response.json();
@@ -623,8 +623,8 @@ export async function handlePaystackWebhook(payload: PaystackWebhookPayload) {
       and(
         eq(schema.FinancialTransactions.externalProvider, "PAYSTACK"),
         eq(schema.FinancialTransactions.externalRef, reference),
-        not(eq(schema.FinancialTransactions.status, newStatus)),
-      ),
+        not(eq(schema.FinancialTransactions.status, newStatus))
+      )
     )
     .returning();
 
@@ -654,7 +654,7 @@ export async function handlePaystackWebhook(payload: PaystackWebhookPayload) {
 export function verifyPaystackSignature(
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ) {
   const hash = crypto
     .createHmac("sha512", variables.services.paystack.secretKey)
@@ -754,7 +754,7 @@ export function verifyPaystackSignature(
 ```typescript
 async function sendTransactionStatusChangeEmail(
   transactionId: string,
-  newStatus: TransactionStatus,
+  newStatus: TransactionStatus
 ) {
   // Determine transaction type and recipient
   const transactionDetails = await getTransactionDetails(transactionId);
@@ -874,25 +874,25 @@ export const OrderPayments = shop.table("order_payments", {
 1. **Insufficient Stock**
 
    ```typescript
-   throw new AppError(
+   throw new ApiError(
      `Insufficient stock for "${product.name}". Only ${product.stockQuantity} available.`,
-     400,
+     400
    );
    ```
 
 2. **Invalid Product**
 
    ```typescript
-   throw new AppError(`Product with ID ${productId} not found`, 404);
+   throw new ApiError(`Product with ID ${productId} not found`, 404);
    ```
 
 3. **Payment Provider Error**
 
    ```typescript
    if (!paystackResponse.status) {
-     throw new AppError(
+     throw new ApiError(
        `Paystack initialization failed: ${paystackResponse.message}`,
-       500,
+       500
      );
    }
    ```
@@ -900,7 +900,7 @@ export const OrderPayments = shop.table("order_payments", {
 4. **Transaction Not Found**
    ```typescript
    if (!transaction) {
-     throw new AppError("Transaction not found", 404);
+     throw new ApiError("Transaction not found", 404);
    }
    ```
 

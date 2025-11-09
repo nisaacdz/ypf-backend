@@ -1,7 +1,7 @@
 import dbClient from "@/configs/db";
 import { imagekit } from "@/configs/fs/cdn";
 import schema from "@/db/schema";
-import { AppError } from "@/shared/types";
+import { ApiError } from "@/shared/types";
 import { eq } from "drizzle-orm";
 import logger from "@/configs/logger";
 
@@ -20,7 +20,7 @@ export type AddMediumRecord = {
 
 export async function uploadEventMedium(
   eventId: string,
-  data: AddMediumRecord,
+  data: AddMediumRecord
 ): Promise<string> {
   try {
     const newMediumId = await dbClient.db.transaction(async (tx) => {
@@ -30,7 +30,7 @@ export async function uploadEventMedium(
         .returning({ id: schema.Media.id });
       if (!newMedium?.id) {
         throw new Error(
-          "Failed to create medium record, rolling back transaction.",
+          "Failed to create medium record, rolling back transaction."
         );
       }
 
@@ -48,25 +48,25 @@ export async function uploadEventMedium(
         (err) => {
           logger.error(
             err,
-            `Error backfilling video metadata for medium ID: ${newMediumId}`,
+            `Error backfilling video metadata for medium ID: ${newMediumId}`
           );
-        },
+        }
       );
     }
 
     return newMediumId;
   } catch (err) {
     logger.error(err);
-    throw new AppError(
+    throw new ApiError(
       "An error occurred while adding the event medium record.",
-      500,
+      500
     );
   }
 }
 
 export async function uploadProjectMedium(
   projectId: string,
-  data: AddMediumRecord,
+  data: AddMediumRecord
 ): Promise<string> {
   try {
     const newMediumId = await dbClient.db.transaction(async (tx) => {
@@ -76,7 +76,7 @@ export async function uploadProjectMedium(
         .returning({ id: schema.Media.id });
       if (!newMedium?.id) {
         throw new Error(
-          "Failed to create medium record, rolling back transaction.",
+          "Failed to create medium record, rolling back transaction."
         );
       }
 
@@ -94,25 +94,25 @@ export async function uploadProjectMedium(
         (err) => {
           logger.error(
             err,
-            `Error backfilling video metadata for medium ID: ${newMediumId}`,
+            `Error backfilling video metadata for medium ID: ${newMediumId}`
           );
-        },
+        }
       );
     }
 
     return newMediumId;
   } catch (err) {
     logger.error(err);
-    throw new AppError(
+    throw new ApiError(
       "An error occurred while adding the event medium record.",
-      500,
+      500
     );
   }
 }
 
 export async function backfillVideoMetadata(
   mediumId: string,
-  externalId: string,
+  externalId: string
 ): Promise<void> {
   try {
     const fileDetails = await imagekit.getFileDetails(externalId);
@@ -133,7 +133,7 @@ export async function backfillVideoMetadata(
   } catch (err) {
     logger.error(
       err,
-      `Failed to backfill video metadata for medium ID: ${mediumId}, external ID: ${externalId}`,
+      `Failed to backfill video metadata for medium ID: ${mediumId}, external ID: ${externalId}`
     );
     throw err;
   }

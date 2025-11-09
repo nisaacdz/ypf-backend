@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { AppError } from "../types";
+import { ApiError } from "../types";
 import { decodeData, encodeData } from "../utils/jwt";
 import {
   AuthenticatedUserSchema,
@@ -11,7 +11,7 @@ import * as authService from "../services/authService";
 export async function authenticate(
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ) {
   if (req.User) {
     return next();
@@ -22,17 +22,17 @@ export async function authenticate(
 
   if (!accessToken) {
     return next(
-      new AppError("You are not logged in. Please log in to get access.", 401),
+      new ApiError("You are not logged in. Please log in to get access.", 401)
     );
   }
 
   const accessTokenDecodeResult = decodeData(
     accessToken,
-    AuthenticatedUserSchema,
+    AuthenticatedUserSchema
   );
 
   if (!accessTokenDecodeResult) {
-    return next(new AppError("Invalid token. Please log in again.", 401));
+    return next(new ApiError("Invalid token. Please log in again.", 401));
   }
 
   if ("valid" in accessTokenDecodeResult) {
@@ -43,16 +43,16 @@ export async function authenticate(
     const now = Math.floor(Date.now() / 1000);
 
     if (exp + 3 * 24 * 60 * 60 < now) {
-      return next(new AppError("Invalid token. Please log in again.", 401));
+      return next(new ApiError("Invalid token. Please log in again.", 401));
     }
 
     const refreshTokenDecodeResult = decodeData(
       refreshToken,
-      RefreshTokenPayloadSchema,
+      RefreshTokenPayloadSchema
     );
 
     if (!refreshTokenDecodeResult || "expired" in refreshTokenDecodeResult) {
-      return next(new AppError("Invalid token. Please log in again.", 401));
+      return next(new ApiError("Invalid token. Please log in again.", 401));
     }
 
     const { username, exp: refreshExp } = refreshTokenDecodeResult.valid;
@@ -87,7 +87,7 @@ export async function authenticate(
       req.User = authenticatedUser;
       return next();
     } catch {
-      return next(new AppError("Invalid token. Please log in again.", 401));
+      return next(new ApiError("Invalid token. Please log in again.", 401));
     }
   }
 }
@@ -95,7 +95,7 @@ export async function authenticate(
 export const authenticateLax = async (
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ) => {
   try {
     if (req.User) {
@@ -111,7 +111,7 @@ export const authenticateLax = async (
 
     const accessTokenDecodeResult = decodeData(
       accessToken,
-      AuthenticatedUserSchema,
+      AuthenticatedUserSchema
     );
 
     if (!accessTokenDecodeResult) {
@@ -140,7 +140,7 @@ export const authenticateLax = async (
 
     const refreshTokenDecodeResult = decodeData(
       refreshToken,
-      RefreshTokenPayloadSchema,
+      RefreshTokenPayloadSchema
     );
 
     if (!refreshTokenDecodeResult || "expired" in refreshTokenDecodeResult) {

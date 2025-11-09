@@ -1,4 +1,4 @@
-# YPF Core Backend
+# YPF App Backend
 
 A YPF Africa backend setup
 
@@ -24,7 +24,7 @@ And you’re all set!
 
 ## 🏗️ How We Build: Key Conventions
 
-This is the important part. To keep our codebase consistent and easy to navigate, we follow these rules:
+To keep our codebase consistent and easy to navigate, we follow these rules:
 
 - Always use the `@/` alias for imports from the project root (e.g., `import dbClient from "@/configs/db";`).
   No more `../../..` madness.
@@ -54,13 +54,13 @@ Served at /docs endpoint
 
 Here’s a quick look at the project structure:
 
-- `server.ts` – Main application entry point.
+- `app.ts` – Main application entry point.
 - `configs/` – Project-wide configs (database connection, emailer, environment variables).
-- `db/` – All things [Drizzle ORM](https://orm.drizzle.team/): schema definitions and migrations.
+- `db/` – schema definitions and migrations.
 - `docs/` – Some info regarding design patterns, implementation choices, etc.
 - `features/` – Contains API routes, WebSocket handlers.
 - `shared/` – Reusable code like services, middlewares, and type definitions.
-- `scripts/` – Standalone utility scripts (e.g., `migrate.ts`, `seed.ts`).
+- `scripts/` – Standalone utility scripts (run with `npm run script -- -- <scriptname>`).
 - `tests/` – For tests.
 
 ---

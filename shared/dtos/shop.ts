@@ -66,7 +66,7 @@ export type OrderResponse = {
   paymentUrl: string;
 };
 
-export type ValidateOrderItems = {
+export type ValidatedOrderItems = {
   validatedItems: {
     productId: string;
     quantity: number;

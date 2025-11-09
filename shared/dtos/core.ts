@@ -21,7 +21,7 @@ export type YPFMember = {
   title?: string; // name of most significant title
 };
 
-export type MemberDetail = {
+export type YPFMemberDetail = {
   id: string; // constituent ID
   firstName: string;
   lastName: string;
@@ -52,7 +52,7 @@ export type YPFChapter = {
   foundingDate: Date;
 };
 
-export type DetailedChapter = {
+export type YPFChapterDetail = {
   id: string;
   name: string;
   country: string;
@@ -79,7 +79,7 @@ export type YPFCommittee = {
   memberCount: number;
 };
 
-export type DetailedCommittee = {
+export type YPFCommitteeDetail = {
   id: string;
   name: string;
   description?: string;

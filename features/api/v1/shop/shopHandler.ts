@@ -6,7 +6,7 @@ import {
   InitiateGuestOrderSchema,
   CompleteGuestOrderSchema,
 } from "@/shared/validators/shop";
-import { OrderResponse, ValidateOrderItems } from "@/shared/dtos/shop";
+import { OrderResponse, ValidatedOrderItems } from "@/shared/dtos/shop";
 
 /**
  * Handler for creating an order for authenticated users
@@ -79,7 +79,7 @@ export async function getUserOrders(user: AuthenticatedUser): Promise<
 
 export async function validateOrderItems(
   data: z.infer<typeof CreateOrderSchema>,
-): Promise<ApiResponse<ValidateOrderItems>> {
+): Promise<ApiResponse<ValidatedOrderItems>> {
   const result = await shopService.validateOrderItems(data.items);
 
   return {

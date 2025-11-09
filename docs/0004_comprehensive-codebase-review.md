@@ -29,168 +29,7 @@ The YPF Backend is a well-structured Node.js/TypeScript application using Expres
 
 ## Architecture & Design Patterns
 
-### ✅ Strengths
-
-#### 1. Clean Layered Architecture
-
-The codebase follows a clear separation of concerns:
-
-```
-Features Layer → Handlers → Services → Database
-           ↓        ↓          ↓
-      Routes   Validation  Business Logic
-```
-
-**Location:** `features/api/v1/*/`
-
-- **Routes**: Clean route definitions with middleware chains
-- **Handlers**: Lean, focused on request/response handling
-- **Services**: Contains business logic and database operations
-- **Validators**: Zod schemas for type-safe validation
-
-#### 2. Type Safety with TypeScript + Zod
-
-Excellent use of TypeScript and Zod validation:
-
-```typescript
-// Compile-time type checking
-export const CreateEventSchema = z.object({
-  name: z.string(),
-  startDate: z.coerce.date(),
-  endDate: z.coerce.date(),
-});
-
-// Runtime validation with type inference
-type CreateEventInput = z.infer<typeof CreateEventSchema>;
-```
-
-**Benefits:**
-
-- Prevents runtime type errors
-- Self-documenting API contracts
-- Autocomplete in IDE
-
-#### 3. Centralized Configuration
-
-**Location:** `configs/env.ts`
-
-All environment variables are validated and typed:
-
-```typescript
-const envSchema = z.object({
-  NODE_ENV: z.enum(["development", "production", "test"]),
-  PORT: z.coerce.number().positive(),
-  DATABASE_URL: z.url(),
-  JWT_SECRET: z.string().min(32),
-});
-
-const variables = envSchema.parse(process.env);
-export default variables;
-```
-
-**Benefits:**
-
-- Fail-fast on misconfiguration
-- Type-safe access to config
-- Clear documentation of required variables
-
-#### 4. Class Table Inheritance for Financial Transactions
-
-**Location:** `db/schema/finance.ts`
-
-Elegant design pattern:
-
-```
-FinancialTransactions (parent)
-├── Donations
-├── DuesPayments
-└── OrderPayments → Orders
-```
-
-**Benefits:**
-
-- Single source of truth for all transactions
-- Easy to add new transaction types
-- Consistent reporting and reconciliation
-
 ### ⚠️ Areas for Improvement
-
-#### 1. Inconsistent Handler-Service Separation
-
-**Issue:** Some handlers perform database operations directly instead of delegating to services.
-
-**Example:** `features/api/v1/events/eventsHandler.ts`
-
-```typescript
-// ❌ Handler doing database operations
-export async function createEvent(newEvent: CreateEventInput) {
-  const [event] = await dbClient.db
-    .insert(Events)
-    .values(newEvent)
-    .returning({ id: Events.id });
-
-  return { success: true, data: event.id };
-}
-```
-
-**Recommendation:**
-
-```typescript
-// ✅ Move to service layer
-// In eventsService.ts
-export async function createEvent(data: CreateEventInput): Promise<string> {
-  const [event] = await dbClient.db
-    .insert(Events)
-    .values(data)
-    .returning({ id: EvedbClient });
-
-  if (!event) {
-    throw new AppError("Failed to create event", 500);
-  }
-
-  return event.id;
-}
-
-// In eventsHandler.ts
-export async function createEvent(newEvent: CreateEventInput) {
-  const eventId = await eventsService.createEvent(newEvent);
-  return { success: true, data: eventId };
-}
-```
-
-#### 2. Missing Database Constraints
-
-**Severity:** HIGH
-
-**Issue:** Tables with time periods lack database-level exclusion constraints to prevent overlaps.
-
-**Affected Tables:**
-
-- `Members` (membership periods)
-- `MemberTitlesAssignments`
-- `AdminRolesAssignments`
-- `ChapterMemberships`
-- `CommitteeMemberships`
-
-**Recommendation:**
-
-```sql
--- Example for Members table
-ALTER TABLE core.members
-ADD CONSTRAINT no_overlapping_membership_periods
-EXCLUDE USING gist (
-  constituent_id WITH =,
-  tsrange(started_at, COALESCE(ended_at, 'infinity'::timestamp)) WITH &&
-);
-```
-
-**Why Critical:**
-
-- Prevents data integrity violations
-- Application-level checks can fail in concurrent scenarios
-- Database constraints are the last line of defense
-
----
 
 ## Security Findings
 
@@ -243,42 +82,14 @@ const otp = randomInt(10000000, 100000000).toString();
 // Add exponential backoff
 const failedAttempts = await getFailedOTPAttempts(email);
 if (failedAttempts >= 3) {
-  throw new AppError("Too many failed attempts. Try again later.", 429);
+  throw new ApiError("Too many failed attempts. Try again later.", 429);
 }
 
 // Implement account lockout
 if (failedAttempts >= 5) {
   await lockAccount(email, 30 * 60); // 30 minutes
-  throw new AppError("Account temporarily locked", 429);
+  throw new ApiError("Account temporarily locked", 429);
 }
-```
-
-#### 3. Cookie Security Configuration
-
-**Location:** `shared/middlewares/auth.ts`
-
-**Issue:** Hardcoded `secure: true` breaks local development (HTTP).
-
-```typescript
-res.cookie("access_token", newAccessToken, {
-  httpOnly: true,
-  secure: true, // ❌ Always true, even in development
-  sameSite: "none",
-  maxAge: 3 * 24 * 60 * 60 * 1000, // 3 days
-});
-```
-
-**Note from Author:** Cookie maxAge (3 days) while token expires in 30 minutes is intentional. The cookie persists for refresh token functionality, but the JWT itself is short-lived.
-
-**Recommendation:**
-
-```typescript
-res.cookie("access_token", newAccessToken, {
-  httpOnly: true,
-  secure: variables.app.isProduction, // ✅ Environment-aware
-  sameSite: variables.app.isProduction ? "none" : "lax",
-  maxAge: 3 * 24 * 60 * 60 * 1000, // Cookie lifetime (intentional)
-});
 ```
 
 #### 4. Missing Rate Limiting on Critical Endpoints
@@ -302,7 +113,7 @@ app.use(
     windowMs: 15 * 60 * 1000,
     maxRequests: 5, // Only 5 login attempts
     message: "Too many login attempts",
-  }),
+  })
 );
 
 app.use(
@@ -311,31 +122,8 @@ app.use(
     windowMs: 60 * 60 * 1000, // 1 hour window
     maxRequests: 3, // Only 3 password resets
     message: "Too many password reset requests",
-  }),
+  })
 );
-```
-
-#### 5. Loose Equality in Authorization
-
-**Location:** `configs/authorizer/index.ts`
-
-**Issue:** Using `==` instead of `===` can lead to type coercion bugs.
-
-```typescript
-if (typeof r === "string") {
-  result = r == role; // ❌ Should be ===
-} else {
-  result = role == r(req); // ❌ Should be ===
-}
-```
-
-**Risk:** Authorization bypass if types unexpectedly coerce (e.g., `0 == "0"` is true).
-
-**Recommendation:**
-
-```typescript
-result = r === role; // ✅ Strict equality
-result = role === r(req); // ✅ Strict equality
 ```
 
 ### 🟢 Good Security Practices
@@ -353,39 +141,9 @@ result = role === r(req); // ✅ Strict equality
 
 ### 🟡 Issues to Address
 
-#### 1. Missing Database Connection Pool Configuration
-
-**Location:** `configs/db.ts`
-
-**Issue:** No explicit connection pool settings.
-
-```typescript
-// Current
-this.database = drizzle(postgres(variables.database.url), { schema });
-```
-
-**Risk:**
-
-- Connection exhaustion under load
-- Suboptimal performance
-- Potential connection leaks
-
-**Recommendation:**
-
-```typescript
-const sql = postgres(variables.database.url, {
-  max: 20, // Maximum pool size
-  idle_timeout: 20, // Close idle connections after 20s
-  connect_timeout: 10, // Connection timeout
-  max_lifetime: 60 * 30, // Max connection lifetime (30 min)
-});
-
-this.database = drizzle(sql, { schema });
-```
-
 #### 2. Unhandled Promise Rejections in Server Startup
 
-**Location:** `server.ts`
+**Location:** `app.ts`
 
 **Issue:** If initialization fails, server still starts listening.
 
@@ -399,7 +157,7 @@ this.database = drizzle(sql, { schema });
 })();
 ```
 
-**Risk:**dbClient
+**Risk:**
 
 - Server accepts requests before database is ready
 - Cryptic errors for users
@@ -420,7 +178,6 @@ this.database = drizzle(sql, { schema });
     process.exit(1); // Fail fast
   }
 })();
-dbClient;
 ```
 
 #### 3. Missing Error Handling in Background Jobs
@@ -519,39 +276,12 @@ export const Chapters = core.table("chapters", {
 
 ### 🟡 Potential Optimizations
 
-#### 1. N+1 Query Risk with Relations
-
-**Issue:** Drizzle ORM relations might cause N+1 queries if not properly loaded.
-
-**Example:**
-
-```typescript
-// ⚠️ Potential N+1 if accessing relations in a loop
-const chapters = await dbClient.db.query.Chapters.findMany();
-
-for (const chapter of chapters) {
-  console.log(chapter.memberships); // Could trigger N+1
-}
-```
-
-**Recommendation:**
-
-```typescript
-// ✅ Eager load relations
-const chapters = await dbClient.db.query.Chapters.findMany({
-  with: {dbClient
-    memberships: true,
-    committees: true,
-  },
-});
-```
-
 **Action Items:**
 
 1. Use `with` clause for eager loading
 2. Monitor query patterns in production
 3. Add query logging in development
-4. Use database query adbClients tools
+4. Use database query tools
 
 #### 2. Missing Database Indexes
 
@@ -574,7 +304,7 @@ export const Members = core.table(
   (table) => [
     index().on(table.constituentId),
     index().on(table.startedAt, table.endedAt), // For date range queries
-  ],
+  ]
 );
 ```
 
@@ -666,163 +396,8 @@ export const ErrorCodes = {
   // ... more codes
 };
 
-throw new AppError(ErrorCodes.AUTH_INVALID_CREDENTIALS, 401);
+throw new ApiError(ErrorCodes.AUTH_INVALID_CREDENTIALS, 401);
 ```
-
-#### 3. Missing JSDoc Comments
-
-**Issue:** Most handler and service functions lack documentation.
-
-**Recommendation:**
-
-```typescript
-/**
- * Creates a new event and returns its ID
- * @param newEvent - Event data validated against CreateEventSchema
- * @returns Event ID
- * @throws {AppError} 500 if database insert fails
- */
-export async function createEvent(
-  newEvent: z.infer<typeof CreateEventSchema>,
-): Promise<ApiResponse<string>> {
-  // ...
-}
-```
-
-#### 4. Inconsistent DTO Naming
-
-**Issue:** DTOs use mixed naming conventions.
-
-**Examples:**
-
-- `YPFChapter` vs `DetailedChapter`
-- `YPFEvent` vs `YPFEventDetail`
-
-**Recommendation:**
-
-```typescript
-// Pick one convention and stick with it
-export type ChapterSummaryDTO = { ... }
-export type ChapterDetailDTO = { ... }
-
-// OR
-
-export type YPFChapterSummary = { ... }
-export type YPFChapterDetail = { ... }
-```
-
----
-
-## Testing Strategy
-
-### ✅ Current Implementation
-
-**Test Isolation:** UUID-based unique identifiers (see document 0001)
-
-**Strengths:**
-
-- Simple and effective
-- Fault-tolerant
-- Easy to use
-
-### 🟡 Improvements Needed
-
-#### 1. Test Coverage
-
-Current test coverage is limited. Recommend adding:
-
-**Unit Tests:**
-
-- Authorization logic edge cases
-- OTP generation and validation
-- Pagination utilities
-- Error handling paths
-
-**Integration Tests:**
-
-- Overlapping period creation (should fail)
-- Concurrent file uploads
-- Rate limiting enforcement
-- Payment webhooks with various scenarios
-
-**Load Tests:**
-
-- Database connection pool under load
-- File upload handling with concurrent requests
-- API rate limiting thresholds
-
-**Security Tests:**
-
-- SQL injection vectors
-- Authorization bypass attempts
-- OTP brute force protection
-- File upload validation
-
-#### 2. Missing Health Check Endpoint
-
-**Issue:** No health check endpoint for monitoring.
-
-**Recommendation:**
-
-```typescript
-// features/api/v1/health/index.ts
-app.get("/api/v1/health", async (req, res) => {
-  const checks = {
-    database: await checkDatabase(),
-    email: await checkEmailService(),
-    timestamp: new Date().toISOString(),
-  };
-
-  const healthy = Object.values(checks).every((c) => c.status === "ok");
-
-  res.status(healthy ? 200 : 503).json({
-    success: healthy,
-    data: checks,
-  });
-});
-```
-
----
-
-## Dependency Management
-
-### Current Dependencies
-
-**Framework & Core:**
-
-- Express 5.1.0 (beta/RC - acceptable for production)
-- TypeScript 5.x
-- Drizzle ORM 0.44.6
-- Zod 4.1.8 (verify this is intentional, not a typo)
-
-**Database:**
-
-- `postgres` 3.4.7 (used by Drizzle)
-- `pg` 8.16.3 (peer dependency)
-
-**Authentication:**
-
-- `jsonwebtoken` 9.1.2
-- `bcryptjs` 3.0.2
-
-**Validation:**
-
-- `zod` 4.1.8
-
-**Security:**
-
-- `helmet` 8.1.0
-- `cors` 2.8.5
-
-### ⚠️ Notes
-
-1. **Express 5.x** is still in beta but stable enough for production. Monitor release notes for breaking changes.
-
-2. **Zod 4.1.8** seems unusual (3.x is the standard version). Verify this is the intended version and not a typo.
-
-3. **Multiple PostgreSQL clients** (`pg` and `postgres`) is normal - `postgres` is used by Drizzle, `pg` is likely a peer dependency.
-
----
 
 ## Recommendations Summary
 

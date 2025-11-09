@@ -58,7 +58,7 @@ const dbUrl = process.env.DATABASE_URL;
 ### Directory Organization
 
 ```
-├── server.ts           # Main application entry point
+├── app.ts           # Main application entry point
 ├── configs/            # Configuration modules (db, env, emailer, etc.)
 ├── db/                 # Drizzle ORM schema definitions and migrations
 ├── features/           # Feature modules
@@ -128,15 +128,15 @@ Handlers return this structure, and middleware handles sending the response.
 
 ## Error Handling
 
-- Use the `AppError` class for throwing custom errors
+- Use the `ApiError` class for throwing custom errors
 - The `errorHandler` middleware catches and formats errors
 - Include meaningful error messages and appropriate HTTP status codes
 
 ```typescript
-import { AppError } from "@/shared/types";
+import { ApiError } from "@/shared/types";
 
 if (!resource) {
-  throw new AppError("Resource not found", 404);
+  throw new ApiError("Resource not found", 404);
 }
 ```
 

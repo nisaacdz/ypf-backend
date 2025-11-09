@@ -1,14 +1,14 @@
-import { eq, desc, inArray } from "drizzle-orm";
+import { eq, desc, inArray, and, gte } from "drizzle-orm";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import variables from "@/configs/env";
-import { AppError, AuthenticatedUser } from "@/shared/types";
+import { ApiError, AuthenticatedUser } from "@/shared/types";
 import logger from "@/configs/logger";
 import { send_otp_email } from "@/shared/utils/email";
 import { v4 as uuidv4 } from "uuid";
 import { randomInt } from "crypto";
 import { sql } from "drizzle-orm";
-import { OrderResponse, ValidateOrderItems } from "@/shared/dtos/shop";
+import { OrderResponse, ValidatedOrderItems } from "@/shared/dtos/shop";
 import { sendOrderPlacementEmail } from "@/shared/utils/email";
 
 type OrderItem = {
@@ -34,26 +34,21 @@ type GuestOrderInput = {
  * Validates stock availability and calculates total amount for order items
  */
 export async function validateOrderItems(
-  items: OrderItem[],
-): Promise<ValidateOrderItems> {
-  // 1. Handle the "empty cart" edge case
+  items: OrderItem[]
+): Promise<ValidatedOrderItems> {
   if (items.length === 0) {
     return { validatedItems: [], totalAmount: 0 };
   }
 
-  // 2. Get all unique product IDs from the input
   const productIds = items.map((item) => item.productId);
 
-  // 3. Fetch all products in a SINGLE database query
   const dbProducts = await dbClient.db
     .select()
     .from(schema.Products)
-    .where(inArray(schema.Products.id, productIds)); // The key change
+    .where(inArray(schema.Products.id, productIds));
 
-  // 4. Create a Map for efficient, O(1) lookups.
-  // This is much faster than using Array.find() inside a loop.
   const productMap = new Map(
-    dbProducts.map((product) => [product.id, product]),
+    dbProducts.map((product) => [product.id, product])
   );
 
   const validatedItems: {
@@ -64,30 +59,27 @@ export async function validateOrderItems(
   }[] = [];
   let totalAmount = 0;
 
-  // 5. Loop through the *original* order items in memory
   for (const item of items) {
     const product = productMap.get(item.productId);
 
-    // 6. Perform validations against the in-memory product data
     if (!product) {
-      throw new AppError(`Product with ID ${item.productId} not found`, 404);
+      throw new ApiError(`Product with ID ${item.productId} not found`, 404);
     }
 
     if (!product.isActive) {
-      throw new AppError(
+      throw new ApiError(
         `Product "${product.name}" is no longer available`,
-        400,
+        400
       );
     }
 
     if (product.stockQuantity < item.quantity) {
-      throw new AppError(
+      throw new ApiError(
         `Insufficient stock for "${product.name}". Only ${product.stockQuantity} available.`,
-        400,
+        400
       );
     }
 
-    // 7. Calculate total and build the validated items array
     const itemPrice = parseFloat(product.price);
     totalAmount += itemPrice * item.quantity;
 
@@ -106,11 +98,10 @@ export async function validateOrderItems(
  */
 export async function createAuthenticatedOrder(
   input: CreateOrderInput,
-  user: AuthenticatedUser,
+  user: AuthenticatedUser
 ): Promise<OrderResponse> {
   const { items, currency } = input;
 
-  // Validate order items and calculate total
   const { validatedItems, totalAmount } = await validateOrderItems(items);
 
   const paymentReference = uuidv4();
@@ -118,9 +109,7 @@ export async function createAuthenticatedOrder(
   let transactionId: string;
 
   try {
-    // Create order, transaction, and order items in a database transaction
     const result = await dbClient.db.transaction(async (tx) => {
-      // Create the financial transaction
       const [newTransaction] = await tx
         .insert(schema.FinancialTransactions)
         .values({
@@ -130,9 +119,8 @@ export async function createAuthenticatedOrder(
           externalProvider: "PAYSTACK",
           externalRef: paymentReference,
         })
-        .returning();
+        .returning({ id: schema.FinancialTransactions.id });
 
-      // Create the order
       const [newOrder] = await tx
         .insert(schema.Orders)
         .values({
@@ -143,30 +131,32 @@ export async function createAuthenticatedOrder(
         })
         .returning();
 
-      // Link order to transaction
       await tx.insert(schema.OrderPayments).values({
         orderId: newOrder.id,
         transactionId: newTransaction.id,
       });
 
-      // Create order items
-      for (const item of validatedItems) {
-        await tx.insert(schema.OrderItems).values({
+      await tx.insert(schema.OrderItems).values(
+        validatedItems.map((item) => ({
           orderId: newOrder.id,
           productId: item.productId,
           quantity: item.quantity,
           priceAtPurchase: item.price,
-        });
-      }
+        }))
+      );
 
-      // Decrease stock quantities
       for (const item of validatedItems) {
         await tx
           .update(schema.Products)
           .set({
             stockQuantity: sql`${schema.Products.stockQuantity} - ${item.quantity}`,
           })
-          .where(eq(schema.Products.id, item.productId));
+          .where(
+            and(
+              eq(schema.Products.id, item.productId),
+              gte(schema.Products.stockQuantity, item.quantity)
+            )
+          );
       }
 
       return {
@@ -179,7 +169,7 @@ export async function createAuthenticatedOrder(
     transactionId = result.transactionId;
   } catch (dbError) {
     logger.error(dbError, "Failed to create order:");
-    throw new AppError("Failed to create order.", 500);
+    throw new ApiError("Failed to create order.", 500);
   }
 
   // Generate Paystack payment URL
@@ -200,15 +190,15 @@ export async function createAuthenticatedOrder(
           callback_url: `${variables.app.host}/shop/callback`,
           email: user.email,
         }),
-      },
+      }
     );
 
     if (!paystackResponse.ok) {
       const errorData = await paystackResponse.json();
       logger.error("Paystack initialization failed:", errorData);
-      throw new AppError(
+      throw new ApiError(
         `Failed to initialize payment: ${errorData.message || "Unknown error"}`,
-        500,
+        500
       );
     }
 
@@ -216,7 +206,7 @@ export async function createAuthenticatedOrder(
     paymentUrl = paystackData.data.authorization_url;
   } catch (apiError) {
     logger.warn(
-      `Compensating transaction for order [${orderId}] due to API failure.`,
+      `Compensating transaction for order [${orderId}] due to API failure.`
     );
     try {
       await dbClient.db
@@ -226,7 +216,7 @@ export async function createAuthenticatedOrder(
     } catch (compensationError) {
       logger.error(
         compensationError,
-        `CRITICAL: Failed to compensate (mark as FAILED) transaction [${transactionId}].`,
+        `CRITICAL: Failed to compensate (mark as FAILED) transaction [${transactionId}].`
       );
     }
     throw apiError;
@@ -264,7 +254,7 @@ export async function createAuthenticatedOrder(
  * Initiates a guest order by generating and sending an OTP
  */
 export async function initiateGuestOrder(
-  input: GuestOrderInput,
+  input: GuestOrderInput
 ): Promise<{ success: boolean; message: string }> {
   const { email, items } = input;
 
@@ -293,7 +283,7 @@ export async function initiateGuestOrder(
     await send_otp_email(email, otp);
   } catch (emailError) {
     logger.error(emailError, "Failed to send OTP email");
-    throw new AppError("Failed to send verification code", 500);
+    throw new ApiError("Failed to send verification code", 500);
   }
 
   return {
@@ -307,7 +297,7 @@ export async function initiateGuestOrder(
  */
 export async function completeGuestOrder(
   email: string,
-  otp: string,
+  otp: string
 ): Promise<OrderResponse> {
   // Verify OTP and retrieve payload
   const [otpRecord] = await dbClient.db
@@ -316,32 +306,32 @@ export async function completeGuestOrder(
     .where(eq(schema.Otps.email, email));
 
   if (!otpRecord) {
-    throw new AppError("Invalid or expired verification code", 400);
+    throw new ApiError("Invalid or expired verification code", 400);
   }
 
   if (otpRecord.code !== otp) {
-    throw new AppError("Invalid verification code", 400);
+    throw new ApiError("Invalid verification code", 400);
   }
 
   if (otpRecord.usedAt) {
-    throw new AppError("Verification code has already been used", 400);
+    throw new ApiError("Verification code has already been used", 400);
   }
 
   const now = new Date();
   const expiresAt = new Date(otpRecord.expiresAt);
   if (now > expiresAt) {
-    throw new AppError("Verification code has expired", 400);
+    throw new ApiError("Verification code has expired", 400);
   }
 
   // Retrieve the order payload
   const payload = otpRecord.payload as GuestOrderInput;
   if (!payload || !payload.items) {
-    throw new AppError("Invalid order data", 400);
+    throw new ApiError("Invalid order data", 400);
   }
 
   // Validate order items again (stock might have changed)
   const { validatedItems, totalAmount } = await validateOrderItems(
-    payload.items,
+    payload.items
   );
 
   const paymentReference = uuidv4();
@@ -443,7 +433,7 @@ export async function completeGuestOrder(
     transactionId = result.transactionId;
   } catch (dbError) {
     logger.error(dbError, "Failed to create guest order:");
-    throw new AppError("Failed to create order.", 500);
+    throw new ApiError("Failed to create order.", 500);
   }
 
   // Generate Paystack payment URL
@@ -464,15 +454,15 @@ export async function completeGuestOrder(
           callback_url: `${variables.app.host}/shop/callback`,
           email: payload.email,
         }),
-      },
+      }
     );
 
     if (!paystackResponse.ok) {
       const errorData = await paystackResponse.json();
       logger.error("Paystack initialization failed:", errorData);
-      throw new AppError(
+      throw new ApiError(
         `Failed to initialize payment: ${errorData.message || "Unknown error"}`,
-        500,
+        500
       );
     }
 
@@ -480,7 +470,7 @@ export async function completeGuestOrder(
     paymentUrl = paystackData.data.authorization_url;
   } catch (apiError) {
     logger.warn(
-      `Compensating transaction for order [${orderId}] due to API failure.`,
+      `Compensating transaction for order [${orderId}] due to API failure.`
     );
     try {
       await dbClient.db
@@ -490,7 +480,7 @@ export async function completeGuestOrder(
     } catch (compensationError) {
       logger.error(
         compensationError,
-        `CRITICAL: Failed to compensate (mark as FAILED) transaction [${transactionId}].`,
+        `CRITICAL: Failed to compensate (mark as FAILED) transaction [${transactionId}].`
       );
     }
     throw apiError;

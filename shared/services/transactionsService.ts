@@ -1,7 +1,7 @@
 import { and, eq, not, desc } from "drizzle-orm";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
-import { AppError } from "@/shared/types";
+import { ApiError } from "@/shared/types";
 import logger from "@/configs/logger";
 import { transactionStatusMap, paymentMethodMap } from "../utils";
 import {
@@ -25,7 +25,7 @@ export type PaystackWebhookPayload = {
 };
 
 export async function handlePaystackWebhook(
-  payload: PaystackWebhookPayload,
+  payload: PaystackWebhookPayload
 ): Promise<{
   transactionId?: string;
   wasUpdated: boolean;
@@ -56,10 +56,10 @@ export async function handlePaystackWebhook(
         not(
           eq(
             schema.FinancialTransactions.status,
-            newStatus as TransactionStatus,
-          ),
-        ),
-      ),
+            newStatus as TransactionStatus
+          )
+        )
+      )
     )
     .returning();
 
@@ -68,7 +68,7 @@ export async function handlePaystackWebhook(
 
   if (result.length > 0) {
     logger.info(
-      `Successfully updated transaction ${result[0].id} to ${newStatus}.`,
+      `Successfully updated transaction ${result[0].id} to ${newStatus}.`
     );
     wasUpdated = true;
     transactionId = result[0].id;
@@ -81,7 +81,7 @@ export async function handlePaystackWebhook(
     // This can happen if the webhook is sent twice, or if the transaction wasn't found.
     // It's not an error, just a state to be aware of.
     logger.warn(
-      `No pending transaction found for Paystack reference: ${reference}. It might have been already processed.`,
+      `No pending transaction found for Paystack reference: ${reference}. It might have been already processed.`
     );
     wasUpdated = false;
   }
@@ -107,7 +107,7 @@ export async function verifyTransaction(reference: string): Promise<{
     .limit(1);
 
   if (!transaction) {
-    throw new AppError("Transaction not found", 404);
+    throw new ApiError("Transaction not found", 404);
   }
 
   // Route to the appropriate provider-specific verification function
@@ -120,9 +120,9 @@ export async function verifyTransaction(reference: string): Promise<{
     // case "FLUTTERWAVE":
     //   return await verifyFlutterwaveTransaction(reference);
     default:
-      throw new AppError(
+      throw new ApiError(
         `Unsupported payment provider: ${transaction.externalProvider}`,
-        400,
+        400
       );
   }
 }
@@ -146,19 +146,19 @@ export async function verifyPaystackTransaction(reference: string): Promise<{
       .where(
         and(
           eq(schema.FinancialTransactions.externalProvider, "PAYSTACK"),
-          eq(schema.FinancialTransactions.externalRef, reference),
-        ),
+          eq(schema.FinancialTransactions.externalRef, reference)
+        )
       )
       .limit(1);
 
     if (!transaction) {
-      throw new AppError("Transaction not found", 404);
+      throw new ApiError("Transaction not found", 404);
     }
 
     // Race condition check: If already successful, don't process again
     if (transaction.status === "COMPLETED") {
       logger.info(
-        `Transaction ${transaction.id} already completed. Skipping verification.`,
+        `Transaction ${transaction.id} already completed. Skipping verification.`
       );
       return {
         transactionId: transaction.id,
@@ -170,9 +170,9 @@ export async function verifyPaystackTransaction(reference: string): Promise<{
     // Get payment provider and verify transaction
     const provider = getPaymentProvider(transaction.externalProvider);
     if (!provider) {
-      throw new AppError(
+      throw new ApiError(
         `Unsupported payment provider: ${transaction.externalProvider}`,
-        500,
+        500
       );
     }
 
@@ -197,8 +197,8 @@ export async function verifyPaystackTransaction(reference: string): Promise<{
       .where(
         and(
           eq(schema.FinancialTransactions.id, transaction.id),
-          eq(schema.FinancialTransactions.status, "PENDING"),
-        ),
+          eq(schema.FinancialTransactions.status, "PENDING")
+        )
       )
       .returning({ id: schema.FinancialTransactions.id });
 
@@ -207,7 +207,7 @@ export async function verifyPaystackTransaction(reference: string): Promise<{
 
     if (!wasUpdated) {
       logger.warn(
-        `Transaction ${transaction.id} was not updated - may have been processed already`,
+        `Transaction ${transaction.id} was not updated - may have been processed already`
       );
       // Return current status from database
       return {
@@ -218,7 +218,7 @@ export async function verifyPaystackTransaction(reference: string): Promise<{
     }
 
     logger.info(
-      `Verified transaction ${transaction.id} with status: ${newStatus}`,
+      `Verified transaction ${transaction.id} with status: ${newStatus}`
     );
 
     // If transaction is for an order and was completed, update order status
@@ -242,7 +242,7 @@ export async function verifyPaystackTransaction(reference: string): Promise<{
  * Called after a transaction status is updated to COMPLETED.
  */
 async function updateOrderStatusOnPayment(
-  transactionId: string,
+  transactionId: string
 ): Promise<void> {
   try {
     // Find the order payment record
@@ -260,8 +260,8 @@ async function updateOrderStatusOnPayment(
         .where(
           and(
             eq(schema.Orders.id, orderPayment.orderId),
-            eq(schema.Orders.status, "PENDING"),
-          ),
+            eq(schema.Orders.status, "PENDING")
+          )
         );
 
       logger.info(`Updated order ${orderPayment.orderId} to COMPLETED`);
@@ -278,7 +278,7 @@ async function updateOrderStatusOnPayment(
  * and prioritizes primary emails.
  */
 async function getConstituentEmail(
-  constituentId: string,
+  constituentId: string
 ): Promise<string | null> {
   const contactInfos = await dbClient.db
     .select()
@@ -286,8 +286,8 @@ async function getConstituentEmail(
     .where(
       and(
         eq(schema.ContactInformations.constituentId, constituentId),
-        eq(schema.ContactInformations.contactType, "EMAIL"),
-      ),
+        eq(schema.ContactInformations.contactType, "EMAIL")
+      )
     )
     .orderBy(desc(schema.ContactInformations.isPrimary));
 
@@ -303,7 +303,7 @@ async function getConstituentEmail(
  * and sends the appropriate email template.
  */
 export async function sendTransactionSuccessEmail(
-  transactionId: string,
+  transactionId: string
 ): Promise<void> {
   try {
     // Fetch transaction with related entities
@@ -311,7 +311,7 @@ export async function sendTransactionSuccessEmail(
       {
         where: and(
           eq(schema.FinancialTransactions.id, transactionId),
-          eq(schema.FinancialTransactions.status, "COMPLETED"),
+          eq(schema.FinancialTransactions.status, "COMPLETED")
         ),
         with: {
           donation: {
@@ -339,12 +339,12 @@ export async function sendTransactionSuccessEmail(
             },
           },
         },
-      },
+      }
     );
 
     if (!transaction) {
       logger.warn(
-        `Transaction ${transactionId} not found for email notification`,
+        `Transaction ${transactionId} not found for email notification`
       );
       return;
     }
@@ -379,11 +379,11 @@ export async function sendTransactionSuccessEmail(
           },
         });
         logger.info(
-          `Sent donation acknowledgement email for transaction ${transactionId}`,
+          `Sent donation acknowledgement email for transaction ${transactionId}`
         );
       } else {
         logger.info(
-          `Skipping email for anonymous or incomplete donation ${donation.id}`,
+          `Skipping email for anonymous or incomplete donation ${donation.id}`
         );
       }
     } else if (transaction.duesPayment) {
@@ -411,11 +411,11 @@ export async function sendTransactionSuccessEmail(
             },
           });
           logger.info(
-            `Sent dues payment acknowledgement email for transaction ${transactionId}`,
+            `Sent dues payment acknowledgement email for transaction ${transactionId}`
           );
         } else {
           logger.warn(
-            `No email found for constituent ${member.constituent.id} for dues payment ${duesPayment.id}`,
+            `No email found for constituent ${member.constituent.id} for dues payment ${duesPayment.id}`
           );
         }
       }
@@ -438,11 +438,11 @@ export async function sendTransactionSuccessEmail(
             },
           });
           logger.info(
-            `Sent order confirmation email for transaction ${transactionId}`,
+            `Sent order confirmation email for transaction ${transactionId}`
           );
         } else {
           logger.warn(
-            `No email found for constituent ${order.constituent.id} for order ${order.id}`,
+            `No email found for constituent ${order.constituent.id} for order ${order.id}`
           );
         }
       }
@@ -450,7 +450,7 @@ export async function sendTransactionSuccessEmail(
   } catch (error) {
     logger.error(
       { error },
-      `Error sending transaction success email for ${transactionId}`,
+      `Error sending transaction success email for ${transactionId}`
     );
     // Don't throw - email failure shouldn't break the payment flow
   }
@@ -462,7 +462,7 @@ export async function sendTransactionSuccessEmail(
  * sends status updates (success, failure, refund).
  */
 export async function sendTransactionStatusChangeEmail(
-  transactionId: string,
+  transactionId: string
 ): Promise<void> {
   try {
     // Fetch transaction with related entities
@@ -495,12 +495,12 @@ export async function sendTransactionStatusChangeEmail(
             },
           },
         },
-      },
+      }
     );
 
     if (!transaction) {
       logger.warn(
-        `Transaction ${transactionId} not found for status change email`,
+        `Transaction ${transactionId} not found for status change email`
       );
       return;
     }
@@ -544,7 +544,7 @@ export async function sendTransactionStatusChangeEmail(
 
     if (!email || !name) {
       logger.info(
-        `No email/name found for transaction ${transactionId} status change notification`,
+        `No email/name found for transaction ${transactionId} status change notification`
       );
       return;
     }
@@ -567,18 +567,18 @@ export async function sendTransactionStatusChangeEmail(
     } else if (transaction.status === "FAILED") {
       await sendTransactionFailureEmail(emailParams);
       logger.info(
-        `Sent transaction failure email for transaction ${transactionId}`,
+        `Sent transaction failure email for transaction ${transactionId}`
       );
     } else if (transaction.status === "REFUNDED") {
       await sendTransactionRefundEmail(emailParams);
       logger.info(
-        `Sent transaction refund email for transaction ${transactionId}`,
+        `Sent transaction refund email for transaction ${transactionId}`
       );
     }
   } catch (error) {
     logger.error(
       { error },
-      `Error sending transaction status change email for ${transactionId}`,
+      `Error sending transaction status change email for ${transactionId}`
     );
     // Don't throw - email failure shouldn't break the webhook flow
   }
