@@ -314,7 +314,7 @@ export async function validateOrderItems(items: OrderItem[]) {
 
   // 2. Create Map for O(1) lookups
   const productMap = new Map(
-    dbProducts.map((product) => [product.id, product])
+    dbProducts.map((product) => [product.id, product]),
   );
 
   let totalAmount = 0;
@@ -333,7 +333,7 @@ export async function validateOrderItems(items: OrderItem[]) {
     if (!product.isActive) {
       throw new ApiError(
         `Product "${product.name}" is no longer available`,
-        400
+        400,
       );
     }
 
@@ -341,7 +341,7 @@ export async function validateOrderItems(items: OrderItem[]) {
     if (product.stockQuantity < item.quantity) {
       throw new ApiError(
         `Insufficient stock for "${product.name}". Only ${product.stockQuantity} available.`,
-        400
+        400,
       );
     }
 
@@ -498,7 +498,7 @@ export async function verifyTransaction(reference: string) {
   const transaction = await dbClient.db.query.FinancialTransactions.findFirst({
     where: and(
       eq(schema.FinancialTransactions.externalProvider, "PAYSTACK"),
-      eq(schema.FinancialTransactions.externalRef, reference)
+      eq(schema.FinancialTransactions.externalRef, reference),
     ),
   });
 
@@ -556,7 +556,7 @@ export class PaystackProvider implements IPaymentProvider {
         headers: {
           Authorization: `Bearer ${variables.services.paystack.secretKey}`,
         },
-      }
+      },
     );
 
     const data = await response.json();
@@ -623,8 +623,8 @@ export async function handlePaystackWebhook(payload: PaystackWebhookPayload) {
       and(
         eq(schema.FinancialTransactions.externalProvider, "PAYSTACK"),
         eq(schema.FinancialTransactions.externalRef, reference),
-        not(eq(schema.FinancialTransactions.status, newStatus))
-      )
+        not(eq(schema.FinancialTransactions.status, newStatus)),
+      ),
     )
     .returning();
 
@@ -654,7 +654,7 @@ export async function handlePaystackWebhook(payload: PaystackWebhookPayload) {
 export function verifyPaystackSignature(
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) {
   const hash = crypto
     .createHmac("sha512", variables.services.paystack.secretKey)
@@ -754,7 +754,7 @@ export function verifyPaystackSignature(
 ```typescript
 async function sendTransactionStatusChangeEmail(
   transactionId: string,
-  newStatus: TransactionStatus
+  newStatus: TransactionStatus,
 ) {
   // Determine transaction type and recipient
   const transactionDetails = await getTransactionDetails(transactionId);
@@ -876,7 +876,7 @@ export const OrderPayments = shop.table("order_payments", {
    ```typescript
    throw new ApiError(
      `Insufficient stock for "${product.name}". Only ${product.stockQuantity} available.`,
-     400
+     400,
    );
    ```
 
@@ -892,7 +892,7 @@ export const OrderPayments = shop.table("order_payments", {
    if (!paystackResponse.status) {
      throw new ApiError(
        `Paystack initialization failed: ${paystackResponse.message}`,
-       500
+       500,
      );
    }
    ```
