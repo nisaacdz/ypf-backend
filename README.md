@@ -26,7 +26,7 @@ And you’re all set!
 
 This is the important part. To keep our codebase consistent and easy to navigate, we follow these rules:
 
-- Always use the `@/` alias for imports from the project root (e.g., `import pgPool from "@/configs/db";`).
+- Always use the `@/` alias for imports from the project root (e.g., `import dbClient from "@/configs/db";`).
   No more `../../..` madness.
 
 - Never use `process.env` directly.

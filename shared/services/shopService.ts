@@ -1,5 +1,5 @@
 import { eq, desc, inArray } from "drizzle-orm";
-import pgPool from "@/configs/db";
+import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import variables from "@/configs/env";
 import { AppError, AuthenticatedUser } from "@/shared/types";
@@ -45,7 +45,7 @@ export async function validateOrderItems(
   const productIds = items.map((item) => item.productId);
 
   // 3. Fetch all products in a SINGLE database query
-  const dbProducts = await pgPool.db
+  const dbProducts = await dbClient.db
     .select()
     .from(schema.Products)
     .where(inArray(schema.Products.id, productIds)); // The key change
@@ -119,7 +119,7 @@ export async function createAuthenticatedOrder(
 
   try {
     // Create order, transaction, and order items in a database transaction
-    const result = await pgPool.db.transaction(async (tx) => {
+    const result = await dbClient.db.transaction(async (tx) => {
       // Create the financial transaction
       const [newTransaction] = await tx
         .insert(schema.FinancialTransactions)
@@ -219,7 +219,7 @@ export async function createAuthenticatedOrder(
       `Compensating transaction for order [${orderId}] due to API failure.`,
     );
     try {
-      await pgPool.db
+      await dbClient.db
         .update(schema.FinancialTransactions)
         .set({ status: "FAILED" })
         .where(eq(schema.FinancialTransactions.id, transactionId));
@@ -275,7 +275,7 @@ export async function initiateGuestOrder(
   const otp = randomInt(100000, 1000000).toString();
 
   // Store OTP with the entire payload
-  await pgPool.db.transaction(async (tx) => {
+  await dbClient.db.transaction(async (tx) => {
     // Delete any existing OTPs for this email
     await tx.delete(schema.Otps).where(eq(schema.Otps.email, email));
 
@@ -310,7 +310,7 @@ export async function completeGuestOrder(
   otp: string,
 ): Promise<OrderResponse> {
   // Verify OTP and retrieve payload
-  const [otpRecord] = await pgPool.db
+  const [otpRecord] = await dbClient.db
     .select()
     .from(schema.Otps)
     .where(eq(schema.Otps.email, email));
@@ -350,7 +350,7 @@ export async function completeGuestOrder(
 
   try {
     // Create constituent, order, and transaction in a database transaction
-    const result = await pgPool.db.transaction(async (tx) => {
+    const result = await dbClient.db.transaction(async (tx) => {
       // Mark OTP as used
       await tx
         .update(schema.Otps)
@@ -483,7 +483,7 @@ export async function completeGuestOrder(
       `Compensating transaction for order [${orderId}] due to API failure.`,
     );
     try {
-      await pgPool.db
+      await dbClient.db
         .update(schema.FinancialTransactions)
         .set({ status: "FAILED" })
         .where(eq(schema.FinancialTransactions.id, transactionId));
@@ -538,7 +538,7 @@ export async function getUserOrders(user: AuthenticatedUser): Promise<
   }>
 > {
   // Get orders with item counts in a single query using a subquery
-  const orders = await pgPool.db
+  const orders = await dbClient.db
     .select({
       id: schema.Orders.id,
       totalAmount: schema.Orders.totalAmount,
