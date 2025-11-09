@@ -5,8 +5,7 @@
 ### Immediate Actions (High Priority)
 
 1. ✅ **Fix npm vulnerabilities** - `npm audit fix` and update nodemailer, validator
-2. ✅ **Configure connection pooling** for PostgreSQL
-3. ✅ **Implement stricter rate limiting** on auth endpoints
+2. ✅ **Implement stricter rate limiting** on auth endpoints
 
 ### Short-term Improvements (Medium Priority)
 
