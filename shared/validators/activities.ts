@@ -15,9 +15,7 @@ export const GetProjectsQuerySchema = z.object({
 
 export const GetEventsQuerySchema = z.object({
   ...PaginationQuery.shape,
-  projectId: z
-    .uuid({ message: "Invalid project ID format." })
-    .optional(),
+  projectId: z.uuid({ message: "Invalid project ID format." }).optional(),
   filterStatus: z
     .enum(EventStatusEnum.enumValues, {
       message: "Invalid event status.",
