@@ -4,7 +4,7 @@ import {
   GetEventMediaQuerySchema,
   GetEventsQuerySchema,
   UpdateEventSchema,
-  UpdateEventMediaSchema,
+  UpdateEventMediumSchema,
 } from "@/shared/validators/activities";
 import { Events } from "@/db/schema/activities";
 import z from "zod";
@@ -133,15 +133,15 @@ export async function updateEvent(
   };
 }
 
-export async function updateEventMedia(
-  eventMediaId: number,
-  data: z.infer<typeof UpdateEventMediaSchema>,
+export async function updateEventMedium(
+  eventMediumId: number,
+  data: z.infer<typeof UpdateEventMediumSchema>,
 ): Promise<ApiResponse<null>> {
-  await eventsService.updateEventMedia(eventMediaId, data);
+  await eventsService.updateEventMedium(eventMediumId, data);
 
   return {
     success: true,
-    message: "Event media updated successfully",
+    message: "Event medium updated successfully",
     data: null,
   };
 }

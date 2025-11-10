@@ -12,7 +12,7 @@ import {
   UploadProjectMediumOptionsSchema,
   CreateProjectSchema,
   UpdateProjectSchema,
-  UpdateProjectMediaSchema,
+  UpdateProjectMediumSchema,
 } from "@/shared/validators/activities";
 import {
   validateQuery,
@@ -460,7 +460,7 @@ projectsRouter.post(
  * @swagger
  * /api/v1/projects/{id}/media:
  *   patch:
- *     summary: Update project media details
+ *     summary: Update project medium details
  *     tags: [Projects]
  *     security:
  *       - cookieAuth: []
@@ -470,7 +470,7 @@ projectsRouter.post(
  *         required: true
  *         schema:
  *           type: integer
- *         description: Project Media ID
+ *         description: Project Medium ID
  *     requestBody:
  *       required: true
  *       content:
@@ -485,7 +485,7 @@ projectsRouter.post(
  *                 type: boolean
  *     responses:
  *       200:
- *         description: Project media updated successfully
+ *         description: Project medium updated successfully
  *       400:
  *         description: Invalid request
  *         content:
@@ -497,7 +497,7 @@ projectsRouter.post(
  *       403:
  *         description: Forbidden - insufficient permissions
  *       404:
- *         description: Project media not found
+ *         description: Project medium not found
  *         content:
  *           application/json:
  *             schema:
@@ -510,10 +510,10 @@ projectsRouter.patch(
   authorize(
     anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
   ),
-  validateBody(UpdateProjectMediaSchema),
+  validateBody(UpdateProjectMediumSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const response = await projectsHandler.updateProjectMedia(
+      const response = await projectsHandler.updateProjectMedium(
         req.Params.id,
         req.Body,
       );

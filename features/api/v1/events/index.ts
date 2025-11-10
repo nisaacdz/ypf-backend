@@ -13,7 +13,7 @@ import {
   UploadEventFileSchema,
   UploadEventMediumOptionsSchema,
   UpdateEventSchema,
-  UpdateEventMediaSchema,
+  UpdateEventMediumSchema,
 } from "@/shared/validators/activities";
 import {
   authenticate,
@@ -478,7 +478,7 @@ eventsRouter.put(
  * @swagger
  * /api/v1/events/media/{mediaId}:
  *   patch:
- *     summary: Update event media details (caption and featured status)
+ *     summary: Update event medium details
  *     tags: [Events]
  *     security:
  *       - cookieAuth: []
@@ -488,7 +488,7 @@ eventsRouter.put(
  *         required: true
  *         schema:
  *           type: integer
- *         description: The ID of the event media record to update (from EventMedia table)
+ *         description: The ID of the event medium record to update
  *     requestBody:
  *       required: true
  *       content:
@@ -503,7 +503,7 @@ eventsRouter.put(
  *                 type: boolean
  *     responses:
  *       200:
- *         description: Event media updated successfully
+ *         description: Event medium updated successfully
  *       400:
  *         description: Validation error
  *         content:
@@ -515,7 +515,7 @@ eventsRouter.put(
  *       403:
  *         description: Forbidden - insufficient permissions
  *       404:
- *         description: Event media not found
+ *         description: Event medium not found
  */
 eventsRouter.patch(
   "/media/:id",
@@ -524,10 +524,10 @@ eventsRouter.patch(
   authorize(
     anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
   ),
-  validateBody(UpdateEventMediaSchema),
+  validateBody(UpdateEventMediumSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const response = await eventsHandler.updateEventMedia(
+      const response = await eventsHandler.updateEventMedium(
         req.Params.id,
         req.Body,
       );

@@ -5,7 +5,7 @@ import {
   GetProjectMediaQuerySchema,
   CreateProjectSchema,
   UpdateProjectSchema,
-  UpdateProjectMediaSchema,
+  UpdateProjectMediumSchema,
 } from "@/shared/validators/activities";
 import z from "zod";
 import { YPFProject, YPFProjectMedium } from "@/shared/dtos";
@@ -121,15 +121,15 @@ export async function updateProject(
   };
 }
 
-export async function updateProjectMedia(
-  projectMediaId: number,
-  updates: z.infer<typeof UpdateProjectMediaSchema>,
+export async function updateProjectMedium(
+  projectMediumId: number,
+  updates: z.infer<typeof UpdateProjectMediumSchema>,
 ): Promise<ApiResponse<null>> {
-  await projectsService.updateProjectMedia(projectMediaId, updates);
+  await projectsService.updateProjectMedium(projectMediumId, updates);
 
   return {
     success: true,
-    message: "Project media updated successfully",
+    message: "Project medium updated successfully",
     data: null,
   };
 }
