@@ -5,9 +5,10 @@ import {
   text,
   timestamp,
   serial,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { Chapters, Committees, Constituents, Media } from "./core";
+import { Chapters, Constituents, Media } from "./core";
 
 export const activities = pgSchema("activities");
 
@@ -108,15 +109,11 @@ export const AnnouncementBroadCasts = activities.table(
   "announcement_broadcasts",
   {
     id: serial().primaryKey(),
+    label: text(),
     announcementId: uuid("announcement_id").references(() => Announcements.id, {
       onDelete: "cascade",
     }),
-    chapterId: uuid("chapter_id").references(() => Chapters.id, {
-      onDelete: "cascade",
-    }),
-    committeeId: uuid("committee_id").references(() => Committees.id, {
-      onDelete: "cascade",
-    }),
+    subject: jsonb().notNull(), // Establish  a format for broadcasting to various subjects
   },
 );
 

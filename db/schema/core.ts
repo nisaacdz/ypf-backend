@@ -63,7 +63,7 @@ export const Constituents = core.table("constituents", {
     .notNull(),
 });
 
-// Delibrate
+// Ensure there is at least 1 email contact for every constituent
 export const ContactInformations = core.table(
   "contact_informations",
   {
@@ -74,6 +74,7 @@ export const ContactInformations = core.table(
     contactType: ContactTypeEnum("contact_type").notNull(),
     value: text().notNull(),
     isPrimary: boolean("is_primary").default(false).notNull(),
+    unsubscribed: boolean().default(false).notNull(), // for newsletters and co
   },
   (table) => [unique().on(table.constituentId, table.contactType, table.value)],
 );
@@ -169,13 +170,12 @@ export const AdminRoles = core.enum("admin_roles", [
   "REGULAR_ADMIN",
 ]);
 
-// TODO review Roles and Assignments
 export const AdminRolesAssignments = core.table("admin_roles_assignments", {
   id: serial().primaryKey(),
   adminId: uuid("admin_id")
     .notNull()
     .references(() => Admins.id, { onDelete: "cascade" }),
-  role: AdminRoles("role").notNull(),
+  role: AdminRoles().notNull(),
   startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
   endedAt: timestamp("ended_at", { withTimezone: true }),
 });
@@ -186,7 +186,7 @@ export const Chapters = core.table("chapters", {
   country: text().notNull(),
   description: text(),
   foundingDate: date("founding_date", { mode: "date" }).notNull(),
-  archivedAt: date("archived_at"),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
   parentId: uuid("parent_id").references((): AnyPgColumn => Chapters.id, {
     onDelete: "set null",
   }),
