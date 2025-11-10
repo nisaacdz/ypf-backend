@@ -19,14 +19,14 @@ export const GetEventsQuerySchema = z.object({
 export const GetEventMediaQuerySchema = z.object({
   ...PaginationQuery.shape,
   mediaType: z
-    .enum(MediumTypeEnum.enumValues, { message: "Invalid media type." })
+    .enum(MediumTypeEnum.enumValues, { message: "Invalid medium type." })
     .optional(),
 });
 
 export const GetProjectMediaQuerySchema = z.object({
   ...PaginationQuery.shape,
   mediaType: z
-    .enum(MediumTypeEnum.enumValues, { message: "Invalid media type." })
+    .enum(MediumTypeEnum.enumValues, { message: "Invalid medium type." })
     .optional(),
 });
 
@@ -169,7 +169,7 @@ export const UpdateProjectSchema = z.object({
     .optional(),
 });
 
-export const UpdateProjectMediaSchema = z.object({
+export const UpdateProjectMediumSchema = z.object({
   caption: z
     .string()
     .max(255, { message: "Caption must not exceed 255 characters." })
@@ -200,7 +200,7 @@ export const UpdateEventSchema = z.object({
     .optional(),
 });
 
-export const UpdateEventMediaSchema = z.object({
+export const UpdateEventMediumSchema = z.object({
   caption: z
     .string()
     .max(255, { message: "Caption must not exceed 255 characters." })
