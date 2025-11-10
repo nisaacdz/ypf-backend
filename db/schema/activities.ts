@@ -13,7 +13,7 @@ export const activities = pgSchema("activities");
 
 export const ProjectStatusEnum = activities.enum("project_status", [
   "UPCOMING",
-  "IN_PROGRESS",
+  "ONGOING",
   "COMPLETED",
   "CANCELLED",
 ]);
@@ -108,16 +108,15 @@ export const AnnouncementBroadCasts = activities.table(
   "announcement_broadcasts",
   {
     id: serial().primaryKey(),
-    announcementId: uuid("announcement_id")
-      .notNull()
-      .references(() => Announcements.id, { onDelete: "cascade" }),
+    announcementId: uuid("announcement_id").references(() => Announcements.id, {
+      onDelete: "cascade",
+    }),
     chapterId: uuid("chapter_id").references(() => Chapters.id, {
       onDelete: "cascade",
     }),
     committeeId: uuid("committee_id").references(() => Committees.id, {
       onDelete: "cascade",
     }),
-    isArchived: boolean("is_archived").notNull().default(false),
   },
 );
 
