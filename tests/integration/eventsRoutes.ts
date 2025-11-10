@@ -85,7 +85,7 @@ describe("Events API", () => {
         title: "Test Project for Events",
         scheduledStart: new Date("2024-01-01"),
         scheduledEnd: new Date("2024-12-31"),
-        status: "IN_PROGRESS",
+        status: "ONGOING",
         chapterId: testData.chapterId,
       })
       .returning();

@@ -90,7 +90,7 @@ describe("Projects API", () => {
         abstract: testProject.abstract,
         scheduledStart: testProject.scheduledStart,
         scheduledEnd: testProject.scheduledEnd,
-        status: "IN_PROGRESS",
+        status: "ONGOING",
         chapterId: testData.chapterId,
       })
       .returning();
