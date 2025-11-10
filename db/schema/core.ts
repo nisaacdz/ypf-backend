@@ -52,9 +52,6 @@ export const Constituents = core.table("constituents", {
   salutation: text(),
   dateOfBirth: date("date_of_birth", { mode: "date" }),
   gender: GenderEnum(),
-  joinDate: timestamp("join_date", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),

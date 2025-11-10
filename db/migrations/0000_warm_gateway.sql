@@ -144,7 +144,6 @@ CREATE TABLE "core"."constituents" (
 	"salutation" text,
 	"date_of_birth" date,
 	"gender" "core"."gender",
-	"join_date" timestamp with time zone DEFAULT now() NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
