@@ -270,23 +270,17 @@ export async function updateProject(
     .where(eq(Projects.id, projectId));
 }
 
-export async function updateProjectMedia(
-  projectMediaId: number,
+export async function updateProjectMedium(
+  projectMediumId: number,
   data: { caption?: string; isFeatured?: boolean },
 ): Promise<void> {
-  // Check if project media exists
-  const [existingMedia] = await dbClient.db
-    .select({ id: ProjectMedia.id })
-    .from(ProjectMedia)
-    .where(eq(ProjectMedia.id, projectMediaId));
-
-  if (!existingMedia) {
-    throw new ApiError("Project media not found", 404);
-  }
-
-  // Update project media
-  await dbClient.db
+  const [updatedData] = await dbClient.db
     .update(ProjectMedia)
     .set(data)
-    .where(eq(ProjectMedia.id, projectMediaId));
+    .where(eq(ProjectMedia.id, projectMediumId))
+    .returning({ id: ProjectMedia.id });
+
+  if (!updatedData) {
+    throw new ApiError("Project medium not found", 404);
+  }
 }

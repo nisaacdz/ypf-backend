@@ -250,32 +250,17 @@ export async function updateEvent(
     .where(eq(schema.Events.id, eventId));
 }
 
-export async function updateEventMedia(
-  eventMediaId: number,
+export async function updateEventMedium(
+  eventMediumId: number,
   data: { caption?: string; isFeatured?: boolean },
 ): Promise<void> {
-  // Check if event media exists
-  const existingMedia = await dbClient.db
-    .select({ id: schema.EventMedia.id })
-    .from(schema.EventMedia)
-    .where(eq(schema.EventMedia.id, eventMediaId))
-    .limit(1);
-
-  if (existingMedia.length === 0) {
-    throw new ApiError("Event media not found", 404);
-  }
-
-  // Filter out undefined values
-  const updateData = Object.fromEntries(
-    Object.entries(data).filter(([, v]) => v !== undefined),
-  );
-
-  if (Object.keys(updateData).length === 0) {
-    throw new ApiError("No valid fields to update", 400);
-  }
-
-  await dbClient.db
+  const [updatedData] = await dbClient.db
     .update(schema.EventMedia)
-    .set(updateData)
-    .where(eq(schema.EventMedia.id, eventMediaId));
+    .set(data)
+    .where(eq(schema.EventMedia.id, eventMediumId))
+    .returning({ id: schema.EventMedia.id });
+
+  if (!updatedData) {
+    throw new ApiError("Project medium not found", 404);
+  }
 }
