@@ -22,6 +22,15 @@ export async function uploadEventMedium(
   eventId: string,
   data: AddMediumRecord,
 ): Promise<string> {
+  const event = await dbClient.db.query.Events.findFirst({
+    where: eq(schema.Events.id, eventId),
+    columns: { id: true },
+  });
+
+  if (!event) {
+    throw new ApiError("Event not found", 404);
+  }
+
   try {
     const newMediumId = await dbClient.db.transaction(async (tx) => {
       const [newMedium] = await tx
@@ -68,6 +77,15 @@ export async function uploadProjectMedium(
   projectId: string,
   data: AddMediumRecord,
 ): Promise<string> {
+  const project = await dbClient.db.query.Projects.findFirst({
+    where: eq(schema.Projects.id, projectId),
+    columns: { id: true },
+  });
+
+  if (!project) {
+    throw new ApiError("Project not found", 404);
+  }
+
   try {
     const newMediumId = await dbClient.db.transaction(async (tx) => {
       const [newMedium] = await tx

@@ -16,7 +16,7 @@ import { ApiError } from "@/shared/types";
 export async function fetchProjects(
   query: z.infer<typeof GetProjectsQuerySchema>,
 ): Promise<Paginated<YPFProject>> {
-  const { page, pageSize, search, filterStatus } = query;
+  const { page, pageSize, search, filterStatus, chapterId } = query;
   const offset = (page - 1) * pageSize;
 
   // Build where conditions
@@ -30,41 +30,55 @@ export async function fetchProjects(
     conditions.push(eq(Projects.status, filterStatus));
   }
 
+  if (chapterId) {
+    conditions.push(eq(Projects.chapterId, chapterId));
+  }
+
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-  // Fetch total count
-  const [{ total }] = await dbClient.db
-    .select({ total: count() })
-    .from(Projects)
-    .where(whereClause);
-
-  // Fetch paginated projects with featured media and chapter info
-  const projects = await dbClient.db
-    .select({
-      id: Projects.id,
-      title: Projects.title,
-      abstract: Projects.abstract,
-      scheduledStart: Projects.scheduledStart,
-      scheduledEnd: Projects.scheduledEnd,
-      status: Projects.status,
-      featuredPhotoExternalId: Media.externalId,
-      chapterName: Chapters.name,
-    })
-    .from(Projects)
-    .leftJoin(Chapters, eq(Projects.chapterId, Chapters.id))
-    .leftJoin(
-      ProjectMedia,
-      and(
-        eq(Projects.id, ProjectMedia.projectId),
-        eq(ProjectMedia.isFeatured, true),
+  const [projects, total] = await Promise.all([
+    dbClient.db
+      .select({
+        id: Projects.id,
+        title: Projects.title,
+        abstract: Projects.abstract,
+        scheduledStart: Projects.scheduledStart,
+        scheduledEnd: Projects.scheduledEnd,
+        status: Projects.status,
+        featuredMediumExternalId: Media.externalId,
+        chapterName: Chapters.name,
+      })
+      .from(Projects)
+      .leftJoin(Chapters, eq(Projects.chapterId, Chapters.id))
+      .leftJoin(
+        ProjectMedia,
+        and(
+          eq(Projects.id, ProjectMedia.projectId),
+          eq(ProjectMedia.isFeatured, true),
+        ),
+      )
+      .leftJoin(Media, eq(ProjectMedia.mediumId, Media.id))
+      .where(whereClause)
+      .limit(pageSize)
+      .offset(offset)
+      .groupBy(
+        Projects.id,
+        Projects.title,
+        Projects.abstract,
+        Projects.scheduledStart,
+        Projects.scheduledEnd,
+        Projects.status,
+        Media.externalId,
+        Chapters.name,
+        Chapters.id,
       ),
-    )
-    .leftJoin(Media, eq(ProjectMedia.mediumId, Media.id))
-    .where(whereClause)
-    .limit(pageSize)
-    .offset(offset);
+    dbClient.db
+      .select({ total: count() })
+      .from(Projects)
+      .where(whereClause)
+      .then((res) => res[0].total),
+  ]);
 
-  // Transform to YPFProject with proper media URLs
   const items: YPFProject[] = projects.map((project) => ({
     id: project.id,
     title: project.title,
@@ -72,8 +86,8 @@ export async function fetchProjects(
     scheduledStart: project.scheduledStart,
     scheduledEnd: project.scheduledEnd,
     status: project.status,
-    featuredPhotoUrl: project.featuredPhotoExternalId
-      ? mediaUtils.generateSignedMediaUrl(project.featuredPhotoExternalId, {
+    featuredMediumUrl: project.featuredMediumExternalId
+      ? mediaUtils.generateSignedMediaUrl(project.featuredMediumExternalId, {
           resolution: 720,
           expireSeconds: 60 * 60 * 24,
         })
@@ -153,8 +167,7 @@ export async function fetchProjectMedia(
 export async function fetchProjectById(
   projectId: string,
 ): Promise<YPFProjectDetail> {
-  // Fetch project with chapter info
-  const [project] = await dbClient.db
+  const [ypfProject] = await dbClient.db
     .select({
       id: Projects.id,
       title: Projects.title,
@@ -170,11 +183,10 @@ export async function fetchProjectById(
     .leftJoin(Chapters, eq(Projects.chapterId, Chapters.id))
     .where(eq(Projects.id, projectId));
 
-  if (!project) {
+  if (!ypfProject) {
     throw new ApiError("Project not found", 404);
   }
 
-  // Fetch featured media
   const featuredMedia = await dbClient.db
     .select({
       caption: ProjectMedia.caption,
@@ -198,13 +210,13 @@ export async function fetchProjectById(
     );
 
   return {
-    id: project.id,
-    title: project.title,
-    abstract: project.abstract || undefined,
-    description: project.description || undefined,
-    scheduledStart: project.scheduledStart,
-    scheduledEnd: project.scheduledEnd,
-    status: project.status,
+    id: ypfProject.id,
+    title: ypfProject.title,
+    abstract: ypfProject.abstract || undefined,
+    description: ypfProject.description || undefined,
+    scheduledStart: ypfProject.scheduledStart,
+    scheduledEnd: ypfProject.scheduledEnd,
+    status: ypfProject.status,
     featuredMedia: featuredMedia.length
       ? featuredMedia.map((fm) => ({
           caption: fm.caption || undefined,
@@ -225,10 +237,10 @@ export async function fetchProjectById(
         }))
       : undefined,
     chapter:
-      project.chapterId && project.chapterName
+      ypfProject.chapterId && ypfProject.chapterName
         ? {
-            id: project.chapterId,
-            name: project.chapterName,
+            id: ypfProject.chapterId,
+            name: ypfProject.chapterName,
           }
         : undefined,
   };
@@ -253,21 +265,15 @@ export async function updateProject(
   projectId: string,
   data: z.infer<typeof UpdateProjectSchema>,
 ): Promise<void> {
-  // Check if project exists
-  const [existingProject] = await dbClient.db
-    .select({ id: Projects.id })
-    .from(Projects)
-    .where(eq(Projects.id, projectId));
-
-  if (!existingProject) {
-    throw new ApiError("Project not found", 404);
-  }
-
-  // Update project
-  await dbClient.db
+  const [updatedProject] = await dbClient.db
     .update(Projects)
     .set(data)
-    .where(eq(Projects.id, projectId));
+    .where(eq(Projects.id, projectId))
+    .returning({ id: Projects.id });
+
+  if (!updatedProject) {
+    throw new ApiError("Project not found", 404);
+  }
 }
 
 export async function updateProjectMedium(

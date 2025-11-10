@@ -14,14 +14,12 @@ import { ApiError } from "@/shared/types";
 export async function fetchEvents(
   query: z.infer<typeof GetEventsQuerySchema>,
 ): Promise<Paginated<YPFEvent>> {
-  const { page, pageSize, search } = query;
+  const { page, pageSize, search, projectId, filterStatus } = query;
   const offset = (page - 1) * pageSize;
 
-  // Build where conditions
   const conditions = [];
 
   if (search) {
-    // Search in event name or project title if event is part of a project
     conditions.push(
       or(
         ilike(schema.Events.name, `%${search}%`),
@@ -30,33 +28,67 @@ export async function fetchEvents(
     );
   }
 
+  if (projectId) {
+    conditions.push(eq(schema.Events.projectId, projectId));
+  }
+
+  if (filterStatus) {
+    conditions.push(eq(schema.Events.status, filterStatus));
+  }
+
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-  // Fetch total count
-  const [{ total }] = await dbClient.db
-    .select({ total: count() })
-    .from(schema.Events)
-    .leftJoin(schema.Projects, eq(schema.Events.projectId, schema.Projects.id))
-    .where(whereClause);
+  const [events, total] = await Promise.all([
+    dbClient.db
+      .select({
+        id: schema.Events.id,
+        name: schema.Events.name,
+        scheduledStart: schema.Events.scheduledStart,
+        scheduledEnd: schema.Events.scheduledEnd,
+        location: schema.Events.location,
+        status: schema.Events.status,
+        projectTitle: schema.Projects.title,
+        featuredMediumExternalId: schema.Media.externalId,
+      })
+      .from(schema.Events)
+      .leftJoin(
+        schema.Projects,
+        eq(schema.Events.projectId, schema.Projects.id),
+      )
+      .leftJoin(
+        schema.EventMedia,
+        and(
+          eq(schema.Events.id, schema.EventMedia.eventId),
+          eq(schema.EventMedia.isFeatured, true),
+        ),
+      )
+      .leftJoin(schema.Media, eq(schema.EventMedia.mediumId, schema.Media.id))
+      .where(whereClause)
+      .limit(pageSize)
+      .offset(offset)
+      .groupBy(
+        schema.Events.id,
+        schema.Events.name,
+        schema.Events.scheduledStart,
+        schema.Events.scheduledEnd,
+        schema.Events.location,
+        schema.Events.status,
+        schema.Projects.title,
+        schema.Projects.id,
+        schema.Media.externalId,
+      ),
 
-  // Fetch paginated events with project info
-  const events = await dbClient.db
-    .select({
-      id: schema.Events.id,
-      name: schema.Events.name,
-      scheduledStart: schema.Events.scheduledStart,
-      scheduledEnd: schema.Events.scheduledEnd,
-      location: schema.Events.location,
-      status: schema.Events.status,
-      projectTitle: schema.Projects.title,
-    })
-    .from(schema.Events)
-    .leftJoin(schema.Projects, eq(schema.Events.projectId, schema.Projects.id))
-    .where(whereClause)
-    .limit(pageSize)
-    .offset(offset);
+    dbClient.db
+      .select({ total: count() })
+      .from(schema.Events)
+      .leftJoin(
+        schema.Projects,
+        eq(schema.Events.projectId, schema.Projects.id),
+      )
+      .where(whereClause)
+      .then((res) => res[0].total),
+  ]);
 
-  // Transform to YPFEvent
   const items: YPFEvent[] = events.map((event) => ({
     id: event.id,
     name: event.name,
@@ -65,6 +97,12 @@ export async function fetchEvents(
     location: event.location || undefined,
     status: event.status,
     projectTitle: event.projectTitle || undefined,
+    featuredMediumUrl: event.featuredMediumExternalId
+      ? mediaUtils.generateSignedMediaUrl(event.featuredMediumExternalId, {
+          resolution: 720,
+          expireSeconds: 60 * 60 * 24,
+        })
+      : undefined,
   }));
 
   return {
@@ -81,7 +119,7 @@ export async function fetchEventMedia(
 ) {
   const { page, pageSize } = query;
 
-  const [itemsItems, total] = await Promise.all([
+  const [eventMedia, total] = await Promise.all([
     dbClient.db
       .select({
         id: schema.EventMedia.id,
@@ -109,7 +147,7 @@ export async function fetchEventMedia(
       .then((res) => res[0].count),
   ]);
 
-  const items = itemsItems.map((m) => ({
+  const items = eventMedia.map((m) => ({
     ...m,
     caption: m.caption || undefined,
     medium: {
@@ -134,7 +172,7 @@ export async function fetchEventMedia(
 export async function fetchEventById(
   eventId: string,
 ): Promise<YPFEventDetail | null> {
-  const eventResult = await dbClient.db
+  const [ypfEvent] = await dbClient.db
     .select({
       id: schema.Events.id,
       name: schema.Events.name,
@@ -153,11 +191,9 @@ export async function fetchEventById(
     .where(eq(schema.Events.id, eventId))
     .limit(1);
 
-  if (eventResult.length === 0) {
+  if (!ypfEvent) {
     return null;
   }
-
-  const event = eventResult[0];
 
   // Fetch featured media for the event
   const featuredMedia = await dbClient.db
@@ -183,18 +219,18 @@ export async function fetchEventById(
     );
 
   return {
-    id: event.id,
-    name: event.name,
-    scheduledStart: event.scheduledStart,
-    scheduledEnd: event.scheduledEnd,
-    location: event.location || undefined,
-    objective: event.objective || undefined,
-    status: event.status,
+    id: ypfEvent.id,
+    name: ypfEvent.name,
+    scheduledStart: ypfEvent.scheduledStart,
+    scheduledEnd: ypfEvent.scheduledEnd,
+    location: ypfEvent.location || undefined,
+    objective: ypfEvent.objective || undefined,
+    status: ypfEvent.status,
     project:
-      event.project?.id && event.project.title
+      ypfEvent.project?.id && ypfEvent.project.title
         ? {
-            id: event.project.id,
-            title: event.project.title,
+            id: ypfEvent.project.id,
+            title: ypfEvent.project.title,
           }
         : undefined,
     featuredMedia:
@@ -224,30 +260,15 @@ export async function updateEvent(
   eventId: string,
   data: z.infer<typeof UpdateEventSchema>,
 ): Promise<void> {
-  // Check if event exists
-  const existingEvent = await dbClient.db
-    .select({ id: schema.Events.id })
-    .from(schema.Events)
+  const [updatedEvent] = await dbClient.db
+    .update(schema.Events)
+    .set(data)
     .where(eq(schema.Events.id, eventId))
-    .limit(1);
+    .returning({ id: schema.Events.id });
 
-  if (existingEvent.length === 0) {
+  if (!updatedEvent) {
     throw new ApiError("Event not found", 404);
   }
-
-  // Filter out undefined values
-  const updateData = Object.fromEntries(
-    Object.entries(data).filter(([, v]) => v !== undefined),
-  );
-
-  if (Object.keys(updateData).length === 0) {
-    throw new ApiError("No valid fields to update", 400);
-  }
-
-  await dbClient.db
-    .update(schema.Events)
-    .set(updateData)
-    .where(eq(schema.Events.id, eventId));
 }
 
 export async function updateEventMedium(

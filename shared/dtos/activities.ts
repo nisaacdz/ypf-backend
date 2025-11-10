@@ -8,7 +8,7 @@ export type YPFProject = {
   scheduledStart: Date;
   scheduledEnd: Date;
   status: ProjectStatus;
-  featuredPhotoUrl?: string;
+  featuredMediumUrl?: string;
   chapterName?: string;
 };
 
@@ -38,6 +38,7 @@ export type YPFEvent = {
   location?: string;
   status: EventStatus;
   projectTitle?: string;
+  featuredMediumUrl?: string;
 };
 
 export type YPFEventDetail = {

@@ -9,11 +9,20 @@ export const GetProjectsQuerySchema = z.object({
       message: "Invalid project status.",
     })
     .optional(),
+  chapterId: z.uuid({ message: "Invalid chapter ID format." }).optional(),
   ...PaginationQuery.shape,
 });
 
 export const GetEventsQuerySchema = z.object({
   ...PaginationQuery.shape,
+  projectId: z
+    .uuid({ message: "Invalid project ID format." })
+    .optional(),
+  filterStatus: z
+    .enum(EventStatusEnum.enumValues, {
+      message: "Invalid event status.",
+    })
+    .optional(),
 });
 
 export const GetEventMediaQuerySchema = z.object({
