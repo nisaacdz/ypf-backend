@@ -1,0 +1,1 @@
+ALTER TABLE "activities"."announcement_broadcasts" RENAME COLUMN "subject" TO "target";

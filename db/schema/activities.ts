@@ -113,7 +113,7 @@ export const AnnouncementBroadCasts = activities.table(
     announcementId: uuid("announcement_id").references(() => Announcements.id, {
       onDelete: "cascade",
     }),
-    subject: jsonb().notNull(), // Establish  a format for broadcasting to various subjects
+    target: jsonb().notNull(), // Establish  a format for broadcasting to various targets
   },
 );
 
