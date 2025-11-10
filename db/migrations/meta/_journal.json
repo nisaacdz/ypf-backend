@@ -8,6 +8,13 @@
       "when": 1762512188593,
       "tag": "0000_tan_the_executioner",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1762778984163,
+      "tag": "0001_cuddly_catseye",
+      "breakpoints": true
     }
   ]
 }
