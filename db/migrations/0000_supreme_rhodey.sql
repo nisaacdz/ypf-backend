@@ -15,7 +15,7 @@ CREATE TYPE "core"."gender" AS ENUM('MALE', 'FEMALE', 'OTHER');--> statement-bre
 CREATE TYPE "core"."media_type" AS ENUM('PICTURE', 'VIDEO');--> statement-breakpoint
 CREATE TYPE "activities"."attendance_status" AS ENUM('INVITED', 'ACCEPTED', 'DECLINED', 'ATTENDED');--> statement-breakpoint
 CREATE TYPE "activities"."event_status" AS ENUM('UPCOMING', 'ONGOING', 'COMPLETED', 'CANCELLED');--> statement-breakpoint
-CREATE TYPE "activities"."project_status" AS ENUM('UPCOMING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED');--> statement-breakpoint
+CREATE TYPE "activities"."project_status" AS ENUM('UPCOMING', 'ONGOING', 'COMPLETED', 'CANCELLED');--> statement-breakpoint
 CREATE TYPE "finance"."external_provider" AS ENUM('PAYSTACK');--> statement-breakpoint
 CREATE TYPE "finance"."partnership_type" AS ENUM('SPONSOR', 'IN_KIND', 'TECHNICAL', 'VENUE', 'OTHER');--> statement-breakpoint
 CREATE TYPE "finance"."payment_method" AS ENUM('CREDIT_CARD', 'BANK_TRANSFER', 'MOBILE_MONEY', 'CASH');--> statement-breakpoint
@@ -106,7 +106,7 @@ CREATE TABLE "core"."chapters" (
 	"country" text NOT NULL,
 	"description" text,
 	"founding_date" date NOT NULL,
-	"archived_at" date,
+	"archived_at" timestamp with time zone,
 	"parent_id" uuid
 );
 --> statement-breakpoint
@@ -155,6 +155,7 @@ CREATE TABLE "core"."contact_informations" (
 	"contact_type" "core"."contact_type" NOT NULL,
 	"value" text NOT NULL,
 	"is_primary" boolean DEFAULT false NOT NULL,
+	"unsubscribed" boolean DEFAULT false NOT NULL,
 	CONSTRAINT "contact_informations_constituent_id_contact_type_value_unique" UNIQUE("constituent_id","contact_type","value")
 );
 --> statement-breakpoint
@@ -231,10 +232,9 @@ CREATE TABLE "core"."volunteers" (
 --> statement-breakpoint
 CREATE TABLE "activities"."announcement_broadcasts" (
 	"id" serial PRIMARY KEY NOT NULL,
-	"announcement_id" uuid NOT NULL,
-	"chapter_id" uuid,
-	"committee_id" uuid,
-	"is_archived" boolean DEFAULT false NOT NULL
+	"label" text,
+	"announcement_id" uuid,
+	"subject" jsonb NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "activities"."announcements" (
@@ -422,8 +422,6 @@ ALTER TABLE "core"."organization_contacts" ADD CONSTRAINT "organization_contacts
 ALTER TABLE "core"."organization_contacts" ADD CONSTRAINT "organization_contacts_constituent_id_constituents_id_fk" FOREIGN KEY ("constituent_id") REFERENCES "core"."constituents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."volunteers" ADD CONSTRAINT "volunteers_constituent_id_constituents_id_fk" FOREIGN KEY ("constituent_id") REFERENCES "core"."constituents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activities"."announcement_broadcasts" ADD CONSTRAINT "announcement_broadcasts_announcement_id_announcements_id_fk" FOREIGN KEY ("announcement_id") REFERENCES "activities"."announcements"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "activities"."announcement_broadcasts" ADD CONSTRAINT "announcement_broadcasts_chapter_id_chapters_id_fk" FOREIGN KEY ("chapter_id") REFERENCES "core"."chapters"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "activities"."announcement_broadcasts" ADD CONSTRAINT "announcement_broadcasts_committee_id_committees_id_fk" FOREIGN KEY ("committee_id") REFERENCES "core"."committees"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activities"."announcements" ADD CONSTRAINT "announcements_created_by_constituents_id_fk" FOREIGN KEY ("created_by") REFERENCES "core"."constituents"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activities"."event_media" ADD CONSTRAINT "event_media_event_id_events_id_fk" FOREIGN KEY ("event_id") REFERENCES "activities"."events"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activities"."event_media" ADD CONSTRAINT "event_media_medium_id_media_id_fk" FOREIGN KEY ("medium_id") REFERENCES "core"."media"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

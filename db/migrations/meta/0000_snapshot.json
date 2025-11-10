@@ -1,5 +1,5 @@
 {
-  "id": "1e461890-c29a-40e0-9561-fbde8091c22e",
+  "id": "b5931036-f3f7-4e60-9af7-280613da4036",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -604,7 +604,7 @@
         },
         "archived_at": {
           "name": "archived_at",
-          "type": "date",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
@@ -950,6 +950,13 @@
         },
         "is_primary": {
           "name": "is_primary",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "unsubscribed": {
+          "name": "unsubscribed",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,
@@ -1494,30 +1501,23 @@
           "primaryKey": true,
           "notNull": true
         },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "announcement_id": {
           "name": "announcement_id",
           "type": "uuid",
           "primaryKey": false,
+          "notNull": false
+        },
+        "subject": {
+          "name": "subject",
+          "type": "jsonb",
+          "primaryKey": false,
           "notNull": true
-        },
-        "chapter_id": {
-          "name": "chapter_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "committee_id": {
-          "name": "committee_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "is_archived": {
-          "name": "is_archived",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
         }
       },
       "indexes": {},
@@ -1528,26 +1528,6 @@
           "tableTo": "announcements",
           "schemaTo": "activities",
           "columnsFrom": ["announcement_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "announcement_broadcasts_chapter_id_chapters_id_fk": {
-          "name": "announcement_broadcasts_chapter_id_chapters_id_fk",
-          "tableFrom": "announcement_broadcasts",
-          "tableTo": "chapters",
-          "schemaTo": "core",
-          "columnsFrom": ["chapter_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "announcement_broadcasts_committee_id_committees_id_fk": {
-          "name": "announcement_broadcasts_committee_id_committees_id_fk",
-          "tableFrom": "announcement_broadcasts",
-          "tableTo": "committees",
-          "schemaTo": "core",
-          "columnsFrom": ["committee_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -2785,7 +2765,7 @@
     "activities.project_status": {
       "name": "project_status",
       "schema": "activities",
-      "values": ["UPCOMING", "IN_PROGRESS", "COMPLETED", "CANCELLED"]
+      "values": ["UPCOMING", "ONGOING", "COMPLETED", "CANCELLED"]
     },
     "finance.external_provider": {
       "name": "external_provider",
