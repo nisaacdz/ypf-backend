@@ -1,5 +1,5 @@
 {
-  "id": "b5931036-f3f7-4e60-9af7-280613da4036",
+  "id": "8226b24e-fb15-4fa2-a258-3f77faec2810",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -42,9 +42,9 @@
         },
         "broadcast_id": {
           "name": "broadcast_id",
-          "type": "serial",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "is_read": {
           "name": "is_read",

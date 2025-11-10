@@ -9,6 +9,7 @@ import {
   boolean,
   index,
   unique,
+  integer,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { Constituents } from "./core";
@@ -63,7 +64,7 @@ export const Notifications = app.table(
     type: NotificationTypeEnum().notNull(),
     title: text(),
     message: text(),
-    broadcastId: serial("broadcast_id").references(
+    broadcastId: integer("broadcast_id").references(
       () => AnnouncementBroadCasts.id,
       { onDelete: "cascade" },
     ),

@@ -27,7 +27,7 @@ CREATE TABLE "app"."notifications" (
 	"type" "app"."notification_type" NOT NULL,
 	"title" text,
 	"message" text,
-	"broadcast_id" serial NOT NULL,
+	"broadcast_id" integer,
 	"is_read" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "notifications_user_id_broadcast_id_unique" UNIQUE("user_id","broadcast_id")
