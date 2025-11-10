@@ -473,24 +473,7 @@ async function seed(
     ])
     .returning();
 
-  // Seed Announcement Broadcasts
-  const broadcasts = await tx
-    .insert(schema.AnnouncementBroadCasts)
-    .values([
-      {
-        announcementId: announcements[0].id,
-        chapterId: chapters[0].id,
-      },
-      {
-        announcementId: announcements[1].id,
-        chapterId: chapters[1].id,
-      },
-      {
-        announcementId: announcements[2].id,
-        committeeId: committees[0].id,
-      },
-    ])
-    .returning();
+  // TODO Seed Announcement Broadcasts
 
   // Seed Notifications (linked to broadcasts)
   await tx.insert(schema.Notifications).values(
@@ -500,7 +483,6 @@ async function seed(
         type: "ANNOUNCEMENT" as const,
         title: announcements[0].title,
         message: announcements[0].content,
-        broadcastId: broadcasts[0].id,
         isRead: faker.datatype.boolean(),
       },
     ]),
