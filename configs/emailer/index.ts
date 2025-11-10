@@ -1,6 +1,5 @@
 import nodemailer from "nodemailer";
 import variables from "@/configs/env";
-import logger from "@/configs/logger";
 
 class Emailer {
   transporter: nodemailer.Transporter;
@@ -18,14 +17,9 @@ class Emailer {
   }
 
   public async initialize() {
-    const result = await this.transporter.verify();
-    if (result) {
-      logger.info("Email transporter is ready to send emails");
-    } else {
-      logger.error("Error setting up email transporter");
+    if (variables.app.isProduction) {
+      await this.transporter.verify();
     }
-
-    return result;
   }
 }
 
