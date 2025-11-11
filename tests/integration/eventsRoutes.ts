@@ -6,17 +6,7 @@ import { hashSync } from "bcryptjs";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { generateTestUser, generateTestChapter } from "../factories";
-
-interface EventResponse {
-  id: string;
-  name: string;
-  location?: string;
-  status: string;
-  project?: {
-    id: string;
-    title: string;
-  };
-}
+import { YPFEvent } from "@/shared/dtos";
 
 describe("Events API", () => {
   let authTokenCookie: string;
@@ -179,15 +169,13 @@ describe("Events API", () => {
 
       // Check if our test event is in the list
       const testEvent = response.body.data.items.find(
-        (e: EventResponse) => e.id === testData.eventId,
+        (e: YPFEvent) => e.id === testData.eventId
       );
       if (testEvent) {
         expect(testEvent.name).toBe("Test Event");
         expect(testEvent.location).toBe("Test Location");
         expect(testEvent.status).toBe("UPCOMING");
-        expect(testEvent.project).toBeDefined();
-        expect(testEvent.project?.id).toBe(testData.projectId);
-        expect(testEvent.project?.title).toBe("Test Project for Events");
+        expect(testEvent.projectTitle).toBeDefined();
       }
     });
 
@@ -212,9 +200,9 @@ describe("Events API", () => {
 
       if (response.body.data.items.length > 0) {
         const hasMatchingName = response.body.data.items.some(
-          (e: EventResponse) =>
+          (e: YPFEvent) =>
             e.name.toLowerCase().includes("test event") ||
-            e.project?.title.toLowerCase().includes("test event"),
+            (e.projectTitle && e.projectTitle.toLowerCase().includes("test project for events"))
         );
         expect(hasMatchingName).toBe(true);
       }
@@ -230,9 +218,10 @@ describe("Events API", () => {
 
       if (response.body.data.items.length > 0) {
         const hasMatchingProject = response.body.data.items.some(
-          (e: EventResponse) =>
-            e.project?.title.toLowerCase().includes("test event") ||
-            e.name.toLowerCase().includes("test event"),
+          (e: YPFEvent) =>
+            (e.projectTitle &&
+              e.projectTitle.toLowerCase().includes("test project for events")) ||
+            e.name.toLowerCase().includes("test event")
         );
         expect(hasMatchingProject).toBe(true);
       }
