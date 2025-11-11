@@ -51,7 +51,7 @@ export const CreateEventSchema = z.object({
   status: z.enum(EventStatusEnum.enumValues, {
     message: "Invalid event status.",
   }),
-  projectId: z.uuid({ message: "Invalid project ID format." }),
+  projectId: z.uuid({ message: "Invalid project ID format." }).optional(),
 });
 
 export const UploadEventMediumOptionsSchema = z.object({
