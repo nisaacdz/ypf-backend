@@ -1,22 +1,26 @@
-name: Build & Test
+name: CI/CD Pipeline
 
+# Triggers for all your scenarios
 on:
   push:
     branches:
+      - dev
       - prod
   pull_request:
     branches:
       - dev
       - prod
+  workflow_dispatch:
 
 jobs:
-  build-migrate-test:
+  # -----------------------------------------------
+  # JOB 1: Build and Test (Runs on all triggers)
+  # -----------------------------------------------
+  build-and-test:
     runs-on: ubuntu-latest
     environment: "CI/CD Environment"
-
     env:
       NODE_ENV: test
-
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
       IMAGEKIT_PUBLIC_KEY: ${{ secrets.IMAGEKIT_PUBLIC_KEY }}
@@ -37,7 +41,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "20" # Using the version from your test file
           cache: "npm"
 
       - name: Install dependencies
@@ -48,3 +52,51 @@ jobs:
 
       - name: Run tests
         run: npm run test
+
+      # This step is crucial: save the build output for the deploy job
+      - name: Upload artifact for deployment
+        uses: actions/upload-artifact@v4
+        with:
+          name: node-app
+          path:
+            . # This uploads the entire directory.
+            # Consider changing this to just your build output,
+            # e.g., 'dist', 'package.json', 'package-lock.json', etc.
+
+  # -----------------------------------------------
+  # JOB 2: Deploy to Development (Conditional)
+  # -----------------------------------------------
+  deploy-to-dev:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # Required for Azure federated login
+      contents: read
+
+    # --- THIS IS THE KEY PART ---
+    # 1. 'needs': Ensures this job only runs if 'build-and-test' succeeds.
+    # 2. 'if': Ensures this job only runs on a PUSH to the 'dev' branch.
+    needs: build-and-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    # --- END KEY PART ---
+
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: node-app
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_5A0760B01D33498D944233E7D848BCF2 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_26A92A0436064449BBB1B452CC81CD79 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_57EC1087A4F2472C9ECF8E1E8FA97826 }}
+
+      - name: "Deploy to Azure Web App (Dev)"
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: "ypf-backend"
+          # Note: You're deploying to "Production" slot.
+          # You might want a "development" slot or a separate dev app.
+          slot-name: "Production"
+          package: .
