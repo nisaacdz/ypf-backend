@@ -169,7 +169,7 @@ describe("Events API", () => {
 
       // Check if our test event is in the list
       const testEvent = response.body.data.items.find(
-        (e: YPFEvent) => e.id === testData.eventId
+        (e: YPFEvent) => e.id === testData.eventId,
       );
       if (testEvent) {
         expect(testEvent.name).toBe("Test Event");
@@ -202,7 +202,8 @@ describe("Events API", () => {
         const hasMatchingName = response.body.data.items.some(
           (e: YPFEvent) =>
             e.name.toLowerCase().includes("test event") ||
-            (e.projectTitle && e.projectTitle.toLowerCase().includes("test project for events"))
+            (e.projectTitle &&
+              e.projectTitle.toLowerCase().includes("test project for events")),
         );
         expect(hasMatchingName).toBe(true);
       }
@@ -220,8 +221,10 @@ describe("Events API", () => {
         const hasMatchingProject = response.body.data.items.some(
           (e: YPFEvent) =>
             (e.projectTitle &&
-              e.projectTitle.toLowerCase().includes("test project for events")) ||
-            e.name.toLowerCase().includes("test event")
+              e.projectTitle
+                .toLowerCase()
+                .includes("test project for events")) ||
+            e.name.toLowerCase().includes("test event"),
         );
         expect(hasMatchingProject).toBe(true);
       }
