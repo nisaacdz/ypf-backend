@@ -19,7 +19,6 @@
   "dependencies": {
     "@azure/storage-blob": "^12.29.1",
     "@google/generative-ai": "0.24.1",
-    "@types/fluent-ffmpeg": "^2.1.27",
     "bcryptjs": "3.0.2",
     "cookie-parser": "^1.4.7",
     "cors": "2.8.5",
