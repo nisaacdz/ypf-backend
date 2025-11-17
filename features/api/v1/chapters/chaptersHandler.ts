@@ -17,3 +17,15 @@ export async function getChapter(
   const data = await chaptersService.getChapterById(chapterId);
   return { success: true, data };
 }
+
+export async function updateChapter(
+  chapterId: string,
+  updates: {
+    name?: string;
+    description?: string;
+    foundingDate?: Date;
+  },
+): Promise<ApiResponse<YPFChapterDetail>> {
+  const data = await chaptersService.updateChapter(chapterId, updates);
+  return { success: true, data };
+}

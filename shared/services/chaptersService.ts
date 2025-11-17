@@ -208,3 +208,32 @@ export async function getChapterById(
 
   return detailedChapter;
 }
+
+export async function updateChapter(
+  chapterId: string,
+  updates: {
+    name?: string;
+    description?: string;
+    foundingDate?: Date;
+  },
+): Promise<YPFChapterDetail> {
+  // First check if chapter exists
+  const existingChapter = await dbClient.db
+    .select({ id: schema.Chapters.id })
+    .from(schema.Chapters)
+    .where(eq(schema.Chapters.id, chapterId))
+    .limit(1);
+
+  if (existingChapter.length === 0) {
+    throw new ApiError("Chapter not found", 404);
+  }
+
+  // Update the chapter
+  await dbClient.db
+    .update(schema.Chapters)
+    .set(updates)
+    .where(eq(schema.Chapters.id, chapterId));
+
+  // Return the updated chapter details
+  return getChapterById(chapterId);
+}
