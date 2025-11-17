@@ -2,8 +2,8 @@ import { Request } from "express";
 import { Profile } from "@/shared/types";
 
 export const ADMIN = {
-  REGULAR: (role: string) => role === "ADMIN.REGULAR",
-  SUPER: (role: string) => role === "ADMIN.SUPER",
+  REGULAR: "ADMIN.REGULAR",
+  SUPER: "ADMIN.SUPER",
 };
 
 export const MEMBER = {
@@ -46,21 +46,17 @@ const hasProfile = (...types: Profile[]) => {
 /**
  * Check if user has ANY of the specified roles
  */
-const hasRole = (...roles: string[]) => {
+type RoleType = string | ((req: Request) => string | Promise<string>);
+const hasRole = (...roles: RoleType[]) => {
   return (req: Request) => {
     if (!req.User) return false;
-    return req.User.roles.some((r) => roles.includes(r));
+    return req.User.roles.some((r) =>
+      roles.some((exp) =>
+        typeof exp === "string" ? exp === r : exp(req) === r,
+      ),
+    );
   };
 };
-
-/**
- * Check if the request satisfies a custom predicate function.
- */
-const satisfies = (predicate: GuardFunction) => {
-  return predicate;
-};
-
-// --- The final exported API ---
 
 const Visitors = {
   /** Allows any access, authenticated or not. */
@@ -80,13 +76,6 @@ const Visitors = {
    * the specified static roles (e.g., "MEMBER.president").
    */
   hasRole,
-
-  /**
-   * Checks if the request satisfies a custom predicate function.
-   * Use this for all dynamic logic, like checking request params,
-   * body, or dynamic roles.
-   */
-  satisfies,
 };
 
 export { Visitors };
