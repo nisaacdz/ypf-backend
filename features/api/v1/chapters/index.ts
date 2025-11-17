@@ -213,7 +213,7 @@ chaptersRouter.patch(
   authorize(
     anyOf(
       Visitors.hasRole(ADMIN.SUPER),
-      Visitors.hasRole(async (req) => MEMBER.chapterLead(req.Params.id)),
+      Visitors.hasRole((req) => MEMBER.chapterLead(req.Params.id)),
     ),
   ),
   validateBody(UpdateChapterSchema),

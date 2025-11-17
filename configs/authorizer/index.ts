@@ -2,15 +2,22 @@ import { Request } from "express";
 import { Profile } from "@/shared/types";
 
 export const ADMIN = {
-  REGULAR: "ADMIN.REGULAR",
-  SUPER: "ADMIN.SUPER",
+  REGULAR: { cmp: (role: string) => role === "ADMIN.REGULAR" },
+  SUPER: { cmp: (role: string) => role === "ADMIN.SUPER" },
 };
 
 export const MEMBER = {
-  PRESIDENT: "MEMBER.president",
-  chapterLead: (chapterId: string) => `MEMBER.lead.${chapterId}`,
-  committeeChair: (committeeId: string) => `MEMBER.chair.${committeeId}`,
-  TREASURER: "MEMBER.treasurer",
+  PRESIDENT: {
+    cmp: (role: string) =>
+      role === "MEMBER.president" || role === "MEMBER.president.*",
+  },
+  chapterLead: (chapterId: string) => ({
+    cmp: (role: string) => role === `MEMBER.lead.${chapterId}`,
+  }),
+  committeeChair: (committeeId: string) => ({
+    cmp: (role: string) => role === `MEMBER.chair.${committeeId}`,
+  }),
+  TREASURER: { cmp: (role: string) => role === "MEMBER.treasurer" },
 };
 
 export type GuardFunction = (req: Request) => boolean | Promise<boolean>;
@@ -33,49 +40,40 @@ export const allOf = (...guards: GuardFunction[]) => {
   };
 };
 
-/**
- * Check if user has ANY of the specified profiles
- */
-const hasProfile = (...types: Profile[]) => {
-  return (req: Request) => {
-    if (!req.User) return false;
-    return req.User.profiles.some((p) => types.includes(p));
-  };
-};
+type RoleType =
+  | { cmp: (role: string) => boolean }
+  | ((req: Request) => { cmp: (role: string) => boolean });
 
-/**
- * Check if user has ANY of the specified roles
- */
-type RoleType = string | ((req: Request) => string | Promise<string>);
-const hasRole = (...roles: RoleType[]) => {
-  return (req: Request) => {
-    if (!req.User) return false;
-    return req.User.roles.some((r) =>
-      roles.some((exp) =>
-        typeof exp === "string" ? exp === r : exp(req) === r,
-      ),
-    );
-  };
-};
-
-const Visitors = {
+export class Visitors {
   /** Allows any access, authenticated or not. */
-  ALL: () => true,
+  static ALL = () => true;
 
   /** Requires a user to be authenticated. */
-  authenticated: (req: Request) => req.User !== null,
+  static AUTHENTICATED = (req: Request) => !!req.User;
 
   /**
    * Checks if the authenticated user has at least one of
    * the specified profiles (e.g., "ADMIN", "MEMBER").
    */
-  hasProfile,
+  static hasProfile(...types: Profile[]) {
+    return (req: Request) => {
+      if (!req.User) return false;
+      return req.User.profiles.some((p) => types.includes(p));
+    };
+  }
 
   /**
    * Checks if the authenticated user has at least one of
    * the specified static roles (e.g., "MEMBER.president").
    */
-  hasRole,
-};
-
-export { Visitors };
+  static hasRole(...roles: RoleType[]) {
+    return (req: Request) => {
+      if (!req.User) return false;
+      return req.User.roles.some((r) =>
+        roles.some((exp) =>
+          typeof exp === "object" ? exp.cmp(r) : exp(req).cmp(r),
+        ),
+      );
+    };
+  }
+}
