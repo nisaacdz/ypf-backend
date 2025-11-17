@@ -4,7 +4,10 @@ import z from "zod";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { Paginated, YPFChapter, YPFChapterDetail } from "@/shared/dtos";
-import { GetChaptersQuerySchema } from "@/shared/validators/core";
+import {
+  GetChaptersQuerySchema,
+  UpdateChapterSchema,
+} from "@/shared/validators/core";
 import * as mediaUtils from "@/shared/utils/media";
 import { ApiError } from "@/shared/types";
 
@@ -207,4 +210,21 @@ export async function getChapterById(
   };
 
   return detailedChapter;
+}
+
+export async function updateChapter(
+  chapterId: string,
+  updates: z.infer<typeof UpdateChapterSchema>,
+): Promise<{ id: string }> {
+  const [updatedChapter] = await dbClient.db
+    .update(schema.Chapters)
+    .set(updates)
+    .where(eq(schema.Chapters.id, chapterId))
+    .returning({ id: schema.Chapters.id });
+
+  if (!updatedChapter) {
+    throw new ApiError("Chapter not found", 404);
+  }
+
+  return updatedChapter;
 }
