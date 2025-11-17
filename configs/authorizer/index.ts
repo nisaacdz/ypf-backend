@@ -15,8 +15,8 @@ export const MEMBER = {
 
 export type GuardFunction = (req: Request) => boolean | Promise<boolean>;
 
-export const anyOf = (...guards: GuardFunction[]): GuardFunction => {
-  return async (req) => {
+export const anyOf = (...guards: GuardFunction[]) => {
+  return async (req: Request) => {
     for (const guard of guards) {
       if (await guard(req)) return true;
     }
@@ -24,8 +24,8 @@ export const anyOf = (...guards: GuardFunction[]): GuardFunction => {
   };
 };
 
-export const allOf = (...guards: GuardFunction[]): GuardFunction => {
-  return async (req) => {
+export const allOf = (...guards: GuardFunction[]) => {
+  return async (req: Request) => {
     for (const guard of guards) {
       if (!(await guard(req))) return false;
     }
@@ -36,27 +36,27 @@ export const allOf = (...guards: GuardFunction[]): GuardFunction => {
 /**
  * Check if user has ANY of the specified profiles
  */
-const hasProfile = (...types: Profile[]): GuardFunction => {
-  return (req) => {
+const hasProfile = (...types: Profile[]) => {
+  return (req: Request) => {
     if (!req.User) return false;
-    return req.User.profiles.some(p => types.includes(p));
+    return req.User.profiles.some((p) => types.includes(p));
   };
 };
 
 /**
  * Check if user has ANY of the specified roles
  */
-const hasRole = (...roles: string[]): GuardFunction => {
-  return (req) => {
+const hasRole = (...roles: string[]) => {
+  return (req: Request) => {
     if (!req.User) return false;
-    return req.User.roles.some(r => roles.includes(r));
+    return req.User.roles.some((r) => roles.includes(r));
   };
 };
 
 /**
  * Check if the request satisfies a custom predicate function.
  */
-const satisfies = (predicate: GuardFunction): GuardFunction => {
+const satisfies = (predicate: GuardFunction) => {
   return predicate;
 };
 
