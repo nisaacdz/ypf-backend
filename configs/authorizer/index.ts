@@ -20,6 +20,12 @@ export const MEMBER = {
   TREASURER: { cmp: (role: string) => role === "MEMBER.treasurer" },
 };
 
+export const Roles = {
+  new: (...roles: string[]) => ({
+    cmp: (role: string) => roles.includes(role),
+  }),
+};
+
 export type GuardFunction = (req: Request) => boolean | Promise<boolean>;
 
 export const anyOf = (...guards: GuardFunction[]) => {
