@@ -15,45 +15,6 @@ export const MEMBER = {
 
 export type GuardFunction = (req: Request) => boolean | Promise<boolean>;
 
-/**
- * Check if user has ANY of the specified profiles
- */
-const hasProfile = (...types: Profile[]): GuardFunction => {
-  return (req) => {
-    if (!req.User) return false;
-    return req.User.profiles.some((m) => types.includes(m));
-  };
-};
-
-/**
- * Check if user has a specific role (optionally scoped)
- */
-const hasRole = (
-  ...roles: (string | ((req: Request) => string))[]
-): GuardFunction => {
-  return (req) => {
-    if (!req.User) return false;
-    return req.User.roles.some((role) => {
-      let result = false;
-      for (const r of roles) {
-        if (typeof r === "string") {
-          result = r === role;
-        } else {
-          result = role === r(req);
-        }
-        if (result) {
-          break;
-        }
-      }
-
-      return result;
-    });
-  };
-};
-
-/**
- * Combine multiple guards with OR logic
- */
 export const anyOf = (...guards: GuardFunction[]): GuardFunction => {
   return async (req) => {
     for (const guard of guards) {
@@ -63,9 +24,6 @@ export const anyOf = (...guards: GuardFunction[]): GuardFunction => {
   };
 };
 
-/**
- * Combine multiple guards with AND logic
- */
 export const allOf = (...guards: GuardFunction[]): GuardFunction => {
   return async (req) => {
     for (const guard of guards) {
@@ -75,14 +33,60 @@ export const allOf = (...guards: GuardFunction[]): GuardFunction => {
   };
 };
 
+/**
+ * Check if user has ANY of the specified profiles
+ */
+const hasProfile = (...types: Profile[]): GuardFunction => {
+  return (req) => {
+    if (!req.User) return false;
+    return req.User.profiles.some(p => types.includes(p));
+  };
+};
+
+/**
+ * Check if user has ANY of the specified roles
+ */
+const hasRole = (...roles: string[]): GuardFunction => {
+  return (req) => {
+    if (!req.User) return false;
+    return req.User.roles.some(r => roles.includes(r));
+  };
+};
+
+/**
+ * Check if the request satisfies a custom predicate function.
+ */
+const satisfies = (predicate: GuardFunction): GuardFunction => {
+  return predicate;
+};
+
+// --- The final exported API ---
+
 const Visitors = {
+  /** Allows any access, authenticated or not. */
   ALL: () => true,
 
+  /** Requires a user to be authenticated. */
   authenticated: (req: Request) => req.User !== null,
 
+  /**
+   * Checks if the authenticated user has at least one of
+   * the specified profiles (e.g., "ADMIN", "MEMBER").
+   */
   hasProfile,
 
+  /**
+   * Checks if the authenticated user has at least one of
+   * the specified static roles (e.g., "MEMBER.president").
+   */
   hasRole,
+
+  /**
+   * Checks if the request satisfies a custom predicate function.
+   * Use this for all dynamic logic, like checking request params,
+   * body, or dynamic roles.
+   */
+  satisfies,
 };
 
 export { Visitors };

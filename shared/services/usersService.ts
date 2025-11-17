@@ -56,7 +56,7 @@ export async function getUserById(userId: string) {
  * [REWRITTEN] Fetches the current, active roles and titles for a constituent.
  * This function queries both Admin roles and Member titles and formats them
  * into a single array of strings for use in a JWT.
- * Examples: ["ADMIN.SUPER_ADMIN", "MEMBER.President.*", "MEMBER.Chapter-Lead.<uuid>"]
+ * Examples: ["ADMIN.SUPER_ADMIN", "MEMBER.President", "MEMBER.Chapter-Lead.<uuid>"]
  *
  * @param constituentId The ID of the constituent.
  * @returns A promise that resolves to an array of formatted role strings.
