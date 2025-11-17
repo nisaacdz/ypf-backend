@@ -15,7 +15,7 @@ import {
   GetChaptersQuerySchema,
   UpdateChapterSchema,
 } from "@/shared/validators/core";
-import { Visitors, MEMBER, anyOf } from "@/configs/authorizer";
+import { Visitors, MEMBER, anyOf, ADMIN } from "@/configs/authorizer";
 import z from "zod";
 
 const chaptersRouter = Router();
@@ -212,10 +212,8 @@ chaptersRouter.patch(
   validateParams(z.object({ id: z.uuid("Invalid chapter ID") })),
   authorize(
     anyOf(
-      Visitors.hasRole("ADMIN.SUPER_ADMIN"),
-      Visitors.satisfies(async (req) => {
-        return Visitors.hasRole(MEMBER.chapterLead(req.Params.id))(req);
-      }),
+      Visitors.hasRole(ADMIN.SUPER),
+      Visitors.hasRole(async (req) => MEMBER.chapterLead(req.Params.id)),
     ),
   ),
   validateBody(UpdateChapterSchema),
