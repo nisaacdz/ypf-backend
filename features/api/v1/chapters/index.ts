@@ -214,8 +214,7 @@ chaptersRouter.patch(
     anyOf(
       Visitors.hasRole("ADMIN.SUPER_ADMIN"),
       Visitors.satisfies(async (req) => {
-        const chapterLeadRole = MEMBER.chapterLead(req.Params.id);
-        return await Visitors.hasRole(chapterLeadRole)(req);
+        return Visitors.hasRole(MEMBER.chapterLead(req.Params.id))(req);
       }),
     ),
   ),
