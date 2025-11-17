@@ -15,7 +15,7 @@ import {
   GetChaptersQuerySchema,
   UpdateChapterSchema,
 } from "@/shared/validators/core";
-import { Visitors, anyOf } from "@/configs/authorizer";
+import { Visitors, anyOf, MEMBER } from "@/configs/authorizer";
 import z from "zod";
 
 const chaptersRouter = Router();
@@ -216,7 +216,7 @@ chaptersRouter.patch(
       Visitors.satisfies((req) => {
         if (!req.User) return false;
         const chapterId = req.Params.id;
-        const chapterLeadRole = `MEMBER.lead.${chapterId}`;
+        const chapterLeadRole = MEMBER.chapterLead(chapterId);
         return req.User.roles.includes(chapterLeadRole);
       }),
     ),
