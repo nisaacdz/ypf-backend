@@ -173,7 +173,7 @@ chaptersRouter.get(
  *             properties:
  *               name:
  *                 type: string
-Comment view *                 description: Chapter name
+ *                 description: Chapter name
  *               description:
  *                 type: string
  *                 description: Chapter description
