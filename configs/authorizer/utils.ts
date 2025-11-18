@@ -2,20 +2,18 @@ import { Role, GuardFunction } from ".";
 import { Request } from "express";
 
 export const ADMIN = {
-  REGULAR: { cmp: (role: string) => role === "ADMIN.REGULAR" },
-  SUPER: { cmp: (role: string) => role === "ADMIN.SUPER" },
+  REGULAR: new Role((role: string) => role === "ADMIN.REGULAR"),
+  SUPER: new Role((role: string) => role === "ADMIN.SUPER"),
 };
 
-export class MEMBER {
-  static PRESIDENT = Role.new("MEMBER.president", "MEMBER.president.*");
-  static TREASURER = Role.new("MEMBER.treasurer");
-  static chapterLead(chapterId: string) {
-    return Role.new(`MEMBER.lead.${chapterId}`);
-  }
-  static committeeChair(committeeId: string) {
-    return Role.new(`MEMBER.chair.${committeeId}`);
-  }
-}
+export const MEMBER = {
+  PRESIDENT: Role.new("MEMBER.president", "MEMBER.president.*"),
+  TREASURER: Role.new("MEMBER.treasurer"),
+  chapterLead: (chapterId: string) =>
+    new Role((role) => role === `MEMBER.lead.${chapterId}`),
+  committeeChair: (committeeId: string) =>
+    new Role((role) => role === `MEMBER.chair.${committeeId}`),
+};
 
 export const anyOf = (...guards: GuardFunction[]) => {
   return async (req: Request) => {
