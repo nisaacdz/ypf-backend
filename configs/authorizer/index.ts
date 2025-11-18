@@ -1,17 +1,11 @@
 import { Request } from "express";
 import { Profile } from "@/shared/types";
+import { Role } from "./role";
 
+export * from "./role";
 export * from "./utils";
 
 export type GuardFunction = (req: Request) => boolean | Promise<boolean>;
-
-export class Role {
-  constructor(public cmp: (role: string) => boolean) {}
-
-  static new(...roles: string[]) {
-    return new Role((role: string) => roles.includes(role));
-  }
-}
 
 export class Visitors {
   /** Allows any access, authenticated or not. */

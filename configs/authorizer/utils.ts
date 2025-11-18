@@ -1,5 +1,7 @@
-import { Role, GuardFunction } from ".";
 import { Request } from "express";
+import { Role } from "./role";
+
+type GuardFunction = (req: Request) => boolean | Promise<boolean>;
 
 export const ADMIN = {
   REGULAR: new Role((role: string) => role === "ADMIN.REGULAR"),
