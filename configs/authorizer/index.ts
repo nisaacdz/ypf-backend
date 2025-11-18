@@ -1,9 +1,7 @@
 import { Request } from "express";
 import { Profile } from "@/shared/types";
-import { Role } from "./role";
-
-export * from "./role";
-export * from "./utils";
+import { Role } from "./roles";
+export * from "./roles";
 
 export type GuardFunction = (req: Request) => boolean | Promise<boolean>;
 
@@ -40,3 +38,21 @@ export class Visitors {
     };
   }
 }
+
+export const anyOf = (...guards: GuardFunction[]) => {
+  return async (req: Request) => {
+    for (const guard of guards) {
+      if (await guard(req)) return true;
+    }
+    return false;
+  };
+};
+
+export const allOf = (...guards: GuardFunction[]) => {
+  return async (req: Request) => {
+    for (const guard of guards) {
+      if (!(await guard(req))) return false;
+    }
+    return true;
+  };
+};
