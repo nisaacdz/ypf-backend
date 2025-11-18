@@ -30,10 +30,13 @@ export class Visitors {
   static hasRole(...roles: (Role | ((req: Request) => Role))[]) {
     return (req: Request) => {
       if (!req.User) return false;
-      return req.User.roles.some((r) =>
-        roles.some((exp) =>
-          typeof exp === "object" ? exp.cmp(r) : exp(req).cmp(r),
-        ),
+
+      const resolvedRoles = roles.map((exp) =>
+        typeof exp === "function" ? exp(req) : exp,
+      );
+
+      return req.User.roles.some((userRole) =>
+        resolvedRoles.some((roleDef) => roleDef.cmp(userRole)),
       );
     };
   }

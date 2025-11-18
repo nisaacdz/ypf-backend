@@ -4,6 +4,10 @@ export class Role {
   static new(...roles: string[]) {
     return new Role((role: string) => roles.includes(role));
   }
+
+  static matches(pattern: RegExp) {
+    return new Role((userRole: string) => pattern.test(userRole));
+  }
 }
 
 export const ADMIN = {
