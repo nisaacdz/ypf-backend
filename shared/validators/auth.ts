@@ -13,8 +13,8 @@ export const AuthenticatedUserSchema = z.object({
       message: "Profiles must be an array.",
     })
     .max(Profiles.length, {
-      message: "You can have at most 5 active profiles.",
-    }), // active profiles
+      message: `You can have at most ${Profiles.length} active profiles.`,
+    }),
 });
 
 export const UsernameAndPasswordSchema = z.object({
