@@ -2,7 +2,7 @@ import * as authService from "@/shared/services/authService";
 import { encodeData } from "@/shared/utils/jwt";
 import { ApiResponse, ApiError } from "@/shared/types";
 import { AuthenticatedUser } from "@/shared/types";
-import { send_otp_email } from "@/shared/utils/email";
+import { sendOtpEmail } from "@/shared/utils/email";
 import { ForgotPasswordSchema, ResetPasswordSchema } from "@/shared/validators";
 import { z } from "zod";
 
@@ -63,7 +63,7 @@ export async function forgotPassword({
 }: z.infer<typeof ForgotPasswordSchema>): Promise<ApiResponse<null>> {
   const otp = await authService.forgotPassword(email);
 
-  await send_otp_email(email, otp);
+  await sendOtpEmail(email, otp);
 
   return {
     success: true,
