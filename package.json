@@ -50,6 +50,7 @@
     "@types/cors": "2.8.19",
     "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/marked": "^5.0.2",
     "@types/morgan": "1.9.10",
     "@types/multer": "^2.0.0",
     "@types/node": "24.5.0",
