@@ -6,9 +6,11 @@ import {
   timestamp,
   serial,
   jsonb,
+  unique,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { Chapters, Constituents, Media } from "./core";
+import { AudienceRule } from "@/shared/types/targeting";
 
 export const activities = pgSchema("activities");
 
@@ -96,25 +98,74 @@ export const projectsRelations = relations(Projects, ({ one, many }) => ({
 export const Announcements = activities.table("announcements", {
   id: uuid().defaultRandom().primaryKey(),
   title: text().notNull(),
-  content: text().notNull(),
-  createdBy: uuid("created_by")
-    .notNull()
-    .references(() => Constituents.id, { onDelete: "restrict" }),
+  content: text().notNull(), // Markdown or HTML
+
+  // Targeting Rules (The "Who")
+  targetCriteria: jsonb("target_criteria").$type<AudienceRule>().notNull(),
+
+  authorId: uuid("author_id").references(() => Constituents.id),
+
+  // Scheduling & Status
+  status: text().default("DRAFT"), // DRAFT, PUBLISHED, ARCHIVED
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+
   createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
 });
 
-export const AnnouncementBroadCasts = activities.table(
-  "announcement_broadcasts",
+export const ConstituentAnnouncements = activities.table(
+  "constituent_announcements",
   {
     id: serial().primaryKey(),
-    label: text(),
-    announcementId: uuid("announcement_id").references(() => Announcements.id, {
-      onDelete: "cascade",
-    }),
-    target: jsonb().notNull(), // Establish  a format for broadcasting to various targets
+    announcementId: uuid("announcement_id")
+      .notNull()
+      .references(() => Announcements.id, { onDelete: "cascade" }),
+    constituentId: uuid("constituent_id")
+      .notNull()
+      .references(() => Constituents.id, { onDelete: "cascade" }),
+
+    isRead: boolean("is_read").default(false).notNull(),
+    readAt: timestamp("read_at", { withTimezone: true }),
+
+    // Optional: Channel delivery status
+    emailSent: boolean("email_sent").default(false).notNull(),
   },
+  (table) => [
+    // Ensure a user only gets an announcement once
+    unique().on(table.announcementId, table.constituentId),
+  ],
+);
+
+// === RELATIONS ===
+
+export const announcementsRelations = relations(
+  Announcements,
+  ({ one, many }) => ({
+    author: one(Constituents, {
+      fields: [Announcements.authorId],
+      references: [Constituents.id],
+    }),
+    constituentAnnouncements: many(ConstituentAnnouncements),
+  }),
+);
+
+export const constituentAnnouncementsRelations = relations(
+  ConstituentAnnouncements,
+  ({ one }) => ({
+    announcement: one(Announcements, {
+      fields: [ConstituentAnnouncements.announcementId],
+      references: [Announcements.id],
+    }),
+    constituent: one(Constituents, {
+      fields: [ConstituentAnnouncements.constituentId],
+      references: [Constituents.id],
+    }),
+  }),
 );
 
 // export const Meetings = communications.table("meetings", {

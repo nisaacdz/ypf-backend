@@ -13,16 +13,8 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { Constituents } from "./core";
-import { AnnouncementBroadCasts } from "./activities";
 
 export const app = pgSchema("app");
-
-export const NotificationTypeEnum = app.enum("notification_type", [
-  "OTHER",
-  "MEETING_INVITE",
-  "DONATION_RECEIPT",
-  "ANNOUNCEMENT",
-]);
 
 export const Users = app.table("users", {
   id: uuid().defaultRandom().primaryKey(),
@@ -54,30 +46,18 @@ export const Otps = app.table("otps", {
   usedAt: timestamp("used_at", { withTimezone: true }),
 });
 
-export const Notifications = app.table(
-  "notifications",
-  {
-    id: uuid().defaultRandom().primaryKey(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => Users.id, { onDelete: "cascade" }),
-    type: NotificationTypeEnum().notNull(),
-    title: text(),
-    message: text(),
-    broadcastId: integer("broadcast_id").references(
-      () => AnnouncementBroadCasts.id,
-      { onDelete: "cascade" },
-    ),
-    isRead: boolean("is_read").default(false).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
-  },
-  (table) => [
-    index().on(table.broadcastId),
-    unique().on(table.userId, table.broadcastId),
-  ],
-);
+export const AppNotifications = app.table("notifications", {
+  id: uuid().defaultRandom().primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => Users.id, { onDelete: "cascade" }),
+  title: text(),
+  message: text(),
+  isRead: boolean("is_read").default(false).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
 
 // === RELATIONS ===
 

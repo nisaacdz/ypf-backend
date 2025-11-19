@@ -8,7 +8,6 @@ CREATE SCHEMA "finance";
 --> statement-breakpoint
 CREATE SCHEMA "shop";
 --> statement-breakpoint
-CREATE TYPE "app"."notification_type" AS ENUM('OTHER', 'MEETING_INVITE', 'DONATION_RECEIPT', 'ANNOUNCEMENT');--> statement-breakpoint
 CREATE TYPE "core"."admin_roles" AS ENUM('SUPER_ADMIN', 'REGULAR_ADMIN');--> statement-breakpoint
 CREATE TYPE "core"."contact_type" AS ENUM('EMAIL', 'PHONE', 'WHATSAPP');--> statement-breakpoint
 CREATE TYPE "core"."gender" AS ENUM('MALE', 'FEMALE', 'OTHER');--> statement-breakpoint
@@ -24,13 +23,10 @@ CREATE TYPE "shop"."shop_order_status" AS ENUM('PENDING', 'COMPLETED', 'CANCELLE
 CREATE TABLE "app"."notifications" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
-	"type" "app"."notification_type" NOT NULL,
 	"title" text,
 	"message" text,
-	"broadcast_id" integer,
 	"is_read" boolean DEFAULT false NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "notifications_user_id_broadcast_id_unique" UNIQUE("user_id","broadcast_id")
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "app"."otps" (
@@ -229,19 +225,27 @@ CREATE TABLE "core"."volunteers" (
 	"ended_at" timestamp with time zone
 );
 --> statement-breakpoint
-CREATE TABLE "activities"."announcement_broadcasts" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"label" text,
-	"announcement_id" uuid,
-	"subject" jsonb NOT NULL
-);
---> statement-breakpoint
 CREATE TABLE "activities"."announcements" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"title" text NOT NULL,
 	"content" text NOT NULL,
-	"created_by" uuid NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+	"target_criteria" jsonb NOT NULL,
+	"author_id" uuid,
+	"status" text DEFAULT 'DRAFT',
+	"published_at" timestamp with time zone,
+	"expires_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "activities"."constituent_announcements" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"announcement_id" uuid NOT NULL,
+	"constituent_id" uuid NOT NULL,
+	"is_read" boolean DEFAULT false NOT NULL,
+	"read_at" timestamp with time zone,
+	"email_sent" boolean DEFAULT false NOT NULL,
+	CONSTRAINT "constituent_announcements_announcement_id_constituent_id_unique" UNIQUE("announcement_id","constituent_id")
 );
 --> statement-breakpoint
 CREATE TABLE "activities"."event_media" (
@@ -326,7 +330,8 @@ CREATE TABLE "finance"."financial_transactions" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"amount" numeric(10, 2) NOT NULL,
 	"currency" varchar(3) NOT NULL,
-	"transaction_date" timestamp with time zone DEFAULT now() NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"payment_method" "finance"."payment_method",
 	"status" "finance"."transaction_status" DEFAULT 'PENDING' NOT NULL,
 	"external_provider" "finance"."external_provider" NOT NULL,
@@ -393,7 +398,6 @@ CREATE TABLE "shop"."products" (
 );
 --> statement-breakpoint
 ALTER TABLE "app"."notifications" ADD CONSTRAINT "notifications_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "app"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "app"."notifications" ADD CONSTRAINT "notifications_broadcast_id_announcement_broadcasts_id_fk" FOREIGN KEY ("broadcast_id") REFERENCES "activities"."announcement_broadcasts"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "app"."users" ADD CONSTRAINT "users_constituent_id_constituents_id_fk" FOREIGN KEY ("constituent_id") REFERENCES "core"."constituents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."admin_roles_assignments" ADD CONSTRAINT "admin_roles_assignments_admin_id_admins_id_fk" FOREIGN KEY ("admin_id") REFERENCES "core"."admins"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."admins" ADD CONSTRAINT "admins_constituent_id_constituents_id_fk" FOREIGN KEY ("constituent_id") REFERENCES "core"."constituents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -420,8 +424,9 @@ ALTER TABLE "core"."members" ADD CONSTRAINT "members_constituent_id_constituents
 ALTER TABLE "core"."organization_contacts" ADD CONSTRAINT "organization_contacts_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "core"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."organization_contacts" ADD CONSTRAINT "organization_contacts_constituent_id_constituents_id_fk" FOREIGN KEY ("constituent_id") REFERENCES "core"."constituents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."volunteers" ADD CONSTRAINT "volunteers_constituent_id_constituents_id_fk" FOREIGN KEY ("constituent_id") REFERENCES "core"."constituents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "activities"."announcement_broadcasts" ADD CONSTRAINT "announcement_broadcasts_announcement_id_announcements_id_fk" FOREIGN KEY ("announcement_id") REFERENCES "activities"."announcements"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "activities"."announcements" ADD CONSTRAINT "announcements_created_by_constituents_id_fk" FOREIGN KEY ("created_by") REFERENCES "core"."constituents"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "activities"."announcements" ADD CONSTRAINT "announcements_author_id_constituents_id_fk" FOREIGN KEY ("author_id") REFERENCES "core"."constituents"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "activities"."constituent_announcements" ADD CONSTRAINT "constituent_announcements_announcement_id_announcements_id_fk" FOREIGN KEY ("announcement_id") REFERENCES "activities"."announcements"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "activities"."constituent_announcements" ADD CONSTRAINT "constituent_announcements_constituent_id_constituents_id_fk" FOREIGN KEY ("constituent_id") REFERENCES "core"."constituents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activities"."event_media" ADD CONSTRAINT "event_media_event_id_events_id_fk" FOREIGN KEY ("event_id") REFERENCES "activities"."events"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activities"."event_media" ADD CONSTRAINT "event_media_medium_id_media_id_fk" FOREIGN KEY ("medium_id") REFERENCES "core"."media"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activities"."events" ADD CONSTRAINT "events_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "activities"."projects"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -448,5 +453,4 @@ ALTER TABLE "shop"."order_payments" ADD CONSTRAINT "order_payments_order_id_orde
 ALTER TABLE "shop"."order_payments" ADD CONSTRAINT "order_payments_transaction_id_financial_transactions_id_fk" FOREIGN KEY ("transaction_id") REFERENCES "finance"."financial_transactions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shop"."orders" ADD CONSTRAINT "orders_constituent_id_constituents_id_fk" FOREIGN KEY ("constituent_id") REFERENCES "core"."constituents"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shop"."product_media" ADD CONSTRAINT "product_media_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "shop"."products"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "shop"."product_media" ADD CONSTRAINT "product_media_medium_id_media_id_fk" FOREIGN KEY ("medium_id") REFERENCES "core"."media"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "notifications_broadcast_id_index" ON "app"."notifications" USING btree ("broadcast_id");
+ALTER TABLE "shop"."product_media" ADD CONSTRAINT "product_media_medium_id_media_id_fk" FOREIGN KEY ("medium_id") REFERENCES "core"."media"("id") ON DELETE cascade ON UPDATE no action;
