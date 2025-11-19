@@ -4,7 +4,7 @@ import schema from "@/db/schema";
 import variables from "@/configs/env";
 import { ApiError, AuthenticatedUser } from "@/shared/types";
 import logger from "@/configs/logger";
-import { send_otp_email } from "@/shared/utils/email";
+import { sendOtpEmail } from "@/shared/utils/email";
 import { v4 as uuidv4 } from "uuid";
 import { randomInt } from "crypto";
 import { sql } from "drizzle-orm";
@@ -280,7 +280,7 @@ export async function initiateGuestOrder(
 
   // Send OTP email
   try {
-    await send_otp_email(email, otp);
+    await sendOtpEmail(email, otp);
   } catch (emailError) {
     logger.error(emailError, "Failed to send OTP email");
     throw new ApiError("Failed to send verification code", 500);

@@ -327,7 +327,7 @@ async function seed(
       Array.from({ length: 8 }, () => ({
         amount: faker.finance.amount({ min: 10, max: 500, dec: 2 }),
         currency: "USD",
-        transactionDate: faker.date.recent(),
+        createdAt: faker.date.recent(),
         paymentMethod: faker.helpers.arrayElement(
           schema.PaymentMethodEnum.enumValues,
         ),
@@ -370,7 +370,7 @@ async function seed(
       Array.from({ length: 10 }, () => ({
         amount: "100.00",
         currency: "USD",
-        transactionDate: faker.date.recent(),
+        createdAt: faker.date.recent(),
         paymentMethod: faker.helpers.arrayElement(
           schema.PaymentMethodEnum.enumValues,
         ),
@@ -447,43 +447,15 @@ async function seed(
 
   console.log("✅ Finance seeded.");
 
-  console.log("📢 Seeding communications...");
-  // Seed Announcements
-  const announcements = await tx
-    .insert(schema.Announcements)
-    .values([
-      {
-        title: "Annual General Meeting",
-        content:
-          "Join us for our annual general meeting. All members are encouraged to attend.",
-        createdBy: constituents[0].id,
-      },
-      {
-        title: "New Project Launch",
-        content:
-          "We are excited to announce the launch of our new community project!",
-        createdBy: constituents[1].id,
-      },
-      {
-        title: "Volunteer Opportunity",
-        content:
-          "Looking for volunteers for our upcoming event. Sign up today!",
-        createdBy: constituents[2].id,
-      },
-    ])
-    .returning();
-
-  // TODO Seed Announcement Broadcasts
-
   // Seed Notifications (linked to broadcasts)
-  await tx.insert(schema.Notifications).values(
+  await tx.insert(schema.AppNotifications).values(
     members.slice(0, 10).flatMap((m, i) => [
       {
         userId: users[i].id,
-        type: "ANNOUNCEMENT" as const,
-        title: announcements[0].title,
-        message: announcements[0].content,
+        title: faker.lorem.sentence(),
+        message: faker.lorem.paragraph(),
         isRead: faker.datatype.boolean(),
+        createdAt: faker.date.past(),
       },
     ]),
   );

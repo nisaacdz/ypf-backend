@@ -1,5 +1,5 @@
 {
-  "id": "d1f77df0-50e1-4dda-a592-20533ee3163d",
+  "id": "4bf5361d-3dbc-4863-b168-4f9f1f6d31bf",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -21,13 +21,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "type": {
-          "name": "type",
-          "type": "notification_type",
-          "typeSchema": "app",
-          "primaryKey": false,
-          "notNull": true
-        },
         "title": {
           "name": "title",
           "type": "text",
@@ -37,12 +30,6 @@
         "message": {
           "name": "message",
           "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "broadcast_id": {
-          "name": "broadcast_id",
-          "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
@@ -61,23 +48,7 @@
           "default": "now()"
         }
       },
-      "indexes": {
-        "notifications_broadcast_id_index": {
-          "name": "notifications_broadcast_id_index",
-          "columns": [
-            {
-              "expression": "broadcast_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "notifications_user_id_users_id_fk": {
           "name": "notifications_user_id_users_id_fk",
@@ -88,26 +59,10 @@
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
-        },
-        "notifications_broadcast_id_announcement_broadcasts_id_fk": {
-          "name": "notifications_broadcast_id_announcement_broadcasts_id_fk",
-          "tableFrom": "notifications",
-          "tableTo": "announcement_broadcasts",
-          "schemaTo": "activities",
-          "columnsFrom": ["broadcast_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "notifications_user_id_broadcast_id_unique": {
-          "name": "notifications_user_id_broadcast_id_unique",
-          "nullsNotDistinct": false,
-          "columns": ["user_id", "broadcast_id"]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -1484,54 +1439,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "activities.announcement_broadcasts": {
-      "name": "announcement_broadcasts",
-      "schema": "activities",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "label": {
-          "name": "label",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "announcement_id": {
-          "name": "announcement_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "subject": {
-          "name": "subject",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "announcement_broadcasts_announcement_id_announcements_id_fk": {
-          "name": "announcement_broadcasts_announcement_id_announcements_id_fk",
-          "tableFrom": "announcement_broadcasts",
-          "tableTo": "announcements",
-          "schemaTo": "activities",
-          "columnsFrom": ["announcement_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "activities.announcements": {
       "name": "announcements",
       "schema": "activities",
@@ -1555,14 +1462,46 @@
           "primaryKey": false,
           "notNull": true
         },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
+        "target_criteria": {
+          "name": "target_criteria",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": true
         },
+        "author_id": {
+          "name": "author_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'DRAFT'"
+        },
+        "published_at": {
+          "name": "published_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
@@ -1571,19 +1510,97 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "announcements_created_by_constituents_id_fk": {
-          "name": "announcements_created_by_constituents_id_fk",
+        "announcements_author_id_constituents_id_fk": {
+          "name": "announcements_author_id_constituents_id_fk",
           "tableFrom": "announcements",
           "tableTo": "constituents",
           "schemaTo": "core",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": ["author_id"],
           "columnsTo": ["id"],
-          "onDelete": "restrict",
+          "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "activities.constituent_announcements": {
+      "name": "constituent_announcements",
+      "schema": "activities",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "announcement_id": {
+          "name": "announcement_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "constituent_id": {
+          "name": "constituent_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_read": {
+          "name": "is_read",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "read_at": {
+          "name": "read_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email_sent": {
+          "name": "email_sent",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "constituent_announcements_announcement_id_announcements_id_fk": {
+          "name": "constituent_announcements_announcement_id_announcements_id_fk",
+          "tableFrom": "constituent_announcements",
+          "tableTo": "announcements",
+          "schemaTo": "activities",
+          "columnsFrom": ["announcement_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "constituent_announcements_constituent_id_constituents_id_fk": {
+          "name": "constituent_announcements_constituent_id_constituents_id_fk",
+          "tableFrom": "constituent_announcements",
+          "tableTo": "constituents",
+          "schemaTo": "core",
+          "columnsFrom": ["constituent_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "constituent_announcements_announcement_id_constituent_id_unique": {
+          "name": "constituent_announcements_announcement_id_constituent_id_unique",
+          "nullsNotDistinct": false,
+          "columns": ["announcement_id", "constituent_id"]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -2229,8 +2246,15 @@
           "primaryKey": false,
           "notNull": true
         },
-        "transaction_date": {
-          "name": "transaction_date",
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
@@ -2720,11 +2744,6 @@
     }
   },
   "enums": {
-    "app.notification_type": {
-      "name": "notification_type",
-      "schema": "app",
-      "values": ["OTHER", "MEETING_INVITE", "DONATION_RECEIPT", "ANNOUNCEMENT"]
-    },
     "core.admin_roles": {
       "name": "admin_roles",
       "schema": "core",

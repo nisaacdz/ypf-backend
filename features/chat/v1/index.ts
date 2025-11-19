@@ -1,39 +1,17 @@
-// import { Server as SocketIOServer, Socket } from "socket.io";
-// import { Content } from "@google/generative-ai";
-// import llmConfig from "@/configs/llm";
+import { Server, Socket } from "socket.io";
+import logger from "@/configs/logger";
 
-// export const initializeChat = (io: SocketIOServer) => {
-//   io.on("connection", async (socket: Socket) => {
-//     console.log("Client connected. ID:", socket.id);
+export default function registerChatNamespace(io: Server) {
+  const chatNamespace = io.of("/chat");
 
-//     let messageBuffer: string[] = [];
+  chatNamespace.on("connection", (socket: Socket) => {
+    // The user is attached to the request object by the auth middleware
+    const user = socket.request.User;
 
-//     const messagesQueries = socket.handshake.query.messages;
+    socket.join(`user:${user?.id}`);
 
-//     let messages: Content[] = [];
-
-//     const chatHistoryWithContext = [...llmConfig.initialContext, ...messages];
-
-//     const chat = llmConfig.model.startChat({
-//       generationConfig: llmConfig.generationConfig,
-//       safetySettings: llmConfig.safetySettings,
-//       history: chatHistoryWithContext,
-//     });
-
-//     const initialResponse = await chat.sendMessage(
-//       `Infer if it is your turn to respond from the chat history.`,
-//     );
-//     const initialResponseText = initialResponse.response.text();
-
-//     // if (!isSilentBotResponse(initialResponseText)) {
-//     //   socket.emit("botMessage", { message: initialResponseText });
-//     // }
-
-//     socket.on("sendMessage", async (data: { message: string }) => {});
-
-//     socket.on("disconnect", () => {
-//       console.log("Client disconnected. ID:", socket.id);
-//       messageBuffer = [];
-//     });
-//   });
-// };
+    socket.on("disconnect", () => {
+      logger.info(`User disconnected from chat: ${user?.fullName}`);
+    });
+  });
+}
