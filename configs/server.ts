@@ -15,7 +15,7 @@ import { Server as SocketIOServer } from "socket.io";
 import ws from "./ws";
 import { registerNotificationNamespace } from "@/features/notifications";
 import registerChatNamespace from "@/features/chat/v1";
-import { authenticate } from "@/shared/middlewares/auth";
+import { socketAuth } from "@/shared/middlewares/socket";
 
 const app: Express = express();
 
@@ -53,7 +53,7 @@ const io = new SocketIOServer(server, {
 });
 
 io.engine.use(cookieParser());
-io.engine.use(authenticate);
+io.engine.use(socketAuth);
 
 registerNotificationNamespace(io);
 registerChatNamespace(io);
