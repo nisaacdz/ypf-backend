@@ -185,7 +185,7 @@ export async function sendWelcomeEmail(
  * @param to - The recipient's email address.
  * @param otp - The 6-digit OTP code.
  */
-export async function send_otp_email(to: string, otp: string): Promise<void> {
+export async function sendOtpEmail(to: string, otp: string): Promise<void> {
   const subject = "Password Reset Code";
 
   const content = `
