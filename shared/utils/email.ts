@@ -2,6 +2,7 @@ import nodemailer from "nodemailer";
 import variables from "@/configs/env";
 import emailer from "@/configs/emailer";
 import logger from "@/configs/logger";
+import { marked } from "marked";
 
 const colors = {
   primary: "#301F6E",
@@ -10,6 +11,7 @@ const colors = {
   background: "#FFFFFF",
   muted: "#F4F4F5",
   mutedForeground: "#71717A",
+  border: "#E4E4E7",
 };
 
 const generateBaseHtml = (subject: string, contentHtml: string): string => {
@@ -24,38 +26,47 @@ const generateBaseHtml = (subject: string, contentHtml: string): string => {
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>${subject}</title>
       <style>
-        body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
-        .button:hover { opacity: 0.8; }
+        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: ${colors.muted}; color: ${colors.foreground}; }
+        a { color: ${colors.accent}; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .button { display: inline-block; background-color: ${colors.accent}; color: #ffffff !important; padding: 12px 24px; border-radius: 6px; font-weight: 600; text-decoration: none; margin-top: 16px; }
+        .button:hover { background-color: #e67e00; text-decoration: none; }
+        .content h1, .content h2, .content h3 { color: ${colors.primary}; margin-top: 24px; margin-bottom: 16px; }
+        .content p { margin-bottom: 16px; line-height: 1.6; }
+        .content ul, .content ol { margin-bottom: 16px; padding-left: 24px; }
+        .content li { margin-bottom: 8px; }
+        .content blockquote { border-left: 4px solid ${colors.border}; margin: 0; padding-left: 16px; color: ${colors.mutedForeground}; }
+        .content img { max-width: 100%; height: auto; border-radius: 4px; }
       </style>
     </head>
-    <body style="margin: 0; padding: 0; background-color: ${colors.muted};">
+    <body>
       <table border="0" cellpadding="0" cellspacing="0" width="100%">
         <tr>
-          <td align="center" style="padding: 20px 0;">
-            <table border="0" cellpadding="0" cellspacing="0" width="600" style="background-color: ${colors.background}; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+          <td align="center" style="padding: 40px 20px;">
+            <table border="0" cellpadding="0" cellspacing="0" width="600" style="background-color: ${colors.background}; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
               
-              <!-- Header with Logo, Title and Subtitle -->
+              <!-- Header -->
               <tr>
-                <td align="center" style="padding: 30px 20px; border-bottom: 2px solid ${colors.primary}; background-color: ${colors.background};">
-                  <img src="${logoUrl}" alt="YPF Africa Logo" width="80" style="display: block; margin: 0 auto 15px auto; max-width: 80px; height: auto;">
-                  <h1 style="margin: 0 0 8px 0; font-size: 26px; font-weight: bold; color: ${colors.primary}; font-family: Arial, sans-serif;">YPF Africa</h1>
-                  <p style="margin: 0; font-size: 14px; color: ${colors.mutedForeground}; font-style: italic;">Empowering Youths to Change Ghana and Africa</p>
+                <td align="center" style="padding: 32px; background-color: ${colors.background}; border-bottom: 1px solid ${colors.border};">
+                  <img src="${logoUrl}" alt="YPF Africa Logo" width="64" style="display: block; margin-bottom: 12px;">
+                  <div style="font-size: 20px; font-weight: 700; color: ${colors.primary}; letter-spacing: -0.025em;">YPF Africa</div>
                 </td>
               </tr>
 
               <!-- Main Content -->
               <tr>
-                <td style="padding: 40px 30px; color: ${colors.foreground}; font-size: 16px; line-height: 1.6;">
-                  <h1 style="color: ${colors.foreground}; font-size: 24px; margin-top: 0;">${subject}</h1>
+                <td class="content" style="padding: 40px 32px; font-size: 16px;">
                   ${contentHtml}
                 </td>
               </tr>
 
               <!-- Footer -->
               <tr>
-                <td align="center" style="padding: 20px 30px; background-color: ${colors.muted}; border-top: 1px solid ${colors.mutedForeground}; color: ${colors.mutedForeground}; font-size: 12px;">
-                  <p style="margin: 0;">&copy; ${year} YPF Africa. All rights reserved.</p>
-                  <p style="margin: 5px 0 0 0;">This is an automated message, please do not reply directly to this email.</p>
+                <td align="center" style="padding: 32px; background-color: ${colors.muted}; border-top: 1px solid ${colors.border};">
+                  <p style="margin: 0 0 8px 0; font-size: 12px; color: ${colors.mutedForeground};">&copy; ${year} YPF Africa. All rights reserved.</p>
+                  <p style="margin: 0; font-size: 12px; color: ${colors.mutedForeground};">
+                    Empowering Youths to Change Ghana and Africa
+                  </p>
                 </td>
               </tr>
 
@@ -69,26 +80,38 @@ const generateBaseHtml = (subject: string, contentHtml: string): string => {
 };
 
 export const sendEmail = async (
-  to: string,
+  to: string | string[],
   subject: string,
   html: string,
   text?: string,
+  isBcc: boolean = false,
 ): Promise<void> => {
   if (variables.app.environment === "test") {
     return;
   }
+
   const mailOptions: nodemailer.SendMailOptions = {
     from: `"YPF Africa" <${variables.services.email.sender}>`,
-    to,
     subject,
     html,
     text,
   };
+
+  if (isBcc) {
+    mailOptions.bcc = to;
+    // When using BCC, 'to' field is usually the sender or a noreply address to avoid empty 'To' header issues in some clients
+    mailOptions.to = variables.services.email.sender;
+  } else {
+    mailOptions.to = to;
+  }
+
   try {
     const info = await emailer.transporter.sendMail(mailOptions);
-    logger.info(`Email sent to ${to}. Message ID: ${info.messageId}`);
+    logger.info(
+      `Email sent to ${Array.isArray(to) ? to.length + " recipients" : to}. Message ID: ${info.messageId}`,
+    );
   } catch (error) {
-    logger.error(error, `Error sending email to ${to}:`);
+    logger.error(error, `Error sending email:`);
     throw new Error(
       `Failed to send email: ${
         error instanceof Error ? error.message : String(error)
@@ -96,6 +119,32 @@ export const sendEmail = async (
     );
   }
 };
+
+/**
+ * Sends an announcement to a list of recipients.
+ * Uses BCC for privacy and efficiency.
+ * Converts Markdown content to HTML.
+ */
+export async function sendAnnouncementEmail(
+  recipients: string[],
+  title: string,
+  markdownContent: string,
+): Promise<void> {
+  if (!recipients.length) return;
+
+  // Convert markdown to HTML
+  const htmlContent = marked.parse(markdownContent);
+
+  const htmlBody = generateBaseHtml(
+    title,
+    `
+    <h1 style="margin-top: 0;">${title}</h1>
+    ${htmlContent}
+    `,
+  );
+
+  await sendEmail(recipients, title, htmlBody, undefined, true);
+}
 
 /**
  * Sends a welcome email to a new user.
@@ -119,14 +168,14 @@ export async function sendWelcomeEmail(
     </ul>
     <p>If you have any questions, feel free to reach out. We're excited to see the impact you'll make!</p>
     <br>
-    <a href="https://your-app-url.com/login" class="button" style="background-color: ${colors.accent}; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">Go to Your Dashboard</a>
-    <br>
+    <a href="https://dashboard.ypfafrica.live" class="button">Go to Your Dashboard</a>
+    <br><br>
     <p>Best regards,<br>The YPF Africa Team</p>
   `;
 
   const htmlBody = generateBaseHtml(subject, content);
 
-  const textContent = `Hi ${name},\n\nWelcome to YPF Africa! We are thrilled to have you join our community.\n\nVisit your dashboard to get started: https://your-app-url.com/login\n\nBest regards,\nThe YPF Africa Team`;
+  const textContent = `Hi ${name},\n\nWelcome to YPF Africa! We are thrilled to have you join our community.\n\nVisit your dashboard to get started: https://dashboard.ypfafrica.live\n\nBest regards,\nThe YPF Africa Team`;
 
   await sendEmail(to, subject, htmlBody, textContent);
 }
@@ -142,8 +191,8 @@ export async function send_otp_email(to: string, otp: string): Promise<void> {
   const content = `
     <p>You have requested to reset your password.</p>
     <p>Your verification code is:</p>
-    <div style="background-color: ${colors.muted}; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
-      <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: ${colors.primary};">${otp}</span>
+    <div style="background-color: ${colors.muted}; padding: 24px; text-align: center; border-radius: 8px; margin: 24px 0;">
+      <span style="font-size: 32px; font-weight: 700; letter-spacing: 8px; color: ${colors.primary}; font-family: monospace;">${otp}</span>
     </div>
     <p><strong>This code will expire in 6 minutes.</strong></p>
     <p>If you did not request a password reset, please ignore this email or contact support if you have concerns.</p>
@@ -179,12 +228,12 @@ export async function sendDonationAcknowledgementEmail(params: {
   const content = `
     <p>Dear ${params.name},</p>
     <p>Thank you for your generous donation to YPF Africa!</p>
-    <div style="background-color: ${colors.muted}; padding: 20px; border-radius: 8px; margin: 20px 0;">
-      <p style="margin: 0; font-size: 14px; color: ${colors.mutedForeground};">Donation Details:</p>
-      <p style="margin: 10px 0 5px 0; font-size: 18px; font-weight: bold; color: ${colors.foreground};">Amount: ${params.donation.currency} ${params.donation.amount}</p>
-      <p style="margin: 0; font-size: 12px; color: ${colors.mutedForeground};">Reference ID: ${params.donation.id}</p>
+    <div style="background-color: ${colors.muted}; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid ${colors.border};">
+      <p style="margin: 0 0 8px 0; font-size: 14px; color: ${colors.mutedForeground}; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Donation Details</p>
+      <p style="margin: 0 0 4px 0; font-size: 24px; font-weight: 700; color: ${colors.foreground};">${params.donation.currency} ${params.donation.amount}</p>
+      <p style="margin: 0; font-size: 12px; color: ${colors.mutedForeground}; font-family: monospace;">Ref: ${params.donation.id}</p>
     </div>
-    <br>
+    <p>Your support helps us continue our mission of empowering youths across Africa.</p>
     <p>With gratitude,<br>The YPF Africa Team</p>
   `;
 
@@ -225,10 +274,10 @@ export async function sendTransactionFailureEmail(params: {
   const content = `
     <p>Dear ${params.name},</p>
     <p>We regret to inform you that your recent ${params.transaction.type} payment could not be processed.</p>
-    <div style="background-color: ${colors.muted}; padding: 20px; border-radius: 8px; margin: 20px 0;">
-      <p style="margin: 0; font-size: 14px; color: ${colors.mutedForeground};">Transaction Details:</p>
-      <p style="margin: 10px 0 5px 0; font-size: 18px; font-weight: bold; color: ${colors.foreground};">Amount: ${params.transaction.currency} ${params.transaction.amount}</p>
-      <p style="margin: 0; font-size: 12px; color: ${colors.mutedForeground};">Reference ID: ${params.transaction.id}</p>
+    <div style="background-color: #FEF2F2; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #FECACA;">
+      <p style="margin: 0 0 8px 0; font-size: 14px; color: #991B1B; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Transaction Details</p>
+      <p style="margin: 0 0 4px 0; font-size: 24px; font-weight: 700; color: #7F1D1D;">${params.transaction.currency} ${params.transaction.amount}</p>
+      <p style="margin: 0; font-size: 12px; color: #991B1B; font-family: monospace;">Ref: ${params.transaction.id}</p>
     </div>
     <p>This may have happened due to insufficient funds, card limitations, or network issues. Please try again or contact your bank for more information.</p>
     <p>If you continue to experience issues, please contact our support team.</p>
@@ -276,10 +325,10 @@ export async function sendTransactionRefundEmail(params: {
   const content = `
     <p>Dear ${params.name},</p>
     <p>Your ${params.transaction.type} payment has been refunded.</p>
-    <div style="background-color: ${colors.muted}; padding: 20px; border-radius: 8px; margin: 20px 0;">
-      <p style="margin: 0; font-size: 14px; color: ${colors.mutedForeground};">Refund Details:</p>
-      <p style="margin: 10px 0 5px 0; font-size: 18px; font-weight: bold; color: ${colors.foreground};">Amount: ${params.transaction.currency} ${params.transaction.amount}</p>
-      <p style="margin: 0; font-size: 12px; color: ${colors.mutedForeground};">Reference ID: ${params.transaction.id}</p>
+    <div style="background-color: ${colors.muted}; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid ${colors.border};">
+      <p style="margin: 0 0 8px 0; font-size: 14px; color: ${colors.mutedForeground}; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Refund Details</p>
+      <p style="margin: 0 0 4px 0; font-size: 24px; font-weight: 700; color: ${colors.foreground};">${params.transaction.currency} ${params.transaction.amount}</p>
+      <p style="margin: 0; font-size: 12px; color: ${colors.mutedForeground}; font-family: monospace;">Ref: ${params.transaction.id}</p>
     </div>
     <p>The refunded amount should appear in your account within 5-10 business days, depending on your bank or payment provider.</p>
     <p>If you have any questions about this refund, please contact our support team.</p>
@@ -326,11 +375,11 @@ export async function sendDuesPaymentAcknowledgementEmail(params: {
   const content = `
     <p>Dear ${params.name},</p>
     <p>Thank you for your dues payment!</p>
-    <div style="background-color: ${colors.muted}; padding: 20px; border-radius: 8px; margin: 20px 0;">
-      <p style="margin: 0; font-size: 14px; color: ${colors.mutedForeground};">Payment Details:</p>
-      <p style="margin: 10px 0 5px 0; font-size: 18px; font-weight: bold; color: ${colors.foreground};">Amount: ${params.payment.currency} ${params.payment.amount}</p>
-      <p style="margin: 5px 0; font-size: 14px; color: ${colors.foreground};">Period: ${params.payment.period}</p>
-      <p style="margin: 0; font-size: 12px; color: ${colors.mutedForeground};">Reference ID: ${params.payment.id}</p>
+    <div style="background-color: ${colors.muted}; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid ${colors.border};">
+      <p style="margin: 0 0 8px 0; font-size: 14px; color: ${colors.mutedForeground}; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Payment Details</p>
+      <p style="margin: 0 0 4px 0; font-size: 24px; font-weight: 700; color: ${colors.foreground};">${params.payment.currency} ${params.payment.amount}</p>
+      <p style="margin: 0 0 4px 0; font-size: 16px; color: ${colors.foreground};">Period: ${params.payment.period}</p>
+      <p style="margin: 0; font-size: 12px; color: ${colors.mutedForeground}; font-family: monospace;">Ref: ${params.payment.id}</p>
     </div>
     <p>Our records have been updated. Thank you for your continued support of YPF Africa!</p>
     <br>
@@ -376,10 +425,10 @@ export async function sendOrderConfirmationEmail(params: {
   const content = `
     <p>Dear ${params.name},</p>
     <p>Thank you for your order! We have received your payment and are processing your order.</p>
-    <div style="background-color: ${colors.muted}; padding: 20px; border-radius: 8px; margin: 20px 0;">
-      <p style="margin: 0; font-size: 14px; color: ${colors.mutedForeground};">Order Details:</p>
-      <p style="margin: 10px 0 5px 0; font-size: 18px; font-weight: bold; color: ${colors.foreground};">Total: ${params.order.currency} ${params.order.amount}</p>
-      <p style="margin: 0; font-size: 12px; color: ${colors.mutedForeground};">Order ID: ${params.order.id}</p>
+    <div style="background-color: ${colors.muted}; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid ${colors.border};">
+      <p style="margin: 0 0 8px 0; font-size: 14px; color: ${colors.mutedForeground}; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Order Details</p>
+      <p style="margin: 0 0 4px 0; font-size: 24px; font-weight: 700; color: ${colors.foreground};">${params.order.currency} ${params.order.amount}</p>
+      <p style="margin: 0; font-size: 12px; color: ${colors.mutedForeground}; font-family: monospace;">Order ID: ${params.order.id}</p>
     </div>
     <p>We will notify you once your order is ready for pickup or has been shipped.</p>
     <br>
@@ -430,25 +479,28 @@ export async function sendOrderPlacementEmail(params: {
   const itemsList = params.order.items
     .map(
       (item) =>
-        `<li style="margin: 5px 0;">${item.quantity}x ${item.name} - ${params.order.currency} ${item.price}</li>`,
+        `<li style="margin: 5px 0; color: ${colors.foreground};">${item.quantity}x ${item.name} - <span style="font-weight: 600;">${params.order.currency} ${item.price}</span></li>`,
     )
     .join("");
 
   const content = `
     <p>Dear ${params.name},</p>
     <p>Thank you for placing an order with YPF Africa! Your order has been created and is awaiting payment.</p>
-    <div style="background-color: ${colors.muted}; padding: 20px; border-radius: 8px; margin: 20px 0;">
-      <p style="margin: 0 0 10px 0; font-size: 14px; color: ${colors.mutedForeground};">Order Details:</p>
-      <ul style="list-style: none; padding: 0; margin: 0 0 10px 0;">
+    <div style="background-color: ${colors.muted}; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid ${colors.border};">
+      <p style="margin: 0 0 12px 0; font-size: 14px; color: ${colors.mutedForeground}; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Order Summary</p>
+      <ul style="list-style: none; padding: 0; margin: 0 0 16px 0;">
         ${itemsList}
       </ul>
-      <p style="margin: 10px 0 5px 0; font-size: 18px; font-weight: bold; color: ${colors.foreground};">Total: ${params.order.currency} ${params.order.amount}</p>
-      <p style="margin: 0; font-size: 12px; color: ${colors.mutedForeground};">Order ID: ${params.order.id}</p>
+      <div style="border-top: 1px solid ${colors.border}; padding-top: 12px;">
+        <p style="margin: 0 0 4px 0; font-size: 14px; color: ${colors.mutedForeground};">Total Amount</p>
+        <p style="margin: 0; font-size: 24px; font-weight: 700; color: ${colors.foreground};">${params.order.currency} ${params.order.amount}</p>
+      </div>
+      <p style="margin: 8px 0 0 0; font-size: 12px; color: ${colors.mutedForeground}; font-family: monospace;">Order ID: ${params.order.id}</p>
     </div>
     <p>Please complete your payment to confirm your order:</p>
     <br>
-    <a href="${params.paymentUrl}" class="button" style="background-color: ${colors.accent}; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">Complete Payment</a>
-    <br>
+    <a href="${params.paymentUrl}" class="button">Complete Payment</a>
+    <br><br>
     <p>Once payment is confirmed, we will send you a receipt and begin processing your order.</p>
     <br>
     <p>Best regards,<br>The YPF Africa Team</p>
