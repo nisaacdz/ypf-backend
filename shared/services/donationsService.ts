@@ -50,7 +50,7 @@ type Donation = {
     id: string;
     amount: string;
     currency: string;
-    transactionDate: Date;
+    createdAt: Date;
     paymentMethod:
       | "CREDIT_CARD"
       | "BANK_TRANSFER"
