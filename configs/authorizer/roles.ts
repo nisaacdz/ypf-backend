@@ -22,4 +22,5 @@ export const MEMBER = {
     new Role((role) => role === `MEMBER.lead.${chapterId}`),
   committeeChair: (committeeId: string) =>
     new Role((role) => role === `MEMBER.chair.${committeeId}`),
+  LEADER: Role.matches(/^MEMBER\..+$/),
 };
