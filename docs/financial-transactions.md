@@ -812,7 +812,10 @@ export const FinancialTransactions = finance.table("financial_transactions", {
   id: uuid().defaultRandom().primaryKey(),
   amount: decimal({ precision: 10, scale: 2 }).notNull(),
   currency: varchar({ length: 3 }).notNull(),
-  transactionDate: timestamp("transaction_date", { withTimezone: true })
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
   paymentMethod: PaymentMethod("payment_method"),

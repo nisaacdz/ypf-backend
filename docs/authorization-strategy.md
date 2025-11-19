@@ -57,8 +57,9 @@ Apply the guards in your route handlers or middleware.
 router.post(
   "/chapters/:id/events",
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), (req) =>
-      Visitors.hasRole(MEMBER.chapterLead(req.params.id))(req),
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole((req) => MEMBER.chapterLead(req.params.id)),
     ),
   ),
   controller.createEvent,
