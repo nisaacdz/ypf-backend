@@ -46,7 +46,7 @@ const envSchema = z
     // Application Metadata
     LOGO_URL: z.url("A valid LOGO_URL is required"),
     YEAR: z.string().default(new Date().getFullYear().toString()),
-    VERSION: z.string().default("1.0.0"),
+    VERSION: z.string().default("0.1.0"),
   })
   .transform((env) => ({
     app: {
