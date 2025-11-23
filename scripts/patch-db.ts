@@ -2,14 +2,22 @@ import dbClient from "@/configs/db";
 import { sql } from "drizzle-orm";
 
 /**
- * Applies exclusion constraints within a database transaction.
+ * Applies manual constraints and other SQL patches within a database transaction.
  * This function is designed to be called by dbClient.db.transaction().
  */
+async function applyManualConstraints(
+  tx: Parameters<Parameters<typeof dbClient.db.transaction>[0]>[0],
+) {
+  console.log("Starting application of manual constraints...");
+
+  await applyExclusionConstraints(tx);
+
+  console.log("🎉 Successfully applied all manual constraints!");
+}
+
 async function applyExclusionConstraints(
   tx: Parameters<Parameters<typeof dbClient.db.transaction>[0]>[0],
 ) {
-  console.log("Starting application of exclusion constraints...");
-
   console.log("Ensuring 'btree_gist' extension exists...");
   await tx.execute(sql`CREATE EXTENSION IF NOT EXISTS btree_gist;`);
   console.log("'btree_gist' extension ensured.");
@@ -153,16 +161,14 @@ async function applyExclusionConstraints(
   console.log(
     "✅ Successfully applied constraint to 'core.admin_roles_assignments'.",
   );
-
-  console.log("🎉 Successfully applied all exclusion constraints!");
 }
 
 dbClient
   .initialize()
   .then(() => {
     console.log("Database connection initialized.");
-    console.log("Running exclusion constraint script in transaction...");
-    return dbClient.db.transaction(applyExclusionConstraints);
+    console.log("Running manual constraint script in transaction...");
+    return dbClient.db.transaction(applyManualConstraints);
   })
   .then(() => {
     console.log("🎉 Transaction committed successfully.");
