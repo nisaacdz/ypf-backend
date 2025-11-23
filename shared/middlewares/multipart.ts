@@ -1,5 +1,23 @@
 import multer from "multer";
-const storage = multer.memoryStorage();
+import fs from "fs";
+import path from "path";
+import { v4 as uuidv4 } from "uuid";
+
+const tempDir = path.join(process.cwd(), "temp");
+if (!fs.existsSync(tempDir)) {
+  fs.mkdirSync(tempDir);
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, tempDir);
+  },
+  filename: (req, file, cb) => {
+    const fileExtension =
+      path.extname(file.originalname) || `.${file.mimetype.split("/")[1]}`;
+    cb(null, `${uuidv4()}${fileExtension}`);
+  },
+});
 
 export const AllowedMimeTypes = {
   "image/png": "PICTURE",

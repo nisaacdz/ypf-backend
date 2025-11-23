@@ -16,6 +16,8 @@ export interface MediaMeta {
   size: number;
 }
 
+import fs from "fs/promises";
+
 export async function storeMediumFile(
   file: Express.Multer.File,
 ): Promise<MediaMeta> {
@@ -27,28 +29,48 @@ export async function storeMediumFile(
 
   const containerClient = blobServiceClient.getContainerClient(containerName);
   const blockBlobClient = containerClient.getBlockBlobClient(blobName);
-  await blockBlobClient.uploadData(file.buffer, {
-    blobHTTPHeaders: { blobContentType: file.mimetype },
-  });
 
-  let dimensions: { width: number; height: number };
+  try {
+    if (file.path) {
+      await blockBlobClient.uploadFile(file.path, {
+        blobHTTPHeaders: { blobContentType: file.mimetype },
+      });
+    } else if (file.buffer) {
+      await blockBlobClient.uploadData(file.buffer, {
+        blobHTTPHeaders: { blobContentType: file.mimetype },
+      });
+    } else {
+      throw new Error("File content missing (no path or buffer)");
+    }
 
-  if (isVideo) {
-    // imagekit may not yet be aware of new uploads or may be too slow; likely the latter
-    // const fileDetails = await imagekit.getFileDetails(blobName);
-    // const { width, height } = fileDetails;
-    dimensions = { width: 0, height: 0 };
-  } else {
-    const imageMeta = await sharp(file.buffer).metadata();
-    dimensions = { width: imageMeta.width, height: imageMeta.height };
+    let dimensions: { width: number; height: number };
+
+    if (isVideo) {
+      // imagekit may not yet be aware of new uploads or may be too slow; likely the latter
+      // const fileDetails = await imagekit.getFileDetails(blobName);
+      // const { width, height } = fileDetails;
+      dimensions = { width: 0, height: 0 };
+    } else {
+      const input = file.path || file.buffer;
+      const imageMeta = await sharp(input).metadata();
+      dimensions = { width: imageMeta.width!, height: imageMeta.height! };
+    }
+
+    return {
+      externalId: blobName,
+      type: isVideo ? "VIDEO" : "PICTURE",
+      dimensions: dimensions,
+      size: file.size,
+    };
+  } finally {
+    if (file.path) {
+      try {
+        await fs.unlink(file.path);
+      } catch (err) {
+        logger.error(err, `Failed to delete temp file: ${file.path}`);
+      }
+    }
   }
-
-  return {
-    externalId: blobName,
-    type: isVideo ? "VIDEO" : "PICTURE",
-    dimensions: dimensions,
-    size: file.size,
-  };
 }
 
 export async function deleteMediumFile(externalId: string): Promise<boolean> {

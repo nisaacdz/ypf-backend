@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { ApiError } from "../types";
-import { fileTypeFromBuffer } from "file-type";
+import { fileTypeFromBuffer, fileTypeFromFile } from "file-type";
 import z from "zod";
 
 export function validateBody<T>(schema: z.ZodType<T>) {
@@ -59,7 +59,12 @@ export function validateFile<T>(schema: z.ZodType<T>) {
       mimeType: req.file.mimetype,
     };
 
-    const actualMimeType = await fileTypeFromBuffer(req.file.buffer);
+    let actualMimeType;
+    if (req.file.path) {
+      actualMimeType = await fileTypeFromFile(req.file.path);
+    } else if (req.file.buffer) {
+      actualMimeType = await fileTypeFromBuffer(req.file.buffer);
+    }
 
     if (!actualMimeType || actualMimeType.mime !== req.file.mimetype) {
       return next(new ApiError("Invalid file content", 400));
