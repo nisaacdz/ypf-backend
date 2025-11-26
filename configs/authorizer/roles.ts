@@ -11,8 +11,8 @@ export class Role {
 }
 
 export const ADMIN = {
-  REGULAR: Role.new("ADMIN.REGULAR"),
-  SUPER: Role.new("ADMIN.SUPER"),
+  REGULAR: Role.new("ADMIN.REGULAR_ADMIN"),
+  SUPER: Role.new("ADMIN.SUPER_ADMIN"),
 };
 
 export const MEMBER = {
