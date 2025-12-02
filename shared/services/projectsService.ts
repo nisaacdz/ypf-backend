@@ -277,7 +277,7 @@ export async function updateProject(
 }
 
 export async function updateProjectMedium(
-  projectMediumId: number,
+  projectMediumId: string,
   data: { caption?: string; isFeatured?: boolean },
 ): Promise<void> {
   const [updatedData] = await dbClient.db

@@ -122,7 +122,7 @@ export async function updateProject(
 }
 
 export async function updateProjectMedium(
-  projectMediumId: number,
+  projectMediumId: string,
   updates: z.infer<typeof UpdateProjectMediumSchema>,
 ): Promise<ApiResponse<null>> {
   await projectsService.updateProjectMedium(projectMediumId, updates);

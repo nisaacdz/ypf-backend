@@ -272,7 +272,7 @@ export async function updateEvent(
 }
 
 export async function updateEventMedium(
-  eventMediumId: number,
+  eventMediumId: string,
   data: { caption?: string; isFeatured?: boolean },
 ): Promise<void> {
   const [updatedData] = await dbClient.db

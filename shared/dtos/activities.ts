@@ -60,14 +60,14 @@ export type YPFEventDetail = {
 };
 
 export type YPFEventMedium = {
-  id: number;
+  id: string;
   caption?: string;
   isFeatured: boolean;
   medium: Medium;
 };
 
 export type YPFProjectMedium = {
-  id: number;
+  id: string;
   caption?: string;
   isFeatured: boolean;
   medium: Medium;

@@ -4,7 +4,6 @@ import {
   uuid,
   text,
   timestamp,
-  serial,
   jsonb,
   unique,
 } from "drizzle-orm/pg-core";
@@ -64,7 +63,7 @@ export const Events = activities.table("events", {
 });
 
 export const ProjectMedia = activities.table("project_media", {
-  id: serial().primaryKey(),
+  id: uuid().defaultRandom().primaryKey(),
   projectId: uuid("project_id").references(() => Projects.id, {
     onDelete: "cascade",
   }),
@@ -76,7 +75,7 @@ export const ProjectMedia = activities.table("project_media", {
 });
 
 export const EventMedia = activities.table("event_media", {
-  id: serial().primaryKey(),
+  id: uuid().defaultRandom().primaryKey(),
   eventId: uuid("event_id").references(() => Events.id, {
     onDelete: "cascade",
   }),
@@ -121,7 +120,7 @@ export const Announcements = activities.table("announcements", {
 export const ConstituentAnnouncements = activities.table(
   "constituent_announcements",
   {
-    id: serial().primaryKey(),
+    id: uuid().defaultRandom().primaryKey(),
     announcementId: uuid("announcement_id")
       .notNull()
       .references(() => Announcements.id, { onDelete: "cascade" }),

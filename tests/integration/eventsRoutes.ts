@@ -397,7 +397,7 @@ describe("Events API", () => {
   });
 
   describe("PATCH /api/v1/events/media/:id", () => {
-    let testMediaId: number;
+    let testMediaId: string;
 
     beforeAll(async () => {
       // First, create a test medium in the Media table with a unique external_id

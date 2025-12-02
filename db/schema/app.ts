@@ -4,7 +4,6 @@ import {
   varchar,
   text,
   timestamp,
-  serial,
   jsonb,
   boolean,
   index,
@@ -38,7 +37,7 @@ export const Users = app.table("users", {
 });
 
 export const Otps = app.table("otps", {
-  id: serial().primaryKey(),
+  id: uuid().defaultRandom().primaryKey(),
   email: varchar({ length: 255 }).notNull(),
   code: text().notNull(),
   payload: jsonb(),

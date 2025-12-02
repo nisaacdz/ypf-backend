@@ -29,7 +29,7 @@ describe("Projects API", () => {
   const testData = {
     chapterId: "",
     projectId: "",
-    projectMediaId: 0,
+    projectMediaId: "",
   };
 
   beforeAll(async () => {

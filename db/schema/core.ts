@@ -4,7 +4,6 @@ import {
   timestamp,
   text,
   boolean,
-  serial,
   date,
   unique,
   integer,
@@ -64,7 +63,7 @@ export const Constituents = core.table("constituents", {
 export const ContactInformations = core.table(
   "contact_informations",
   {
-    id: serial().primaryKey(),
+    id: uuid().defaultRandom().primaryKey(),
     constituentId: uuid("constituent_id")
       .notNull()
       .references(() => Constituents.id, { onDelete: "cascade" }),
@@ -151,7 +150,7 @@ export const MemberTitles = core.table(
 
 // add constraint at dbms level for non overlapping (memberId, titleId) assignments
 export const MemberTitlesAssignments = core.table("member_titles_assignments", {
-  id: serial().primaryKey(),
+  id: uuid().defaultRandom().primaryKey(),
   memberId: uuid("member_id")
     .notNull()
     .references(() => Members.id, { onDelete: "cascade" }),
@@ -168,7 +167,7 @@ export const AdminRoles = core.enum("admin_roles", [
 ]);
 
 export const AdminRolesAssignments = core.table("admin_roles_assignments", {
-  id: serial().primaryKey(),
+  id: uuid().defaultRandom().primaryKey(),
   adminId: uuid("admin_id")
     .notNull()
     .references(() => Admins.id, { onDelete: "cascade" }),
@@ -191,7 +190,7 @@ export const Chapters = core.table("chapters", {
 
 // add constraint at dbms level for non overlapping (memberId, chapterId) assignment duration
 export const ChapterMemberships = core.table("chapter_memberships", {
-  id: serial().primaryKey(),
+  id: uuid().defaultRandom().primaryKey(),
   memberId: uuid("member_id")
     .notNull()
     .references(() => Members.id, { onDelete: "cascade" }),
@@ -216,7 +215,7 @@ export const Committees = core.table("committees", {
 
 // add constraint at dbms level for non overlapping (memberId, committeeId) assignments
 export const CommitteeMemberships = core.table("committee_memberships", {
-  id: serial().primaryKey(),
+  id: uuid().defaultRandom().primaryKey(),
   memberId: uuid("member_id")
     .notNull()
     .references(() => Members.id, { onDelete: "cascade" }),
@@ -256,7 +255,7 @@ export const OrganizationContacts = core.table(
 );
 
 export const ChapterMedia = core.table("chapter_media", {
-  id: serial().primaryKey(),
+  id: uuid().defaultRandom().primaryKey(),
   chapterId: uuid("chapter_id").references(() => Chapters.id, {
     onDelete: "cascade",
   }),
@@ -268,7 +267,7 @@ export const ChapterMedia = core.table("chapter_media", {
 });
 
 export const CommitteeMedia = core.table("committee_media", {
-  id: serial().primaryKey(),
+  id: uuid().defaultRandom().primaryKey(),
   committeeId: uuid("committee_id").references(() => Committees.id, {
     onDelete: "cascade",
   }),
