@@ -35,6 +35,8 @@ export const socketAuth = (
 
     if (opts.domain) cookieStr += `; Domain=${opts.domain}`;
 
+    if (opts.partitioned) cookieStr += "; Partitioned";
+
     const existing = res.getHeader("Set-Cookie");
     let headers: string[] = [];
 

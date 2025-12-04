@@ -95,6 +95,7 @@ authRouter.post(
         sameSite: "none",
         maxAge: 3 * 24 * 60 * 60 * 1000, // actual token expires earlier
         path: "/",
+        partitioned: true,
       });
 
       // Set refresh_token cookie with 3-day expiry
@@ -104,6 +105,7 @@ authRouter.post(
         sameSite: "none",
         maxAge: 3 * 24 * 60 * 60 * 1000, // 3 days
         path: "/",
+        partitioned: true,
       });
 
       res.status(200).json(response);
@@ -309,6 +311,7 @@ authRouter.post("/logout", async (req: Request, res: Response) => {
 //         sameSite: "lax",
 //         maxAge: 3 * 24 * 60 * 60 * 1000, // 3 days
 //         path: "/",
+//         partitioned: true,
 //       });
 
 //       res.status(200).json(response);

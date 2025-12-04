@@ -70,6 +70,7 @@ export async function authenticate(
         sameSite: "none",
         maxAge: 3 * 24 * 60 * 60 * 1000, // token expires earlier
         path: "/",
+        partitioned: true,
       });
 
       // Check if refresh_token is within 1 day of expiry
@@ -82,6 +83,7 @@ export async function authenticate(
           sameSite: "none",
           maxAge: 3 * 24 * 60 * 60 * 1000,
           path: "/",
+          partitioned: true,
         });
       }
       req.User = authenticatedUser;
@@ -162,6 +164,7 @@ export const authenticateLax = async (
         sameSite: "none",
         maxAge: 3 * 24 * 60 * 60 * 1000, // token expires earlier
         path: "/",
+        partitioned: true,
       });
 
       if (refreshExp - now <= 24 * 60 * 60) {
@@ -172,6 +175,7 @@ export const authenticateLax = async (
           sameSite: "none",
           maxAge: 3 * 24 * 60 * 60 * 1000, // 3 days
           path: "/",
+          partitioned: true,
         });
       }
 
