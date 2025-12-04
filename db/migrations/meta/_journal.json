@@ -5,15 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1763519825199,
-      "tag": "0000_goofy_shiver_man",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1764690779561,
-      "tag": "0001_equal_vertigo",
+      "when": 1764881409736,
+      "tag": "0000_cooing_ozymandias",
       "breakpoints": true
     }
   ]

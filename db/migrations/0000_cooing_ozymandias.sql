@@ -30,7 +30,7 @@ CREATE TABLE "app"."notifications" (
 );
 --> statement-breakpoint
 CREATE TABLE "app"."otps" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"email" varchar(255) NOT NULL,
 	"code" text NOT NULL,
 	"payload" jsonb,
@@ -59,7 +59,7 @@ CREATE TABLE "app"."users" (
 );
 --> statement-breakpoint
 CREATE TABLE "core"."admin_roles_assignments" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"admin_id" uuid NOT NULL,
 	"role" "core"."admin_roles" NOT NULL,
 	"started_at" timestamp with time zone NOT NULL,
@@ -81,7 +81,7 @@ CREATE TABLE "core"."auditors" (
 );
 --> statement-breakpoint
 CREATE TABLE "core"."chapter_media" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"chapter_id" uuid,
 	"medium_id" uuid,
 	"caption" text,
@@ -89,7 +89,7 @@ CREATE TABLE "core"."chapter_media" (
 );
 --> statement-breakpoint
 CREATE TABLE "core"."chapter_memberships" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"member_id" uuid NOT NULL,
 	"chapter_id" uuid NOT NULL,
 	"started_at" timestamp with time zone NOT NULL,
@@ -107,7 +107,7 @@ CREATE TABLE "core"."chapters" (
 );
 --> statement-breakpoint
 CREATE TABLE "core"."committee_media" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"committee_id" uuid,
 	"medium_id" uuid,
 	"caption" text,
@@ -115,7 +115,7 @@ CREATE TABLE "core"."committee_media" (
 );
 --> statement-breakpoint
 CREATE TABLE "core"."committee_memberships" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"member_id" uuid NOT NULL,
 	"committee_id" uuid NOT NULL,
 	"started_at" timestamp with time zone NOT NULL,
@@ -145,7 +145,7 @@ CREATE TABLE "core"."constituents" (
 );
 --> statement-breakpoint
 CREATE TABLE "core"."contact_informations" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"constituent_id" uuid NOT NULL,
 	"contact_type" "core"."contact_type" NOT NULL,
 	"value" text NOT NULL,
@@ -185,7 +185,7 @@ CREATE TABLE "core"."member_titles" (
 );
 --> statement-breakpoint
 CREATE TABLE "core"."member_titles_assignments" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"member_id" uuid NOT NULL,
 	"title_id" text NOT NULL,
 	"started_at" timestamp with time zone NOT NULL,
@@ -239,7 +239,7 @@ CREATE TABLE "activities"."announcements" (
 );
 --> statement-breakpoint
 CREATE TABLE "activities"."constituent_announcements" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"announcement_id" uuid NOT NULL,
 	"constituent_id" uuid NOT NULL,
 	"is_read" boolean DEFAULT false NOT NULL,
@@ -249,7 +249,7 @@ CREATE TABLE "activities"."constituent_announcements" (
 );
 --> statement-breakpoint
 CREATE TABLE "activities"."event_media" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"event_id" uuid,
 	"medium_id" uuid,
 	"caption" text,
@@ -268,7 +268,7 @@ CREATE TABLE "activities"."events" (
 );
 --> statement-breakpoint
 CREATE TABLE "activities"."project_media" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"project_id" uuid,
 	"medium_id" uuid,
 	"caption" text,
