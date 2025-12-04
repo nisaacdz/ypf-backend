@@ -505,7 +505,7 @@ projectsRouter.post(
  */
 projectsRouter.patch(
   "/:id/media",
-  validateParams(z.object({ id: z.string().uuid() })),
+  validateParams(z.object({ id: z.uuid() })),
   authenticate,
   authorize(
     anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),

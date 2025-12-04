@@ -519,7 +519,7 @@ eventsRouter.put(
  */
 eventsRouter.patch(
   "/media/:id",
-  validateParams(z.object({ id: z.string().uuid() })),
+  validateParams(z.object({ id: z.uuid() })),
   authenticate,
   authorize(
     anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
