@@ -7,6 +7,7 @@ import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { generateTestUser, generateTestChapter } from "../factories";
 import { YPFEvent } from "@/shared/dtos";
+import { v4 as uuidv4 } from "uuid";
 
 describe("Events API", () => {
   let authTokenCookie: string;
@@ -518,7 +519,7 @@ describe("Events API", () => {
     });
 
     it("should return 404 for non-existent media", async () => {
-      const fakeId = 999999;
+      const fakeId = uuidv4();
       const updateData = {
         caption: "Update non-existent",
       };

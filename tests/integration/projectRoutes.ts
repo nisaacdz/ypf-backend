@@ -10,6 +10,7 @@ import {
   generateTestChapter,
   generateTestProject,
 } from "../factories";
+import { v4 as uuidv4 } from "uuid";
 
 interface ProjectResponse {
   id: string;
@@ -690,7 +691,7 @@ describe("Projects API", () => {
     });
 
     it("should return 404 for non-existent media", async () => {
-      const fakeId = 999999;
+      const fakeId = uuidv4();
       const updateData = {
         caption: "Update non-existent",
       };
