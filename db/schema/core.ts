@@ -124,12 +124,13 @@ export const Directors = core.table("directors", {
   startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
   endedAt: timestamp("ended_at", { withTimezone: true }),
 });
-
+// ensure that (title, alias) pairs are consistent. Same title should guarantee same alias and vice versa
 export const MemberTitles = core.table(
   "member_titles",
   {
-    id: text().primaryKey(),
-    title: text().notNull(),
+    id: uuid().defaultRandom().primaryKey(),
+    title: text().notNull(), // for full displayable name
+    alias: text().notNull(), // short alias for access control
     description: text(),
     _level: integer().notNull(), // roughly indicates relevance, 0 is highest
     chapterId: uuid("chapter_id").references(() => Chapters.id, {

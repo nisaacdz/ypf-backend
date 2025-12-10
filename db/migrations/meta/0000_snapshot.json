@@ -1,5 +1,5 @@
 {
-  "id": "255178e5-ae0a-4376-87ba-5a5e01d4de4a",
+  "id": "c74b49f3-78d7-4884-bd99-a5a45ff1cf5b",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1079,12 +1079,19 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "text",
+          "type": "uuid",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "default": "gen_random_uuid()"
         },
         "title": {
           "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "alias": {
+          "name": "alias",
           "type": "text",
           "primaryKey": false,
           "notNull": true

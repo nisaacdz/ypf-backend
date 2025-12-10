@@ -174,8 +174,9 @@ CREATE TABLE "core"."media" (
 );
 --> statement-breakpoint
 CREATE TABLE "core"."member_titles" (
-	"id" text PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"title" text NOT NULL,
+	"alias" text NOT NULL,
 	"description" text,
 	"_level" integer NOT NULL,
 	"chapter_id" uuid,
