@@ -36,7 +36,7 @@ export async function loginWithUsernameAndPassword({
 
   const accessToken = encodeData(authenticatedUser, { expiresIn: "30m" });
   const refreshToken = encodeData(
-    { username: authenticatedUser.email || username },
+    { username: authenticatedUser.email },
     { expiresIn: "3d" },
   );
 
