@@ -1,11 +1,12 @@
 import { Request, Response, NextFunction } from "express";
 import { Router } from "express";
 import { authenticateLax, authorize } from "@/shared/middlewares/auth";
-import { validateQuery, validateParams } from "@/shared/middlewares/validate";
+import { validateQuery, validateParams, validateBody } from "@/shared/middlewares/validate";
 import * as membersHandler from "./membersHandler";
 import { GetMembersQuerySchema } from "@/shared/validators/core";
 import { Visitors } from "@/configs/authorizer";
 import z from "zod";
+import { createMemberSchema } from "./schema";
 
 const membersRouter = Router();
 
@@ -172,6 +173,36 @@ membersRouter.get(
       next(error);
     }
   },
+);
+
+membersRouter.post(
+  "/",
+  authenticateLax,
+  authorize(Visitors.hasProfile("ADMIN")),
+  validateBody(createMemberSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await membersHandler.createMember(req.body);
+      res.status(201).json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+membersRouter.delete(
+  "/:id",
+  authenticateLax,
+  authorize(Visitors.hasProfile("ADMIN")),
+  validateParams(z.object({ id: z.string().uuid() })),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await membersHandler.deleteMember(req.Params.id);
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
 );
 
 export default membersRouter;

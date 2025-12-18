@@ -6,9 +6,11 @@ import {
   timestamp,
   jsonb,
   unique,
+  decimal,
+  integer,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { Chapters, Constituents, Media } from "./core";
+import { Chapters, Constituents, Media, Committees, Members } from "./core";
 import { AudienceRule } from "@/shared/types/targeting";
 
 export const activities = pgSchema("activities");
@@ -167,6 +169,63 @@ export const constituentAnnouncementsRelations = relations(
   }),
 );
 
+export const Programs = activities.table("programs", {
+  id: uuid().defaultRandom().primaryKey(),
+  name: text().notNull(),
+  description: text(),
+  type: text().notNull(), // mentorship, village_childcare, welfare, leadership, networking
+  startDate: timestamp("start_date", { withTimezone: true }).notNull(),
+  endDate: timestamp("end_date", { withTimezone: true }),
+  status: text().notNull().default('active'), // active, completed, paused
+  budget: decimal("budget", { precision: 12, scale: 2 }),
+  maxParticipants: integer("max_participants"),
+  committeeId: uuid("committee_id").references(() => Committees.id),
+  chapterId: uuid("chapter_id").references(() => Chapters.id),
+  createdBy: uuid("created_by").references(() => Constituents.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export const ProgramEnrollments = activities.table("program_enrollments", {
+  id: uuid().defaultRandom().primaryKey(),
+  programId: uuid("program_id").notNull().references(() => Programs.id, { onDelete: "cascade" }),
+  memberId: uuid("member_id").notNull().references(() => Members.id, { onDelete: "cascade" }),
+  enrolledAt: timestamp("enrolled_at", { withTimezone: true }).defaultNow(),
+  status: text().notNull().default('enrolled'), // enrolled, active, completed, withdrawn
+  progress: integer().default(0),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  certificateId: uuid("certificate_id"),
+}, (t) => ({
+  unq: unique().on(t.programId, t.memberId),
+}));
+
+export const programsRelations = relations(Programs, ({ one, many }) => ({
+  committee: one(Committees, {
+    fields: [Programs.committeeId],
+    references: [Committees.id],
+  }),
+  chapter: one(Chapters, {
+    fields: [Programs.chapterId],
+    references: [Chapters.id],
+  }),
+  creator: one(Constituents, {
+    fields: [Programs.createdBy],
+    references: [Constituents.id],
+  }),
+  enrollments: many(ProgramEnrollments),
+}));
+
+export const programEnrollmentsRelations = relations(ProgramEnrollments, ({ one }) => ({
+  program: one(Programs, {
+    fields: [ProgramEnrollments.programId],
+    references: [Programs.id],
+  }),
+  member: one(Members, {
+    fields: [ProgramEnrollments.memberId],
+    references: [Members.id],
+  }),
+}));
+
 // export const Meetings = communications.table("meetings", {
 //   id: uuid().defaultRandom().primaryKey(),
 //   title: text().notNull(),
@@ -235,3 +294,108 @@ export const constituentAnnouncementsRelations = relations(
 //     }),
 //   }),
 // );
+
+export const CertificateTypeEnum = activities.enum("certificate_type", [
+  "EVENT_PARTICIPATION",
+  "PROGRAM_COMPLETION",
+  "HONORARY",
+  "MEMBERSHIP",
+  "VOLUNTEER_APPRECIATION"
+]);
+
+export const Certificates = activities.table("certificates", {
+  id: uuid().defaultRandom().primaryKey(),
+  recipientId: uuid("recipient_id").references(() => Members.id, { onDelete: "cascade" }).notNull(),
+  type: CertificateTypeEnum().notNull(),
+  title: text().notNull(),
+  description: text(),
+  issueDate: timestamp("issue_date", { withTimezone: true }).defaultNow().notNull(),
+  expiryDate: timestamp("expiry_date", { withTimezone: true }),
+  fileUrl: text("file_url"),
+  metadata: jsonb("metadata"),
+  eventId: uuid("event_id").references(() => Events.id, { onDelete: "set null" }),
+  programId: uuid("program_id").references(() => Programs.id, { onDelete: "set null" }),
+  issuedBy: uuid("issued_by").references(() => Members.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const certificatesRelations = relations(Certificates, ({ one }) => ({
+  recipient: one(Members, {
+    fields: [Certificates.recipientId],
+    references: [Members.id],
+    relationName: "recipient"
+  }),
+  event: one(Events, {
+    fields: [Certificates.eventId],
+    references: [Events.id],
+  }),
+  program: one(Programs, {
+    fields: [Certificates.programId],
+    references: [Programs.id],
+  }),
+  issuer: one(Members, {
+    fields: [Certificates.issuedBy],
+    references: [Members.id],
+    relationName: "issuer"
+  }),
+}));
+
+export const WelfareCaseTypeEnum = activities.enum("welfare_case_type", [
+  "FINANCIAL_SUPPORT",
+  "MEDICAL",
+  "EDUCATIONAL",
+  "EMERGENCY",
+  "COUNSELING",
+  "OTHER"
+]);
+
+export const WelfareCaseStatusEnum = activities.enum("welfare_case_status", [
+  "PENDING",
+  "UNDER_REVIEW",
+  "APPROVED",
+  "REJECTED",
+  "RESOLVED"
+]);
+
+export const WelfareCasePriorityEnum = activities.enum("welfare_case_priority", [
+  "LOW",
+  "MEDIUM",
+  "HIGH",
+  "URGENT"
+]);
+
+export const WelfareCases = activities.table("welfare_cases", {
+  id: uuid().defaultRandom().primaryKey(),
+  memberId: uuid("member_id").references(() => Members.id, { onDelete: "cascade" }).notNull(),
+  type: WelfareCaseTypeEnum().notNull(),
+  title: text().notNull(),
+  description: text().notNull(),
+  status: WelfareCaseStatusEnum().default("PENDING").notNull(),
+  priority: WelfareCasePriorityEnum().default("MEDIUM").notNull(),
+  requestedAmount: decimal("requested_amount", { precision: 10, scale: 2 }),
+  approvedAmount: decimal("approved_amount", { precision: 10, scale: 2 }),
+  assignedTo: uuid("assigned_to").references(() => Members.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  chapterId: uuid("chapter_id").references(() => Chapters.id, { onDelete: "set null" }),
+});
+
+export const welfareCasesRelations = relations(WelfareCases, ({ one }) => ({
+  member: one(Members, {
+    fields: [WelfareCases.memberId],
+    references: [Members.id],
+    relationName: "requester"
+  }),
+  assignee: one(Members, {
+    fields: [WelfareCases.assignedTo],
+    references: [Members.id],
+    relationName: "assignee"
+  }),
+  chapter: one(Chapters, {
+    fields: [WelfareCases.chapterId],
+    references: [Chapters.id],
+  }),
+}));
+
+

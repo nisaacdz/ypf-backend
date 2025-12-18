@@ -11,6 +11,13 @@ import donationsRouter from "./donations";
 import transactionsRouter from "./transactions";
 import shopRouter from "./shop";
 import announcementsRouter from "./announcements";
+import registrationsRouter from "./registrations";
+import duesRouter from "./dues";
+import programsRouter from "./programs";
+import certificatesRouter from "./certificates";
+import sponsorshipsRouter from "./sponsorships";
+import welfareRouter from "./welfare";
+import dashboardRouter from "./dashboard";
 
 const apiRouter = Router();
 
@@ -26,5 +33,12 @@ apiRouter.use("/donations", donationsRouter);
 apiRouter.use("/transactions", transactionsRouter);
 apiRouter.use("/shop", shopRouter);
 apiRouter.use("/announcements", announcementsRouter);
+apiRouter.use("/registrations", registrationsRouter);
+apiRouter.use("/dues", duesRouter);
+apiRouter.use("/programs", programsRouter);
+apiRouter.use("/certificates", certificatesRouter);
+apiRouter.use("/sponsorships", sponsorshipsRouter);
+apiRouter.use("/welfare", welfareRouter);
+apiRouter.use("/dashboard", dashboardRouter);
 
 export default apiRouter;

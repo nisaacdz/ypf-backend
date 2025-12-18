@@ -368,3 +368,69 @@ export async function getMemberByConstituentId(
 
   return memberDetail;
 }
+
+export async function createMember(data: { firstName: string; lastName: string; email: string; phone: string; chapterId?: string }) {
+  return await dbClient.db.transaction(async (tx) => {
+    // 1. Create Constituent
+    const [constituent] = await tx
+      .insert(schema.Constituents)
+      .values({
+        firstName: data.firstName,
+        lastName: data.lastName,
+      })
+      .returning();
+      
+    // 2. Create Contacts
+    await tx.insert(schema.ContactInformations).values([
+      {
+        constituentId: constituent.id,
+        contactType: 'EMAIL',
+        value: data.email,
+        isPrimary: true,
+      },
+      {
+        constituentId: constituent.id,
+        contactType: 'PHONE',
+        value: data.phone,
+        isPrimary: true,
+      }
+    ]);
+    
+    // 3. Create Member
+    const [member] = await tx
+      .insert(schema.Members)
+      .values({
+        constituentId: constituent.id,
+        startedAt: new Date(),
+      })
+      .returning();
+      
+    // 4. Create Chapter Membership
+    if (data.chapterId) {
+      await tx.insert(schema.ChapterMemberships).values({
+        memberId: member.id,
+        chapterId: data.chapterId,
+        startedAt: new Date(),
+      });
+    }
+      
+    return member;
+  });
+}
+
+export async function updateMember(_id: string, _data: unknown) {
+  void _id;
+  void _data;
+  throw new ApiError("Not implemented", 501);
+}
+
+export async function deleteMember(id: string) {
+  const [updated] = await dbClient.db
+    .update(schema.Members)
+    .set({ endedAt: new Date() })
+    .where(eq(schema.Members.id, id))
+    .returning();
+    
+  if (!updated) throw new ApiError("Member not found", 404);
+  return updated;
+}
