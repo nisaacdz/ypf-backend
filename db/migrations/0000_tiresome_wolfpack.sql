@@ -9,9 +9,11 @@ CREATE SCHEMA "finance";
 CREATE SCHEMA "shop";
 --> statement-breakpoint
 CREATE TYPE "core"."admin_roles" AS ENUM('SUPER_ADMIN', 'REGULAR_ADMIN');--> statement-breakpoint
-CREATE TYPE "core"."contact_type" AS ENUM('EMAIL', 'PHONE', 'WHATSAPP');--> statement-breakpoint
+CREATE TYPE "core"."application_status" AS ENUM('DRAFT', 'PENDING', 'REJECTED', 'ACCEPTED');--> statement-breakpoint
+CREATE TYPE "core"."document_type" AS ENUM('PDF', 'DOC', 'SPREADSHEET', 'PRESENTATION', 'IMAGE', 'OTHER');--> statement-breakpoint
 CREATE TYPE "core"."gender" AS ENUM('MALE', 'FEMALE', 'OTHER');--> statement-breakpoint
 CREATE TYPE "core"."media_type" AS ENUM('PICTURE', 'VIDEO');--> statement-breakpoint
+CREATE TYPE "core"."national_id_type" AS ENUM('ECOWASIDCARD');--> statement-breakpoint
 CREATE TYPE "activities"."attendance_status" AS ENUM('INVITED', 'ACCEPTED', 'DECLINED', 'ATTENDED');--> statement-breakpoint
 CREATE TYPE "activities"."event_status" AS ENUM('UPCOMING', 'ONGOING', 'COMPLETED', 'CANCELLED');--> statement-breakpoint
 CREATE TYPE "activities"."project_status" AS ENUM('UPCOMING', 'ONGOING', 'COMPLETED', 'CANCELLED');--> statement-breakpoint
@@ -71,6 +73,23 @@ CREATE TABLE "core"."admins" (
 	"constituent_id" uuid NOT NULL,
 	"started_at" timestamp with time zone NOT NULL,
 	"ended_at" timestamp with time zone
+);
+--> statement-breakpoint
+CREATE TABLE "core"."applications" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"constituent_id" uuid NOT NULL,
+	"status" text DEFAULT 'pending' NOT NULL,
+	"declined_reason" text,
+	"approved_by" uuid,
+	"approved_at" timestamp with time zone,
+	"commitment_statement" text,
+	"preferred_chapter_id" uuid,
+	"preferred_committee_id" uuid,
+	"preferred_profile" text DEFAULT 'Member',
+	"cv_document_id" uuid,
+	"referral_source" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "core"."auditors" (
@@ -136,22 +155,33 @@ CREATE TABLE "core"."constituents" (
 	"first_name" text NOT NULL,
 	"last_name" text NOT NULL,
 	"preferred_name" text,
+	"email" text NOT NULL,
+	"phone" text NOT NULL,
+	"whatsapp" text,
+	"org_email" text,
+	"linkedin_profile" text,
+	"twitter_handle" text,
 	"profile_photo_id" uuid,
 	"salutation" text,
 	"date_of_birth" date,
 	"gender" "core"."gender",
+	"occupation" text,
+	"country" text,
+	"region" text,
+	"city" text,
+	"campus" text,
+	"national_id_type" "core"."national_id_type",
+	"national_id_document" uuid,
+	"emergency_contact_name" text,
+	"emergency_contact_phone" text,
+	"skills" text[],
+	"previous_volunteer_experience" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "core"."contact_informations" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"constituent_id" uuid NOT NULL,
-	"contact_type" "core"."contact_type" NOT NULL,
-	"value" text NOT NULL,
-	"is_primary" boolean DEFAULT false NOT NULL,
-	"unsubscribed" boolean DEFAULT false NOT NULL,
-	CONSTRAINT "contact_informations_constituent_id_contact_type_value_unique" UNIQUE("constituent_id","contact_type","value")
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "constituents_email_unique" UNIQUE("email"),
+	CONSTRAINT "constituents_phone_unique" UNIQUE("phone"),
+	CONSTRAINT "constituents_whatsapp_unique" UNIQUE("whatsapp"),
+	CONSTRAINT "constituents_org_email_unique" UNIQUE("org_email")
 );
 --> statement-breakpoint
 CREATE TABLE "core"."directors" (
@@ -159,6 +189,16 @@ CREATE TABLE "core"."directors" (
 	"constituent_id" uuid NOT NULL,
 	"started_at" timestamp with time zone NOT NULL,
 	"ended_at" timestamp with time zone
+);
+--> statement-breakpoint
+CREATE TABLE "core"."documents" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"external_id" text NOT NULL,
+	"type" "core"."document_type" NOT NULL,
+	"size" integer NOT NULL,
+	"uploaded_by" uuid,
+	"uploaded_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "documents_external_id_unique" UNIQUE("external_id")
 );
 --> statement-breakpoint
 CREATE TABLE "core"."media" (
@@ -402,6 +442,11 @@ ALTER TABLE "app"."notifications" ADD CONSTRAINT "notifications_user_id_users_id
 ALTER TABLE "app"."users" ADD CONSTRAINT "users_constituent_id_constituents_id_fk" FOREIGN KEY ("constituent_id") REFERENCES "core"."constituents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."admin_roles_assignments" ADD CONSTRAINT "admin_roles_assignments_admin_id_admins_id_fk" FOREIGN KEY ("admin_id") REFERENCES "core"."admins"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."admins" ADD CONSTRAINT "admins_constituent_id_constituents_id_fk" FOREIGN KEY ("constituent_id") REFERENCES "core"."constituents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "core"."applications" ADD CONSTRAINT "applications_constituent_id_constituents_id_fk" FOREIGN KEY ("constituent_id") REFERENCES "core"."constituents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "core"."applications" ADD CONSTRAINT "applications_approved_by_admins_id_fk" FOREIGN KEY ("approved_by") REFERENCES "core"."admins"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "core"."applications" ADD CONSTRAINT "applications_preferred_chapter_id_chapters_id_fk" FOREIGN KEY ("preferred_chapter_id") REFERENCES "core"."chapters"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "core"."applications" ADD CONSTRAINT "applications_preferred_committee_id_committees_id_fk" FOREIGN KEY ("preferred_committee_id") REFERENCES "core"."committees"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "core"."applications" ADD CONSTRAINT "applications_cv_document_id_documents_id_fk" FOREIGN KEY ("cv_document_id") REFERENCES "core"."documents"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."auditors" ADD CONSTRAINT "auditors_constituent_id_constituents_id_fk" FOREIGN KEY ("constituent_id") REFERENCES "core"."constituents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."chapter_media" ADD CONSTRAINT "chapter_media_chapter_id_chapters_id_fk" FOREIGN KEY ("chapter_id") REFERENCES "core"."chapters"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."chapter_media" ADD CONSTRAINT "chapter_media_medium_id_media_id_fk" FOREIGN KEY ("medium_id") REFERENCES "core"."media"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -414,8 +459,9 @@ ALTER TABLE "core"."committee_memberships" ADD CONSTRAINT "committee_memberships
 ALTER TABLE "core"."committee_memberships" ADD CONSTRAINT "committee_memberships_committee_id_committees_id_fk" FOREIGN KEY ("committee_id") REFERENCES "core"."committees"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."committees" ADD CONSTRAINT "committees_chapter_id_chapters_id_fk" FOREIGN KEY ("chapter_id") REFERENCES "core"."chapters"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."constituents" ADD CONSTRAINT "constituents_profile_photo_id_media_id_fk" FOREIGN KEY ("profile_photo_id") REFERENCES "core"."media"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "core"."contact_informations" ADD CONSTRAINT "contact_informations_constituent_id_constituents_id_fk" FOREIGN KEY ("constituent_id") REFERENCES "core"."constituents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "core"."constituents" ADD CONSTRAINT "constituents_national_id_document_documents_id_fk" FOREIGN KEY ("national_id_document") REFERENCES "core"."documents"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."directors" ADD CONSTRAINT "directors_constituent_id_constituents_id_fk" FOREIGN KEY ("constituent_id") REFERENCES "core"."constituents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "core"."documents" ADD CONSTRAINT "documents_uploaded_by_constituents_id_fk" FOREIGN KEY ("uploaded_by") REFERENCES "core"."constituents"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."media" ADD CONSTRAINT "media_uploaded_by_constituents_id_fk" FOREIGN KEY ("uploaded_by") REFERENCES "core"."constituents"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."member_titles" ADD CONSTRAINT "member_titles_chapter_id_chapters_id_fk" FOREIGN KEY ("chapter_id") REFERENCES "core"."chapters"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."member_titles" ADD CONSTRAINT "member_titles_committee_id_committees_id_fk" FOREIGN KEY ("committee_id") REFERENCES "core"."committees"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

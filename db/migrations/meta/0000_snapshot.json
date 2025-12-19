@@ -1,5 +1,5 @@
 {
-  "id": "c74b49f3-78d7-4884-bd99-a5a45ff1cf5b",
+  "id": "f706778f-d32b-4d98-81d9-521e4c17c8a3",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -337,6 +337,159 @@
           "columnsFrom": ["constituent_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "core.applications": {
+      "name": "applications",
+      "schema": "core",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "constituent_id": {
+          "name": "constituent_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "declined_reason": {
+          "name": "declined_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "approved_by": {
+          "name": "approved_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "approved_at": {
+          "name": "approved_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "commitment_statement": {
+          "name": "commitment_statement",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "preferred_chapter_id": {
+          "name": "preferred_chapter_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "preferred_committee_id": {
+          "name": "preferred_committee_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "preferred_profile": {
+          "name": "preferred_profile",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'Member'"
+        },
+        "cv_document_id": {
+          "name": "cv_document_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "referral_source": {
+          "name": "referral_source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "applications_constituent_id_constituents_id_fk": {
+          "name": "applications_constituent_id_constituents_id_fk",
+          "tableFrom": "applications",
+          "tableTo": "constituents",
+          "schemaTo": "core",
+          "columnsFrom": ["constituent_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "applications_approved_by_admins_id_fk": {
+          "name": "applications_approved_by_admins_id_fk",
+          "tableFrom": "applications",
+          "tableTo": "admins",
+          "schemaTo": "core",
+          "columnsFrom": ["approved_by"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "applications_preferred_chapter_id_chapters_id_fk": {
+          "name": "applications_preferred_chapter_id_chapters_id_fk",
+          "tableFrom": "applications",
+          "tableTo": "chapters",
+          "schemaTo": "core",
+          "columnsFrom": ["preferred_chapter_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "applications_preferred_committee_id_committees_id_fk": {
+          "name": "applications_preferred_committee_id_committees_id_fk",
+          "tableFrom": "applications",
+          "tableTo": "committees",
+          "schemaTo": "core",
+          "columnsFrom": ["preferred_committee_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "applications_cv_document_id_documents_id_fk": {
+          "name": "applications_cv_document_id_documents_id_fk",
+          "tableFrom": "applications",
+          "tableTo": "documents",
+          "schemaTo": "core",
+          "columnsFrom": ["cv_document_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
@@ -814,6 +967,42 @@
           "primaryKey": false,
           "notNull": false
         },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "whatsapp": {
+          "name": "whatsapp",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "org_email": {
+          "name": "org_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "linkedin_profile": {
+          "name": "linkedin_profile",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "twitter_handle": {
+          "name": "twitter_handle",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "profile_photo_id": {
           "name": "profile_photo_id",
           "type": "uuid",
@@ -836,6 +1025,73 @@
           "name": "gender",
           "type": "gender",
           "typeSchema": "core",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "occupation": {
+          "name": "occupation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "country": {
+          "name": "country",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "region": {
+          "name": "region",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "city": {
+          "name": "city",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "campus": {
+          "name": "campus",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "national_id_type": {
+          "name": "national_id_type",
+          "type": "national_id_type",
+          "typeSchema": "core",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "national_id_document": {
+          "name": "national_id_document",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "emergency_contact_name": {
+          "name": "emergency_contact_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "emergency_contact_phone": {
+          "name": "emergency_contact_phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "skills": {
+          "name": "skills",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "previous_volunteer_experience": {
+          "name": "previous_volunteer_experience",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -865,78 +1121,39 @@
           "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "core.contact_informations": {
-      "name": "contact_informations",
-      "schema": "core",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
         },
-        "constituent_id": {
-          "name": "constituent_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "contact_type": {
-          "name": "contact_type",
-          "type": "contact_type",
-          "typeSchema": "core",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "value": {
-          "name": "value",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "is_primary": {
-          "name": "is_primary",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "unsubscribed": {
-          "name": "unsubscribed",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "contact_informations_constituent_id_constituents_id_fk": {
-          "name": "contact_informations_constituent_id_constituents_id_fk",
-          "tableFrom": "contact_informations",
-          "tableTo": "constituents",
+        "constituents_national_id_document_documents_id_fk": {
+          "name": "constituents_national_id_document_documents_id_fk",
+          "tableFrom": "constituents",
+          "tableTo": "documents",
           "schemaTo": "core",
-          "columnsFrom": ["constituent_id"],
+          "columnsFrom": ["national_id_document"],
           "columnsTo": ["id"],
-          "onDelete": "cascade",
+          "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "contact_informations_constituent_id_contact_type_value_unique": {
-          "name": "contact_informations_constituent_id_contact_type_value_unique",
+        "constituents_email_unique": {
+          "name": "constituents_email_unique",
           "nullsNotDistinct": false,
-          "columns": ["constituent_id", "contact_type", "value"]
+          "columns": ["email"]
+        },
+        "constituents_phone_unique": {
+          "name": "constituents_phone_unique",
+          "nullsNotDistinct": false,
+          "columns": ["phone"]
+        },
+        "constituents_whatsapp_unique": {
+          "name": "constituents_whatsapp_unique",
+          "nullsNotDistinct": false,
+          "columns": ["whatsapp"]
+        },
+        "constituents_org_email_unique": {
+          "name": "constituents_org_email_unique",
+          "nullsNotDistinct": false,
+          "columns": ["org_email"]
         }
       },
       "policies": {},
@@ -988,6 +1205,75 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "core.documents": {
+      "name": "documents",
+      "schema": "core",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "external_id": {
+          "name": "external_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "document_type",
+          "typeSchema": "core",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "size": {
+          "name": "size",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "uploaded_by": {
+          "name": "uploaded_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uploaded_at": {
+          "name": "uploaded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "documents_uploaded_by_constituents_id_fk": {
+          "name": "documents_uploaded_by_constituents_id_fk",
+          "tableFrom": "documents",
+          "tableTo": "constituents",
+          "schemaTo": "core",
+          "columnsFrom": ["uploaded_by"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "documents_external_id_unique": {
+          "name": "documents_external_id_unique",
+          "nullsNotDistinct": false,
+          "columns": ["external_id"]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -2767,10 +3053,15 @@
       "schema": "core",
       "values": ["SUPER_ADMIN", "REGULAR_ADMIN"]
     },
-    "core.contact_type": {
-      "name": "contact_type",
+    "core.application_status": {
+      "name": "application_status",
       "schema": "core",
-      "values": ["EMAIL", "PHONE", "WHATSAPP"]
+      "values": ["DRAFT", "PENDING", "REJECTED", "ACCEPTED"]
+    },
+    "core.document_type": {
+      "name": "document_type",
+      "schema": "core",
+      "values": ["PDF", "DOC", "SPREADSHEET", "PRESENTATION", "IMAGE", "OTHER"]
     },
     "core.gender": {
       "name": "gender",
@@ -2781,6 +3072,11 @@
       "name": "media_type",
       "schema": "core",
       "values": ["PICTURE", "VIDEO"]
+    },
+    "core.national_id_type": {
+      "name": "national_id_type",
+      "schema": "core",
+      "values": ["ECOWASIDCARD"]
     },
     "activities.attendance_status": {
       "name": "attendance_status",
