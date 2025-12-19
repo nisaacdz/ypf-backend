@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import path from "path";
 import sharp from "sharp";
 
-import blobServiceClient, { containerName } from "@/configs/fs";
+import blobServiceClient, { containerNames } from "@/configs/fs";
 import { imagekit } from "@/configs/fs/cdn";
 import logger from "@/configs/logger";
 
@@ -27,7 +27,7 @@ export async function storeMediumFile(
   const fileName = `${uuidv4()}${fileExtension}`;
   const blobName = `${file.mimetype.split("/")[0]}/${fileName}`;
 
-  const containerClient = blobServiceClient.getContainerClient(containerName);
+  const containerClient = blobServiceClient.getContainerClient(containerNames.media);
   const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
   try {
@@ -75,7 +75,7 @@ export async function storeMediumFile(
 
 export async function deleteMediumFile(externalId: string): Promise<boolean> {
   try {
-    const containerClient = blobServiceClient.getContainerClient(containerName);
+    const containerClient = blobServiceClient.getContainerClient(containerNames.media);
     const blockBlobClient = containerClient.getBlockBlobClient(externalId);
     await blockBlobClient.delete();
     return true;
