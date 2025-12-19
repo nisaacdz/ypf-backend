@@ -17,30 +17,13 @@ async function seed(
         lastName: faker.person.lastName(),
         dateOfBirth: faker.date.birthdate({ min: 18, max: 65, mode: "age" }),
         gender: faker.helpers.arrayElement(schema.GenderEnum.enumValues),
+        email: faker.internet.email(),
+        phone: faker.phone.number(),
+        whatsapp: faker.phone.number(),
+        orgEmail: faker.internet.email(),
       })),
     )
     .returning();
-
-  // Seed Contact Informations
-  await tx.insert(schema.ContactInformations).values(
-    constituents.flatMap((c) => [
-      {
-        constituentId: c.id,
-        contactType: "EMAIL" as const,
-        value: faker.internet.email({
-          firstName: c.firstName,
-          lastName: c.lastName,
-        }),
-        isPrimary: true,
-      },
-      {
-        constituentId: c.id,
-        contactType: "PHONE" as const,
-        value: faker.phone.number(),
-        isPrimary: false,
-      },
-    ]),
-  );
 
   // Seed Users
   const hashedPassword = await bcrypt.hash("password123", 10);

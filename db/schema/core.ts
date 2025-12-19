@@ -73,8 +73,8 @@ export const Constituents = core.table("constituents", {
   preferredName: text("preferred_name"),
 
   // Contact Info (Flattened)
-  email: text("email").notNull().unique(),
-  phone: text("phone").notNull().unique(),
+  email: text("email").unique(),
+  phone: text("phone").unique(),
   whatsapp: text("whatsapp").unique(), // whatsapp number
   orgEmail: text("org_email").unique(),
 
