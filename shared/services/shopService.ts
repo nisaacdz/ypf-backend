@@ -353,26 +353,10 @@ export async function completeGuestOrder(
         .values({
           firstName: payload.firstName,
           lastName: payload.lastName,
+          email: payload.email,
+          phone: payload.phone,
         })
         .returning();
-
-      // Create email contact information
-      await tx.insert(schema.ContactInformations).values({
-        constituentId: newConstituent.id,
-        contactType: "EMAIL",
-        value: payload.email,
-        isPrimary: true,
-      });
-
-      // Create phone contact information if provided
-      if (payload.phone) {
-        await tx.insert(schema.ContactInformations).values({
-          constituentId: newConstituent.id,
-          contactType: "PHONE",
-          value: payload.phone,
-          isPrimary: false,
-        });
-      }
 
       // Create the financial transaction
       const [newTransaction] = await tx
