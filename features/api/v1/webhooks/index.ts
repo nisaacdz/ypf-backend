@@ -5,6 +5,23 @@ import { handlePaystackWebhook } from "./webhooksHandler";
 
 const webhooksRouter = Router();
 
+/**
+ * @swagger
+ * /api/v1/webhooks/paystack:
+ *   post:
+ *     summary: Handle Paystack webhook events
+ *     tags: [Webhooks]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             description: Paystack event payload
+ *     responses:
+ *       200:
+ *         description: Webhook processed successfully
+ */
 webhooksRouter.post(
   "/paystack",
   verifyPaystackSignature,
