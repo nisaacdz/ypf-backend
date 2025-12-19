@@ -438,7 +438,7 @@ projectsRouter.post(
   authorize(
     anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
   ),
-  filesUpload.single("file"),
+  filesUpload.mediaUpload.single("file"),
   validateFile(UploadProjectFileSchema),
   validateBody(UploadProjectMediumOptionsSchema),
   async (req: Request, res: Response, next: NextFunction) => {
