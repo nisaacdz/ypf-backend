@@ -27,10 +27,11 @@ export type YPFMemberDetail = {
   lastName: string;
   salutation?: string;
   profilePhoto?: Medium; // excludes uploadedBy
-  contactInfos: {
-    type: "EMAIL" | "PHONE" | "WHATSAPP";
-    value: string;
-  }[]; // primary contact
+  contactInfo: {
+    phone?: string;
+    whatsapp?: string;
+    email?: string;
+  };
   titles: {
     name: string; // eg. president
     scope?: { type: "chapter" | "committee"; name: string; id: string }; // undefined if global
