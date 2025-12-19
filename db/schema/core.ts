@@ -16,11 +16,9 @@ export const core = pgSchema("core");
 
 export const GenderEnum = core.enum("gender", ["MALE", "FEMALE", "OTHER"]);
 export const MediumTypeEnum = core.enum("media_type", ["PICTURE", "VIDEO"]);
-export const ContactTypeEnum = core.enum("contact_type", [
-  "EMAIL",
-  "PHONE",
-  "WHATSAPP",
-]);
+export const DocumentTypeEnum = core.enum("document_type", ["PDF", "DOC", "SPREADSHEET", "PRESENTATION", "IMAGE", "OTHER"]);
+export const NationalIdTypeEnum = core.enum("national_id_type", ["ECOWASIDCARD"]);
+export const ApplicationStatusEnum = core.enum("application_status", ["DRAFT", "PENDING", "REJECTED", "ACCEPTED"])
 
 // === TABLES ===
 
@@ -40,17 +38,59 @@ export const Media = core.table("media", {
     .notNull(),
 });
 
+export const Documents = core.table("documents", {
+  id: uuid().defaultRandom().primaryKey(),
+  externalId: text("external_id").notNull().unique(),
+  type: DocumentTypeEnum().notNull(),
+  size: integer().notNull(),
+  uploadedBy: uuid("uploaded_by").references(
+    (): AnyPgColumn => Constituents.id,
+    { onDelete: "set null" },
+  ),
+  uploadedAt: timestamp("uploaded_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
 export const Constituents = core.table("constituents", {
   id: uuid().defaultRandom().primaryKey(),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   preferredName: text("preferred_name"),
+  
+  // Contact Info (Flattened)
+  email: text("email").notNull().unique(),
+  phone: text("phone").notNull().unique(),
+  whatsapp: text("whatsapp").unique(), // whatsapp number
+  orgEmail: text("org_email").unique(),
+
+  linkedinProfile: text("linkedin_profile"),
+  twitterHandle: text("twitter_handle"),
+
+  // Profile Fields
   profilePhotoId: uuid("profile_photo_id").references(() => Media.id, {
     onDelete: "set null",
   }),
   salutation: text(),
   dateOfBirth: date("date_of_birth", { mode: "date" }),
   gender: GenderEnum(),
+  occupation: text(),
+  country: text("country"),
+  region: text("region"),
+  city: text("city"),
+  campus: text("campus"),
+  nationalIdType: NationalIdTypeEnum("national_id_type"),
+  nationalIdDocument: uuid("national_id_document").references(() => Documents.id),
+  
+  // passportPhotoId: uuid("passport_photo_id").references(() => Media.id), = profilePhotoId
+  // missionPillars: text("mission_pillars").array(),
+
+  emergencyContactName: text("emergency_contact_name"),
+  emergencyContactPhone: text("emergency_contact_phone"),
+  // emergencyContactRelationship: text("emergency_contact_relationship"),
+  skills: text("skills").array(),
+  previousVolunteerExperience: text("previous_volunteer_experience"),
+
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -59,21 +99,36 @@ export const Constituents = core.table("constituents", {
     .notNull(),
 });
 
-// Ensure there is at least 1 email contact for every constituent
-export const ContactInformations = core.table(
-  "contact_informations",
-  {
-    id: uuid().defaultRandom().primaryKey(),
-    constituentId: uuid("constituent_id")
-      .notNull()
-      .references(() => Constituents.id, { onDelete: "cascade" }),
-    contactType: ContactTypeEnum("contact_type").notNull(),
-    value: text().notNull(),
-    isPrimary: boolean("is_primary").default(false).notNull(),
-    unsubscribed: boolean().default(false).notNull(), // for newsletters and co
-  },
-  (table) => [unique().on(table.constituentId, table.contactType, table.value)],
-);
+export const Applications = core.table("applications", {
+  id: uuid().defaultRandom().primaryKey(),
+  constituentId: uuid("constituent_id")
+    .notNull()
+    .references(() => Constituents.id, { onDelete: "cascade" }),
+  status: text("status").notNull().default("pending"),
+  declinedReason: text("declined_reason"),
+  approvedBy: uuid("approved_by").references(() => Admins.id),
+  approvedAt: timestamp("approved_at", { withTimezone: true }),
+  
+  // Application specific preferences
+  // willingToServe: text("willing_to_serve"), I mean, this will implicitly be yes or true
+  commitmentStatement: text("commitment_statement"),
+  preferredChapterId: uuid("preferred_chapter_id").references(() => Chapters.id),
+  preferredCommitteeId: uuid("preferred_committee_id").references(() => Committees.id),
+  preferredProfile: text("preferred_profile").default("Member"),
+  
+  // Document Refs
+  cvDocumentId: uuid("cv_document_id").references(() => Documents.id),
+  
+  referralSource: text("referral_source"),
+  // referralOther: text("referral_other"),
+
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
 
 // ensure non overlapping periods of membership at dbms level
 export const Members = core.table("members", {
@@ -302,18 +357,7 @@ export const constituentsRelations = relations(
       fields: [Constituents.profilePhotoId],
       references: [Media.id],
     }),
-    contactInformations: many(ContactInformations),
     organizationContacts: many(OrganizationContacts),
-  }),
-);
-
-export const contactInformationsRelations = relations(
-  ContactInformations,
-  ({ one }) => ({
-    constituent: one(Constituents, {
-      fields: [ContactInformations.constituentId],
-      references: [Constituents.id],
-    }),
   }),
 );
 
