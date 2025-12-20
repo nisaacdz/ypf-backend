@@ -94,7 +94,7 @@ export const Constituents = core.table("constituents", {
   city: text("city"),
   campus: text("campus"),
   nationalIdType: NationalIdTypeEnum("national_id_type"),
-  nationalIdDocument: uuid("national_id_document").references(
+  nationalIdDocumentId: uuid("national_id_document_id").references(
     () => Documents.id,
   ),
 
