@@ -11,6 +11,7 @@ import donationsRouter from "./donations";
 import transactionsRouter from "./transactions";
 import shopRouter from "./shop";
 import announcementsRouter from "./announcements";
+import applicationsRouter from "./applications";
 
 const apiRouter = Router();
 
@@ -26,5 +27,6 @@ apiRouter.use("/donations", donationsRouter);
 apiRouter.use("/transactions", transactionsRouter);
 apiRouter.use("/shop", shopRouter);
 apiRouter.use("/announcements", announcementsRouter);
+apiRouter.use("/applications", applicationsRouter);
 
 export default apiRouter;
