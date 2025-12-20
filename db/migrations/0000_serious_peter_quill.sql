@@ -16,6 +16,7 @@ CREATE TYPE "core"."media_type" AS ENUM('PICTURE', 'VIDEO');--> statement-breakp
 CREATE TYPE "core"."national_id_type" AS ENUM('ECOWASIDCARD');--> statement-breakpoint
 CREATE TYPE "activities"."attendance_status" AS ENUM('INVITED', 'ACCEPTED', 'DECLINED', 'ATTENDED');--> statement-breakpoint
 CREATE TYPE "activities"."event_status" AS ENUM('UPCOMING', 'ONGOING', 'COMPLETED', 'CANCELLED');--> statement-breakpoint
+CREATE TYPE "activities"."event_type" AS ENUM('PROGRAM', 'WORKSHOP');--> statement-breakpoint
 CREATE TYPE "activities"."project_status" AS ENUM('UPCOMING', 'ONGOING', 'COMPLETED', 'CANCELLED');--> statement-breakpoint
 CREATE TYPE "finance"."external_provider" AS ENUM('PAYSTACK');--> statement-breakpoint
 CREATE TYPE "finance"."partnership_type" AS ENUM('SPONSOR', 'IN_KIND', 'TECHNICAL', 'VENUE', 'OTHER');--> statement-breakpoint
@@ -155,8 +156,8 @@ CREATE TABLE "core"."constituents" (
 	"first_name" text NOT NULL,
 	"last_name" text NOT NULL,
 	"preferred_name" text,
-	"email" text NOT NULL,
-	"phone" text NOT NULL,
+	"email" text,
+	"phone" text,
 	"whatsapp" text,
 	"org_email" text,
 	"linkedin_profile" text,
@@ -301,6 +302,7 @@ CREATE TABLE "activities"."events" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" text NOT NULL,
 	"scheduled_start" timestamp with time zone NOT NULL,
+	"type" "activities"."event_type" NOT NULL,
 	"scheduled_end" timestamp with time zone NOT NULL,
 	"location" text,
 	"objective" text,

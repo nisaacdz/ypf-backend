@@ -8,7 +8,7 @@ import {
   unique,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { Chapters, Constituents, Media } from "./core";
+import { Chapters, Constituents, Documents, Media } from "./core";
 import { AudienceRule } from "@/shared/types/targeting";
 
 export const activities = pgSchema("activities");
@@ -24,6 +24,10 @@ export const EventStatusEnum = activities.enum("event_status", [
   "ONGOING",
   "COMPLETED",
   "CANCELLED",
+]);
+export const EventTypeEnum = activities.enum("event_type", [
+  "PROGRAM",
+  "WORKSHOP",
 ]);
 export const AttendanceStatusEnum = activities.enum("attendance_status", [
   "INVITED",
@@ -47,17 +51,22 @@ export const Projects = activities.table("projects", {
   }),
 });
 
+// Set at most one of [projectId, chapterId] non-null
 export const Events = activities.table("events", {
   id: uuid().defaultRandom().primaryKey(),
   name: text().notNull(),
   scheduledStart: timestamp("scheduled_start", {
     withTimezone: true,
   }).notNull(),
+  type: EventTypeEnum().notNull(),
   scheduledEnd: timestamp("scheduled_end", { withTimezone: true }).notNull(),
   location: text(),
   objective: text(),
   status: EventStatusEnum().default("UPCOMING").notNull(),
   projectId: uuid("project_id").references(() => Projects.id, {
+    onDelete: "set null",
+  }),
+  chapterId: uuid("chapter_id").references(() => Chapters.id, {
     onDelete: "set null",
   }),
 });
@@ -84,6 +93,17 @@ export const EventMedia = activities.table("event_media", {
   }),
   caption: text(),
   isFeatured: boolean("is_featured").notNull().default(false),
+});
+
+export const EventDocuments = activities.table("event_documents", {
+  id: uuid().defaultRandom().primaryKey(),
+  eventId: uuid("event_id").references(() => Events.id, {
+    onDelete: "cascade",
+  }),
+  documentId: uuid("document_id").references(() => Documents.id, {
+    onDelete: "cascade",
+  }),
+  title: text().notNull(),
 });
 
 export const projectsRelations = relations(Projects, ({ one, many }) => ({

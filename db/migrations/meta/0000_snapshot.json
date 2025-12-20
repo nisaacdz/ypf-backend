@@ -1,5 +1,5 @@
 {
-  "id": "f706778f-d32b-4d98-81d9-521e4c17c8a3",
+  "id": "aa2e0da2-a989-415a-b675-17839a90f4ce",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -971,13 +971,13 @@
           "name": "email",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "phone": {
           "name": "phone",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "whatsapp": {
           "name": "whatsapp",
@@ -1993,6 +1993,13 @@
         "scheduled_start": {
           "name": "scheduled_start",
           "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "event_type",
+          "typeSchema": "activities",
           "primaryKey": false,
           "notNull": true
         },
@@ -3087,6 +3094,11 @@
       "name": "event_status",
       "schema": "activities",
       "values": ["UPCOMING", "ONGOING", "COMPLETED", "CANCELLED"]
+    },
+    "activities.event_type": {
+      "name": "event_type",
+      "schema": "activities",
+      "values": ["PROGRAM", "WORKSHOP"]
     },
     "activities.project_status": {
       "name": "project_status",
