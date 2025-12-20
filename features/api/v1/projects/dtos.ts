@@ -1,5 +1,5 @@
-import { Medium } from "../core";
-import { ProjectStatus } from "..";
+import { Medium } from "@/shared/dtos";
+import { ProjectStatus } from "@/shared/utils";
 
 export type YPFProject = {
   id: string;

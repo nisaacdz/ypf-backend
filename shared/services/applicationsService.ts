@@ -2,8 +2,8 @@ import { eq, desc, count, and, ilike, or } from "drizzle-orm";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { ApiError } from "@/shared/types";
-import * as fileUtils from "@/shared/utils/files";
-import { Paginated, YPFApplication, YPFApplicationDetail } from "@/shared/dtos";
+import { Paginated } from "@/shared/dtos";
+import { YPFApplication, YPFApplicationDetail } from "@/features/api/v1/applications/dtos";
 import { ApplicationStatus, NationalIdType } from "@/shared/utils";
 
 type CreateApplication = {

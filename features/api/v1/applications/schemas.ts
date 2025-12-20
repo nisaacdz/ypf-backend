@@ -4,8 +4,8 @@ import {
   NationalIdTypeEnum,
 } from "@/db/schema/core";
 import { z } from "zod";
-import { Profiles } from "../types";
-import { AllowedDocumentsMimeTypes } from "../middlewares/multipart";
+import { Profiles } from "../../../../shared/types";
+import { AllowedDocumentsMimeTypes } from "../../../../shared/middlewares/multipart";
 
 const ApplicantData = z.object({
   firstName: z.string().min(1),

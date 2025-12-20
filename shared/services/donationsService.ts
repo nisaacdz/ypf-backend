@@ -7,7 +7,7 @@ import logger from "@/configs/logger";
 import { sendDonationAcknowledgementEmail } from "@/shared/utils/email";
 import { v4 as uuidv4 } from "uuid";
 import { paymentMethodMap, transactionStatusMap } from "../utils";
-import { DonationResponse } from "../dtos/donation";
+import { YPFDonation } from "@/features/api/v1/donations/dtos";
 
 type CreateDonationInput = {
   amount: number;
@@ -85,7 +85,7 @@ export async function startPaystackDonation(
   }: CreateDonationInput,
   user: AuthenticatedUser | null,
 ): Promise<{
-  donation: DonationResponse;
+  donation: YPFDonation;
   paymentUrl: string;
 }> {
   const constituentId = !anonymous ? (user?.constituentId ?? null) : null;

@@ -3,9 +3,10 @@ import z from "zod";
 
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
-import { Paginated, YPFCommittee, YPFCommitteeDetail } from "@/shared/dtos";
-import { GetCommitteesQuerySchema } from "@/shared/validators/core";
-import * as mediaUtils from "@/shared/utils/media";
+import { Paginated } from "@/shared/dtos";
+import { YPFCommittee, YPFCommitteeDetail } from "@/features/api/v1/committees/dtos";
+import { GetCommitteesQuerySchema } from "@/features/api/v1/committees/schemas";
+import * as mediaUtils from "@/shared/utils/files";
 import { ApiError } from "@/shared/types";
 
 export async function getCommittees(

@@ -6,9 +6,10 @@ import {
   GetEventMediaQuerySchema,
   GetEventsQuerySchema,
   UpdateEventSchema,
-} from "@/shared/validators";
+} from "@/features/api/v1/events/schemas";
 import * as mediaUtils from "@/shared/utils/files";
-import { Paginated, YPFEvent, YPFEventDetail } from "@/shared/dtos";
+import { Paginated } from "@/shared/dtos";
+import { YPFEvent, YPFEventDetail } from "@/features/api/v1/events/dtos";
 import { ApiError } from "@/shared/types";
 
 export async function fetchEvents(

@@ -17,7 +17,7 @@ import {
   UpdateApplicationStatusSchema,
   GetApplicationsQuerySchema,
   UploadRegistrationFileSchema,
-} from "@/shared/validators";
+} from "./schemas";
 
 const applicationsRouter = Router();
 

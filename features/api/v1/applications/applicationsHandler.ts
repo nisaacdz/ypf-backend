@@ -2,11 +2,12 @@ import { ApiResponse, ApiError } from "@/shared/types";
 import {
   PostApplicationBody,
   GetApplicationsQuerySchema,
-} from "@/shared/validators";
+} from "./schemas";
 import z from "zod";
 import * as applicationsService from "@/shared/services/applicationsService";
 import * as fileUtils from "@/shared/utils/files";
-import { Paginated, YPFApplication, YPFApplicationDetail } from "@/shared/dtos";
+import { Paginated } from "@/shared/dtos";
+import { YPFApplication, YPFApplicationDetail } from "./dtos";
 import * as documentsService from "@/shared/services/documentsService";
 import * as mediaService from "@/shared/services/mediaService";
 

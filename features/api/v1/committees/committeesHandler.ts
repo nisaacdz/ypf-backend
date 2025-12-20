@@ -1,7 +1,8 @@
 import * as committeesService from "@/shared/services/committeesService";
 import { ApiResponse } from "@/shared/types";
-import { GetCommitteesQuerySchema } from "@/shared/validators/core";
-import { Paginated, YPFCommittee, YPFCommitteeDetail } from "@/shared/dtos";
+import { GetCommitteesQuerySchema } from "./schemas";
+import { Paginated } from "@/shared/dtos";
+import { YPFCommittee, YPFCommitteeDetail } from "./dtos";
 import z from "zod";
 
 export async function getCommittees(

@@ -1,4 +1,4 @@
-export type DonationResponse = {
+export type YPFDonation = {
   id: string;
   amount: string;
   currency: string;

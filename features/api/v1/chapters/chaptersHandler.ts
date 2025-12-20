@@ -3,8 +3,9 @@ import { ApiResponse } from "@/shared/types";
 import {
   GetChaptersQuerySchema,
   UpdateChapterSchema,
-} from "@/shared/validators/core";
-import { Paginated, YPFChapter, YPFChapterDetail } from "@/shared/dtos";
+} from "./schemas";
+import { Paginated } from "@/shared/dtos";
+import { YPFChapter, YPFChapterDetail } from "./dtos";
 import z from "zod";
 
 export async function getChapters(

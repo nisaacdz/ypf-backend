@@ -1,7 +1,7 @@
 import z from "zod";
 import { EventStatusEnum, EventTypeEnum } from "@/db/schema/activities";
 import { MediumTypeEnum } from "@/db/schema/core";
-import { PaginationQuery } from ".";
+import { PaginationQuery } from "@/shared/validators";
 
 export const UpdateEventSchema = z.object({
   name: z

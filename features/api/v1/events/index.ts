@@ -14,7 +14,7 @@ import {
   UploadEventMediumOptionsSchema,
   UpdateEventSchema,
   UpdateEventMediumSchema,
-} from "@/shared/validators";
+} from "./schemas";
 import {
   authenticate,
   authenticateLax,

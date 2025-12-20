@@ -1,7 +1,7 @@
 import z from "zod";
 import { ProjectStatusEnum } from "@/db/schema/activities";
 import { MediumTypeEnum } from "@/db/schema/core";
-import { PaginationQuery } from ".";
+import { PaginationQuery } from "@/shared/validators";
 
 export const GetProjectsQuerySchema = z.object({
   filterStatus: z

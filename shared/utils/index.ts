@@ -30,3 +30,7 @@ export type ApplicationStatus =
   (typeof ApplicationStatusEnum.enumValues)[number];
 export type DocumentType = (typeof DocumentTypeEnum.enumValues)[number];
 export type MediumType = (typeof MediumTypeEnum.enumValues)[number];
+export type EventStatus = (typeof EventStatusEnum.enumValues)[number];
+export type ProjectStatus = (typeof ProjectStatusEnum.enumValues)[number];
+export type EventType = (typeof EventTypeEnum.enumValues)[number];
+export type Gender = (typeof GenderEnum.enumValues)[number];

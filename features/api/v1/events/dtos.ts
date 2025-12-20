@@ -1,5 +1,5 @@
-import { Medium } from "../core";
-import { EventStatus, EventType } from "..";
+import { Medium } from "@/shared/dtos";
+import { EventStatus, EventType } from "@/shared/utils";
 
 export type YPFEvent = {
   id: string;

@@ -3,12 +3,10 @@ import z from "zod";
 
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
-import { Paginated, YPFChapter, YPFChapterDetail } from "@/shared/dtos";
-import {
-  GetChaptersQuerySchema,
-  UpdateChapterSchema,
-} from "@/shared/validators/core";
-import * as mediaUtils from "@/shared/utils/media";
+import { Paginated } from "@/shared/dtos";
+import { YPFChapter, YPFChapterDetail } from "@/features/api/v1/chapters/dtos";
+import { GetChaptersQuerySchema, UpdateChapterSchema } from "@/features/api/v1/chapters/schemas";
+import * as mediaUtils from "@/shared/utils/files";
 import { ApiError } from "@/shared/types";
 
 export async function getChapters(

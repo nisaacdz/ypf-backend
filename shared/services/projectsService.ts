@@ -1,4 +1,5 @@
-import { Paginated, YPFProject, YPFProjectDetail } from "@/shared/dtos";
+import { Paginated } from "@/shared/dtos";
+import { YPFProject, YPFProjectDetail } from "@/features/api/v1/projects/dtos";
 import dbClient from "@/configs/db";
 import { Projects, ProjectMedia } from "@/db/schema/activities";
 import { Media, Chapters } from "@/db/schema/core";
@@ -10,7 +11,7 @@ import {
   GetProjectMediaQuerySchema,
   CreateProjectSchema,
   UpdateProjectSchema,
-} from "@/shared/validators";
+} from "@/features/api/v1/projects/schemas";
 import { ApiError } from "@/shared/types";
 
 export async function fetchProjects(

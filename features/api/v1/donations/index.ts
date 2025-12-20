@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction, Router } from "express";
 import { authenticateLax } from "@/shared/middlewares/auth";
 import { validateBody } from "@/shared/middlewares/validate";
-import { CreateDonationSchema } from "@/shared/validators/donations";
+import { CreateDonationSchema } from "./schemas";
 import * as donationsHandler from "./donationsHandler";
 
 const donationsRouter = Router();

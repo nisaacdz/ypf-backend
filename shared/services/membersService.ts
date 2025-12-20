@@ -15,8 +15,9 @@ import z from "zod";
 
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
-import { Paginated, YPFMember, YPFMemberDetail } from "@/shared/dtos";
-import { GetMembersQuerySchema } from "@/shared/validators/core";
+import { Paginated } from "@/shared/dtos";
+import { YPFMember, YPFMemberDetail } from "@/features/api/v1/members/dtos";
+import { GetMembersQuerySchema } from "@/features/api/v1/members/schemas";
 import * as mediaUtils from "@/shared/utils/files";
 import { ApiError } from "@/shared/types";
 

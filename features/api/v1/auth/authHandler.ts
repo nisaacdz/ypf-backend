@@ -3,7 +3,7 @@ import { encodeData } from "@/shared/utils/jwt";
 import { ApiResponse, ApiError } from "@/shared/types";
 import { AuthenticatedUser } from "@/shared/types";
 import { sendOtpEmail } from "@/shared/utils/email";
-import { ForgotPasswordSchema, ResetPasswordSchema } from "@/shared/validators";
+import { ForgotPasswordSchema, ResetPasswordSchema } from "./schemas";
 import { z } from "zod";
 
 /**
