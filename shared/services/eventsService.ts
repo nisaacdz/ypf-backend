@@ -7,7 +7,7 @@ import {
   GetEventsQuerySchema,
   UpdateEventSchema,
 } from "../validators/activities";
-import * as mediaUtils from "@/shared/utils/media";
+import * as mediaUtils from "@/shared/utils/files";
 import { Paginated, YPFEvent, YPFEventDetail } from "@/shared/dtos";
 import { ApiError } from "@/shared/types";
 
@@ -46,14 +46,20 @@ export async function fetchEvents(
         scheduledStart: schema.Events.scheduledStart,
         scheduledEnd: schema.Events.scheduledEnd,
         location: schema.Events.location,
+        type: schema.Events.type,
         status: schema.Events.status,
         projectTitle: schema.Projects.title,
+        chapterName: schema.Chapters.name,
         featuredMediumExternalId: schema.Media.externalId,
       })
       .from(schema.Events)
       .leftJoin(
         schema.Projects,
         eq(schema.Events.projectId, schema.Projects.id),
+      )
+      .leftJoin(
+        schema.Chapters,
+        eq(schema.Projects.chapterId, schema.Chapters.id),
       )
       .leftJoin(
         schema.EventMedia,
@@ -72,9 +78,12 @@ export async function fetchEvents(
         schema.Events.scheduledStart,
         schema.Events.scheduledEnd,
         schema.Events.location,
+        schema.Events.type,
         schema.Events.status,
         schema.Projects.title,
         schema.Projects.id,
+        schema.Chapters.name,
+        schema.Chapters.id,
         schema.Media.externalId,
       ),
 
@@ -95,8 +104,10 @@ export async function fetchEvents(
     scheduledStart: event.scheduledStart,
     scheduledEnd: event.scheduledEnd,
     location: event.location || undefined,
+    type: event.type,
     status: event.status,
     projectTitle: event.projectTitle || undefined,
+    chapterName: event.chapterName || undefined,
     featuredMediumUrl: event.featuredMediumExternalId
       ? mediaUtils.generateSignedMediaUrl(event.featuredMediumExternalId, {
           resolution: 720,
@@ -181,6 +192,11 @@ export async function fetchEventById(
       location: schema.Events.location,
       objective: schema.Events.objective,
       status: schema.Events.status,
+      type: schema.Events.type,
+      chapter: {
+        id: schema.Chapters.id,
+        name: schema.Chapters.name,
+      },
       project: {
         id: schema.Projects.id,
         title: schema.Projects.title,
@@ -188,6 +204,10 @@ export async function fetchEventById(
     })
     .from(schema.Events)
     .leftJoin(schema.Projects, eq(schema.Events.projectId, schema.Projects.id))
+    .leftJoin(
+      schema.Chapters,
+      eq(schema.Projects.chapterId, schema.Chapters.id),
+    )
     .where(eq(schema.Events.id, eventId))
     .limit(1);
 
@@ -225,12 +245,20 @@ export async function fetchEventById(
     scheduledEnd: ypfEvent.scheduledEnd,
     location: ypfEvent.location || undefined,
     objective: ypfEvent.objective || undefined,
+    type: ypfEvent.type,
     status: ypfEvent.status,
     project:
       ypfEvent.project?.id && ypfEvent.project.title
         ? {
             id: ypfEvent.project.id,
             title: ypfEvent.project.title,
+          }
+        : undefined,
+    chapter:
+      ypfEvent.chapter?.id && ypfEvent.chapter.name
+        ? {
+            id: ypfEvent.chapter.id,
+            name: ypfEvent.chapter.name,
           }
         : undefined,
     featuredMedia:

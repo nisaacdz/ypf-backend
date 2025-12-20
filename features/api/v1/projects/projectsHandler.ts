@@ -1,5 +1,4 @@
 import { ApiResponse } from "@/shared/types";
-import { Paginated, YPFProjectDetail } from "@/shared/dtos";
 import {
   GetProjectsQuerySchema,
   GetProjectMediaQuerySchema,
@@ -8,9 +7,14 @@ import {
   UpdateProjectMediumSchema,
 } from "@/shared/validators/activities";
 import z from "zod";
-import { YPFProject, YPFProjectMedium } from "@/shared/dtos";
+import {
+  Paginated,
+  YPFProject,
+  YPFProjectDetail,
+  YPFProjectMedium,
+} from "@/shared/dtos";
 import * as projectsService from "@/shared/services/projectsService";
-import * as mediaUtils from "@/shared/utils/media";
+import * as mediaUtils from "@/shared/utils/files";
 import * as mediaService from "@/shared/services/mediaService";
 
 export async function getProjects(

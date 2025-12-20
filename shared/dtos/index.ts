@@ -1,9 +1,14 @@
 import { MediumTypeEnum } from "@/db/schema/core";
-import { EventStatusEnum, ProjectStatusEnum } from "@/db/schema/activities";
+import {
+  EventStatusEnum,
+  EventTypeEnum,
+  ProjectStatusEnum,
+} from "@/db/schema/activities";
 
 export * from "./core";
 export * from "./shop";
-export * from "./activities";
+export * from "./events";
+export * from "./projects";
 
 export type Paginated<T> = {
   items: T[];
@@ -23,3 +28,4 @@ export type Notification = {
 export type MediumType = (typeof MediumTypeEnum.enumValues)[number];
 export type EventStatus = (typeof EventStatusEnum.enumValues)[number];
 export type ProjectStatus = (typeof ProjectStatusEnum.enumValues)[number];
+export type EventType = (typeof EventTypeEnum.enumValues)[number];

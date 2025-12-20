@@ -2,7 +2,7 @@ import { Paginated, YPFProject, YPFProjectDetail } from "@/shared/dtos";
 import dbClient from "@/configs/db";
 import { Projects, ProjectMedia } from "@/db/schema/activities";
 import { Media, Chapters } from "@/db/schema/core";
-import * as mediaUtils from "@/shared/utils/media";
+import * as mediaUtils from "@/shared/utils/files";
 import { eq, and, ilike, count } from "drizzle-orm";
 import z from "zod";
 import {

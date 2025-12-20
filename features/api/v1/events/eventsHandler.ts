@@ -9,12 +9,12 @@ import {
 import { Events } from "@/db/schema/activities";
 import z from "zod";
 import dbClient from "@/configs/db";
-import * as mediaUtils from "@/shared/utils/media";
+import * as mediaUtils from "@/shared/utils/files";
 import * as mediaService from "@/shared/services/mediaService";
 import * as eventsService from "@/shared/services/eventsService";
 import {
-  YPFEventMedium,
   Paginated,
+  YPFEventMedium,
   YPFEvent,
   YPFEventDetail,
 } from "@/shared/dtos";
