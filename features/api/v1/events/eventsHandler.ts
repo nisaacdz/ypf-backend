@@ -5,7 +5,7 @@ import {
   GetEventsQuerySchema,
   UpdateEventSchema,
   UpdateEventMediumSchema,
-} from "@/shared/validators/activities";
+} from "@/shared/validators";
 import { Events } from "@/db/schema/activities";
 import z from "zod";
 import dbClient from "@/configs/db";
@@ -66,11 +66,7 @@ export async function uploadEventMedium({
       caption: options.caption,
       isFeatured: options.isFeatured,
       medium: {
-        externalId: uploadMeta.externalId,
-        type: uploadMeta.type,
-        width: uploadMeta.dimensions.width,
-        height: uploadMeta.dimensions.height,
-        size: uploadMeta.size,
+        ...uploadMeta,
         uploadedBy: constituentId,
       },
     });

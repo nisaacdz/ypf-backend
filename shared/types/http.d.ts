@@ -8,5 +8,6 @@ declare module "http" {
     Query: any;
     Params: any;
     File: any;
+    Files: any;
   }
 }

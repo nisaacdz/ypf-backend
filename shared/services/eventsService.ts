@@ -6,7 +6,7 @@ import {
   GetEventMediaQuerySchema,
   GetEventsQuerySchema,
   UpdateEventSchema,
-} from "../validators/activities";
+} from "@/shared/validators";
 import * as mediaUtils from "@/shared/utils/files";
 import { Paginated, YPFEvent, YPFEventDetail } from "@/shared/dtos";
 import { ApiError } from "@/shared/types";

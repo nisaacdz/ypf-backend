@@ -10,7 +10,7 @@ import {
   GetProjectMediaQuerySchema,
   CreateProjectSchema,
   UpdateProjectSchema,
-} from "@/shared/validators/activities";
+} from "@/shared/validators";
 import { ApiError } from "@/shared/types";
 
 export async function fetchProjects(
