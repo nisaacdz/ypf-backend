@@ -1,4 +1,4 @@
-import { CreateAnnouncementDto } from "@/shared/validators/announcements";
+import { CreateAnnouncementDto } from "@/shared/validators/activities/announcements";
 import {
   createAnnouncement as createAnnouncementService,
   publishAnnouncement,
