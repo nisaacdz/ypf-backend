@@ -2,6 +2,10 @@ import z from "zod";
 
 export * from "./auth";
 export * from "./donations";
+export * from "./events";
+export * from "./projects";
+export * from "./announcements";
+export * from "./applications";
 
 export const PaginationQuery = z.object({
   page: z.coerce

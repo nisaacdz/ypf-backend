@@ -1,4 +1,10 @@
 import schema from "@/db/schema";
+import {
+  ApplicationStatusEnum,
+  DocumentTypeEnum,
+  MediumTypeEnum,
+  NationalIdTypeEnum,
+} from "@/db/schema/core";
 
 type TransactionStatus =
   (typeof schema.TransactionStatusEnum.enumValues)[number];
@@ -18,3 +24,9 @@ export const paymentMethodMap: Record<string, PaymentMethod> = {
   mobile_money: "MOBILE_MONEY",
   ussd: "BANK_TRANSFER",
 };
+
+export type NationalIdType = (typeof NationalIdTypeEnum.enumValues)[number];
+export type ApplicationStatus =
+  (typeof ApplicationStatusEnum.enumValues)[number];
+export type DocumentType = (typeof DocumentTypeEnum.enumValues)[number];
+export type MediumType = (typeof MediumTypeEnum.enumValues)[number];

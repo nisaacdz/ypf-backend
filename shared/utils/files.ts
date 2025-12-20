@@ -12,10 +12,8 @@ import { AllowedDocumentsMimeTypes } from "../middlewares/multipart";
 export type MediaMeta = {
   externalId: string;
   type: "PICTURE" | "VIDEO";
-  dimensions: {
-    width: number;
-    height: number;
-  };
+  width: number;
+  height: number;
   size: number;
 };
 
@@ -34,7 +32,9 @@ export async function storeMediumFile(
   const fileName = `${uuidv4()}${fileExtension}`;
   const blobName = `${file.mimetype.split("/")[0]}/${fileName}`;
 
-  const containerClient = blobServiceClient.getContainerClient(containerNames.media);
+  const containerClient = blobServiceClient.getContainerClient(
+    containerNames.media,
+  );
   const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
   try {
@@ -66,7 +66,7 @@ export async function storeMediumFile(
     return {
       externalId: blobName,
       type: isVideo ? "VIDEO" : "PICTURE",
-      dimensions: dimensions,
+      ...dimensions,
       size: file.size,
     };
   } finally {
@@ -89,7 +89,9 @@ export async function storeDocumentFile(
   const fileName = `${uuidv4()}${fileExtension}`;
   const blobName = `${file.mimetype.split("/")[0]}/${fileName}`;
 
-  const containerClient = blobServiceClient.getContainerClient(containerNames.docs);
+  const containerClient = blobServiceClient.getContainerClient(
+    containerNames.docs,
+  );
   const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
   try {
@@ -123,7 +125,9 @@ export async function storeDocumentFile(
 
 export async function deleteMediumFile(externalId: string): Promise<boolean> {
   try {
-    const containerClient = blobServiceClient.getContainerClient(containerNames.media);
+    const containerClient = blobServiceClient.getContainerClient(
+      containerNames.media,
+    );
     const blockBlobClient = containerClient.getBlockBlobClient(externalId);
     await blockBlobClient.delete();
     return true;
@@ -142,7 +146,9 @@ export async function deleteMediumFile(externalId: string): Promise<boolean> {
 
 export async function deleteDocumentFile(externalId: string): Promise<boolean> {
   try {
-    const containerClient = blobServiceClient.getContainerClient(containerNames.docs);
+    const containerClient = blobServiceClient.getContainerClient(
+      containerNames.docs,
+    );
     const blockBlobClient = containerClient.getBlockBlobClient(externalId);
     await blockBlobClient.delete();
     return true;
