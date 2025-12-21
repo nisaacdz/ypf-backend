@@ -172,7 +172,7 @@ CREATE TABLE "core"."constituents" (
 	"city" text,
 	"campus" text,
 	"national_id_type" "core"."national_id_type",
-	"national_id_document" uuid,
+	"national_id_document_id" uuid,
 	"emergency_contact_name" text,
 	"emergency_contact_phone" text,
 	"skills" text[],
@@ -290,6 +290,13 @@ CREATE TABLE "activities"."constituent_announcements" (
 	CONSTRAINT "constituent_announcements_announcement_id_constituent_id_unique" UNIQUE("announcement_id","constituent_id")
 );
 --> statement-breakpoint
+CREATE TABLE "activities"."event_documents" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"event_id" uuid,
+	"document_id" uuid,
+	"title" text NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "activities"."event_media" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"event_id" uuid,
@@ -307,7 +314,8 @@ CREATE TABLE "activities"."events" (
 	"location" text,
 	"objective" text,
 	"status" "activities"."event_status" DEFAULT 'UPCOMING' NOT NULL,
-	"project_id" uuid
+	"project_id" uuid,
+	"chapter_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "activities"."project_media" (
@@ -461,7 +469,7 @@ ALTER TABLE "core"."committee_memberships" ADD CONSTRAINT "committee_memberships
 ALTER TABLE "core"."committee_memberships" ADD CONSTRAINT "committee_memberships_committee_id_committees_id_fk" FOREIGN KEY ("committee_id") REFERENCES "core"."committees"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."committees" ADD CONSTRAINT "committees_chapter_id_chapters_id_fk" FOREIGN KEY ("chapter_id") REFERENCES "core"."chapters"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."constituents" ADD CONSTRAINT "constituents_profile_photo_id_media_id_fk" FOREIGN KEY ("profile_photo_id") REFERENCES "core"."media"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "core"."constituents" ADD CONSTRAINT "constituents_national_id_document_documents_id_fk" FOREIGN KEY ("national_id_document") REFERENCES "core"."documents"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "core"."constituents" ADD CONSTRAINT "constituents_national_id_document_id_documents_id_fk" FOREIGN KEY ("national_id_document_id") REFERENCES "core"."documents"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."directors" ADD CONSTRAINT "directors_constituent_id_constituents_id_fk" FOREIGN KEY ("constituent_id") REFERENCES "core"."constituents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."documents" ADD CONSTRAINT "documents_uploaded_by_constituents_id_fk" FOREIGN KEY ("uploaded_by") REFERENCES "core"."constituents"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."media" ADD CONSTRAINT "media_uploaded_by_constituents_id_fk" FOREIGN KEY ("uploaded_by") REFERENCES "core"."constituents"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -476,9 +484,12 @@ ALTER TABLE "core"."volunteers" ADD CONSTRAINT "volunteers_constituent_id_consti
 ALTER TABLE "activities"."announcements" ADD CONSTRAINT "announcements_author_id_constituents_id_fk" FOREIGN KEY ("author_id") REFERENCES "core"."constituents"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activities"."constituent_announcements" ADD CONSTRAINT "constituent_announcements_announcement_id_announcements_id_fk" FOREIGN KEY ("announcement_id") REFERENCES "activities"."announcements"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activities"."constituent_announcements" ADD CONSTRAINT "constituent_announcements_constituent_id_constituents_id_fk" FOREIGN KEY ("constituent_id") REFERENCES "core"."constituents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "activities"."event_documents" ADD CONSTRAINT "event_documents_event_id_events_id_fk" FOREIGN KEY ("event_id") REFERENCES "activities"."events"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "activities"."event_documents" ADD CONSTRAINT "event_documents_document_id_documents_id_fk" FOREIGN KEY ("document_id") REFERENCES "core"."documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activities"."event_media" ADD CONSTRAINT "event_media_event_id_events_id_fk" FOREIGN KEY ("event_id") REFERENCES "activities"."events"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activities"."event_media" ADD CONSTRAINT "event_media_medium_id_media_id_fk" FOREIGN KEY ("medium_id") REFERENCES "core"."media"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activities"."events" ADD CONSTRAINT "events_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "activities"."projects"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "activities"."events" ADD CONSTRAINT "events_chapter_id_chapters_id_fk" FOREIGN KEY ("chapter_id") REFERENCES "core"."chapters"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activities"."project_media" ADD CONSTRAINT "project_media_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "activities"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activities"."project_media" ADD CONSTRAINT "project_media_medium_id_media_id_fk" FOREIGN KEY ("medium_id") REFERENCES "core"."media"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activities"."projects" ADD CONSTRAINT "projects_chapter_id_chapters_id_fk" FOREIGN KEY ("chapter_id") REFERENCES "core"."chapters"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint

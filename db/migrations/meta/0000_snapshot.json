@@ -1,5 +1,5 @@
 {
-  "id": "aa2e0da2-a989-415a-b675-17839a90f4ce",
+  "id": "165aeb30-1c77-4dc5-bf64-25424c0b114d",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1065,8 +1065,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "national_id_document": {
-          "name": "national_id_document",
+        "national_id_document_id": {
+          "name": "national_id_document_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -1122,12 +1122,12 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "constituents_national_id_document_documents_id_fk": {
-          "name": "constituents_national_id_document_documents_id_fk",
+        "constituents_national_id_document_id_documents_id_fk": {
+          "name": "constituents_national_id_document_id_documents_id_fk",
           "tableFrom": "constituents",
           "tableTo": "documents",
           "schemaTo": "core",
-          "columnsFrom": ["national_id_document"],
+          "columnsFrom": ["national_id_document_id"],
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
@@ -1907,6 +1907,65 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "activities.event_documents": {
+      "name": "event_documents",
+      "schema": "activities",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "document_id": {
+          "name": "document_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "event_documents_event_id_events_id_fk": {
+          "name": "event_documents_event_id_events_id_fk",
+          "tableFrom": "event_documents",
+          "tableTo": "events",
+          "schemaTo": "activities",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "event_documents_document_id_documents_id_fk": {
+          "name": "event_documents_document_id_documents_id_fk",
+          "tableFrom": "event_documents",
+          "tableTo": "documents",
+          "schemaTo": "core",
+          "columnsFrom": ["document_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "activities.event_media": {
       "name": "event_media",
       "schema": "activities",
@@ -2034,6 +2093,12 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
+        },
+        "chapter_id": {
+          "name": "chapter_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -2044,6 +2109,16 @@
           "tableTo": "projects",
           "schemaTo": "activities",
           "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "events_chapter_id_chapters_id_fk": {
+          "name": "events_chapter_id_chapters_id_fk",
+          "tableFrom": "events",
+          "tableTo": "chapters",
+          "schemaTo": "core",
+          "columnsFrom": ["chapter_id"],
           "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
