@@ -46,7 +46,7 @@ export const CreatePartnershipSchema = z.object({
   eventId: z.uuid("Invalid event ID").optional(),
   startedAt: z.coerce.date({ message: "Invalid start date" }),
   endedAt: z.coerce.date({ message: "Invalid end date" }).optional(),
-  value: z
+  value: z.coerce
     .number()
     .positive("Value must be a positive number")
     .optional()
