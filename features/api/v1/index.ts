@@ -13,6 +13,7 @@ import shopRouter from "./shop";
 import announcementsRouter from "./announcements";
 import applicationsRouter from "./applications";
 import duesRouter from "./dues";
+import partnershipsRouter from "./partnerships";
 
 const apiRouter = Router();
 
@@ -30,5 +31,6 @@ apiRouter.use("/shop", shopRouter);
 apiRouter.use("/announcements", announcementsRouter);
 apiRouter.use("/applications", applicationsRouter);
 apiRouter.use("/dues", duesRouter);
+apiRouter.use("/partnerships", partnershipsRouter);
 
 export default apiRouter;
