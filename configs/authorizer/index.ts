@@ -40,6 +40,16 @@ export class Visitors {
       );
     };
   }
+
+  /**
+   * Checks if the authenticated user has the specified constituent ID.
+   */
+  static hasID(id: string | ((req: Request) => string)) {
+    return (req: Request) => {
+      if (!req.User) return false;
+      return req.User.constituentId === (typeof id === "function" ? id(req) : id);
+    };
+  }
 }
 
 export const anyOf = (...guards: GuardFunction[]) => {
