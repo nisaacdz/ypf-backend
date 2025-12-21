@@ -13,7 +13,7 @@ import {
   CreateProjectSchema,
   UpdateProjectSchema,
   UpdateProjectMediumSchema,
-} from "@/shared/validators/activities";
+} from "./schemas";
 import {
   validateQuery,
   validateParams,

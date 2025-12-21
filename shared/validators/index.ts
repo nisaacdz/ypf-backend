@@ -28,3 +28,7 @@ export const AuthenticatedUserSchema = z.object({
       message: `You can have at most ${Profiles.length} active profiles.`,
     }),
 });
+
+export const RefreshTokenPayloadSchema = z.object({
+  username: z.string({ message: "Username is required." }),
+});

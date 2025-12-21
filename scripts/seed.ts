@@ -296,6 +296,7 @@ async function seed(
         scheduledEnd: faker.date.future(),
         status: faker.helpers.arrayElement(schema.EventStatusEnum.enumValues),
         projectId: faker.helpers.arrayElement(projects).id,
+        type: faker.helpers.arrayElement(schema.EventTypeEnum.enumValues),
       })),
     )
     .returning();

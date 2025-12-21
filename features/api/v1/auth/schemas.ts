@@ -35,10 +35,6 @@ export const OtpSchema = z.object({
     .max(6, { message: "OTP must be exactly 6 characters." }),
 });
 
-export const RefreshTokenPayloadSchema = z.object({
-  username: z.string({ message: "Username is required." }),
-});
-
 export const ForgotPasswordSchema = z.object({
   email: z.email({ message: "Please enter a valid email address." }),
 });

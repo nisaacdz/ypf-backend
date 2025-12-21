@@ -3,7 +3,7 @@ import { Router } from "express";
 import { authenticateLax, authorize } from "@/shared/middlewares/auth";
 import { validateQuery, validateParams } from "@/shared/middlewares/validate";
 import * as membersHandler from "./membersHandler";
-import { GetMembersQuerySchema } from "@/shared/validators/core";
+import { GetMembersQuerySchema } from "./schemas";
 import { Visitors } from "@/configs/authorizer";
 import z from "zod";
 

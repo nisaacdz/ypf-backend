@@ -4,7 +4,14 @@ import {
   DocumentTypeEnum,
   MediumTypeEnum,
   NationalIdTypeEnum,
+  GenderEnum,
 } from "@/db/schema/core";
+
+import {
+  EventStatusEnum,
+  ProjectStatusEnum,
+  EventTypeEnum,
+} from "@/db/schema/activities";
 
 type TransactionStatus =
   (typeof schema.TransactionStatusEnum.enumValues)[number];
