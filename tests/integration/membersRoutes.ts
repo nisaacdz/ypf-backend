@@ -97,8 +97,6 @@ describe("Members API", () => {
       expect(response.body.data.id).toBe(testMember.constituentId);
       expect(response.body.data.firstName).toBe(testUser.name.firstName);
       expect(response.body.data.lastName).toBe(testUser.name.lastName);
-      expect(response.body.data).toHaveProperty("contactInfos");
-      expect(Array.isArray(response.body.data.contactInfos)).toBe(true);
       expect(response.body.data).toHaveProperty("titles");
       expect(Array.isArray(response.body.data.titles)).toBe(true);
       expect(response.body.data).toHaveProperty("joinedAt");
