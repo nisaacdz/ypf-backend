@@ -64,7 +64,7 @@ export const UpdatePartnershipSchema = z
     eventId: z.uuid().nullish(),
     startedAt: z.coerce.date().optional(),
     endedAt: z.coerce.date().nullish(),
-    value: z
+    value: z.coerce
       .number()
       .positive()
       .optional()
