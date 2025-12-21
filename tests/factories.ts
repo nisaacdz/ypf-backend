@@ -70,3 +70,20 @@ export function generateTestProject() {
     scheduledEnd: endDate,
   };
 }
+
+export function generateTestDues() {
+  const periodStart = faker.date.past({ years: 1 });
+  const periodEnd = new Date(periodStart);
+  periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+
+  return {
+    id: "",
+    amount: faker.number
+      .float({ min: 50, max: 500, fractionDigits: 2 })
+      .toFixed(2),
+    currency: "GHS",
+    periodStart,
+    periodEnd,
+    chapterId: null, // Global dues (no chapter-specific dues for now)
+  };
+}
