@@ -5,7 +5,11 @@ import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { Paginated } from "@/shared/dtos";
 import { YPFChapter, YPFChapterDetail } from "@/features/api/v1/chapters/dtos";
-import { GetChaptersQuerySchema, UpdateChapterSchema } from "@/features/api/v1/chapters/schemas";
+import {
+  GetChaptersQuerySchema,
+  GetConstituentChaptersQuerySchema,
+  UpdateChapterSchema,
+} from "@/features/api/v1/chapters/schemas";
 import * as mediaUtils from "@/shared/utils/files";
 import { ApiError } from "@/shared/types";
 
@@ -225,4 +229,126 @@ export async function updateChapter(
   }
 
   return updatedChapter;
+}
+
+export async function getChaptersByConstituentId(
+  constituentId: string,
+  query: z.infer<typeof GetConstituentChaptersQuerySchema>,
+): Promise<Paginated<YPFChapter>> {
+  const { page, pageSize } = query;
+
+  // --- SUBQUERY FOR MEMBER ID ---
+  // First get the member record(s) for this constituent
+  const memberSubquery = dbClient.db
+    .select({
+      memberId: schema.Members.id,
+    })
+    .from(schema.Members)
+    .where(eq(schema.Members.constituentId, constituentId))
+    .as("member_sub");
+
+  // --- SUBQUERY FOR MEMBER COUNT ---
+  const memberCountSubquery = dbClient.db
+    .select({
+      chapterId: schema.ChapterMemberships.chapterId,
+      memberCount:
+        sql<number>`COUNT(DISTINCT ${schema.Members.constituentId})`.as(
+          "member_count",
+        ),
+    })
+    .from(schema.ChapterMemberships)
+    .innerJoin(
+      schema.Members,
+      eq(schema.ChapterMemberships.memberId, schema.Members.id),
+    )
+    .where(
+      and(
+        sql`${schema.ChapterMemberships.startedAt} <= now()`,
+        sql`(${schema.ChapterMemberships.endedAt} IS NULL OR ${schema.ChapterMemberships.endedAt} >= now())`,
+      ),
+    )
+    .groupBy(schema.ChapterMemberships.chapterId)
+    .as("member_counts");
+
+  // --- SUBQUERY FOR FEATURED PHOTO ---
+  const featuredPhotoSubquery = dbClient.db
+    .select({
+      chapterId: schema.ChapterMedia.chapterId,
+      externalId: schema.Media.externalId,
+      rn: sql<number>`row_number() OVER (PARTITION BY ${schema.ChapterMedia.chapterId} ORDER BY ${schema.Media.uploadedAt} DESC)`.as(
+        "photo_rn",
+      ),
+    })
+    .from(schema.ChapterMedia)
+    .innerJoin(schema.Media, eq(schema.ChapterMedia.mediumId, schema.Media.id))
+    .where(eq(schema.ChapterMedia.isFeatured, true))
+    .as("featured_photos");
+
+  // --- BASE QUERY ---
+  // Get chapters where the constituent has an active membership
+  const baseQuery = dbClient.db
+    .select({
+      id: schema.Chapters.id,
+      name: schema.Chapters.name,
+      country: schema.Chapters.country,
+      featuredPhotoExternalId: featuredPhotoSubquery.externalId,
+      memberCount: memberCountSubquery.memberCount,
+      foundingDate: schema.Chapters.foundingDate,
+    })
+    .from(schema.ChapterMemberships)
+    .innerJoin(
+      memberSubquery,
+      eq(schema.ChapterMemberships.memberId, memberSubquery.memberId),
+    )
+    .innerJoin(
+      schema.Chapters,
+      eq(schema.ChapterMemberships.chapterId, schema.Chapters.id),
+    )
+    .leftJoin(
+      memberCountSubquery,
+      eq(schema.Chapters.id, memberCountSubquery.chapterId),
+    )
+    .leftJoin(
+      featuredPhotoSubquery,
+      and(
+        eq(schema.Chapters.id, featuredPhotoSubquery.chapterId),
+        eq(featuredPhotoSubquery.rn, 1),
+      ),
+    )
+    .where(
+      and(
+        isNull(schema.Chapters.archivedAt),
+        sql`${schema.ChapterMemberships.startedAt} <= now()`,
+        sql`(${schema.ChapterMemberships.endedAt} IS NULL OR ${schema.ChapterMemberships.endedAt} >= now())`,
+      ),
+    );
+
+  // --- QUERY EXECUTION ---
+  const [totalResult, dbChapters] = await Promise.all([
+    dbClient.db.select({ total: count() }).from(baseQuery.as("sub")),
+    baseQuery.limit(pageSize).offset((page - 1) * pageSize),
+  ]);
+
+  const total = totalResult[0]?.total ?? 0;
+
+  // --- DATA MAPPING ---
+  const items: YPFChapter[] = dbChapters.map((c) => ({
+    id: c.id,
+    name: c.name,
+    country: c.country,
+    featuredPhotoUrl: c.featuredPhotoExternalId
+      ? mediaUtils.generatePublicMediaUrl(c.featuredPhotoExternalId, {
+          resolution: 360,
+        })
+      : undefined,
+    memberCount: c.memberCount ?? 0,
+    foundingDate: c.foundingDate,
+  }));
+
+  return {
+    items,
+    page,
+    pageSize,
+    total,
+  };
 }

@@ -5,6 +5,10 @@ export const GetChaptersQuerySchema = z.object({
   ...PaginationQuery.shape,
 });
 
+export const GetConstituentChaptersQuerySchema = z.object({
+  ...PaginationQuery.shape,
+});
+
 export const UpdateChapterSchema = z
   .object({
     name: z.string().min(1, "Name is required").optional(),
