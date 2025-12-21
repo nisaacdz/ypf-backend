@@ -78,10 +78,7 @@ export async function getPartnerships(filters: PartnershipFilters) {
       );
     } else {
       conditions.push(
-        or(
-          sql`${schema.Partnerships.startedAt} > ${now}`,
-          sql`${schema.Partnerships.endedAt} < ${now}`,
-        ),
+        sql`(${schema.Partnerships.startedAt} > ${now}) OR (${schema.Partnerships.endedAt} IS NOT NULL AND ${schema.Partnerships.endedAt} < ${now})`,
       );
     }
   }
