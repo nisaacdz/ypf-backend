@@ -229,7 +229,7 @@ CREATE TABLE "core"."member_titles" (
 CREATE TABLE "core"."member_titles_assignments" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"member_id" uuid NOT NULL,
-	"title_id" text NOT NULL,
+	"title_id" uuid NOT NULL,
 	"started_at" timestamp with time zone NOT NULL,
 	"ended_at" timestamp with time zone
 );

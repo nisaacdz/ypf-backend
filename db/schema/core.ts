@@ -230,7 +230,7 @@ export const MemberTitlesAssignments = core.table("member_titles_assignments", {
   memberId: uuid("member_id")
     .notNull()
     .references(() => Members.id, { onDelete: "cascade" }),
-  titleId: text("title_id")
+  titleId: uuid("title_id")
     .notNull()
     .references(() => MemberTitles.id, { onDelete: "cascade" }),
   startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
