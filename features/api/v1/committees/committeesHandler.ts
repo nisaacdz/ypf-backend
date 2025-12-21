@@ -1,6 +1,9 @@
 import * as committeesService from "@/shared/services/committeesService";
 import { ApiResponse } from "@/shared/types";
-import { GetCommitteesQuerySchema } from "./schemas";
+import {
+  GetCommitteesQuerySchema,
+  GetConstituentCommitteesQuerySchema,
+} from "./schemas";
 import { Paginated } from "@/shared/dtos";
 import { YPFCommittee, YPFCommitteeDetail } from "./dtos";
 import z from "zod";
@@ -16,5 +19,16 @@ export async function getCommittee(
   committeeId: string,
 ): Promise<ApiResponse<YPFCommitteeDetail>> {
   const data = await committeesService.getCommitteeById(committeeId);
+  return { success: true, data };
+}
+
+export async function getCommitteesByConstituentId(
+  constituentId: string,
+  query: z.infer<typeof GetConstituentCommitteesQuerySchema>,
+): Promise<ApiResponse<Paginated<YPFCommittee>>> {
+  const data = await committeesService.getCommitteesByConstituentId(
+    constituentId,
+    query,
+  );
   return { success: true, data };
 }
