@@ -16,8 +16,8 @@ export type YPFDues = {
   id: string;
   amount: string;
   currency: string;
-  periodStart: string;
-  periodEnd: string;
+  periodStart: Date;
+  periodEnd: Date;
 };
 
 /**
@@ -25,8 +25,8 @@ export type YPFDues = {
  */
 export type YPFDuesPaymentWithPeriod = YPFDuesPayment & {
   duesId: string;
-  periodStart: string;
-  periodEnd: string;
+  periodStart: Date;
+  periodEnd: Date;
 };
 
 /**
