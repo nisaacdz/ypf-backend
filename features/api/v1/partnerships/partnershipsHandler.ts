@@ -12,6 +12,8 @@ import {
 import { Paginated } from "@/shared/dtos";
 import z from "zod";
 import * as partnershipsService from "@/shared/services/partnershipsService";
+import * as fileUtils from "@/shared/utils/files";
+import * as documentsService from "@/shared/services/documentsService";
 
 /**
  * Get paginated list of partnerships
@@ -34,12 +36,29 @@ export async function getPartnership(
 }
 
 /**
- * Create a new partnership
+ * Create a new partnership with optional contract document
  */
-export async function createPartnership(
-  data: z.infer<typeof CreatePartnershipSchema>,
-): Promise<ApiResponse<YPFPartnershipMutation>> {
-  const result = await partnershipsService.createPartnership(data);
+export async function createPartnership({
+  data,
+  contractDocument,
+}: {
+  data: z.infer<typeof CreatePartnershipSchema>;
+  contractDocument?: Express.Multer.File;
+}): Promise<ApiResponse<YPFPartnershipMutation>> {
+  let contractDocumentId: string | undefined;
+
+  // Upload contract document if provided
+  if (contractDocument) {
+    const documentMeta = await fileUtils.storeDocumentFile(contractDocument);
+    const uploadedDoc = await documentsService.uploadDocument(documentMeta);
+    contractDocumentId = uploadedDoc.id;
+  }
+
+  const result = await partnershipsService.createPartnership({
+    ...data,
+    contractDocumentId,
+  });
+
   return {
     success: true,
     data: {

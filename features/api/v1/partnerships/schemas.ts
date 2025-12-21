@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { PaginationQuery } from "@/shared/validators";
 import { PartnershipTypeEnum } from "@/db/schema/finance";
+import { AllowedDocumentsMimeTypes } from "@/shared/middlewares/multipart";
 
 /**
  * Query schema for listing partnerships
@@ -15,6 +16,22 @@ export const GetPartnershipsQuerySchema = z.object({
     .string()
     .transform((val) => val === "true")
     .optional(),
+});
+
+/**
+ * Schema for validating contract document file upload
+ */
+export const UploadContractDocumentSchema = z.object({
+  size: z
+    .number()
+    .max(10 * 1024 * 1024, "File size must be less than 10MB")
+    .positive({ message: "File size must be a positive number." }),
+  mimeType: z.enum(
+    Object.keys(AllowedDocumentsMimeTypes) as [string, ...string[]],
+    {
+      message: "Invalid file type. Only PDF, DOC, and images are allowed.",
+    },
+  ),
 });
 
 /**
@@ -35,7 +52,6 @@ export const CreatePartnershipSchema = z.object({
     .optional()
     .transform((val) => val?.toFixed(2)),
   metadata: z.string().optional(),
-  contractDocumentId: z.uuid("Invalid document ID").optional(),
 });
 
 /**

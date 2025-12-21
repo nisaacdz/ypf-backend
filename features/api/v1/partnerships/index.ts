@@ -4,12 +4,15 @@ import {
   validateBody,
   validateQuery,
   validateParams,
+  validateFile,
 } from "@/shared/middlewares/validate";
+import { documentsUpload } from "@/shared/middlewares/multipart";
 import { Visitors } from "@/configs/authorizer";
 import {
   GetPartnershipsQuerySchema,
   CreatePartnershipSchema,
   UpdatePartnershipSchema,
+  UploadContractDocumentSchema,
 } from "./schemas";
 import * as partnershipsHandler from "./partnershipsHandler";
 import z from "zod";
@@ -256,14 +259,14 @@ partnershipsRouter.get(
  * /api/v1/partnerships:
  *   post:
  *     summary: Create a new partnership
- *     description: Creates a new partnership record. Requires ADMIN privileges.
+ *     description: Creates a new partnership record with optional contract document. Requires ADMIN privileges.
  *     tags: [Partnerships]
  *     security:
  *       - cookieAuth: []
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required:
@@ -301,10 +304,10 @@ partnershipsRouter.get(
  *               metadata:
  *                 type: string
  *                 description: Additional structured data as JSON string
- *               contractDocumentId:
+ *               contractDocument:
  *                 type: string
- *                 format: uuid
- *                 description: ID of the contract document (optional)
+ *                 format: binary
+ *                 description: Contract document file (PDF, DOC, or image, max 10MB)
  *     responses:
  *       201:
  *         description: Partnership created successfully
@@ -330,16 +333,21 @@ partnershipsRouter.get(
  *       403:
  *         description: Forbidden - requires ADMIN profile
  *       404:
- *         description: Referenced organization, project, event, or document not found
+ *         description: Referenced organization, project, or event not found
  */
 partnershipsRouter.post(
   "/",
   authenticate,
   authorize(Visitors.hasProfile("ADMIN")),
+  documentsUpload.single("contractDocument"),
+  validateFile(UploadContractDocumentSchema.optional()),
   validateBody(CreatePartnershipSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const response = await partnershipsHandler.createPartnership(req.Body);
+      const response = await partnershipsHandler.createPartnership({
+        data: req.Body,
+        contractDocument: req.file,
+      });
       res.status(201).json(response);
     } catch (error) {
       next(error);
