@@ -219,10 +219,18 @@ applicationsRouter.get(
  *                 type: string
  *               referralSource:
  *                 type: string
- *               cv:
+ *               passportPhoto:
  *                 type: string
  *                 format: binary
- *                 description: CV document (PDF, max 10MB)
+ *                 description: Passport photo (image, max 10MB)
+ *               nationalId:
+ *                 type: string
+ *                 format: binary
+ *                 description: National ID document (PDF or image, max 10MB)
+ *               resume:
+ *                 type: string
+ *                 format: binary
+ *                 description: Resume/CV document (PDF, max 10MB)
  *     responses:
  *       201:
  *         description: Application submitted successfully

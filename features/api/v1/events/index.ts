@@ -135,7 +135,7 @@ eventsRouter.get(
  *                 format: date-time
  *               status:
  *                 type: string
- *                 enum: [PLANNED, ONGOING, COMPLETED, CANCELLED]
+ *                 enum: [UPCOMING, ONGOING, COMPLETED, CANCELLED]
  *               projectId:
  *                 type: string
  *                 format: uuid
@@ -476,7 +476,7 @@ eventsRouter.put(
 
 /**
  * @swagger
- * /api/v1/events/media/{mediaId}:
+ * /api/v1/events/media/{id}:
  *   patch:
  *     summary: Update event medium details
  *     tags: [Events]
@@ -484,10 +484,11 @@ eventsRouter.put(
  *       - cookieAuth: []
  *     parameters:
  *       - in: path
- *         name: mediaId
+ *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *         description: The ID of the event medium record to update
  *     requestBody:
  *       required: true

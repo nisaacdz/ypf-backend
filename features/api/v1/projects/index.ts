@@ -38,7 +38,7 @@ const projectsRouter = Router();
  *         name: filterStatus
  *         schema:
  *           type: string
- *           enum: [PLANNING, ACTIVE, COMPLETED, ON_HOLD]
+ *           enum: [UPCOMING, IN_PROGRESS, COMPLETED, CANCELLED]
  *         description: Filter projects by status
  *       - in: query
  *         name: page
@@ -469,7 +469,8 @@ projectsRouter.post(
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *         description: Project Medium ID
  *     requestBody:
  *       required: true
