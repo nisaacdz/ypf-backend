@@ -1,5 +1,6 @@
 import express, { Express } from "express";
 import http from "http";
+import path from "path";
 import morgan from "morgan";
 import helmet from "helmet";
 import cors from "cors";
@@ -38,6 +39,23 @@ app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, maxRequests: 99 }));
+
+// Serve static files and developer homepage
+app.use(express.static(path.join(process.cwd(), "public")));
+app.get("/", (req, res) => {
+  res.sendFile(path.join(process.cwd(), "public", "home.html"));
+});
+
+// Health check endpoint
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    success: true,
+    data: {
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+    },
+  });
+});
 
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use("/api/v1", apiRouter);

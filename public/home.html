@@ -1,0 +1,963 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>YPF Backend - Developer Guide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --primary: #6366f1;
+        --primary-dark: #4f46e5;
+        --primary-light: #a5b4fc;
+        --secondary: #10b981;
+        --accent: #f59e0b;
+        --bg-dark: #0f172a;
+        --bg-card: #1e293b;
+        --bg-card-hover: #334155;
+        --text-primary: #f1f5f9;
+        --text-secondary: #94a3b8;
+        --text-muted: #64748b;
+        --border: #334155;
+        --success: #22c55e;
+        --warning: #f59e0b;
+        --error: #ef4444;
+        --code-bg: #0d1117;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          "Inter",
+          -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+        background: linear-gradient(
+          135deg,
+          var(--bg-dark) 0%,
+          #1a1a2e 50%,
+          var(--bg-dark) 100%
+        );
+        color: var(--text-primary);
+        line-height: 1.6;
+        min-height: 100vh;
+      }
+
+      /* Hero Section */
+      .hero {
+        padding: 80px 20px;
+        text-align: center;
+        background: linear-gradient(
+          180deg,
+          rgba(99, 102, 241, 0.1) 0%,
+          transparent 100%
+        );
+        border-bottom: 1px solid var(--border);
+      }
+
+      .hero-badge {
+        display: inline-block;
+        padding: 6px 16px;
+        background: rgba(99, 102, 241, 0.2);
+        border: 1px solid var(--primary);
+        border-radius: 50px;
+        color: var(--primary-light);
+        font-size: 0.85rem;
+        font-weight: 500;
+        margin-bottom: 20px;
+      }
+
+      .hero h1 {
+        font-size: 3rem;
+        font-weight: 700;
+        margin-bottom: 16px;
+        background: linear-gradient(
+          135deg,
+          var(--text-primary) 0%,
+          var(--primary-light) 100%
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .hero p {
+        font-size: 1.25rem;
+        color: var(--text-secondary);
+        max-width: 700px;
+        margin: 0 auto 30px;
+      }
+
+      .hero-links {
+        display: flex;
+        gap: 16px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all 0.2s ease;
+      }
+
+      .btn-primary {
+        background: var(--primary);
+        color: white;
+      }
+
+      .btn-primary:hover {
+        background: var(--primary-dark);
+        transform: translateY(-2px);
+        box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3);
+      }
+
+      .btn-secondary {
+        background: var(--bg-card);
+        color: var(--text-primary);
+        border: 1px solid var(--border);
+      }
+
+      .btn-secondary:hover {
+        background: var(--bg-card-hover);
+        transform: translateY(-2px);
+      }
+
+      /* Container */
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 60px 20px;
+      }
+
+      /* Section */
+      .section {
+        margin-bottom: 60px;
+      }
+
+      .section-title {
+        font-size: 1.75rem;
+        font-weight: 600;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .section-title span {
+        font-size: 1.5rem;
+      }
+
+      /* Cards Grid */
+      .cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+        gap: 24px;
+      }
+
+      .card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 28px;
+        transition: all 0.3s ease;
+      }
+
+      .card:hover {
+        border-color: var(--primary);
+        transform: translateY(-4px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      }
+
+      .card-icon {
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(99, 102, 241, 0.15);
+        border-radius: 12px;
+        margin-bottom: 16px;
+        font-size: 1.5rem;
+      }
+
+      .card h3 {
+        font-size: 1.25rem;
+        margin-bottom: 12px;
+        color: var(--text-primary);
+      }
+
+      .card p {
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+        margin-bottom: 16px;
+      }
+
+      /* Code Block */
+      .code-block {
+        background: var(--code-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        margin: 16px 0;
+      }
+
+      .code-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        background: rgba(255, 255, 255, 0.03);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .code-lang {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .code-file {
+        font-size: 0.85rem;
+        color: var(--primary-light);
+        font-family: "JetBrains Mono", monospace;
+      }
+
+      pre {
+        padding: 16px;
+        overflow-x: auto;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.85rem;
+        line-height: 1.7;
+      }
+
+      code {
+        font-family: "JetBrains Mono", monospace;
+      }
+
+      .inline-code {
+        background: rgba(99, 102, 241, 0.15);
+        color: var(--primary-light);
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.9em;
+      }
+
+      /* Syntax Highlighting */
+      .keyword {
+        color: #ff79c6;
+      }
+      .string {
+        color: #50fa7b;
+      }
+      .comment {
+        color: #6272a4;
+      }
+      .function {
+        color: #8be9fd;
+      }
+      .type {
+        color: #f1fa8c;
+      }
+      .const {
+        color: #bd93f9;
+      }
+
+      /* Architecture Diagram */
+      .diagram-container {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 32px;
+        margin: 24px 0;
+      }
+
+      .diagram {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 24px;
+        justify-content: center;
+      }
+
+      .diagram-box {
+        background: var(--code-bg);
+        border: 2px solid var(--border);
+        border-radius: 12px;
+        padding: 20px 28px;
+        text-align: center;
+        min-width: 140px;
+        transition: all 0.3s ease;
+      }
+
+      .diagram-box:hover {
+        border-color: var(--primary);
+        transform: scale(1.05);
+      }
+
+      .diagram-box.schema {
+        border-color: var(--primary);
+      }
+      .diagram-box.feature {
+        border-color: var(--secondary);
+      }
+      .diagram-box.service {
+        border-color: var(--accent);
+      }
+
+      .diagram-box h4 {
+        font-size: 1rem;
+        margin-bottom: 6px;
+      }
+
+      .diagram-box span {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+      }
+
+      /* Tables */
+      .table-container {
+        overflow-x: auto;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        margin: 16px 0;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+      }
+
+      th,
+      td {
+        padding: 14px 18px;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+      }
+
+      th {
+        background: rgba(99, 102, 241, 0.1);
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+
+      tr:last-child td {
+        border-bottom: none;
+      }
+
+      tr:hover td {
+        background: rgba(99, 102, 241, 0.05);
+      }
+
+      /* Info Boxes */
+      .info-box {
+        padding: 20px 24px;
+        border-radius: 12px;
+        margin: 16px 0;
+        border-left: 4px solid;
+      }
+
+      .info-box.tip {
+        background: rgba(34, 197, 94, 0.1);
+        border-color: var(--success);
+      }
+
+      .info-box.warning {
+        background: rgba(245, 158, 11, 0.1);
+        border-color: var(--warning);
+      }
+
+      .info-box.important {
+        background: rgba(99, 102, 241, 0.1);
+        border-color: var(--primary);
+      }
+
+      .info-box strong {
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      /* Footer */
+      footer {
+        text-align: center;
+        padding: 40px 20px;
+        border-top: 1px solid var(--border);
+        color: var(--text-muted);
+      }
+
+      footer a {
+        color: var(--primary-light);
+        text-decoration: none;
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        .hero h1 {
+          font-size: 2rem;
+        }
+
+        .hero p {
+          font-size: 1rem;
+        }
+
+        .cards-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .section-title {
+          font-size: 1.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Hero Section -->
+    <header class="hero">
+      <div class="hero-badge">🌍 Social Impact Backend</div>
+      <h1>YPF Backend Developer Guide</h1>
+      <p>
+        Young Professionals Forum (YPF) is a social impact organization that
+        solves societal problems through public projects. This guide covers key
+        architectural patterns, conventions, and how-tos.
+      </p>
+      <div class="hero-links">
+        <a href="/docs" class="btn btn-primary"> 📖 API Documentation </a>
+        <a
+          href="https://github.com/YPF-Africa/ypf-backend"
+          class="btn btn-secondary"
+          target="_blank"
+        >
+          💻 GitHub Repository
+        </a>
+      </div>
+    </header>
+
+    <div class="container">
+      <!-- Quick Overview -->
+      <section class="section">
+        <h2 class="section-title"><span>⚡</span> Quick Overview</h2>
+        <div class="cards-grid">
+          <div class="card">
+            <div class="card-icon">🗄️</div>
+            <h3>Database Schemas</h3>
+            <p>
+              PostgreSQL with Drizzle ORM. Organized into 4 schemas:
+              <code class="inline-code">core</code>,
+              <code class="inline-code">activities</code>,
+              <code class="inline-code">finance</code>, and
+              <code class="inline-code">shop</code>.
+            </p>
+          </div>
+          <div class="card">
+            <div class="card-icon">🔐</div>
+            <h3>Authorization</h3>
+            <p>
+              Flexible Visitor pattern with profile-based and role-based access
+              control. Dynamic guards using
+              <code class="inline-code">anyOf()</code> and
+              <code class="inline-code">allOf()</code>.
+            </p>
+          </div>
+          <div class="card">
+            <div class="card-icon">📁</div>
+            <h3>File Uploads</h3>
+            <p>
+              Media (images/videos) and documents uploaded via Multer, stored
+              externally with ImageKit. Supports up to 250MB for media.
+            </p>
+          </div>
+          <div class="card">
+            <div class="card-icon">⏰</div>
+            <h3>Time-Bound Profiles</h3>
+            <p>
+              Members, Admins, Volunteers have
+              <code class="inline-code">startedAt</code>/<code
+                class="inline-code"
+                >endedAt</code
+              >
+              for historical tracking and automatic status transitions.
+            </p>
+          </div>
+          <div class="card">
+            <div class="card-icon">🧩</div>
+            <h3>Middleware Stack</h3>
+            <p>
+              Stacked in route files for visibility. Use
+              <code class="inline-code">authenticate</code> (strict) or
+              <code class="inline-code">authenticateLax</code> (optional auth).
+            </p>
+          </div>
+          <div class="card">
+            <div class="card-icon">🔌</div>
+            <h3>Real-time</h3>
+            <p>
+              Socket.IO for notifications and chat. Auth flows through the same
+              cookie-based JWT tokens.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Architecture Overview -->
+      <section class="section">
+        <h2 class="section-title"><span>🏗️</span> Architecture Overview</h2>
+        <div class="diagram-container">
+          <div class="diagram">
+            <div class="diagram-box schema">
+              <h4>core</h4>
+              <span>Constituents, Members, Chapters, Committees, Admins</span>
+            </div>
+            <div class="diagram-box schema">
+              <h4>activities</h4>
+              <span>Projects, Events, Announcements</span>
+            </div>
+            <div class="diagram-box schema">
+              <h4>finance</h4>
+              <span>Donations, Dues, Transactions, Partnerships</span>
+            </div>
+            <div class="diagram-box schema">
+              <h4>shop</h4>
+              <span>Products, Orders, Cart Items</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-box important">
+          <strong>💡 Key Convention</strong>
+          Use the <code class="inline-code">@/</code> alias for imports (e.g.,
+          <code class="inline-code">import dbClient from "@/configs/db"</code>).
+          Never use <code class="inline-code">process.env</code> directly—import
+          <code class="inline-code">variables</code> from
+          <code class="inline-code">@/configs/env</code>.
+        </div>
+      </section>
+
+      <!-- Time-Bound Profiles -->
+      <section class="section">
+        <h2 class="section-title"><span>⏳</span> Time-Bound Profiles</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 20px">
+          Entity profiles (Member, Admin, Volunteer, Auditor, Director) are
+          time-bound with <code class="inline-code">startedAt</code> and
+          <code class="inline-code">endedAt</code> columns. A profile is
+          "active" when
+          <code class="inline-code"
+            >startedAt ≤ now() AND (endedAt IS NULL OR endedAt ≥ now())</code
+          >.
+        </p>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Table</th>
+                <th>Purpose</th>
+                <th>Key Fields</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code class="inline-code">core.members</code></td>
+                <td>Membership periods for constituents</td>
+                <td>constituentId, startedAt, endedAt</td>
+              </tr>
+              <tr>
+                <td><code class="inline-code">core.admins</code></td>
+                <td>Admin appointment periods</td>
+                <td>constituentId, startedAt, endedAt</td>
+              </tr>
+              <tr>
+                <td>
+                  <code class="inline-code">core.admin_roles_assignments</code>
+                </td>
+                <td>Role assignments (SUPER_ADMIN, REGULAR_ADMIN)</td>
+                <td>adminId, role, startedAt, endedAt</td>
+              </tr>
+              <tr>
+                <td>
+                  <code class="inline-code"
+                    >core.member_titles_assignments</code
+                  >
+                </td>
+                <td>Leadership titles (President, Chapter Lead, etc.)</td>
+                <td>memberId, titleId, startedAt, endedAt</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="info-box tip">
+          <strong>✅ Best Practice</strong>
+          When querying active profiles, always filter by date ranges. The
+          <code class="inline-code">usersService.getConstituentProfiles()</code>
+          function demonstrates this pattern correctly.
+        </div>
+      </section>
+
+      <!-- Authorization System -->
+      <section class="section">
+        <h2 class="section-title"><span>🔐</span> Authorization System</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 20px">
+          The authorization system uses a flexible
+          <strong>Visitor pattern</strong> with composable guards. Guards check
+          profiles (ADMIN, MEMBER) or specific roles (SUPER_ADMIN, chapter
+          lead).
+        </p>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">typescript</span>
+            <span class="code-file">configs/authorizer/index.ts</span>
+          </div>
+          <pre><code><span class="comment">// Guard types available:</span>
+<span class="const">Visitors</span>.<span class="function">ALL</span>                    <span class="comment">// Public access</span>
+<span class="const">Visitors</span>.<span class="function">AUTHENTICATED</span>          <span class="comment">// Any logged-in user</span>
+<span class="const">Visitors</span>.<span class="function">hasProfile</span>(<span class="string">"ADMIN"</span>, <span class="string">"MEMBER"</span>)  <span class="comment">// Has one of these profiles</span>
+<span class="const">Visitors</span>.<span class="function">hasRole</span>(ADMIN.SUPER)   <span class="comment">// Has specific role</span>
+<span class="const">Visitors</span>.<span class="function">hasID</span>((req) => req.Params.id)  <span class="comment">// Matches constituent ID</span>
+
+<span class="comment">// Combine guards:</span>
+<span class="function">anyOf</span>(<span class="const">guard1</span>, <span class="const">guard2</span>)   <span class="comment">// OR: passes if ANY guard passes</span>
+<span class="function">allOf</span>(<span class="const">guard1</span>, <span class="const">guard2</span>)   <span class="comment">// AND: passes if ALL guards pass</span></code></pre>
+        </div>
+
+        <h3 style="margin: 24px 0 16px; color: var(--text-primary)">
+          Usage in Routes
+        </h3>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">typescript</span>
+            <span class="code-file">features/api/v1/chapters/index.ts</span>
+          </div>
+          <pre><code><span class="comment">// Example: Allow ADMIN or resource owner</span>
+<span class="const">router</span>.<span class="function">get</span>(
+  <span class="string">"/constituents/:constituentId"</span>,
+  <span class="function">authenticate</span>,
+  <span class="function">validateParams</span>(z.object({ constituentId: z.string() })),
+  <span class="function">authorize</span>(
+    <span class="function">anyOf</span>(
+      <span class="const">Visitors</span>.<span class="function">hasProfile</span>(<span class="string">"ADMIN"</span>),
+      <span class="const">Visitors</span>.<span class="function">hasID</span>((req) => req.Params.constituentId)
+    )
+  ),
+  handler
+);</code></pre>
+        </div>
+
+        <h3 style="margin: 24px 0 16px; color: var(--text-primary)">
+          Creating New Roles
+        </h3>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">typescript</span>
+            <span class="code-file">configs/authorizer/roles.ts</span>
+          </div>
+          <pre><code><span class="comment">// 1. Define a new role matcher</span>
+<span class="keyword">export const</span> <span class="const">MEMBER</span> = {
+  <span class="comment">// Matches any chapter lead role</span>
+  CHAPTERLEAD: <span class="const">Role</span>.<span class="function">matches</span>(<span class="string">/^MEMBER\.lead\..+$/</span>),
+  
+  <span class="comment">// Factory for specific chapter</span>
+  <span class="function">chapterLead</span>: (chapterId: <span class="type">string</span>) =>
+    <span class="const">Role</span>.<span class="function">new</span>(<span class="string">`MEMBER.chapterlead.</span><span class="const">${chapterId}</span><span class="string">`</span>),
+};
+
+<span class="comment">// 2. Use in route authorization</span>
+<span class="function">authorize</span>(
+  <span class="function">anyOf</span>(
+    <span class="const">Visitors</span>.<span class="function">hasRole</span>(<span class="const">ADMIN</span>.<span class="const">SUPER</span>),
+    <span class="const">Visitors</span>.<span class="function">hasRole</span>((req) => <span class="const">MEMBER</span>.<span class="function">chapterLead</span>(req.Params.id))
+  )
+)</code></pre>
+        </div>
+
+        <div class="info-box warning">
+          <strong>⚠️ Important</strong>
+          Roles are stored as strings in the JWT after login (e.g.,
+          <code class="inline-code">"MEMBER.chapterlead.{uuid}"</code>). They're
+          computed at login from
+          <code class="inline-code">admin_roles_assignments</code> and
+          <code class="inline-code">member_titles_assignments</code> tables.
+        </div>
+      </section>
+
+      <!-- File Upload -->
+      <section class="section">
+        <h2 class="section-title"><span>📁</span> File Upload</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 20px">
+          Two upload types: <strong>Media</strong> (images/videos, up to 250MB)
+          and <strong>Documents</strong> (PDFs/docs, up to 10MB). Files are
+          stored temporarily via Multer, then uploaded to external storage
+          (ImageKit).
+        </p>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Middleware</th>
+                <th>Allowed Types</th>
+                <th>Max Size</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Media</td>
+                <td>
+                  <code class="inline-code">filesUpload.mediaUpload</code>
+                </td>
+                <td>PNG, JPEG, MP4, MOV, AVI</td>
+                <td>250 MB</td>
+              </tr>
+              <tr>
+                <td>Documents</td>
+                <td>
+                  <code class="inline-code">filesUpload.documentsUpload</code>
+                </td>
+                <td>PDF, DOC(X), XLS(X), PPT(X), Images</td>
+                <td>10 MB</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">typescript</span>
+            <span class="code-file">Example: Uploading project media</span>
+          </div>
+          <pre><code><span class="const">router</span>.<span class="function">post</span>(
+  <span class="string">"/:id/media"</span>,
+  <span class="function">authenticate</span>,
+  <span class="const">filesUpload</span>.<span class="const">mediaUpload</span>.<span class="function">single</span>(<span class="string">"file"</span>),
+  <span class="function">validateParams</span>(...),
+  <span class="function">authorize</span>(...),
+  <span class="keyword">async</span> (req, res, next) => {
+    <span class="keyword">const</span> file = req.file;  <span class="comment">// Multer file</span>
+    <span class="keyword">const</span> uploadMeta = <span class="keyword">await</span> <span class="const">mediaUtils</span>.<span class="function">storeMediumFile</span>(file);
+    <span class="comment">// uploadMeta contains: externalId, type, width, height, size</span>
+  }
+);</code></pre>
+        </div>
+      </section>
+
+      <!-- Middleware Patterns -->
+      <section class="section">
+        <h2 class="section-title"><span>🧩</span> Middleware Patterns</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 20px">
+          Middlewares are <strong>stacked directly in route files</strong> for
+          visibility. This ensures you can always see what auth/validation is
+          applied by reading the route definition.
+        </p>
+
+        <div class="cards-grid">
+          <div class="card">
+            <h3><code class="inline-code">authenticate</code></h3>
+            <p>
+              Strict authentication. Returns 401 if not logged in. Use for
+              protected endpoints.
+            </p>
+          </div>
+          <div class="card">
+            <h3><code class="inline-code">authenticateLax</code></h3>
+            <p>
+              Optional authentication. Sets
+              <code class="inline-code">req.User</code> if token exists,
+              otherwise continues without error. Use for public endpoints with
+              optional personalization.
+            </p>
+          </div>
+          <div class="card">
+            <h3><code class="inline-code">validateBody(schema)</code></h3>
+            <p>
+              Validates request body with Zod schema. Result accessible via
+              <code class="inline-code">req.Body</code>.
+            </p>
+          </div>
+          <div class="card">
+            <h3><code class="inline-code">validateQuery(schema)</code></h3>
+            <p>
+              Validates query parameters. Result accessible via
+              <code class="inline-code">req.Query</code>.
+            </p>
+          </div>
+          <div class="card">
+            <h3><code class="inline-code">validateParams(schema)</code></h3>
+            <p>
+              Validates URL parameters. Result accessible via
+              <code class="inline-code">req.Params</code>.
+            </p>
+          </div>
+          <div class="card">
+            <h3><code class="inline-code">authorize(guard)</code></h3>
+            <p>
+              Checks if user has permission. Returns 403 if guard fails. Must
+              come after authentication.
+            </p>
+          </div>
+        </div>
+
+        <div class="info-box tip">
+          <strong>✅ Correct Order</strong>
+          <code class="inline-code">authenticate</code> →
+          <code class="inline-code">validateParams</code> →
+          <code class="inline-code">validateQuery</code> →
+          <code class="inline-code">authorize</code> →
+          <code class="inline-code">validateBody</code> → handler
+        </div>
+      </section>
+
+      <!-- API Conventions -->
+      <section class="section">
+        <h2 class="section-title"><span>📐</span> API Conventions</h2>
+
+        <h3 style="margin-bottom: 16px; color: var(--text-primary)">
+          Response Format
+        </h3>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">typescript</span>
+            <span class="code-file">Consistent response structure</span>
+          </div>
+          <pre><code><span class="comment">// Success response</span>
+{
+  <span class="string">"success"</span>: <span class="keyword">true</span>,
+  <span class="string">"data"</span>: { ... },
+  <span class="string">"message"</span>?: <span class="string">"Optional message"</span>
+}
+
+<span class="comment">// Error response</span>
+{
+  <span class="string">"success"</span>: <span class="keyword">false</span>,
+  <span class="string">"message"</span>: <span class="string">"Error description"</span>
+}
+
+<span class="comment">// Paginated response</span>
+{
+  <span class="string">"success"</span>: <span class="keyword">true</span>,
+  <span class="string">"data"</span>: {
+    <span class="string">"items"</span>: [...],
+    <span class="string">"page"</span>: <span class="const">1</span>,
+    <span class="string">"pageSize"</span>: <span class="const">10</span>,
+    <span class="string">"total"</span>: <span class="const">42</span>
+  }
+}</code></pre>
+        </div>
+
+        <h3 style="margin: 24px 0 16px; color: var(--text-primary)">
+          Layer Architecture
+        </h3>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Layer</th>
+                <th>Location</th>
+                <th>Responsibility</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Routes</strong></td>
+                <td>
+                  <code class="inline-code"
+                    >features/api/v1/{feature}/index.ts</code
+                  >
+                </td>
+                <td>URL mapping, middleware orchestration, Swagger docs</td>
+              </tr>
+              <tr>
+                <td><strong>Handlers</strong></td>
+                <td>
+                  <code class="inline-code"
+                    >features/api/v1/{feature}/{feature}Handler.ts</code
+                  >
+                </td>
+                <td>
+                  Thin layer: call services, wrap responses in ApiResponse
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Services</strong></td>
+                <td>
+                  <code class="inline-code"
+                    >shared/services/{feature}Service.ts</code
+                  >
+                </td>
+                <td>Business logic, database queries, error throwing</td>
+              </tr>
+              <tr>
+                <td><strong>Schemas</strong></td>
+                <td>
+                  <code class="inline-code"
+                    >features/api/v1/{feature}/schemas.ts</code
+                  >
+                </td>
+                <td>Zod validation schemas for requests</td>
+              </tr>
+              <tr>
+                <td><strong>DTOs</strong></td>
+                <td>
+                  <code class="inline-code"
+                    >features/api/v1/{feature}/dtos.ts</code
+                  >
+                </td>
+                <td>Response type definitions</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Quick Links -->
+      <section class="section">
+        <h2 class="section-title"><span>🔗</span> Quick Links</h2>
+        <div class="cards-grid">
+          <a href="/docs" class="card" style="text-decoration: none">
+            <div class="card-icon">📖</div>
+            <h3>Swagger Documentation</h3>
+            <p>
+              Interactive API documentation with all endpoints, schemas, and
+              try-it-out functionality.
+            </p>
+          </a>
+          <a href="/health" class="card" style="text-decoration: none">
+            <div class="card-icon">💚</div>
+            <h3>Health Check</h3>
+            <p>
+              Quick endpoint to verify the server is running and database is
+              connected.
+            </p>
+          </a>
+        </div>
+      </section>
+    </div>
+
+    <footer>
+      <p>
+        YPF Backend &copy; 2025 — Built with Express, Drizzle ORM, and
+        PostgreSQL
+      </p>
+      <p style="margin-top: 8px">
+        <a href="/docs">API Docs</a> •
+        <a href="https://github.com/YPF-Africa/ypf-backend">GitHub</a>
+      </p>
+    </footer>
+  </body>
+</html>
