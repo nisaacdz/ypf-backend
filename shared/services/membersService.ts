@@ -15,9 +15,10 @@ import z from "zod";
 
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
-import { Paginated, YPFMember, YPFMemberDetail } from "@/shared/dtos";
-import { GetMembersQuerySchema } from "@/shared/validators/core";
-import * as mediaUtils from "@/shared/utils/media";
+import { Paginated } from "@/shared/dtos";
+import { YPFMember, YPFMemberDetail } from "@/features/api/v1/members/dtos";
+import { GetMembersQuerySchema } from "@/features/api/v1/members/schemas";
+import * as mediaUtils from "@/shared/utils/files";
 import { ApiError } from "@/shared/types";
 
 export async function getMembers(
@@ -214,6 +215,9 @@ export async function getMemberByConstituentId(
       firstName: schema.Constituents.firstName,
       lastName: schema.Constituents.lastName,
       salutation: schema.Constituents.salutation,
+      phone: schema.Constituents.phone,
+      whatsapp: schema.Constituents.whatsapp,
+      email: schema.Constituents.email,
       profilePhotoExternalId: schema.Media.externalId,
       profilePhotoType: schema.Media.type,
       profilePhotoWidth: schema.Media.width,
@@ -263,58 +267,44 @@ export async function getMemberByConstituentId(
     throw new ApiError("Member not found", 404);
   }
 
-  const [contacts, titles] = await Promise.all([
-    dbClient.db
-      .select({
-        type: schema.ContactInformations.contactType,
-        value: schema.ContactInformations.value,
-      })
-      .from(schema.ContactInformations)
-      .where(
-        and(
-          eq(schema.ContactInformations.constituentId, constituentId),
-          eq(schema.ContactInformations.isPrimary, true),
+  const titles = await dbClient.db
+    .select({
+      name: schema.MemberTitles.title,
+      _level: schema.MemberTitles._level,
+      startedAt: schema.MemberTitlesAssignments.startedAt,
+      endedAt: schema.MemberTitlesAssignments.endedAt,
+      chapterId: schema.Chapters.id,
+      chapterName: schema.Chapters.name,
+      committeeId: schema.Committees.id,
+      committeeName: schema.Committees.name,
+    })
+    .from(schema.MemberTitlesAssignments)
+    .innerJoin(
+      schema.Members,
+      eq(schema.MemberTitlesAssignments.memberId, schema.Members.id),
+    )
+    .innerJoin(
+      schema.MemberTitles,
+      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
+    )
+    .leftJoin(
+      schema.Chapters,
+      eq(schema.MemberTitles.chapterId, schema.Chapters.id),
+    )
+    .leftJoin(
+      schema.Committees,
+      eq(schema.MemberTitles.committeeId, schema.Committees.id),
+    )
+    .where(
+      and(
+        eq(schema.Members.constituentId, constituentId),
+        lte(schema.MemberTitlesAssignments.startedAt, now),
+        or(
+          isNull(schema.MemberTitlesAssignments.endedAt),
+          gte(schema.MemberTitlesAssignments.endedAt, now),
         ),
       ),
-    dbClient.db
-      .select({
-        name: schema.MemberTitles.title,
-        _level: schema.MemberTitles._level,
-        startedAt: schema.MemberTitlesAssignments.startedAt,
-        endedAt: schema.MemberTitlesAssignments.endedAt,
-        chapterId: schema.Chapters.id,
-        chapterName: schema.Chapters.name,
-        committeeId: schema.Committees.id,
-        committeeName: schema.Committees.name,
-      })
-      .from(schema.MemberTitlesAssignments)
-      .innerJoin(
-        schema.Members,
-        eq(schema.MemberTitlesAssignments.memberId, schema.Members.id),
-      )
-      .innerJoin(
-        schema.MemberTitles,
-        eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
-      )
-      .leftJoin(
-        schema.Chapters,
-        eq(schema.MemberTitles.chapterId, schema.Chapters.id),
-      )
-      .leftJoin(
-        schema.Committees,
-        eq(schema.MemberTitles.committeeId, schema.Committees.id),
-      )
-      .where(
-        and(
-          eq(schema.Members.constituentId, constituentId),
-          lte(schema.MemberTitlesAssignments.startedAt, now),
-          or(
-            isNull(schema.MemberTitlesAssignments.endedAt),
-            gte(schema.MemberTitlesAssignments.endedAt, now),
-          ),
-        ),
-      ),
-  ]);
+    );
 
   const memberDetail: YPFMemberDetail = {
     id: constituent.id,
@@ -342,10 +332,11 @@ export async function getMemberByConstituentId(
             uploadedAt: constituent.profilePhotoUploadedAt,
           }
         : undefined,
-    contactInfos: contacts.map((c) => ({
-      type: c.type as "EMAIL" | "PHONE" | "WHATSAPP",
-      value: c.value,
-    })),
+    contactInfo: {
+      phone: constituent.phone ?? undefined,
+      whatsapp: constituent.whatsapp ?? undefined,
+      email: constituent.email ?? undefined,
+    },
     titles: titles.map((t) => ({
       name: t.name,
       scope:

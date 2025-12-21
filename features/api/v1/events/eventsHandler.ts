@@ -5,19 +5,21 @@ import {
   GetEventsQuerySchema,
   UpdateEventSchema,
   UpdateEventMediumSchema,
-} from "@/shared/validators/activities";
+} from "./schemas";
 import { Events } from "@/db/schema/activities";
 import z from "zod";
 import dbClient from "@/configs/db";
-import * as mediaUtils from "@/shared/utils/media";
+import * as mediaUtils from "@/shared/utils/files";
 import * as mediaService from "@/shared/services/mediaService";
 import * as eventsService from "@/shared/services/eventsService";
 import {
-  YPFEventMedium,
-  Paginated,
-  YPFEvent,
-  YPFEventDetail,
+  Paginated
 } from "@/shared/dtos";
+import { 
+  YPFEventMedium,
+  YPFEvent,
+  YPFEventDetail
+} from "./dtos";
 
 export async function getEvents(
   query: z.infer<typeof GetEventsQuerySchema>,
@@ -66,11 +68,7 @@ export async function uploadEventMedium({
       caption: options.caption,
       isFeatured: options.isFeatured,
       medium: {
-        externalId: uploadMeta.externalId,
-        type: uploadMeta.type,
-        width: uploadMeta.dimensions.width,
-        height: uploadMeta.dimensions.height,
-        size: uploadMeta.size,
+        ...uploadMeta,
         uploadedBy: constituentId,
       },
     });

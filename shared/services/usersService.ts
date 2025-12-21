@@ -90,7 +90,7 @@ export async function getConstituentRoles(constituentId: string) {
   const memberTitlesQuery = dbClient.db
     .select({
       role: sql<string>`
-        CONCAT('MEMBER.', ${schema.MemberTitles.title},
+        CONCAT('MEMBER.', ${schema.MemberTitles.alias},
           CASE
             WHEN ${schema.MemberTitles.chapterId} IS NOT NULL THEN CONCAT('.', ${schema.MemberTitles.chapterId})
             WHEN ${schema.MemberTitles.committeeId} IS NOT NULL THEN CONCAT('.', ${schema.MemberTitles.committeeId})

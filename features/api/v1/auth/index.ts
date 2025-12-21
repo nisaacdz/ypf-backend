@@ -6,7 +6,7 @@ import {
   UsernameAndPasswordSchema,
   ForgotPasswordSchema,
   ResetPasswordSchema,
-} from "@/shared/validators";
+} from "./schemas";
 import { authenticateLax } from "@/shared/middlewares/auth";
 
 const authRouter = Router();

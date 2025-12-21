@@ -14,7 +14,8 @@ import * as chaptersHandler from "./chaptersHandler";
 import {
   GetChaptersQuerySchema,
   UpdateChapterSchema,
-} from "@/shared/validators/core";
+  GetConstituentChaptersQuerySchema,
+} from "./schemas";
 import { Visitors, MEMBER, anyOf, ADMIN } from "@/configs/authorizer";
 import z from "zod";
 
@@ -141,6 +142,94 @@ chaptersRouter.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await chaptersHandler.getChapter(req.Params.id);
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/**
+ * @swagger
+ * /api/v1/chapters/constituents/{constituentId}:
+ *   get:
+ *     summary: Get chapters for a specific constituent
+ *     description: Returns a paginated list of chapters that the constituent is a member of. Only accessible by the constituent themselves or ADMINs.
+ *     tags: [Chapters]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: constituentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Constituent ID
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Chapters list retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     items:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                     page:
+ *                       type: integer
+ *                     pageSize:
+ *                       type: integer
+ *                     total:
+ *                       type: integer
+ *       400:
+ *         description: Invalid query parameters or constituent ID
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Unauthorized - authentication required
+ *       403:
+ *         description: Forbidden - can only access own chapters or requires ADMIN profile
+ */
+chaptersRouter.get(
+  "/constituents/:constituentId",
+  authenticate,
+  validateParams(z.object({ constituentId: z.string() })),
+  validateQuery(GetConstituentChaptersQuerySchema),
+  authorize(
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasID((req) => req.Params.constituentId),
+    ),
+  ),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await chaptersHandler.getChaptersByConstituentId(
+        req.Params.constituentId,
+        req.Query,
+      );
       res.status(200).json(response);
     } catch (error) {
       next(error);

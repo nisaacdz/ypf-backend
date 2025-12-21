@@ -1,10 +1,17 @@
 import { Request, Response, NextFunction } from "express";
 import { Router } from "express";
-import { authenticateLax, authorize } from "@/shared/middlewares/auth";
+import {
+  authenticateLax,
+  authenticate,
+  authorize,
+} from "@/shared/middlewares/auth";
 import { validateQuery, validateParams } from "@/shared/middlewares/validate";
 import * as committeesHandler from "./committeesHandler";
-import { GetCommitteesQuerySchema } from "@/shared/validators/core";
-import { Visitors } from "@/configs/authorizer";
+import {
+  GetCommitteesQuerySchema,
+  GetConstituentCommitteesQuerySchema,
+} from "./schemas";
+import { Visitors, anyOf } from "@/configs/authorizer";
 import z from "zod";
 
 const committeesRouter = Router();
@@ -80,6 +87,94 @@ committeesRouter.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await committeesHandler.getCommittees(req.Query);
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/**
+ * @swagger
+ * /api/v1/committees/constituents/{constituentId}:
+ *   get:
+ *     summary: Get committees for a specific constituent
+ *     description: Returns a paginated list of committees that the constituent is a member of. Only accessible by the constituent themselves or ADMINs.
+ *     tags: [Committees]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: constituentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Constituent ID
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Committees list retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     items:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                     page:
+ *                       type: integer
+ *                     pageSize:
+ *                       type: integer
+ *                     total:
+ *                       type: integer
+ *       400:
+ *         description: Invalid query parameters or constituent ID
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Unauthorized - authentication required
+ *       403:
+ *         description: Forbidden - can only access own committees or requires ADMIN profile
+ */
+committeesRouter.get(
+  "/constituents/:constituentId",
+  authenticate,
+  validateParams(z.object({ constituentId: z.string() })),
+  validateQuery(GetConstituentCommitteesQuerySchema),
+  authorize(
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasID((req) => req.Params.constituentId),
+    ),
+  ),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await committeesHandler.getCommitteesByConstituentId(
+        req.Params.constituentId,
+        req.Query,
+      );
       res.status(200).json(response);
     } catch (error) {
       next(error);

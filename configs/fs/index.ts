@@ -5,6 +5,9 @@ const blobServiceClient = BlobServiceClient.fromConnectionString(
   variables.services.azure.connectionString,
 );
 
-export const containerName = "media";
+export const containerNames = {
+  media: "media",
+  docs: "docs"
+};
 
 export default blobServiceClient;

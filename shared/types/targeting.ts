@@ -33,11 +33,6 @@ export type AtomicRule =
  */
 export type AllConstituentsRule = {
   kind: "CONSTITUENTS";
-  filters?: {
-    /** @default true */
-    isActive?: boolean;
-    hasEmail?: boolean;
-  };
 };
 
 /**

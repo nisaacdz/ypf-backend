@@ -28,6 +28,7 @@ describe("Members API", () => {
       .values({
         firstName: testUser.name.firstName,
         lastName: testUser.name.lastName,
+        email: testUser.email,
       })
       .returning();
 
@@ -53,14 +54,6 @@ describe("Members API", () => {
 
     testMember.constituentId = testUser.constituentId;
     testMember.memberId = newMember.id;
-
-    // Add a primary contact
-    await dbClient.db.insert(schema.ContactInformations).values({
-      constituentId: testUser.constituentId,
-      contactType: "EMAIL",
-      value: testUser.email,
-      isPrimary: true,
-    });
 
     // Login to get auth token
     const loginResponse = await request(server)
@@ -104,8 +97,6 @@ describe("Members API", () => {
       expect(response.body.data.id).toBe(testMember.constituentId);
       expect(response.body.data.firstName).toBe(testUser.name.firstName);
       expect(response.body.data.lastName).toBe(testUser.name.lastName);
-      expect(response.body.data).toHaveProperty("contactInfos");
-      expect(Array.isArray(response.body.data.contactInfos)).toBe(true);
       expect(response.body.data).toHaveProperty("titles");
       expect(Array.isArray(response.body.data.titles)).toBe(true);
       expect(response.body.data).toHaveProperty("joinedAt");

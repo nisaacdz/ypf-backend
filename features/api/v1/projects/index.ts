@@ -13,7 +13,7 @@ import {
   CreateProjectSchema,
   UpdateProjectSchema,
   UpdateProjectMediumSchema,
-} from "@/shared/validators/activities";
+} from "./schemas";
 import {
   validateQuery,
   validateParams,
@@ -38,7 +38,7 @@ const projectsRouter = Router();
  *         name: filterStatus
  *         schema:
  *           type: string
- *           enum: [PLANNING, ACTIVE, COMPLETED, ON_HOLD]
+ *           enum: [UPCOMING, IN_PROGRESS, COMPLETED, CANCELLED]
  *         description: Filter projects by status
  *       - in: query
  *         name: page
@@ -438,7 +438,7 @@ projectsRouter.post(
   authorize(
     anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
   ),
-  filesUpload.single("file"),
+  filesUpload.mediaUpload.single("file"),
   validateFile(UploadProjectFileSchema),
   validateBody(UploadProjectMediumOptionsSchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -469,7 +469,8 @@ projectsRouter.post(
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *         description: Project Medium ID
  *     requestBody:
  *       required: true

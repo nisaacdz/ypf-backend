@@ -1,7 +1,8 @@
 import * as membersService from "@/shared/services/membersService";
 import { ApiResponse } from "@/shared/types";
-import { GetMembersQuerySchema } from "@/shared/validators/core";
-import { Paginated, YPFMember, YPFMemberDetail } from "@/shared/dtos";
+import { GetMembersQuerySchema } from "./schemas";
+import { Paginated } from "@/shared/dtos";
+import { YPFMember, YPFMemberDetail } from "./dtos";
 import z from "zod";
 
 export async function getMembers(

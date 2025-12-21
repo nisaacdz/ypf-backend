@@ -17,30 +17,13 @@ async function seed(
         lastName: faker.person.lastName(),
         dateOfBirth: faker.date.birthdate({ min: 18, max: 65, mode: "age" }),
         gender: faker.helpers.arrayElement(schema.GenderEnum.enumValues),
+        email: faker.internet.email(),
+        phone: faker.phone.number(),
+        whatsapp: faker.phone.number(),
+        orgEmail: faker.internet.email(),
       })),
     )
     .returning();
-
-  // Seed Contact Informations
-  await tx.insert(schema.ContactInformations).values(
-    constituents.flatMap((c) => [
-      {
-        constituentId: c.id,
-        contactType: "EMAIL" as const,
-        value: faker.internet.email({
-          firstName: c.firstName,
-          lastName: c.lastName,
-        }),
-        isPrimary: true,
-      },
-      {
-        constituentId: c.id,
-        contactType: "PHONE" as const,
-        value: faker.phone.number(),
-        isPrimary: false,
-      },
-    ]),
-  );
 
   // Seed Users
   const hashedPassword = await bcrypt.hash("password123", 10);
@@ -141,7 +124,7 @@ async function seed(
   const globalPresidentTitle = await tx
     .insert(schema.MemberTitles)
     .values({
-      id: "president",
+      alias: "president",
       title: "President",
       description: "Global President of the organization",
       _level: 100,
@@ -152,7 +135,7 @@ async function seed(
     .insert(schema.MemberTitles)
     .values(
       chapters.map((c) => ({
-        id: `chapter-lead-${c.id}`,
+        alias: "chapterlead",
         title: "Chapter Lead",
         description: `Lead of the ${c.name}`,
         _level: 50,
@@ -165,14 +148,14 @@ async function seed(
     .insert(schema.MemberTitles)
     .values([
       {
-        id: `committee-chair-${committees[0].id}`,
+        alias: `committeechair`,
         title: "Committee Chair",
         description: `Chair of ${committees[0].name}`,
         _level: 40,
         committeeId: committees[0].id,
       },
       {
-        id: `committee-chair-${committees[1].id}`,
+        alias: `committeechair`,
         title: "Committee Chair",
         description: `Chair of ${committees[1].name}`,
         _level: 40,
@@ -186,7 +169,7 @@ async function seed(
     .insert(schema.Admins)
     .values([
       { constituentId: constituents[0].id, startedAt: new Date() },
-      { constituentId: constituents[1].id, startedAt: faker.date.past() },
+      { constituentId: constituents[1].id, startedAt: new Date() },
     ])
     .returning();
 
@@ -200,7 +183,7 @@ async function seed(
     {
       adminId: admins[1].id,
       role: "REGULAR_ADMIN",
-      startedAt: faker.date.past(),
+      startedAt: new Date(),
     },
   ]);
 
@@ -313,6 +296,7 @@ async function seed(
         scheduledEnd: faker.date.future(),
         status: faker.helpers.arrayElement(schema.EventStatusEnum.enumValues),
         projectId: faker.helpers.arrayElement(projects).id,
+        type: faker.helpers.arrayElement(schema.EventTypeEnum.enumValues),
       })),
     )
     .returning();

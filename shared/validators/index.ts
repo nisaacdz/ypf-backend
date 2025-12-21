@@ -1,7 +1,5 @@
 import z from "zod";
-
-export * from "./auth";
-export * from "./donations";
+import { Profiles } from "../types";
 
 export const PaginationQuery = z.object({
   page: z.coerce
@@ -14,4 +12,23 @@ export const PaginationQuery = z.object({
     .max(100, { message: "Page size cannot exceed 100." })
     .default(10),
   search: z.coerce.string().optional(),
+});
+
+export const AuthenticatedUserSchema = z.object({
+  id: z.uuid({ message: "Invalid user ID format." }),
+  constituentId: z.string({ message: "Constituent ID is required." }),
+  email: z.email({ message: "Please enter a valid email address." }),
+  fullName: z.string({ message: "Full name is required." }),
+  roles: z.array(z.string(), { message: "Roles must be an array of strings." }), //eg 'ADMIN.REGULAR', 'MEMBER.president', 'MEMBER.chair.<committee_id>' etc
+  profiles: z
+    .array(z.enum(Profiles), {
+      message: "Profiles must be an array.",
+    })
+    .max(Profiles.length, {
+      message: `You can have at most ${Profiles.length} active profiles.`,
+    }),
+});
+
+export const RefreshTokenPayloadSchema = z.object({
+  username: z.string({ message: "Username is required." }),
 });

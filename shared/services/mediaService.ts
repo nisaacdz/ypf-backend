@@ -4,19 +4,30 @@ import schema from "@/db/schema";
 import { ApiError } from "@/shared/types";
 import { eq } from "drizzle-orm";
 import logger from "@/configs/logger";
+import { MediumType } from "../utils";
+
+export type MediumRecord = {
+  externalId: string;
+  type: MediumType;
+  width: number;
+  height: number;
+  size: number;
+  uploadedBy?: string;
+};
 
 export type AddMediumRecord = {
   caption?: string;
   isFeatured: boolean;
-  medium: {
-    externalId: string;
-    type: "PICTURE" | "VIDEO";
-    width: number;
-    height: number;
-    size: number;
-    uploadedBy: string;
-  };
+  medium: MediumRecord;
 };
+
+export async function uploadMedium(data: MediumRecord) {
+  const [newMedium] = await dbClient.db
+    .insert(schema.Media)
+    .values(data)
+    .returning({ id: schema.Media.id });
+  return newMedium;
+}
 
 export async function uploadEventMedium(
   eventId: string,

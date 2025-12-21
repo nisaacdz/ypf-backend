@@ -2,9 +2,11 @@ import * as chaptersService from "@/shared/services/chaptersService";
 import { ApiResponse } from "@/shared/types";
 import {
   GetChaptersQuerySchema,
+  GetConstituentChaptersQuerySchema,
   UpdateChapterSchema,
-} from "@/shared/validators/core";
-import { Paginated, YPFChapter, YPFChapterDetail } from "@/shared/dtos";
+} from "./schemas";
+import { Paginated } from "@/shared/dtos";
+import { YPFChapter, YPFChapterDetail } from "./dtos";
 import z from "zod";
 
 export async function getChapters(
@@ -30,4 +32,15 @@ export async function updateChapter(
     updates,
   );
   return { success: true, data: updatedChapter.id };
+}
+
+export async function getChaptersByConstituentId(
+  constituentId: string,
+  query: z.infer<typeof GetConstituentChaptersQuerySchema>,
+): Promise<ApiResponse<Paginated<YPFChapter>>> {
+  const data = await chaptersService.getChaptersByConstituentId(
+    constituentId,
+    query,
+  );
+  return { success: true, data };
 }

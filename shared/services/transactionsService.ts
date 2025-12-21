@@ -273,31 +273,6 @@ async function updateOrderStatusOnPayment(
 }
 
 /**
- * Helper function to get the primary email address for a constituent.
- * Queries the contact_informations table, filters by EMAIL type,
- * and prioritizes primary emails.
- */
-async function getConstituentEmail(
-  constituentId: string,
-): Promise<string | null> {
-  const contactInfos = await dbClient.db
-    .select()
-    .from(schema.ContactInformations)
-    .where(
-      and(
-        eq(schema.ContactInformations.constituentId, constituentId),
-        eq(schema.ContactInformations.contactType, "EMAIL"),
-      ),
-    )
-    .orderBy(desc(schema.ContactInformations.isPrimary));
-
-  if (contactInfos.length > 0) {
-    return contactInfos[0].value;
-  }
-  return null;
-}
-
-/**
  * Sends a transaction success email based on the transaction type.
  * This function determines the entity type (donation, shop order, etc.)
  * and sends the appropriate email template.
@@ -362,8 +337,7 @@ export async function sendTransactionSuccessEmail(
         email = donation.guestEmail;
         name = donation.guestName;
       } else if (donation.constituent) {
-        // Registered user donation - use contact_informations table
-        email = await getConstituentEmail(donation.constituent.id);
+        email = donation.constituent.email;
         name = `${donation.constituent.firstName} ${donation.constituent.lastName}`;
       }
 
@@ -392,7 +366,7 @@ export async function sendTransactionSuccessEmail(
       const dues = duesPayment.dues;
 
       if (member?.constituent) {
-        const email = await getConstituentEmail(member.constituent.id);
+        const email = member.constituent.email;
         const name = `${member.constituent.firstName} ${member.constituent.lastName}`;
 
         if (email) {
@@ -424,7 +398,7 @@ export async function sendTransactionSuccessEmail(
       const order = ordersPayment.order;
 
       if (order?.constituent) {
-        const email = await getConstituentEmail(order.constituent.id);
+        const email = order.constituent.email;
         const name = `${order.constituent.firstName} ${order.constituent.lastName}`;
 
         if (email) {
@@ -525,19 +499,19 @@ export async function sendTransactionStatusChangeEmail(
         email = donation.guestEmail;
         name = donation.guestName;
       } else if (donation.constituent) {
-        email = await getConstituentEmail(donation.constituent.id);
+        email = donation.constituent.email;
         name = `${donation.constituent.firstName} ${donation.constituent.lastName}`;
       }
     } else if (transaction.duesPayment) {
       const member = transaction.duesPayment.member;
       if (member?.constituent) {
-        email = await getConstituentEmail(member.constituent.id);
+        email = member.constituent.email;
         name = `${member.constituent.firstName} ${member.constituent.lastName}`;
       }
     } else if (transaction.ordersPayment) {
       const order = transaction.ordersPayment.order;
       if (order?.constituent) {
-        email = await getConstituentEmail(order.constituent.id);
+        email = order.constituent.email;
         name = `${order.constituent.firstName} ${order.constituent.lastName}`;
       }
     }

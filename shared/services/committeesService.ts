@@ -3,9 +3,16 @@ import z from "zod";
 
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
-import { Paginated, YPFCommittee, YPFCommitteeDetail } from "@/shared/dtos";
-import { GetCommitteesQuerySchema } from "@/shared/validators/core";
-import * as mediaUtils from "@/shared/utils/media";
+import { Paginated } from "@/shared/dtos";
+import {
+  YPFCommittee,
+  YPFCommitteeDetail,
+} from "@/features/api/v1/committees/dtos";
+import {
+  GetCommitteesQuerySchema,
+  GetConstituentCommitteesQuerySchema,
+} from "@/features/api/v1/committees/schemas";
+import * as mediaUtils from "@/shared/utils/files";
 import { ApiError } from "@/shared/types";
 
 export async function getCommittees(
@@ -220,4 +227,135 @@ export async function getCommitteeById(
   };
 
   return detailedCommittee;
+}
+
+export async function getCommitteesByConstituentId(
+  constituentId: string,
+  query: z.infer<typeof GetConstituentCommitteesQuerySchema>,
+): Promise<Paginated<YPFCommittee>> {
+  const { page, pageSize } = query;
+
+  // --- SUBQUERY FOR MEMBER ID ---
+  const memberSubquery = dbClient.db
+    .select({
+      memberId: schema.Members.id,
+    })
+    .from(schema.Members)
+    .where(eq(schema.Members.constituentId, constituentId))
+    .as("member_sub");
+
+  // --- SUBQUERY FOR MEMBER COUNT ---
+  const memberCountSubquery = dbClient.db
+    .select({
+      committeeId: schema.CommitteeMemberships.committeeId,
+      memberCount:
+        sql<number>`COUNT(DISTINCT ${schema.Members.constituentId})`.as(
+          "member_count",
+        ),
+    })
+    .from(schema.CommitteeMemberships)
+    .innerJoin(
+      schema.Members,
+      eq(schema.CommitteeMemberships.memberId, schema.Members.id),
+    )
+    .where(
+      and(
+        sql`${schema.CommitteeMemberships.startedAt} <= now()`,
+        sql`(${schema.CommitteeMemberships.endedAt} IS NULL OR ${schema.CommitteeMemberships.endedAt} >= now())`,
+      ),
+    )
+    .groupBy(schema.CommitteeMemberships.committeeId)
+    .as("member_counts");
+
+  // --- SUBQUERY FOR FEATURED PHOTO ---
+  const featuredPhotoSubquery = dbClient.db
+    .select({
+      committeeId: schema.CommitteeMedia.committeeId,
+      externalId: schema.Media.externalId,
+      rn: sql<number>`row_number() OVER (PARTITION BY ${schema.CommitteeMedia.committeeId} ORDER BY ${schema.Media.uploadedAt} DESC)`.as(
+        "photo_rn",
+      ),
+    })
+    .from(schema.CommitteeMedia)
+    .innerJoin(
+      schema.Media,
+      eq(schema.CommitteeMedia.mediumId, schema.Media.id),
+    )
+    .where(eq(schema.CommitteeMedia.isFeatured, true))
+    .as("featured_photos");
+
+  // --- BASE QUERY ---
+  const baseQuery = dbClient.db
+    .select({
+      id: schema.Committees.id,
+      name: schema.Committees.name,
+      description: schema.Committees.description,
+      featuredPhotoExternalId: featuredPhotoSubquery.externalId,
+      chapterName: schema.Chapters.name,
+      memberCount: memberCountSubquery.memberCount,
+    })
+    .from(schema.CommitteeMemberships)
+    .innerJoin(
+      memberSubquery,
+      eq(schema.CommitteeMemberships.memberId, memberSubquery.memberId),
+    )
+    .innerJoin(
+      schema.Committees,
+      eq(schema.CommitteeMemberships.committeeId, schema.Committees.id),
+    )
+    .leftJoin(
+      schema.Chapters,
+      eq(schema.Committees.chapterId, schema.Chapters.id),
+    )
+    .leftJoin(
+      memberCountSubquery,
+      eq(schema.Committees.id, memberCountSubquery.committeeId),
+    )
+    .leftJoin(
+      featuredPhotoSubquery,
+      and(
+        eq(schema.Committees.id, featuredPhotoSubquery.committeeId),
+        eq(featuredPhotoSubquery.rn, 1),
+      ),
+    )
+    .where(
+      and(
+        isNull(schema.Committees.archivedAt),
+        or(
+          isNull(schema.Committees.chapterId),
+          isNull(schema.Chapters.archivedAt),
+        ),
+        sql`${schema.CommitteeMemberships.startedAt} <= now()`,
+        sql`(${schema.CommitteeMemberships.endedAt} IS NULL OR ${schema.CommitteeMemberships.endedAt} >= now())`,
+      ),
+    );
+
+  // --- QUERY EXECUTION ---
+  const [totalResult, dbCommittees] = await Promise.all([
+    dbClient.db.select({ total: count() }).from(baseQuery.as("sub")),
+    baseQuery.limit(pageSize).offset((page - 1) * pageSize),
+  ]);
+
+  const total = totalResult[0]?.total ?? 0;
+
+  // --- DATA MAPPING ---
+  const items: YPFCommittee[] = dbCommittees.map((c) => ({
+    id: c.id,
+    name: c.name,
+    description: c.description ?? undefined,
+    featuredPhotoUrl: c.featuredPhotoExternalId
+      ? mediaUtils.generatePublicMediaUrl(c.featuredPhotoExternalId, {
+          resolution: 360,
+        })
+      : undefined,
+    chapterName: c.chapterName ?? undefined,
+    memberCount: c.memberCount ?? 0,
+  }));
+
+  return {
+    items,
+    page,
+    pageSize,
+    total,
+  };
 }

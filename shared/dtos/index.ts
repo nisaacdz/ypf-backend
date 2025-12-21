@@ -1,9 +1,6 @@
-import { MediumTypeEnum } from "@/db/schema/core";
-import { EventStatusEnum, ProjectStatusEnum } from "@/db/schema/activities";
+import { DocumentType, MediumType } from "../utils";
 
-export * from "./core";
 export * from "./shop";
-export * from "./activities";
 
 export type Paginated<T> = {
   items: T[];
@@ -20,6 +17,22 @@ export type Notification = {
   createdAt: string;
 };
 
-export type MediumType = (typeof MediumTypeEnum.enumValues)[number];
-export type EventStatus = (typeof EventStatusEnum.enumValues)[number];
-export type ProjectStatus = (typeof ProjectStatusEnum.enumValues)[number];
+export type Medium = {
+  url: string; // sdk-generated url
+  type: MediumType; // "PICTURE" | "VIDEO"
+  dimensions: {
+    width: number;
+    height: number;
+  };
+  size: number;
+  uploadedAt: Date;
+  uploadedBy?: string; // fullName of uploader
+};
+
+export type Document = {
+  url: string; // sdk-generated url
+  type: DocumentType;
+  size: number;
+  uploadedAt: Date;
+  uploadedBy?: string; // fullName of uploader
+};
