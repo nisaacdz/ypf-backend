@@ -8,7 +8,13 @@ import {
   date,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { Chapters, Constituents, Members, Organizations } from "./core";
+import {
+  Chapters,
+  Constituents,
+  Documents,
+  Members,
+  Organizations,
+} from "./core";
 import { Events, Projects } from "./activities";
 import { OrderPayments } from "./shop";
 
@@ -83,8 +89,8 @@ export const Dues = finance.table("dues", {
   }),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   currency: varchar("currency", { length: 3 }).notNull(),
-  periodStart: date("period_start").notNull(),
-  periodEnd: date("period_end").notNull(),
+  periodStart: date("period_start", { mode: "date" }).notNull(),
+  periodEnd: date("period_end", { mode: "date" }).notNull(),
 });
 
 export const DuesPayments = finance.table("dues_payments", {
@@ -135,7 +141,12 @@ export const Partnerships = finance.table("partnerships", {
   endedAt: date("ended_at", { mode: "date" }),
   value: decimal({ precision: 12, scale: 2 }), // monetary value if applicable
   metadata: text(),
-  // contractUrl: text("contract_url"), // lets create a documents table and reference it with documentId
+  contractDocumentId: uuid("contract_document_id").references(
+    () => Documents.id,
+    {
+      onDelete: "set null",
+    },
+  ),
 });
 
 // === RELATIONS ===

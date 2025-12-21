@@ -1,4 +1,3 @@
-import schema from "@/db/schema";
 import {
   ApplicationStatusEnum,
   DocumentTypeEnum,
@@ -13,9 +12,11 @@ import {
   EventTypeEnum,
 } from "@/db/schema/activities";
 
-type TransactionStatus =
-  (typeof schema.TransactionStatusEnum.enumValues)[number];
-type PaymentMethod = (typeof schema.PaymentMethodEnum.enumValues)[number];
+import {
+  PartnershipTypeEnum,
+  TransactionStatusEnum,
+  PaymentMethodEnum,
+} from "@/db/schema/finance";
 
 export const transactionStatusMap: Record<string, TransactionStatus> = {
   success: "COMPLETED",
@@ -41,3 +42,7 @@ export type EventStatus = (typeof EventStatusEnum.enumValues)[number];
 export type ProjectStatus = (typeof ProjectStatusEnum.enumValues)[number];
 export type EventType = (typeof EventTypeEnum.enumValues)[number];
 export type Gender = (typeof GenderEnum.enumValues)[number];
+export type PartnershipType = (typeof PartnershipTypeEnum.enumValues)[number];
+export type TransactionStatus =
+  (typeof TransactionStatusEnum.enumValues)[number];
+export type PaymentMethod = (typeof PaymentMethodEnum.enumValues)[number];

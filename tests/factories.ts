@@ -70,3 +70,55 @@ export function generateTestProject() {
     scheduledEnd: endDate,
   };
 }
+
+export function generateTestDues() {
+  const periodStart = faker.date.past({ years: 1 });
+  const periodEnd = new Date(periodStart);
+  periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+
+  return {
+    id: "",
+    amount: faker.number
+      .float({ min: 50, max: 500, fractionDigits: 2 })
+      .toFixed(2),
+    currency: "GHS",
+    periodStart,
+    periodEnd,
+    chapterId: null, // Global dues (no chapter-specific dues for now)
+  };
+}
+
+export function generateTestOrganization() {
+  const uniqueId = randomUUID().substring(0, 8);
+  return {
+    id: "",
+    name: `Test Organization ${uniqueId}`,
+    website: faker.internet.url(),
+    description: faker.lorem.sentence(),
+    logoUrl: faker.image.avatar(),
+    isActive: true,
+  };
+}
+
+export function generateTestPartnership() {
+  const startedAt = faker.date.past({ years: 1 });
+  const endedAt = new Date(startedAt);
+  endedAt.setFullYear(endedAt.getFullYear() + 2);
+
+  return {
+    id: "",
+    partnershipType: faker.helpers.arrayElement([
+      "SPONSOR",
+      "IN_KIND",
+      "TECHNICAL",
+      "VENUE",
+      "OTHER",
+    ]) as "SPONSOR" | "IN_KIND" | "TECHNICAL" | "VENUE" | "OTHER",
+    startedAt,
+    endedAt,
+    value: faker.number
+      .float({ min: 1000, max: 100000, fractionDigits: 2 })
+      .toFixed(2),
+    metadata: JSON.stringify({ notes: faker.lorem.sentence() }),
+  };
+}

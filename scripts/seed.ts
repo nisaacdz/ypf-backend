@@ -341,8 +341,8 @@ async function seed(
         chapterId: ch.id,
         amount: "100.00",
         currency: "USD",
-        periodStart: "2024-01-01",
-        periodEnd: "2024-12-31",
+        periodStart: faker.date.past(),
+        periodEnd: faker.date.future(),
       })),
     )
     .returning();

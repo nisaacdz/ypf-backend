@@ -51,9 +51,12 @@ export function validateParams<T>(schema: z.ZodType<T>) {
 
 export function validateFile<T>(schema: z.ZodType<T>) {
   return async (req: Request, res: Response, next: NextFunction) => {
-    if (!req.file) {
+    if (!req.file && schema.safeParse(undefined).success) {
+      return next();
+    } else if (!req.file) {
       return next(new ApiError("File is required", 400));
     }
+
     const meta = {
       size: req.file.size,
       mimeType: req.file.mimetype,
