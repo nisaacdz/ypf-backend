@@ -133,10 +133,6 @@ membersRouter.get(
  *                       type: string
  *                     profilePhoto:
  *                       type: object
- *                     contactInfos:
- *                       type: array
- *                       items:
- *                         type: object
  *                     titles:
  *                       type: array
  *                       items:
