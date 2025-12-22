@@ -15,7 +15,7 @@ import {
   Members,
   Organizations,
 } from "./core";
-import { Events, Projects } from "./activities";
+import { Events, Projects, WelfareCases } from "./activities";
 import { OrderPayments } from "./shop";
 
 export const finance = pgSchema("finance");
@@ -118,10 +118,13 @@ export const Expenditures = finance.table("expenditures", {
     onDelete: "restrict",
   }),
   eventId: uuid("event_id").references(() => Events.id, {
-    onDelete: "set null",
+    onDelete: "restrict",
   }),
   vendorId: uuid("vendor_id").references(() => Organizations.id, {
-    onDelete: "set null",
+    onDelete: "restrict",
+  }),
+  welfareCaseId: uuid("welfare_case_id").references(() => WelfareCases.id, {
+    onDelete: "restrict",
   }),
 });
 

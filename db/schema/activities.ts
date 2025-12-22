@@ -4,6 +4,7 @@ import {
   uuid,
   text,
   timestamp,
+  date,
   jsonb,
   unique,
 } from "drizzle-orm/pg-core";
@@ -12,6 +13,8 @@ import { Chapters, Constituents, Documents, Media } from "./core";
 import { AudienceRule } from "@/shared/types/targeting";
 
 export const activities = pgSchema("activities");
+
+// Keep `featured` media less than 10 for each collection.
 
 export const ProjectStatusEnum = activities.enum("project_status", [
   "UPCOMING",
@@ -28,6 +31,12 @@ export const EventStatusEnum = activities.enum("event_status", [
 export const EventTypeEnum = activities.enum("event_type", [
   "PROGRAM",
   "WORKSHOP",
+]);
+export const WelfareCaseTypeEnum = activities.enum("welfare_type", [
+  "MARRIAGE",
+  "FUNERAL",
+  "SUPPORT",
+  "OTHER",
 ]);
 export const AttendanceStatusEnum = activities.enum("attendance_status", [
   "INVITED",
@@ -71,6 +80,29 @@ export const Events = activities.table("events", {
   }),
 });
 
+// If this cases is supported, then there will be an entry in `Expenditures` table with
+// expenditure.welfareCaseId == welfareCase.id
+export const WelfareCases = activities.table("welfare_cases", {
+  id: uuid().defaultRandom().primaryKey(),
+  title: text().notNull(),
+  description: text(),
+  date: date({ mode: "date" }),
+  type: WelfareCaseTypeEnum().notNull(),
+});
+
+export const WelfareCaseBeneficiaries = activities.table(
+  "welfare_case_beneficiaries",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    welfareCaseId: uuid("welfare_case_id")
+      .notNull()
+      .references(() => WelfareCases.id, { onDelete: "restrict" }),
+    beneficiaryId: uuid("beneficiary_id")
+      .notNull()
+      .references(() => Constituents.id, { onDelete: "restrict" }),
+  },
+);
+
 export const ProjectMedia = activities.table("project_media", {
   id: uuid().defaultRandom().primaryKey(),
   projectId: uuid("project_id").references(() => Projects.id, {
@@ -104,6 +136,18 @@ export const EventDocuments = activities.table("event_documents", {
     onDelete: "cascade",
   }),
   title: text().notNull(),
+});
+
+export const WelfareCaseMedia = activities.table("welfare_case_media", {
+  id: uuid().defaultRandom().primaryKey(),
+  welfareCaseId: uuid("welfare_case_id")
+    .notNull()
+    .references(() => WelfareCases.id, { onDelete: "restrict" }),
+  mediumId: uuid("medium_id").references(() => Media.id, {
+    onDelete: "cascade",
+  }),
+  caption: text(),
+  isFeatured: boolean("is_featured").notNull().default(false),
 });
 
 export const projectsRelations = relations(Projects, ({ one, many }) => ({
