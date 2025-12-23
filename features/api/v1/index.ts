@@ -15,6 +15,7 @@ import applicationsRouter from "./applications";
 import duesRouter from "./dues";
 import partnershipsRouter from "./partnerships";
 import welfareRouter from "./welfare";
+import dashboardRouter from "./dashboard";
 
 const apiRouter = Router();
 
@@ -34,5 +35,6 @@ apiRouter.use("/applications", applicationsRouter);
 apiRouter.use("/dues", duesRouter);
 apiRouter.use("/partnerships", partnershipsRouter);
 apiRouter.use("/welfare", welfareRouter);
+apiRouter.use("/dashboard", dashboardRouter);
 
 export default apiRouter;
