@@ -1,7 +1,7 @@
 import { Medium } from "@/shared/dtos";
 import { YPFConstituent } from "../constituents/dtos";
 
-export type WelfareCase = {
+export type YPFWelfareCase = {
   id: string;
   title: string;
   featuredMediumUrl?: string;
@@ -11,7 +11,7 @@ export type WelfareCase = {
   date: Date;
 };
 
-export type WelfareCaseDetail = {
+export type YPFWelfareCaseDetail = {
   id: string;
   title: string;
   description?: string;

@@ -6,7 +6,7 @@ import {
 } from "./schemas";
 import z from "zod";
 import { Paginated } from "@/shared/dtos";
-import { WelfareCase, WelfareCaseDetail } from "./dtos";
+import { YPFWelfareCase, YPFWelfareCaseDetail } from "./dtos";
 import * as welfareService from "@/shared/services/welfareService";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
@@ -14,7 +14,7 @@ import { eq } from "drizzle-orm";
 
 export async function getWelfareCases(
   query: z.infer<typeof GetWelfareCasesQuerySchema>,
-): Promise<ApiResponse<Paginated<WelfareCase>>> {
+): Promise<ApiResponse<Paginated<YPFWelfareCase>>> {
   const data = await welfareService.fetchWelfareCases(query);
 
   return {
@@ -26,7 +26,7 @@ export async function getWelfareCases(
 
 export async function getWelfareCase(
   welfareCaseId: string,
-): Promise<ApiResponse<WelfareCaseDetail>> {
+): Promise<ApiResponse<YPFWelfareCaseDetail>> {
   const data = await welfareService.fetchWelfareCaseById(welfareCaseId);
 
   return {
@@ -93,7 +93,7 @@ export async function addWelfareCaseBeneficiaries(
 
   return {
     success: true,
-    message: "WelfareCase beneficiaries added successfully",
+    message: "YPFWelfareCase beneficiaries added successfully",
     data: null,
   };
 }
