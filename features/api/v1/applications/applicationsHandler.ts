@@ -1,8 +1,5 @@
 import { ApiResponse, ApiError } from "@/shared/types";
-import {
-  PostApplicationBody,
-  GetApplicationsQuerySchema,
-} from "./schemas";
+import { PostApplicationBody, GetApplicationsQuerySchema } from "./schemas";
 import z from "zod";
 import * as applicationsService from "@/shared/services/applicationsService";
 import * as fileUtils from "@/shared/utils/files";

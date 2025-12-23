@@ -22,7 +22,7 @@ import {
  */
 export async function resolveAudience(
   rule: AudienceRule,
-): Promise<Set<{ id: string, email: string }>> {
+): Promise<Set<{ id: string; email: string }>> {
   // TODO: Implement this
   return new Set();
 }

@@ -3,7 +3,10 @@ import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { ApiError } from "@/shared/types";
 import { Paginated } from "@/shared/dtos";
-import { YPFApplication, YPFApplicationDetail } from "@/features/api/v1/applications/dtos";
+import {
+  YPFApplication,
+  YPFApplicationDetail,
+} from "@/features/api/v1/applications/dtos";
 import { ApplicationStatus, NationalIdType } from "@/shared/utils";
 
 type CreateApplication = {

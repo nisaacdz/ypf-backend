@@ -2,7 +2,10 @@ import { eq, and, lte, gte, isNull, or, sql } from "drizzle-orm";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { ApiError, Profile } from "@/shared/types";
-import { YPFConstituent, YPFConstituentDetail } from "@/features/api/v1/constituents/dtos";
+import {
+  YPFConstituent,
+  YPFConstituentDetail,
+} from "@/features/api/v1/constituents/dtos";
 import { generatePublicMediaUrl } from "@/shared/utils/files";
 
 interface ProfilePeriod {
@@ -26,7 +29,7 @@ interface RolePeriod {
  * @throws ApiError if constituent is not found.
  */
 export async function getDetailedConstituent(
-  constituentId: string
+  constituentId: string,
 ): Promise<YPFConstituentDetail | null> {
   // Fetch the constituent with profile photo
   const constituent = await dbClient.db.query.Constituents.findFirst({
@@ -79,7 +82,7 @@ export async function getDetailedConstituent(
  * Fetches all profile periods (MEMBER, ADMIN, VOLUNTEER, AUDITOR, DIRECTOR) for a constituent.
  */
 async function fetchProfilePeriods(
-  constituentId: string
+  constituentId: string,
 ): Promise<ProfilePeriod[]> {
   const db = dbClient.db;
   const profiles: ProfilePeriod[] = [];
@@ -134,35 +137,35 @@ async function fetchProfilePeriods(
       name: "MEMBER",
       startedAt: p.startedAt,
       endedAt: p.endedAt ?? undefined,
-    })
+    }),
   );
   adminPeriods.forEach((p) =>
     profiles.push({
       name: "ADMIN",
       startedAt: p.startedAt,
       endedAt: p.endedAt ?? undefined,
-    })
+    }),
   );
   volunteerPeriods.forEach((p) =>
     profiles.push({
       name: "VOLUNTEER",
       startedAt: p.startedAt,
       endedAt: p.endedAt ?? undefined,
-    })
+    }),
   );
   auditorPeriods.forEach((p) =>
     profiles.push({
       name: "AUDITOR",
       startedAt: p.startedAt,
       endedAt: p.endedAt ?? undefined,
-    })
+    }),
   );
   directorPeriods.forEach((p) =>
     profiles.push({
       name: "DIRECTOR",
       startedAt: p.startedAt,
       endedAt: p.endedAt ?? undefined,
-    })
+    }),
   );
 
   return profiles;
@@ -183,11 +186,11 @@ async function fetchRoles(constituentId: string): Promise<RolePeriod[]> {
     .from(schema.Members)
     .innerJoin(
       schema.MemberTitlesAssignments,
-      eq(schema.Members.id, schema.MemberTitlesAssignments.memberId)
+      eq(schema.Members.id, schema.MemberTitlesAssignments.memberId),
     )
     .innerJoin(
       schema.MemberTitles,
-      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id)
+      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
     )
     .where(eq(schema.Members.constituentId, constituentId));
 
@@ -202,9 +205,7 @@ async function fetchRoles(constituentId: string): Promise<RolePeriod[]> {
 /**
  * Fetches all current committee memberships for a constituent.
  */
-async function fetchCommittees(
-  constituentId: string
-): Promise<
+async function fetchCommittees(constituentId: string): Promise<
   {
     id: string;
     name: string;
@@ -224,15 +225,15 @@ async function fetchCommittees(
     .from(schema.Members)
     .innerJoin(
       schema.CommitteeMemberships,
-      eq(schema.Members.id, schema.CommitteeMemberships.memberId)
+      eq(schema.Members.id, schema.CommitteeMemberships.memberId),
     )
     .innerJoin(
       schema.Committees,
-      eq(schema.CommitteeMemberships.committeeId, schema.Committees.id)
+      eq(schema.CommitteeMemberships.committeeId, schema.Committees.id),
     )
     .leftJoin(
       schema.Chapters,
-      eq(schema.Committees.chapterId, schema.Chapters.id)
+      eq(schema.Committees.chapterId, schema.Chapters.id),
     )
     .where(
       and(
@@ -240,9 +241,9 @@ async function fetchCommittees(
         lte(schema.CommitteeMemberships.startedAt, now),
         or(
           isNull(schema.CommitteeMemberships.endedAt),
-          gte(schema.CommitteeMemberships.endedAt, now)
-        )
-      )
+          gte(schema.CommitteeMemberships.endedAt, now),
+        ),
+      ),
     );
 
   // Fetch featured photos for committees
@@ -256,18 +257,18 @@ async function fetchCommittees(
         .from(schema.CommitteeMedia)
         .innerJoin(
           schema.Media,
-          eq(schema.CommitteeMedia.mediumId, schema.Media.id)
+          eq(schema.CommitteeMedia.mediumId, schema.Media.id),
         )
         .where(
           and(
             eq(schema.CommitteeMedia.isFeatured, true),
-            sql`${schema.CommitteeMedia.committeeId} = ANY(${committeeIds})`
-          )
+            sql`${schema.CommitteeMedia.committeeId} = ANY(${committeeIds})`,
+          ),
         )
     : [];
 
   const photoMap = new Map(
-    featuredPhotos.map((p) => [p.committeeId, p.externalId])
+    featuredPhotos.map((p) => [p.committeeId, p.externalId]),
   );
 
   return committeeRows.map((c) => ({
@@ -284,7 +285,7 @@ async function fetchCommittees(
  * Fetches all current chapter memberships for a constituent.
  */
 async function fetchChapters(
-  constituentId: string
+  constituentId: string,
 ): Promise<
   { id: string; name: string; country: string; featuredPhotoUrl?: string }[]
 > {
@@ -300,11 +301,11 @@ async function fetchChapters(
     .from(schema.Members)
     .innerJoin(
       schema.ChapterMemberships,
-      eq(schema.Members.id, schema.ChapterMemberships.memberId)
+      eq(schema.Members.id, schema.ChapterMemberships.memberId),
     )
     .innerJoin(
       schema.Chapters,
-      eq(schema.ChapterMemberships.chapterId, schema.Chapters.id)
+      eq(schema.ChapterMemberships.chapterId, schema.Chapters.id),
     )
     .where(
       and(
@@ -312,9 +313,9 @@ async function fetchChapters(
         lte(schema.ChapterMemberships.startedAt, now),
         or(
           isNull(schema.ChapterMemberships.endedAt),
-          gte(schema.ChapterMemberships.endedAt, now)
-        )
-      )
+          gte(schema.ChapterMemberships.endedAt, now),
+        ),
+      ),
     );
 
   // Fetch featured photos for chapters
@@ -328,18 +329,18 @@ async function fetchChapters(
         .from(schema.ChapterMedia)
         .innerJoin(
           schema.Media,
-          eq(schema.ChapterMedia.mediumId, schema.Media.id)
+          eq(schema.ChapterMedia.mediumId, schema.Media.id),
         )
         .where(
           and(
             eq(schema.ChapterMedia.isFeatured, true),
-            sql`${schema.ChapterMedia.chapterId} = ANY(${chapterIds})`
-          )
+            sql`${schema.ChapterMedia.chapterId} = ANY(${chapterIds})`,
+          ),
         )
     : [];
 
   const photoMap = new Map(
-    featuredPhotos.map((p) => [p.chapterId, p.externalId])
+    featuredPhotos.map((p) => [p.chapterId, p.externalId]),
   );
 
   return chapterRows.map((c) => ({
@@ -352,7 +353,9 @@ async function fetchChapters(
   }));
 }
 
-export async function getConstituent(constituentId: string): Promise<YPFConstituent | null > {
+export async function getConstituent(
+  constituentId: string,
+): Promise<YPFConstituent | null> {
   // Fetch the constituent with profile photo
   const constituent = await dbClient.db.query.Constituents.findFirst({
     where: eq(schema.Constituents.id, constituentId),
@@ -364,7 +367,7 @@ export async function getConstituent(constituentId: string): Promise<YPFConstitu
   if (!constituent) {
     return null;
   }
-  
+
   // Fetch all profile periods, roles, committees, and chapters in parallel
   const [profilePeriods, roles] = await Promise.all([
     fetchProfilePeriods(constituentId),
@@ -379,9 +382,11 @@ export async function getConstituent(constituentId: string): Promise<YPFConstitu
   return {
     id: constituent.id,
     profilePhotoUrl,
-    fullName: constituent.preferredName ?? `${constituent.firstName} ${constituent.firstName}`,
-    profiles: profilePeriods.map(p => p.name),
-    roles: roles.map(r => r.title),
+    fullName:
+      constituent.preferredName ??
+      `${constituent.firstName} ${constituent.firstName}`,
+    profiles: profilePeriods.map((p) => p.name),
+    roles: roles.map((r) => r.title),
     isActive: true,
     createdAt: constituent.createdAt,
   };

@@ -7,7 +7,7 @@ const blobServiceClient = BlobServiceClient.fromConnectionString(
 
 export const containerNames = {
   media: "media",
-  docs: "docs"
+  docs: "docs",
 };
 
 export default blobServiceClient;

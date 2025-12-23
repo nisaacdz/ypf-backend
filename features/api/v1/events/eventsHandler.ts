@@ -12,14 +12,8 @@ import dbClient from "@/configs/db";
 import * as mediaUtils from "@/shared/utils/files";
 import * as mediaService from "@/shared/services/mediaService";
 import * as eventsService from "@/shared/services/eventsService";
-import {
-  Paginated
-} from "@/shared/dtos";
-import { 
-  YPFEventMedium,
-  YPFEvent,
-  YPFEventDetail
-} from "./dtos";
+import { Paginated } from "@/shared/dtos";
+import { YPFEventMedium, YPFEvent, YPFEventDetail } from "./dtos";
 
 export async function getEvents(
   query: z.infer<typeof GetEventsQuerySchema>,

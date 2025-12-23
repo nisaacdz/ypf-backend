@@ -33,9 +33,10 @@ export const EventTypeEnum = activities.enum("event_type", [
   "WORKSHOP",
 ]);
 export const WelfareCaseTypeEnum = activities.enum("welfare_type", [
-  "MARRIAGE",
+  "MEDICAL",
+  "EDUCATIONAL",
   "FUNERAL",
-  "SUPPORT",
+  "FINANCIAL_SUPPORT",
   "OTHER",
 ]);
 export const AttendanceStatusEnum = activities.enum("attendance_status", [
@@ -80,7 +81,7 @@ export const Events = activities.table("events", {
   }),
 });
 
-// If this cases is supported, then there will be an entry in `Expenditures` table with
+// If this case is supported, then there will be an entry in `Expenditures` table with
 // expenditure.welfareCaseId == welfareCase.id
 export const WelfareCases = activities.table("welfare_cases", {
   id: uuid().defaultRandom().primaryKey(),

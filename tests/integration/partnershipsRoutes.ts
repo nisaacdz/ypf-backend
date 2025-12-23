@@ -109,10 +109,10 @@ describe("Partnerships API", () => {
       : [memberCookieHeader];
 
     const memberAccessToken = memberCookies.find((c) =>
-      c.includes("access_token")
+      c.includes("access_token"),
     );
     const memberRefreshToken = memberCookies.find((c) =>
-      c.includes("refresh_token")
+      c.includes("refresh_token"),
     );
 
     memberAuthTokenCookie = [memberAccessToken, memberRefreshToken]
@@ -134,10 +134,10 @@ describe("Partnerships API", () => {
       : [adminCookieHeader];
 
     const adminAccessToken = adminCookies.find((c) =>
-      c.includes("access_token")
+      c.includes("access_token"),
     );
     const adminRefreshToken = adminCookies.find((c) =>
-      c.includes("refresh_token")
+      c.includes("refresh_token"),
     );
 
     adminAuthTokenCookie = [adminAccessToken, adminRefreshToken]
@@ -283,7 +283,7 @@ describe("Partnerships API", () => {
   describe("GET /api/v1/partnerships/:id", () => {
     it("should return 401 for unauthenticated requests", async () => {
       const response = await request(server).get(
-        `/api/v1/partnerships/${testPartnership.id}`
+        `/api/v1/partnerships/${testPartnership.id}`,
       );
 
       expect(response.status).toBe(401);
@@ -300,7 +300,7 @@ describe("Partnerships API", () => {
       expect(response.body.data).toHaveProperty("organization");
       expect(response.body.data.organization).toHaveProperty(
         "id",
-        testOrganization.id
+        testOrganization.id,
       );
       expect(response.body.data).toHaveProperty("partnershipType");
       expect(response.body.data).toHaveProperty("isActive");
@@ -367,7 +367,7 @@ describe("Partnerships API", () => {
   describe("DELETE /api/v1/partnerships/:id", () => {
     it("should return 401 for unauthenticated requests", async () => {
       const response = await request(server).delete(
-        `/api/v1/partnerships/${testPartnership.id}`
+        `/api/v1/partnerships/${testPartnership.id}`,
       );
 
       expect(response.status).toBe(401);
