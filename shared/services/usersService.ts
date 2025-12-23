@@ -134,6 +134,79 @@ export async function getConstituentRoles(constituentId: string) {
   return allRoles;
 }
 
+export async function getConstituentRoleTitles(constituentId: string) {
+  const now = new Date();
+
+  // 1. Fetch Admin Roles
+  const adminRolesQuery = dbClient.db
+    .select({
+      role: sql<string>`CONCAT('ADMIN.', ${schema.AdminRolesAssignments.role})`,
+    })
+    .from(schema.Admins)
+    .innerJoin(
+      schema.AdminRolesAssignments,
+      eq(schema.Admins.id, schema.AdminRolesAssignments.adminId),
+    )
+    .where(
+      and(
+        eq(schema.Admins.constituentId, constituentId),
+        lte(schema.Admins.startedAt, now),
+        or(isNull(schema.Admins.endedAt), gte(schema.Admins.endedAt, now)),
+        lte(schema.AdminRolesAssignments.startedAt, now),
+        or(
+          isNull(schema.AdminRolesAssignments.endedAt),
+          gte(schema.AdminRolesAssignments.endedAt, now),
+        ),
+      ),
+    );
+
+  const memberTitlesQuery = dbClient.db
+    .select({
+      role: sql<string>`
+        CONCAT('MEMBER.', ${schema.MemberTitles.alias},
+          CASE
+            WHEN ${schema.MemberTitles.chapterId} IS NOT NULL THEN CONCAT('.', ${schema.MemberTitles.chapterId})
+            WHEN ${schema.MemberTitles.committeeId} IS NOT NULL THEN CONCAT('.', ${schema.MemberTitles.committeeId})
+            ELSE ''
+          END
+        )
+      `,
+    })
+    .from(schema.Members)
+    .innerJoin(
+      schema.MemberTitlesAssignments,
+      eq(schema.Members.id, schema.MemberTitlesAssignments.memberId),
+    )
+    .innerJoin(
+      schema.MemberTitles,
+      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
+    )
+    .where(
+      and(
+        eq(schema.Members.constituentId, constituentId),
+        lte(schema.Members.startedAt, now),
+        or(isNull(schema.Members.endedAt), gte(schema.Members.endedAt, now)),
+        lte(schema.MemberTitlesAssignments.startedAt, now),
+        or(
+          isNull(schema.MemberTitlesAssignments.endedAt),
+          gte(schema.MemberTitlesAssignments.endedAt, now),
+        ),
+      ),
+    );
+
+  const [adminRoles, memberTitles] = await Promise.all([
+    adminRolesQuery,
+    memberTitlesQuery,
+  ]);
+
+  const allRoles = [
+    ...adminRoles.map((r) => r.role),
+    ...memberTitles.map((r) => r.role),
+  ];
+
+  return allRoles;
+}
+
 interface ITimeBoundProfileTable {
   constituentId: AnyPgColumn;
   startedAt: AnyPgColumn;
