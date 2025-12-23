@@ -15,7 +15,7 @@ import { ApiError } from "@/shared/types";
 export async function fetchEvents(
   query: z.infer<typeof GetEventsQuerySchema>,
 ): Promise<Paginated<YPFEvent>> {
-  const { page, pageSize, search, projectId, filterStatus } = query;
+  const { page, pageSize, search, projectId, filterStatus, filterType } = query;
   const offset = (page - 1) * pageSize;
 
   const conditions = [];
@@ -35,6 +35,10 @@ export async function fetchEvents(
 
   if (filterStatus) {
     conditions.push(eq(schema.Events.status, filterStatus));
+  }
+
+  if (filterType) {
+    conditions.push(eq(schema.Events.type, filterType));
   }
 
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
