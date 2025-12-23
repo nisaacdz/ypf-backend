@@ -106,6 +106,11 @@ export const GetEventsQuerySchema = z.object({
       message: "Invalid event status.",
     })
     .optional(),
+  filterType: z
+    .enum(EventTypeEnum.enumValues, {
+      message: "Invalid event type.",
+    })
+    .optional(),
 });
 
 export const GetEventMediaQuerySchema = z.object({
