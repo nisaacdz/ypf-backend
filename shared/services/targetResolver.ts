@@ -1,3 +1,5 @@
+// shared/services/targetResolver.ts
+
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { TargetingFilter } from "@/shared/types/targeting";
@@ -7,18 +9,14 @@ import {
   exists,
   gt,
   inArray,
-  isNotNull,
   isNull,
   lte,
   or,
   SQL,
 } from "drizzle-orm";
 
-/**
- * Resolves a flat TargetingFilter into a set of constituent IDs.
- */
 export async function resolveAudience(
-  filters: TargetingFilter,
+  filters: TargetingFilter
 ): Promise<string[]> {
   const {
     chapterIds,
@@ -28,126 +26,137 @@ export async function resolveAudience(
     status = "ACTIVE",
   } = filters;
 
-  // We start selecting from Constituents
-  const query = dbClient.db
-    .selectDistinct({ id: schema.Constituents.id })
-    .from(schema.Constituents)
-    // Join all potential tables we might filter by.
-    // Drizzle's query builder handles these joins intelligently.
-    .leftJoin(
-      schema.Members,
-      eq(schema.Constituents.id, schema.Members.constituentId),
-    )
-    .leftJoin(
-      schema.Volunteers,
-      eq(schema.Constituents.id, schema.Volunteers.constituentId),
-    )
-    .leftJoin(
-      schema.Admins,
-      eq(schema.Constituents.id, schema.Admins.constituentId),
-    )
-    // Member-specific joins (Scope & Roles)
-    // Note: These joins depend on 'Members' being joined above.
-    .leftJoin(
-      schema.ChapterMemberships,
-      eq(schema.Members.id, schema.ChapterMemberships.memberId),
-    )
-    .leftJoin(
-      schema.CommitteeMemberships,
-      eq(schema.Members.id, schema.CommitteeMemberships.memberId),
-    )
-    .leftJoin(
-      schema.MemberTitlesAssignments,
-      eq(schema.Members.id, schema.MemberTitlesAssignments.memberId),
-    )
-    .leftJoin(
-      schema.MemberTitles,
-      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
-    );
-
-  const conditions: SQL[] = [];
-
-  // --- Helper Functions for Date Logic ---
+  // 1. Helper for Date Logic (Active vs Past)
   const now = new Date();
-
-  // Checks if a period is currently active (endedAt is null OR future)
   const isActive = (table: { endedAt: any }) =>
     or(isNull(table.endedAt), gt(table.endedAt, now));
-
-  // Checks if a period is past (endedAt is in the past)
   const isPast = (table: { endedAt: any }) => lte(table.endedAt, now);
 
-  // --- 1. Organizational Scope (Chapters/Committees) ---
-  // Implicitly requires the user to be a Member
-  if (chapterIds?.length) {
-    conditions.push(inArray(schema.ChapterMemberships.chapterId, chapterIds));
-  }
+  const getStatusCondition = (table: { endedAt: any }) => {
+    if (status === "ACTIVE") return isActive(table);
+    if (status === "PAST") return isPast(table);
+    return undefined; // ALL
+  };
 
-  if (committeeIds?.length) {
-    conditions.push(
-      inArray(schema.CommitteeMemberships.committeeId, committeeIds),
-    );
-  }
-
-  // --- 2. Roles ---
-  // Implicitly requires the user to be a Member with a specific title
-  if (roles?.length) {
-    conditions.push(inArray(schema.MemberTitles.title, roles));
-  }
-
-  // --- 3. Constituent Types & Status ---
-  // If specific types are selected (e.g., ["MEMBER", "VOLUNTEER"]), we filter for them.
-  // We also apply the status filter (ACTIVE/PAST) to those specific tables.
-
+  // 2. Build Sub-Conditions for each Constituent Type
   const typeConditions: SQL[] = [];
 
-  // Check MEMBER
+  // --- MEMBER LOGIC ---
+  // Members support Chapters, Committees, and Roles
   if (!constituentTypes || constituentTypes.includes("MEMBER")) {
-    const isMember = isNotNull(schema.Members.id);
-    if (status === "ACTIVE") {
-      typeConditions.push(and(isMember, isActive(schema.Members))!);
-    } else if (status === "PAST") {
-      typeConditions.push(and(isMember, isPast(schema.Members))!);
-    } else {
-      typeConditions.push(isMember);
-    }
+    const memberSubquery = dbClient.db
+      .select({ id: schema.Members.id })
+      .from(schema.Members)
+      .where(
+        and(
+          // Link back to constituent
+          eq(schema.Members.constituentId, schema.Constituents.id),
+          
+          // Status Filter
+          getStatusCondition(schema.Members),
+          
+          // Scope: Chapter (Exists check)
+          chapterIds?.length
+            ? exists(
+                dbClient.db
+                  .select({ id: schema.ChapterMemberships.id })
+                  .from(schema.ChapterMemberships)
+                  .where(
+                    and(
+                      eq(schema.ChapterMemberships.memberId, schema.Members.id),
+                      inArray(schema.ChapterMemberships.chapterId, chapterIds)
+                    )
+                  )
+              )
+            : undefined,
+
+          // Scope: Committee (Exists check)
+          committeeIds?.length
+            ? exists(
+                dbClient.db
+                  .select({ id: schema.CommitteeMemberships.id })
+                  .from(schema.CommitteeMemberships)
+                  .where(
+                    and(
+                      eq(schema.CommitteeMemberships.memberId, schema.Members.id),
+                      inArray(
+                        schema.CommitteeMemberships.committeeId,
+                        committeeIds
+                      )
+                    )
+                  )
+              )
+            : undefined,
+
+          // Scope: Roles (Exists check)
+          roles?.length
+            ? exists(
+                dbClient.db
+                  .select({ id: schema.MemberTitlesAssignments.id })
+                  .from(schema.MemberTitlesAssignments)
+                  .innerJoin(
+                    schema.MemberTitles,
+                    eq(
+                      schema.MemberTitlesAssignments.titleId,
+                      schema.MemberTitles.id
+                    )
+                  )
+                  .where(
+                    and(
+                      eq(
+                        schema.MemberTitlesAssignments.memberId,
+                        schema.Members.id
+                      ),
+                      inArray(schema.MemberTitles.title, roles)
+                    )
+                  )
+              )
+            : undefined
+        )
+      );
+
+    typeConditions.push(exists(memberSubquery));
   }
 
-  // Check VOLUNTEER
+  // --- VOLUNTEER LOGIC ---
+  // Volunteers do NOT support Chapter/Role filters in the current schema
   if (!constituentTypes || constituentTypes.includes("VOLUNTEER")) {
-    const isVolunteer = isNotNull(schema.Volunteers.id);
-    if (status === "ACTIVE") {
-      typeConditions.push(and(isVolunteer, isActive(schema.Volunteers))!);
-    } else if (status === "PAST") {
-      typeConditions.push(and(isVolunteer, isPast(schema.Volunteers))!);
-    } else {
-      typeConditions.push(isVolunteer);
-    }
+    const volunteerSubquery = dbClient.db
+      .select({ id: schema.Volunteers.id })
+      .from(schema.Volunteers)
+      .where(
+        and(
+          eq(schema.Volunteers.constituentId, schema.Constituents.id),
+          getStatusCondition(schema.Volunteers)
+        )
+      );
+
+    typeConditions.push(exists(volunteerSubquery));
   }
 
-  // Check ADMIN
+  // --- ADMIN LOGIC ---
   if (!constituentTypes || constituentTypes.includes("ADMIN")) {
-    const isAdmin = isNotNull(schema.Admins.id);
-    if (status === "ACTIVE") {
-      typeConditions.push(and(isAdmin, isActive(schema.Admins))!);
-    } else if (status === "PAST") {
-      typeConditions.push(and(isAdmin, isPast(schema.Admins))!);
-    } else {
-      typeConditions.push(isAdmin);
-    }
+    const adminSubquery = dbClient.db
+      .select({ id: schema.Admins.id })
+      .from(schema.Admins)
+      .where(
+        and(
+          eq(schema.Admins.constituentId, schema.Constituents.id),
+          getStatusCondition(schema.Admins)
+        )
+      );
+
+    typeConditions.push(exists(adminSubquery));
   }
 
-  // Combine Type Conditions with OR
-  // e.g. (ActiveMember) OR (ActiveVolunteer)
-  if (typeConditions.length > 0) {
-    conditions.push(or(...typeConditions)!);
-  }
+  // 3. Execute Main Query
+  // Logic: SELECT id FROM Constituents WHERE (IsMemberMatching OR IsVolunteerMatching OR IsAdminMatching)
+  if (typeConditions.length === 0) return [];
 
-  // Apply all filters
-  if (conditions.length > 0) {
-    query.where(and(...conditions));
-  }
+  const results = await dbClient.db
+    .select({ id: schema.Constituents.id })
+    .from(schema.Constituents)
+    .where(or(...typeConditions));
 
-  const results = await query;
   return results.map((r) => r.id);
 }
