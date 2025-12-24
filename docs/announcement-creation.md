@@ -5,7 +5,7 @@
 
 ## Overview
 
-The Announcement Creation API allows authorized users ("Leaders") to create and target announcements to specific groups of constituents. The targeting system is flexible, allowing for complex combinations of criteria (e.g., "Active Members AND (Volunteers OR Donors)").
+The Announcement Creation API allows authorized users ("Leaders") to create and target announcements to specific groups of constituents. The targeting system uses a **simplified flat filter** approach.
 
 ## Authorization
 
@@ -21,222 +21,97 @@ The request body must conform to the `CreateAnnouncementSchema`.
 
 ```typescript
 {
-  title: string;          // Required, 1-255 chars
-  content: string;        // Required, min 1 char
-  status?: "DRAFT" | "PUBLISHED"; // Default: "DRAFT"
-  sendAt?: string;        // ISO 8601 datetime string (optional, for future scheduling)
-  targetCriteria: AudienceRule; // Required, see below
+  title: string;           // Required, 1-255 chars
+  content: string;         // Required, min 1 char (Markdown/HTML)
+  status?: "DRAFT" | "PUBLISHED" | "ARCHIVED"; // Default: "DRAFT"
+  publishedAt?: string;    // ISO 8601 datetime string (optional)
+  expiresAt?: string;      // ISO 8601 datetime string (optional)
+  targetCriteria: TargetingFilter; // Required, see below
 }
 ```
 
-## Targeting Criteria (`AudienceRule`)
+## Targeting Criteria (`TargetingFilter`)
 
-The `targetCriteria` field defines who receives the announcement. It is a recursive structure that can be either an **Atomic Rule** or a **Composite Rule**.
+The `targetCriteria` field is a flat object defining the audience.
+**Logic:**
 
-### 1. Atomic Rules
+- **Top-level fields** are combined with **AND**. (e.g., must match `chapterIds` AND `roles`).
+- **Array values** within fields are combined with **OR**. (e.g., `chapterIds: [A, B]` means Chapter A OR Chapter B).
+- If a field is omitted or empty, it is ignored (treated as "All" for that dimension), except for logic dependencies (e.g., `roles` implies checking titles).
 
-Atomic rules target specific segments of the population. All atomic rules have a `kind` property.
+### Structure
 
-#### `CONSTITUENTS`
+```typescript
+interface TargetingFilter {
+  // 1. Scope (Organizational Units)
+  chapterIds?: string[]; // UUIDs of Chapters
+  committeeIds?: string[]; // UUIDs of Committees
 
-Targets the general constituent base.
+  // 2. Roles & Types
+  roles?: string[]; // e.g. "PRESIDENT", "TREASURER" - Checks Member Titles
+  constituentTypes?: Array<"MEMBER" | "VOLUNTEER" | "ADMIN">;
 
-```json
-{
-  "kind": "CONSTITUENTS",
-  "filters": {
-    "isActive": true,
-    "hasEmail": true
-  }
-}
-```
-
-#### `MEMBERS`
-
-Targets members based on scope, status, or roles.
-
-```json
-{
-  "kind": "MEMBERS",
-  "status": "ACTIVE", // "ACTIVE" | "PAST" | "ALL"
-  "scope": {
-    "chapterId": "uuid...",
-    "committeeId": "uuid..."
-  },
-  "roles": ["PRESIDENT", "TREASURER"]
-}
-```
-
-#### `VOLUNTEERS`
-
-Targets volunteers.
-
-```json
-{
-  "kind": "VOLUNTEERS",
-  "status": "ACTIVE" // "ACTIVE" | "PAST" | "ALL"
-}
-```
-
-#### `ADMINS`
-
-Targets administrators.
-
-```json
-{
-  "kind": "ADMINS",
-  "roles": ["SUPER_ADMIN", "REGULAR_ADMIN"],
-  "status": "ACTIVE"
-}
-```
-
-#### `PROFILES`
-
-Targets specific profile types (Directors, Auditors).
-
-```json
-{
-  "kind": "PROFILES",
-  "profileType": "DIRECTOR", // "DIRECTOR" | "AUDITOR"
-  "status": "ACTIVE"
-}
-```
-
-#### `LEADERS`
-
-Targets all organizational leaders (Members with Titles + Admins with Roles).
-
-```json
-{
-  "kind": "LEADERS",
-  "status": "ACTIVE"
-}
-```
-
-#### `DONORS`
-
-Targets constituents based on donation history.
-
-```json
-{
-  "kind": "DONORS",
-  "minTotalDonation": 100,
-  "currency": "USD",
-  "period": {
-    "start": "2023-01-01T00:00:00Z",
-    "end": "2023-12-31T23:59:59Z"
-  }
-}
-```
-
-#### `SPECIFIC_USERS`
-
-Targets a specific list of constituent IDs.
-
-```json
-{
-  "kind": "SPECIFIC_USERS",
-  "constituentIds": ["uuid-1", "uuid-2"]
-}
-```
-
-### 2. Composite Rules
-
-Composite rules combine other rules using logical operators.
-
-#### `OR` (Union)
-
-Matches if **ANY** of the sub-rules match.
-
-```json
-{
-  "op": "OR",
-  "rules": [ ...AudienceRules ]
-}
-```
-
-#### `AND` (Intersection)
-
-Matches if **ALL** of the sub-rules match.
-
-```json
-{
-  "op": "AND",
-  "rules": [ ...AudienceRules ]
-}
-```
-
-#### `NOT` (Exclusion)
-
-Matches if the sub-rule does **NOT** match.
-
-```json
-{
-  "op": "NOT",
-  "rule": AudienceRule
+  // 3. Status
+  status?: "ACTIVE" | "PAST" | "ALL"; // Default: "ACTIVE"
 }
 ```
 
 ## Examples
 
-### Example 1: Announcement for Active Members
+### Example 1: Announcement for All Active Members
 
 ```json
 {
   "title": "Monthly Update",
-  "content": "Here is the update for this month...",
+  "content": "Here is the update...",
   "status": "PUBLISHED",
   "targetCriteria": {
-    "kind": "MEMBERS",
+    "constituentTypes": ["MEMBER"],
     "status": "ACTIVE"
   }
 }
 ```
 
-### Example 2: Announcement for Leadership OR High Value Donors
+### Example 2: Announcement for Chapter Leaders (President OR Secretary in Chapter X)
 
 ```json
 {
-  "title": "Strategic Planning Meeting",
-  "content": "Please join us...",
+  "title": "Chapter X Leadership Meeting",
+  "content": "Meeting agenda...",
   "targetCriteria": {
-    "op": "OR",
-    "rules": [
-      {
-        "kind": "LEADERS",
-        "status": "ACTIVE"
-      },
-      {
-        "kind": "DONORS",
-        "minTotalDonation": 1000,
-        "currency": "USD"
-      }
-    ]
+    "chapterIds": ["uuid-chapter-x"],
+    "roles": ["PRESIDENT", "SECRETARY"],
+    "status": "ACTIVE"
   }
 }
 ```
 
-### Example 3: Announcement for Volunteers but NOT Past Members
+_Logic:_ Must be in Chapter X **AND** must have (President title **OR** Secretary title) **AND** must be Active.
+
+### Example 3: Announcement for Committee A Members (Active only)
 
 ```json
 {
-  "title": "New Volunteer Orientation",
-  "content": "Welcome to the team...",
+  "title": "Committee A Action Items",
+  "content": "Please review...",
   "targetCriteria": {
-    "op": "AND",
-    "rules": [
-      {
-        "kind": "VOLUNTEERS",
-        "status": "ACTIVE"
-      },
-      {
-        "op": "NOT",
-        "rule": {
-          "kind": "MEMBERS",
-          "status": "PAST"
-        }
-      }
-    ]
+    "committeeIds": ["uuid-committee-a"],
+    "status": "ACTIVE"
   }
 }
 ```
+
+### Example 4: Announcement for All Volunteers and Admins
+
+```json
+{
+  "title": "Thank You to Volunteers & Admins",
+  "content": "Great work...",
+  "targetCriteria": {
+    "constituentTypes": ["VOLUNTEER", "ADMIN"],
+    "status": "ACTIVE"
+  }
+}
+```
+
+_Logic:_ (Is Volunteer **OR** Is Admin) **AND** Is Active.

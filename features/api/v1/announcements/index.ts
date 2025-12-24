@@ -23,31 +23,57 @@ const announcementsRouter = Router();
  *             type: object
  *             required:
  *               - title
- *               - message
- *               - audience
+ *               - content
+ *               - targetCriteria
  *             properties:
  *               title:
  *                 type: string
  *                 description: The title of the announcement
- *               message:
+ *               content:
  *                 type: string
- *                 description: The content of the announcement
- *               audience:
+ *                 description: The content of the announcement (Markdown/HTML)
+ *               status:
+ *                 type: string
+ *                 enum: [DRAFT, PUBLISHED, ARCHIVED]
+ *                 default: DRAFT
+ *               publishedAt:
+ *                 type: string
+ *                 format: date-time
+ *               expiresAt:
+ *                 type: string
+ *                 format: date-time
+ *               targetCriteria:
  *                 type: object
- *                 description: Targeting rules for the announcement
+ *                 description: Flat targeting filter. Top-level fields are AND combined; arrays within fields are OR combined.
  *                 properties:
+ *                   chapterIds:
+ *                     type: array
+ *                     items:
+ *                       type: string
+ *                       format: uuid
+ *                     description: Filter by Chapter membership (OR)
+ *                   committeeIds:
+ *                     type: array
+ *                     items:
+ *                       type: string
+ *                       format: uuid
+ *                     description: Filter by Committee membership (OR)
  *                   roles:
  *                     type: array
  *                     items:
  *                       type: string
- *                   profiles:
+ *                     description: Filter by specific roles/titles (e.g. PRESIDENT) (OR)
+ *                   constituentTypes:
  *                     type: array
  *                     items:
  *                       type: string
- *               sendEmail:
- *                 type: boolean
- *                 description: Whether to send an email notification
- *                 default: false
+ *                       enum: [MEMBER, VOLUNTEER, ADMIN]
+ *                     description: Filter by constituent type (OR)
+ *                   status:
+ *                     type: string
+ *                     enum: [ACTIVE, PAST, ALL]
+ *                     default: ACTIVE
+ *                     description: Filter by active status in the selected roles/types
  *     responses:
  *       201:
  *         description: Announcement created successfully
@@ -56,15 +82,13 @@ const announcementsRouter = Router();
  *             schema:
  *               type: object
  *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     id:
- *                       type: string
- *                       format: uuid
+ *                 id:
+ *                   type: string
+ *                   format: uuid
+ *                 title:
+ *                   type: string
+ *                 status:
+ *                   type: string
  *       400:
  *         description: Invalid input data
  *       401:
