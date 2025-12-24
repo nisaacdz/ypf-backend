@@ -64,7 +64,7 @@ describe("Authentication API", () => {
 
       const accessTokenCookie = cookies.find((c) => c.includes("access_token"));
       const refreshTokenCookie = cookies.find((c) =>
-        c.includes("refresh_token"),
+        c.includes("refresh_token")
       );
 
       expect(accessTokenCookie).toBeDefined();
@@ -80,7 +80,9 @@ describe("Authentication API", () => {
       expect(response.body).not.toHaveProperty("token");
       expect(response.body.success).toBe(true);
       expect(response.body.data).toHaveProperty("id");
-      expect(response.body.data.email).toBe(testUser.email);
+      // AuthData now has YPFConstituentDetail at root, auth is nested
+      expect(response.body.data).toHaveProperty("auth");
+      expect(response.body.data.auth.email).toBe(testUser.email);
     });
 
     it("should reject login with wrong password", async () => {
@@ -367,7 +369,7 @@ describe("Authentication API", () => {
       // Should have both access_token and refresh_token clear directives
       const accessTokenCookie = cookies.find((c) => c.includes("access_token"));
       const refreshTokenCookie = cookies.find((c) =>
-        c.includes("refresh_token"),
+        c.includes("refresh_token")
       );
 
       expect(accessTokenCookie).toBeDefined();
@@ -422,6 +424,7 @@ describe("Authentication API", () => {
       expect(response.body.success).toBe(true);
       expect(response.body.data).not.toBeNull();
       expect(response.body.data).toHaveProperty("id");
+      // /auth/me returns AuthenticatedUser (not AuthData)
       expect(response.body.data.email).toBe(testUser.email);
       expect(response.body.data).toHaveProperty("fullName");
       expect(response.body.data).toHaveProperty("profiles");
