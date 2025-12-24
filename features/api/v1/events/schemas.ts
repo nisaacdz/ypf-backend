@@ -41,7 +41,7 @@ const u = z
   .or(
     z.object({
       welfareCaseId: z.uuid({ message: "Invalid welfareCase ID format." }),
-    })
+    }),
   );
 
 export const CreateEventSchema = z
@@ -100,7 +100,7 @@ export const UploadEventFileSchema = z
     {
       message: "Image size cannot exceed 50MB.",
       path: ["size"],
-    }
+    },
   )
   .refine(
     (data) => {
@@ -112,7 +112,7 @@ export const UploadEventFileSchema = z
     {
       message: "Video size cannot exceed 250MB.",
       path: ["size"],
-    }
+    },
   );
 
 export const GetEventsQuerySchema = z.object({

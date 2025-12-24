@@ -64,7 +64,7 @@ describe("Authentication API", () => {
 
       const accessTokenCookie = cookies.find((c) => c.includes("access_token"));
       const refreshTokenCookie = cookies.find((c) =>
-        c.includes("refresh_token")
+        c.includes("refresh_token"),
       );
 
       expect(accessTokenCookie).toBeDefined();
@@ -369,7 +369,7 @@ describe("Authentication API", () => {
       // Should have both access_token and refresh_token clear directives
       const accessTokenCookie = cookies.find((c) => c.includes("access_token"));
       const refreshTokenCookie = cookies.find((c) =>
-        c.includes("refresh_token")
+        c.includes("refresh_token"),
       );
 
       expect(accessTokenCookie).toBeDefined();

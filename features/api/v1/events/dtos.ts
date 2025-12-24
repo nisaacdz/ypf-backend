@@ -27,12 +27,12 @@ export type YPFEventDetail = {
   project?: {
     id: string;
     title: string;
-    date: Date,
+    date: Date;
   };
   welfareCase?: {
     id: string;
     title: string;
-    date?: Date,
+    date?: Date;
   };
   chapter?: {
     id: string;

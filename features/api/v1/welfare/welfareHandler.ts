@@ -13,7 +13,7 @@ import schema from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function getWelfareCases(
-  query: z.infer<typeof GetWelfareCasesQuerySchema>
+  query: z.infer<typeof GetWelfareCasesQuerySchema>,
 ): Promise<ApiResponse<Paginated<YPFWelfareCase>>> {
   const data = await welfareService.fetchWelfareCases(query);
 
@@ -25,7 +25,7 @@ export async function getWelfareCases(
 }
 
 export async function getWelfareCase(
-  welfareCaseId: string
+  welfareCaseId: string,
 ): Promise<ApiResponse<YPFWelfareCaseDetail>> {
   const data = await welfareService.fetchWelfareCaseById(welfareCaseId);
 
@@ -37,7 +37,7 @@ export async function getWelfareCase(
 }
 
 export async function createWelfareCase(
-  newCase: z.infer<typeof CreateWelfareCaseSchema>
+  newCase: z.infer<typeof CreateWelfareCaseSchema>,
 ): Promise<ApiResponse<string>> {
   const welfareCaseId = await welfareService.createWelfareCase(newCase);
 
@@ -50,7 +50,7 @@ export async function createWelfareCase(
 
 export async function updateWelfareCase(
   welfareCaseId: string,
-  updates: z.infer<typeof UpdateWelfareCaseSchema>
+  updates: z.infer<typeof UpdateWelfareCaseSchema>,
 ): Promise<ApiResponse<null>> {
   await welfareService.updateWelfareCase(welfareCaseId, updates);
 
@@ -62,7 +62,7 @@ export async function updateWelfareCase(
 }
 
 export async function deleteWelfareCase(
-  welfareCaseId: string
+  welfareCaseId: string,
 ): Promise<ApiResponse<null>> {
   await welfareService.deleteWelfareCase(welfareCaseId);
 
@@ -75,7 +75,7 @@ export async function deleteWelfareCase(
 
 export async function addWelfareCaseBeneficiaries(
   welfareCaseId: string,
-  beneficiaryIds: string[]
+  beneficiaryIds: string[],
 ): Promise<ApiResponse<null>> {
   const welfareCase = await dbClient.db.query.WelfareCases.findFirst({
     where: eq(schema.WelfareCases.id, welfareCaseId),
@@ -88,7 +88,7 @@ export async function addWelfareCaseBeneficiaries(
 
   await welfareService.addWelfareCaseBeneficiaries(
     welfareCaseId,
-    beneficiaryIds
+    beneficiaryIds,
   );
 
   return {
@@ -100,7 +100,7 @@ export async function addWelfareCaseBeneficiaries(
 
 export async function removeWelfareCaseBeneficiary(
   welfareCaseId: string,
-  beneficiaryId: string
+  beneficiaryId: string,
 ): Promise<ApiResponse<null>> {
   const welfareCase = await dbClient.db.query.WelfareCases.findFirst({
     where: eq(schema.WelfareCases.id, welfareCaseId),
@@ -113,7 +113,7 @@ export async function removeWelfareCaseBeneficiary(
 
   await welfareService.removeWelfareCaseBeneficiary(
     welfareCaseId,
-    beneficiaryId
+    beneficiaryId,
   );
 
   return {
@@ -125,13 +125,13 @@ export async function removeWelfareCaseBeneficiary(
 
 export async function getWelfareCaseEvents(
   welfareCaseId: string,
-  query: { page?: number; pageSize?: number } = {}
+  query: { page?: number; pageSize?: number } = {},
 ): Promise<
   ApiResponse<Paginated<import("@/features/api/v1/events/dtos").YPFEvent>>
 > {
   const data = await welfareService.fetchWelfareCaseEvents(
     welfareCaseId,
-    query
+    query,
   );
 
   return {
