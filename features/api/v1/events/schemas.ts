@@ -128,6 +128,7 @@ export const GetEventsQuerySchema = z.object({
       message: "Invalid event type.",
     })
     .optional(),
+  search: z.string().optional(),
 });
 
 export const GetEventMediaQuerySchema = z.object({

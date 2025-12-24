@@ -1,6 +1,6 @@
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
-import { AudienceRule } from "@/shared/types/targeting";
+import { TargetingFilter } from "@/shared/types/targeting";
 import { resolveAudience } from "./targetResolver";
 import { sendAnnouncementEmail } from "@/shared/utils/email";
 import { eq, inArray, and } from "drizzle-orm";
@@ -9,7 +9,7 @@ import logger from "@/configs/logger";
 export type CreateAnnouncementInput = {
   title: string;
   content: string;
-  targetCriteria: AudienceRule;
+  targetCriteria: TargetingFilter;
   authorId: string;
   status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   publishedAt?: Date;

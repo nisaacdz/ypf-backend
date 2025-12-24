@@ -118,7 +118,7 @@ export async function removeWelfareCaseBeneficiary(
 
   return {
     success: true,
-    message: "Welfare case deleted successfully",
+    message: "Beneficiary removed successfully",
     data: null,
   };
 }

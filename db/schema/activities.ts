@@ -10,8 +10,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { Chapters, Constituents, Documents, Media } from "./core";
-import { AudienceRule } from "@/shared/types/targeting";
-
+import { TargetingFilter } from "@/shared/types/targeting";
 export const activities = pgSchema("activities");
 
 // Keep `featured` media less than 10 for each collection.
@@ -178,7 +177,7 @@ export const Announcements = activities.table("announcements", {
   content: text().notNull(), // Markdown or HTML
 
   // Targeting Rules (The "Who")
-  targetCriteria: jsonb("target_criteria").$type<AudienceRule>().notNull(),
+  targetCriteria: jsonb("target_criteria").$type<TargetingFilter>().notNull(),
 
   authorId: uuid("author_id").references(() => Constituents.id),
 
