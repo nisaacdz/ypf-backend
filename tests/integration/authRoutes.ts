@@ -80,7 +80,9 @@ describe("Authentication API", () => {
       expect(response.body).not.toHaveProperty("token");
       expect(response.body.success).toBe(true);
       expect(response.body.data).toHaveProperty("id");
-      expect(response.body.data.email).toBe(testUser.email);
+      // AuthData now has YPFConstituentDetail at root, auth is nested
+      expect(response.body.data).toHaveProperty("auth");
+      expect(response.body.data.auth.email).toBe(testUser.email);
     });
 
     it("should reject login with wrong password", async () => {
@@ -422,6 +424,7 @@ describe("Authentication API", () => {
       expect(response.body.success).toBe(true);
       expect(response.body.data).not.toBeNull();
       expect(response.body.data).toHaveProperty("id");
+      // /auth/me returns AuthenticatedUser (not AuthData)
       expect(response.body.data.email).toBe(testUser.email);
       expect(response.body.data).toHaveProperty("fullName");
       expect(response.body.data).toHaveProperty("profiles");

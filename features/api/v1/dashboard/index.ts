@@ -1,0 +1,126 @@
+import { Router, Request, Response, NextFunction } from "express";
+import { authenticate, authorize } from "@/shared/middlewares/auth";
+import { Visitors } from "@/configs/authorizer";
+import * as dashboardHandler from "./dashboardHandler";
+
+const dashboardRouter = Router();
+
+/**
+ * @swagger
+ * tags:
+ *   name: Dashboard
+ *   description: Admin dashboard statistics and activity
+ */
+
+dashboardRouter.use(authenticate);
+dashboardRouter.use(authorize(Visitors.hasProfile("ADMIN")));
+
+/**
+ * @swagger
+ * /api/v1/dashboard/stats:
+ *   get:
+ *     summary: Get dashboard statistics
+ *     tags: [Dashboard]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Dashboard statistics retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Dashboard stats fetched successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     membersCount:
+ *                       type: integer
+ *                       description: Total active members count
+ *                     donationsCount:
+ *                       type: integer
+ *                       description: Total completed donations count
+ *                     eventsCount:
+ *                       type: integer
+ *                       description: Total events count
+ *                     projectsCount:
+ *                       type: integer
+ *                       description: Total projects count
+ *       401:
+ *         description: Not authenticated
+ *       403:
+ *         description: Forbidden - Admin access required
+ */
+dashboardRouter.get(
+  "/stats",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await dashboardHandler.getStats();
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/**
+ * @swagger
+ * /api/v1/dashboard/activity:
+ *   get:
+ *     summary: Get recent activity for dashboard
+ *     tags: [Dashboard]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Recent activity retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Recent activity fetched successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     projects:
+ *                       type: object
+ *                       description: Paginated recent projects
+ *                     welfareProjects:
+ *                       type: object
+ *                       description: Paginated recent welfare cases
+ *                     workshopEvents:
+ *                       type: object
+ *                       description: Paginated recent workshop events
+ *                     shopProducts:
+ *                       type: object
+ *                       description: Paginated recent shop products
+ *       401:
+ *         description: Not authenticated
+ *       403:
+ *         description: Forbidden - Admin access required
+ */
+dashboardRouter.get(
+  "/activity",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await dashboardHandler.getActivity();
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+export default dashboardRouter;

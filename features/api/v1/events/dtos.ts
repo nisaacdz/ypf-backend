@@ -10,6 +10,7 @@ export type YPFEvent = {
   status: EventStatus;
   type: EventType;
   projectTitle?: string;
+  welfareCaseTitle?: string;
   featuredMediumUrl?: string;
   chapterName?: string;
 };
@@ -26,6 +27,12 @@ export type YPFEventDetail = {
   project?: {
     id: string;
     title: string;
+    date: Date;
+  };
+  welfareCase?: {
+    id: string;
+    title: string;
+    date?: Date;
   };
   chapter?: {
     id: string;

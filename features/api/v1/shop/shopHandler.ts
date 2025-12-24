@@ -1,21 +1,106 @@
-import { ApiResponse, AuthenticatedUser } from "@/shared/types";
+import { ApiError, ApiResponse } from "@/shared/types";
 import * as shopService from "@/shared/services/shopService";
 import z from "zod";
 import {
   CreateOrderSchema,
   InitiateGuestOrderSchema,
   CompleteGuestOrderSchema,
-} from "@/shared/validators/shop";
+  GetShopProductsQuerySchema,
+  CreateProductSchema,
+  UpdateProductSchema,
+} from "./schemas";
 import { OrderResponse, ValidatedOrderItems } from "@/shared/dtos/shop";
+import { Paginated } from "@/shared/dtos";
+import { ShopProduct, ShopProductDetail } from "./dtos";
+
+/**
+ * Handler for getting all shop products
+ */
+export async function getProducts(
+  query: z.infer<typeof GetShopProductsQuerySchema>,
+): Promise<ApiResponse<Paginated<ShopProduct>>> {
+  const data = await shopService.fetchShopProducts(query);
+
+  return {
+    success: true,
+    message: "Products fetched successfully",
+    data,
+  };
+}
+
+/**
+ * Handler for getting a single product by ID
+ */
+export async function getProduct(
+  productId: string,
+): Promise<ApiResponse<ShopProductDetail>> {
+  const data = await shopService.fetchShopProductById(productId);
+
+  if (!data) {
+    throw new ApiError("Product not found", 404);
+  }
+
+  return {
+    success: true,
+    message: "Product fetched successfully",
+    data,
+  };
+}
+
+/**
+ * Handler for creating a new product (admin only)
+ */
+export async function createProduct(
+  body: z.infer<typeof CreateProductSchema>,
+): Promise<ApiResponse<string>> {
+  const productId = await shopService.createProduct(body);
+
+  return {
+    success: true,
+    message: "Product created successfully",
+    data: productId,
+  };
+}
+
+/**
+ * Handler for updating a product (admin only)
+ */
+export async function updateProduct(
+  productId: string,
+  body: z.infer<typeof UpdateProductSchema>,
+): Promise<ApiResponse<null>> {
+  await shopService.updateProduct(productId, body);
+
+  return {
+    success: true,
+    message: "Product updated successfully",
+    data: null,
+  };
+}
+
+/**
+ * Handler for deleting a product (admin only)
+ */
+export async function deleteProduct(
+  productId: string,
+): Promise<ApiResponse<null>> {
+  await shopService.deleteProduct(productId);
+
+  return {
+    success: true,
+    message: "Product deleted successfully",
+    data: null,
+  };
+}
 
 /**
  * Handler for creating an order for authenticated users
  */
 export async function createOrder(
   body: z.infer<typeof CreateOrderSchema>,
-  user: AuthenticatedUser,
+  user: { constituentId: string; email: string; fullName: string },
 ): Promise<ApiResponse<OrderResponse>> {
-  const result = await shopService.createAuthenticatedOrder(body, user);
+  const result = await shopService.createAuthenticatedOrder(body, user as any);
 
   return {
     success: true,
@@ -57,7 +142,7 @@ export async function completeGuestOrder(
 /**
  * Handler for getting user's order history
  */
-export async function getUserOrders(user: AuthenticatedUser): Promise<
+export async function getUserOrders(user: { constituentId: string }): Promise<
   ApiResponse<
     Array<{
       id: string;
@@ -68,7 +153,7 @@ export async function getUserOrders(user: AuthenticatedUser): Promise<
     }>
   >
 > {
-  const orders = await shopService.getUserOrders(user);
+  const orders = await shopService.getUserOrders(user as any);
 
   return {
     success: true,

@@ -47,7 +47,9 @@ export class Visitors {
   static hasID(id: string | ((req: Request) => string)) {
     return (req: Request) => {
       if (!req.User) return false;
-      return req.User.constituentId === (typeof id === "function" ? id(req) : id);
+      return (
+        req.User.constituentId === (typeof id === "function" ? id(req) : id)
+      );
     };
   }
 }

@@ -8,11 +8,7 @@ import {
 } from "./schemas";
 import z from "zod";
 import { Paginated } from "@/shared/dtos";
-import {
-  YPFProject,
-  YPFProjectDetail,
-  YPFProjectMedium,
-} from "./dtos";
+import { YPFProject, YPFProjectDetail, YPFProjectMedium } from "./dtos";
 import * as projectsService from "@/shared/services/projectsService";
 import * as mediaUtils from "@/shared/utils/files";
 import * as mediaService from "@/shared/services/mediaService";
@@ -131,5 +127,20 @@ export async function updateProjectMedium(
     success: true,
     message: "Project medium updated successfully",
     data: null,
+  };
+}
+
+export async function getProjectEvents(
+  projectId: string,
+  query: { page?: number; pageSize?: number } = {},
+): Promise<
+  ApiResponse<Paginated<import("@/features/api/v1/events/dtos").YPFEvent>>
+> {
+  const data = await projectsService.fetchProjectEvents(projectId, query);
+
+  return {
+    success: true,
+    message: "Project events fetched successfully",
+    data,
   };
 }

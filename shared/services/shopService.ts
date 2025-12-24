@@ -1,4 +1,4 @@
-import { eq, desc, inArray, and, gte } from "drizzle-orm";
+import { eq, desc, inArray, and, gte, count } from "drizzle-orm";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import variables from "@/configs/env";
@@ -10,6 +10,11 @@ import { randomInt } from "crypto";
 import { sql } from "drizzle-orm";
 import { OrderResponse, ValidatedOrderItems } from "@/shared/dtos/shop";
 import { sendOrderPlacementEmail } from "@/shared/utils/email";
+import z from "zod";
+import { GetShopProductsQuerySchema } from "@/features/api/v1/shop/schemas";
+import { ShopProduct, ShopProductDetail } from "@/features/api/v1/shop/dtos";
+import { Paginated } from "../dtos";
+import * as mediaUtils from "@/shared/utils/files";
 
 type OrderItem = {
   productId: string;
@@ -529,4 +534,197 @@ export async function getUserOrders(user: AuthenticatedUser): Promise<
     .orderBy(desc(schema.Orders.createdAt));
 
   return orders;
+}
+
+export async function fetchShopProducts(
+  query: z.infer<typeof GetShopProductsQuerySchema>,
+): Promise<Paginated<ShopProduct>> {
+  const { page = 1, pageSize = 10, onlyActive = true } = query;
+  const offset = (page - 1) * pageSize;
+
+  // Build where conditions
+  const conditions = [];
+  if (onlyActive) {
+    conditions.push(eq(schema.Products.isActive, true));
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [products, total] = await Promise.all([
+    // Get products with featured media using joins
+    dbClient.db
+      .select({
+        id: schema.Products.id,
+        name: schema.Products.name,
+        sku: schema.Products.sku,
+        price: schema.Products.price,
+        stockQuantity: schema.Products.stockQuantity,
+        featuredMediumExternalId: schema.Media.externalId,
+      })
+      .from(schema.Products)
+      .leftJoin(
+        schema.ProductMedia,
+        and(
+          eq(schema.Products.id, schema.ProductMedia.productId),
+          eq(schema.ProductMedia.isFeatured, true),
+        ),
+      )
+      .leftJoin(schema.Media, eq(schema.ProductMedia.mediumId, schema.Media.id))
+      .where(whereClause)
+      .orderBy(desc(schema.Products.createdAt))
+      .limit(pageSize)
+      .offset(offset)
+      .groupBy(
+        schema.Products.id,
+        schema.Products.name,
+        schema.Products.sku,
+        schema.Products.price,
+        schema.Products.stockQuantity,
+        schema.Products.createdAt,
+        schema.Media.externalId,
+      ),
+    // Get total count
+    dbClient.db
+      .select({ count: count() })
+      .from(schema.Products)
+      .where(whereClause)
+      .then((res) => res[0].count),
+  ]);
+
+  const items: ShopProduct[] = products.map((p) => ({
+    id: p.id,
+    name: p.name,
+    sku: p.sku,
+    price: parseFloat(p.price),
+    stockQuantity: p.stockQuantity,
+    previewUrl: p.featuredMediumExternalId
+      ? mediaUtils.generateSignedMediaUrl(p.featuredMediumExternalId, {
+          resolution: 720,
+          expireSeconds: 60 * 60 * 24,
+        })
+      : undefined,
+  }));
+
+  return {
+    items,
+    page,
+    pageSize,
+    total,
+  };
+}
+
+export async function fetchShopProductById(
+  id: string,
+): Promise<ShopProductDetail | null> {
+  const product = await dbClient.db.query.Products.findFirst({
+    where: eq(schema.Products.id, id),
+  });
+
+  if (!product) {
+    return null;
+  }
+
+  // Get product media
+  const productMedia = await dbClient.db
+    .select({
+      id: schema.ProductMedia.id,
+      caption: schema.ProductMedia.caption,
+      isFeatured: schema.ProductMedia.isFeatured,
+      medium: {
+        id: schema.Media.id,
+        externalId: schema.Media.externalId,
+        type: schema.Media.type,
+        width: schema.Media.width,
+        height: schema.Media.height,
+        size: schema.Media.size,
+        uploadedAt: schema.Media.uploadedAt,
+      },
+    })
+    .from(schema.ProductMedia)
+    .innerJoin(schema.Media, eq(schema.ProductMedia.mediumId, schema.Media.id))
+    .where(eq(schema.ProductMedia.productId, id));
+
+  const gallery = productMedia.map((pm) => ({
+    url: mediaUtils.generateSignedMediaUrl(pm.medium.externalId, {
+      resolution: 720,
+      expireSeconds: 60 * 60 * 24,
+    }),
+    type: pm.medium.type as "PICTURE" | "VIDEO",
+    dimensions: {
+      width: pm.medium.width,
+      height: pm.medium.height,
+    },
+    size: pm.medium.size,
+    uploadedAt: pm.medium.uploadedAt,
+  }));
+
+  return {
+    id: product.id,
+    name: product.name,
+    sku: product.sku,
+    description: product.description ?? undefined,
+    stockQuantity: product.stockQuantity,
+    price: parseFloat(product.price),
+    gallery,
+    createdAt: product.createdAt,
+  };
+}
+
+export async function createProduct(data: {
+  name: string;
+  sku: string;
+  description?: string;
+  price: string;
+  stockQuantity: number;
+  isActive?: boolean;
+}): Promise<string> {
+  const [product] = await dbClient.db
+    .insert(schema.Products)
+    .values({
+      name: data.name,
+      sku: data.sku,
+      description: data.description,
+      price: data.price,
+      stockQuantity: data.stockQuantity,
+      isActive: data.isActive ?? true,
+    })
+    .returning({ id: schema.Products.id });
+
+  return product.id;
+}
+
+export async function updateProduct(
+  id: string,
+  data: {
+    name?: string;
+    sku?: string;
+    description?: string;
+    price?: string;
+    stockQuantity?: number;
+    isActive?: boolean;
+  },
+): Promise<void> {
+  const result = await dbClient.db
+    .update(schema.Products)
+    .set({
+      ...data,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.Products.id, id))
+    .returning({ id: schema.Products.id });
+
+  if (result.length === 0) {
+    throw new ApiError("Product not found", 404);
+  }
+}
+
+export async function deleteProduct(id: string): Promise<void> {
+  const result = await dbClient.db
+    .delete(schema.Products)
+    .where(eq(schema.Products.id, id))
+    .returning({ id: schema.Products.id });
+
+  if (result.length === 0) {
+    throw new ApiError("Product not found", 404);
+  }
 }

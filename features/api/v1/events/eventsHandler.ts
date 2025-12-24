@@ -12,14 +12,8 @@ import dbClient from "@/configs/db";
 import * as mediaUtils from "@/shared/utils/files";
 import * as mediaService from "@/shared/services/mediaService";
 import * as eventsService from "@/shared/services/eventsService";
-import {
-  Paginated
-} from "@/shared/dtos";
-import { 
-  YPFEventMedium,
-  YPFEvent,
-  YPFEventDetail
-} from "./dtos";
+import { Paginated } from "@/shared/dtos";
+import { YPFEventMedium, YPFEvent, YPFEventDetail } from "./dtos";
 
 export async function getEvents(
   query: z.infer<typeof GetEventsQuerySchema>,
@@ -36,10 +30,7 @@ export async function getEvents(
 export async function createEvent(
   newEvent: z.infer<typeof CreateEventSchema>,
 ): Promise<ApiResponse<string>> {
-  const [event] = await dbClient.db
-    .insert(Events)
-    .values(newEvent)
-    .returning({ id: Events.id });
+  const event = await eventsService.createEvent(newEvent);
   if (!event) {
     throw new ApiError("A server error occurred", 500);
   }

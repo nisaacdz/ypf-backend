@@ -1,5 +1,5 @@
 import z from "zod";
-import { PaginationQuery } from ".";
+import { PaginationQuery } from "@/shared/validators";
 
 export const CreateProductSchema = z.object({
   name: z
@@ -85,7 +85,7 @@ export const CompleteGuestOrderSchema = z.object({
   otp: z.string().length(6, { message: "OTP must be 6 digits." }),
 });
 
-export const GetProductsQuerySchema = z.object({
+export const GetShopProductsQuerySchema = z.object({
   ...PaginationQuery.shape,
-  onlyActive: z.coerce.boolean().optional().default(true),
+  onlyActive: z.coerce.boolean().default(true).optional(),
 });

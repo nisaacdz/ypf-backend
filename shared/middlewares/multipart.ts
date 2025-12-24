@@ -40,8 +40,10 @@ const mediaUpload = multer({
   },
 });
 
-
-export const AllowedDocumentsMimeTypes: Record<string, typeof DocumentTypeEnum.enumValues[number]> = {
+export const AllowedDocumentsMimeTypes: Record<
+  string,
+  (typeof DocumentTypeEnum.enumValues)[number]
+> = {
   "application/pdf": "PDF",
   "application/msword": "DOC",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
@@ -50,7 +52,8 @@ export const AllowedDocumentsMimeTypes: Record<string, typeof DocumentTypeEnum.e
   "image/jpeg": "IMAGE",
   "image/jpg": "IMAGE",
   "application/vnd.ms-excel": "SPREADSHEET",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "SPREADSHEET",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+    "SPREADSHEET",
   "application/vnd.ms-powerpoint": "PRESENTATION",
   "application/vnd.openxmlformats-officedocument.presentationml.presentation":
     "PRESENTATION",

@@ -27,7 +27,7 @@ export const Products = shop.table("products", {
   description: text(),
   price: decimal({ precision: 10, scale: 2 }).notNull(),
   stockQuantity: integer("stock_quantity").default(1).notNull(),
-  imageUrl: text("image_url"),
+  // imageUrl: text("image_url"),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()

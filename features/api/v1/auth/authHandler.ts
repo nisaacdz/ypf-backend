@@ -1,9 +1,10 @@
 import * as authService from "@/shared/services/authService";
+import * as constituentsService from "@/shared/services/constituentsService";
 import { encodeData } from "@/shared/utils/jwt";
 import { ApiResponse, ApiError } from "@/shared/types";
-import { AuthenticatedUser } from "@/shared/types";
 import { sendOtpEmail } from "@/shared/utils/email";
 import { ForgotPasswordSchema, ResetPasswordSchema } from "./schemas";
+import { AuthData } from "./dtos";
 import { z } from "zod";
 
 /**
@@ -21,7 +22,7 @@ export async function loginWithUsernameAndPassword({
   username: string;
   password: string;
 }): Promise<{
-  response: ApiResponse<AuthenticatedUser>;
+  response: ApiResponse<AuthData>;
   accessToken: string;
   refreshToken: string;
 }> {
@@ -34,6 +35,18 @@ export async function loginWithUsernameAndPassword({
     password,
   );
 
+  // Fetch detailed constituent info
+  const constituentDetail = await constituentsService.getDetailedConstituent(
+    authenticatedUser.constituentId,
+  );
+
+  if (!constituentDetail) throw new ApiError("Something went wrong"); // unexpected!
+
+  const authData: AuthData = {
+    ...constituentDetail,
+    auth: authenticatedUser,
+  };
+
   const accessToken = encodeData(authenticatedUser, { expiresIn: "30m" });
   const refreshToken = encodeData(
     { username: authenticatedUser.email },
@@ -43,7 +56,7 @@ export async function loginWithUsernameAndPassword({
   return {
     response: {
       success: true,
-      data: authenticatedUser,
+      data: authData,
       message: "Login successful",
     },
     accessToken,

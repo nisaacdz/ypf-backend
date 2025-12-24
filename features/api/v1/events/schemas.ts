@@ -34,25 +34,42 @@ export const UpdateEventMediumSchema = z.object({
   isFeatured: z.coerce.boolean().optional(),
 });
 
-export const CreateEventSchema = z.object({
-  name: z
-    .string({ message: "Event name is required." })
-    .min(3, { message: "Event name must be at least 3 characters." })
-    .max(100, { message: "Event name must not exceed 100 characters." }),
-  objective: z.string().optional(),
-  type: z.enum(EventTypeEnum.enumValues, {
-    message: "Invalid event type.",
-  }),
-  location: z.string({ message: "Location is required." }),
-  scheduledStart: z.coerce.date({
-    message: "Please enter a valid start date.",
-  }),
-  scheduledEnd: z.coerce.date({ message: "Please enter a valid end date." }),
-  status: z.enum(EventStatusEnum.enumValues, {
-    message: "Invalid event status.",
-  }),
-  projectId: z.uuid({ message: "Invalid project ID format." }).optional(),
-});
+const u = z
+  .object({
+    projectId: z.uuid({ message: "Invalid project ID format." }),
+  })
+  .or(
+    z.object({
+      welfareCaseId: z.uuid({ message: "Invalid welfareCase ID format." }),
+    }),
+  );
+
+export const CreateEventSchema = z
+  .object({
+    name: z
+      .string({ message: "Event name is required." })
+      .min(3, { message: "Event name must be at least 3 characters." })
+      .max(100, { message: "Event name must not exceed 100 characters." }),
+    objective: z.string().optional(),
+    type: z.enum(EventTypeEnum.enumValues, {
+      message: "Invalid event type.",
+    }),
+    location: z.string({ message: "Location is required." }),
+    scheduledStart: z.coerce.date({
+      message: "Please enter a valid start date.",
+    }),
+    scheduledEnd: z.coerce.date({ message: "Please enter a valid end date." }),
+    status: z.enum(EventStatusEnum.enumValues, {
+      message: "Invalid event status.",
+    }),
+    projectId: z.uuid({ message: "Invalid project ID format." }).optional(),
+    welfareCaseId: z
+      .uuid({ message: "Invalid welfareCase ID format." })
+      .optional(),
+  })
+  .refine((data) => !(data.welfareCaseId && data.projectId), {
+    message: "Must supply only one: projectId or welfareCaseId",
+  });
 
 export const UploadEventMediumOptionsSchema = z.object({
   caption: z
@@ -104,6 +121,11 @@ export const GetEventsQuerySchema = z.object({
   filterStatus: z
     .enum(EventStatusEnum.enumValues, {
       message: "Invalid event status.",
+    })
+    .optional(),
+  filterType: z
+    .enum(EventTypeEnum.enumValues, {
+      message: "Invalid event type.",
     })
     .optional(),
 });
