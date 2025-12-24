@@ -75,7 +75,7 @@ export async function createApplication({
       nationalIdDocumentId: nationalId.id,
     },
     cvDocumentId: resume.id,
-    willingToServe: true,
+    willingToServe: applicationData.willingToServe,
   });
 
   return {

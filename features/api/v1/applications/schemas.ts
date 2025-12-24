@@ -44,6 +44,9 @@ export const PostApplicationBody = z.object({
   preferredChapterId: z.uuid().optional(),
   preferredCommitteeId: z.uuid().optional(),
   preferredProfile: z.enum(Profiles).default("MEMBER"),
+  willingToServe: z.coerce.boolean().refine((val) => val === true, {
+    message: "You must agree to be willing to serve.",
+  }),
 });
 
 export const UpdateApplicationStatusSchema = z

@@ -273,7 +273,11 @@ welfareRouter.delete(
   ),
   async (req, res, next) => {
     try {
-      const { id, beneficiaryId } = req.Params;
+      const response = await welfareHandler.removeWelfareCaseBeneficiary(
+        req.Params.id,
+        req.Params.beneficiaryId,
+      );
+      res.json(response);
     } catch (error) {
       next(error);
     }

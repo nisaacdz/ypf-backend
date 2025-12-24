@@ -26,6 +26,7 @@ export async function fetchEvents(
       or(
         ilike(schema.Events.name, `%${search}%`),
         ilike(schema.Projects.title, `%${search}%`),
+        ilike(schema.WelfareCases.title, `%${search}%`),
       ),
     );
   }
