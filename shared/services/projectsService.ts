@@ -1,10 +1,11 @@
 import { Paginated } from "@/shared/dtos";
 import { YPFProject, YPFProjectDetail } from "@/features/api/v1/projects/dtos";
 import dbClient from "@/configs/db";
+import schema from "@/db/schema";
 import { Projects, ProjectMedia } from "@/db/schema/activities";
 import { Media, Chapters } from "@/db/schema/core";
 import * as mediaUtils from "@/shared/utils/files";
-import { eq, and, ilike, count } from "drizzle-orm";
+import { eq, and, ilike, count, desc } from "drizzle-orm";
 import z from "zod";
 import {
   GetProjectsQuerySchema,
@@ -13,9 +14,10 @@ import {
   UpdateProjectSchema,
 } from "@/features/api/v1/projects/schemas";
 import { ApiError } from "@/shared/types";
+import { YPFEvent } from "@/features/api/v1/events/dtos";
 
 export async function fetchProjects(
-  query: z.infer<typeof GetProjectsQuerySchema>,
+  query: z.infer<typeof GetProjectsQuerySchema>
 ): Promise<Paginated<YPFProject>> {
   const { page, pageSize, search, filterStatus, chapterId } = query;
   const offset = (page - 1) * pageSize;
@@ -55,8 +57,8 @@ export async function fetchProjects(
         ProjectMedia,
         and(
           eq(Projects.id, ProjectMedia.projectId),
-          eq(ProjectMedia.isFeatured, true),
-        ),
+          eq(ProjectMedia.isFeatured, true)
+        )
       )
       .leftJoin(Media, eq(ProjectMedia.mediumId, Media.id))
       .where(whereClause)
@@ -71,7 +73,7 @@ export async function fetchProjects(
         Projects.status,
         Media.externalId,
         Chapters.name,
-        Chapters.id,
+        Chapters.id
       ),
     dbClient.db
       .select({ total: count() })
@@ -106,7 +108,7 @@ export async function fetchProjects(
 
 export async function fetchProjectMedia(
   projectId: string,
-  query: z.infer<typeof GetProjectMediaQuerySchema>,
+  query: z.infer<typeof GetProjectMediaQuerySchema>
 ) {
   const { page, pageSize } = query;
 
@@ -166,7 +168,7 @@ export async function fetchProjectMedia(
 }
 
 export async function fetchProjectById(
-  projectId: string,
+  projectId: string
 ): Promise<YPFProjectDetail> {
   const [ypfProject] = await dbClient.db
     .select({
@@ -206,8 +208,8 @@ export async function fetchProjectById(
     .where(
       and(
         eq(ProjectMedia.projectId, projectId),
-        eq(ProjectMedia.isFeatured, true),
-      ),
+        eq(ProjectMedia.isFeatured, true)
+      )
     );
 
   return {
@@ -248,7 +250,7 @@ export async function fetchProjectById(
 }
 
 export async function createProject(
-  data: z.infer<typeof CreateProjectSchema>,
+  data: z.infer<typeof CreateProjectSchema>
 ): Promise<string> {
   const [project] = await dbClient.db
     .insert(Projects)
@@ -264,7 +266,7 @@ export async function createProject(
 
 export async function updateProject(
   projectId: string,
-  data: z.infer<typeof UpdateProjectSchema>,
+  data: z.infer<typeof UpdateProjectSchema>
 ): Promise<void> {
   const [updatedProject] = await dbClient.db
     .update(Projects)
@@ -279,7 +281,7 @@ export async function updateProject(
 
 export async function updateProjectMedium(
   projectMediumId: string,
-  data: { caption?: string; isFeatured?: boolean },
+  data: { caption?: string; isFeatured?: boolean }
 ): Promise<void> {
   const [updatedData] = await dbClient.db
     .update(ProjectMedia)
@@ -290,4 +292,66 @@ export async function updateProjectMedium(
   if (!updatedData) {
     throw new ApiError("Project medium not found", 404);
   }
+}
+
+export async function fetchProjectEvents(
+  projectId: string,
+  query: { page?: number; pageSize?: number } = {}
+): Promise<Paginated<YPFEvent>> {
+  const { page = 1, pageSize = 10 } = query;
+  const offset = (page - 1) * pageSize;
+
+  const [events, [{ total }]] = await Promise.all([
+    dbClient.db
+      .select({
+        id: schema.Events.id,
+        name: schema.Events.name,
+        scheduledStart: schema.Events.scheduledStart,
+        scheduledEnd: schema.Events.scheduledEnd,
+        location: schema.Events.location,
+        type: schema.Events.type,
+        status: schema.Events.status,
+        featuredMediumExternalId: schema.Media.externalId,
+      })
+      .from(schema.Events)
+      .leftJoin(
+        schema.EventMedia,
+        and(
+          eq(schema.Events.id, schema.EventMedia.eventId),
+          eq(schema.EventMedia.isFeatured, true)
+        )
+      )
+      .leftJoin(schema.Media, eq(schema.EventMedia.mediumId, schema.Media.id))
+      .where(eq(schema.Events.projectId, projectId))
+      .orderBy(desc(schema.Events.scheduledStart))
+      .limit(pageSize)
+      .offset(offset),
+    dbClient.db
+      .select({ total: count() })
+      .from(schema.Events)
+      .where(eq(schema.Events.projectId, projectId)),
+  ]);
+
+  const items: YPFEvent[] = events.map((event) => ({
+    id: event.id,
+    name: event.name,
+    scheduledStart: event.scheduledStart,
+    scheduledEnd: event.scheduledEnd,
+    location: event.location || undefined,
+    type: event.type,
+    status: event.status,
+    featuredMediumUrl: event.featuredMediumExternalId
+      ? mediaUtils.generateSignedMediaUrl(event.featuredMediumExternalId, {
+          resolution: 720,
+          expireSeconds: 60 * 60 * 24,
+        })
+      : undefined,
+  }));
+
+  return {
+    items,
+    page,
+    pageSize,
+    total,
+  };
 }

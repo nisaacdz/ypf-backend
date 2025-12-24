@@ -1,4 +1,4 @@
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, count, inArray } from "drizzle-orm";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { Paginated } from "@/shared/dtos";
@@ -11,16 +11,18 @@ import { generatePublicMediaUrl } from "@/shared/utils/files";
 import {
   GetWelfareCasesQuerySchema,
   CreateWelfareCaseSchema,
+  UpdateWelfareCaseSchema,
 } from "@/features/api/v1/welfare/schemas";
 import z from "zod";
 import * as constituentsService from "@/shared/services/constituentsService";
 import { YPFConstituent } from "@/features/api/v1/constituents/dtos";
+import { YPFEvent } from "@/features/api/v1/events/dtos";
 
 /**
  * Fetches paginated welfare cases.
  */
 export async function fetchWelfareCases(
-  query: z.infer<typeof GetWelfareCasesQuerySchema>,
+  query: z.infer<typeof GetWelfareCasesQuerySchema>
 ): Promise<Paginated<YPFWelfareCase>> {
   const { page, pageSize, filterType } = query;
   const offset = (page - 1) * pageSize;
@@ -35,7 +37,7 @@ export async function fetchWelfareCases(
     : undefined;
 
   // Fetch cases with aggregated data
-  const [cases, [{ count }]] = await Promise.all([
+  const [cases, [{ count: total }]] = await Promise.all([
     dbClient.db
       .select({
         id: schema.WelfareCases.id,
@@ -49,7 +51,7 @@ export async function fetchWelfareCases(
       .limit(pageSize)
       .offset(offset),
     dbClient.db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: count() })
       .from(schema.WelfareCases)
       .where(whereClause),
   ]);
@@ -62,11 +64,11 @@ export async function fetchWelfareCases(
       ? dbClient.db
           .select({
             welfareCaseId: schema.WelfareCaseBeneficiaries.welfareCaseId,
-            count: sql<number>`count(*)::int`,
+            count: count(),
           })
           .from(schema.WelfareCaseBeneficiaries)
           .where(
-            sql`${schema.WelfareCaseBeneficiaries.welfareCaseId} = ANY(${caseIds})`,
+            inArray(schema.WelfareCaseBeneficiaries.welfareCaseId, caseIds)
           )
           .groupBy(schema.WelfareCaseBeneficiaries.welfareCaseId)
       : [],
@@ -89,25 +91,25 @@ export async function fetchWelfareCases(
           .from(schema.WelfareCaseMedia)
           .innerJoin(
             schema.Media,
-            eq(schema.WelfareCaseMedia.mediumId, schema.Media.id),
+            eq(schema.WelfareCaseMedia.mediumId, schema.Media.id)
           )
           .where(
             and(
               eq(schema.WelfareCaseMedia.isFeatured, true),
-              sql`${schema.WelfareCaseMedia.welfareCaseId} = ANY(${caseIds})`,
-            ),
+              sql`${schema.WelfareCaseMedia.welfareCaseId} = ANY(${caseIds})`
+            )
           )
       : [],
   ]);
 
   const beneficiaryMap = new Map(
-    beneficiaryCounts.map((b) => [b.welfareCaseId, b.count]),
+    beneficiaryCounts.map((b) => [b.welfareCaseId, b.count])
   );
   const expenditureMap = new Map(
-    expenditures.map((e) => [e.welfareCaseId, parseFloat(e.total)]),
+    expenditures.map((e) => [e.welfareCaseId, parseFloat(e.total)])
   );
   const featuredMediaMap = new Map(
-    featuredMedia.map((m) => [m.welfareCaseId, m.externalId]),
+    featuredMedia.map((m) => [m.welfareCaseId, m.externalId])
   );
 
   const items: YPFWelfareCase[] = cases.map((c) => ({
@@ -126,7 +128,7 @@ export async function fetchWelfareCases(
     items,
     page,
     pageSize,
-    total: count,
+    total,
   };
 }
 
@@ -134,7 +136,7 @@ export async function fetchWelfareCases(
  * Fetches a single welfare case by ID with full details.
  */
 export async function fetchWelfareCaseById(
-  welfareCaseId: string,
+  welfareCaseId: string
 ): Promise<YPFWelfareCaseDetail> {
   const welfareCase = await dbClient.db.query.WelfareCases.findFirst({
     where: eq(schema.WelfareCases.id, welfareCaseId),
@@ -156,19 +158,19 @@ export async function fetchWelfareCaseById(
         schema.Constituents,
         eq(
           schema.WelfareCaseBeneficiaries.beneficiaryId,
-          schema.Constituents.id,
-        ),
+          schema.Constituents.id
+        )
       )
       .leftJoin(
         schema.Media,
-        eq(schema.Constituents.profilePhotoId, schema.Media.id),
+        eq(schema.Constituents.profilePhotoId, schema.Media.id)
       )
       .where(eq(schema.WelfareCaseBeneficiaries.welfareCaseId, welfareCaseId))
       .then(
         async (b) =>
           await Promise.all(
-            b.map(async (c) => await constituentsService.getConstituent(c.id)),
-          ),
+            b.map(async (c) => await constituentsService.getConstituent(c.id))
+          )
       ),
 
     // Fetch featured media
@@ -185,7 +187,7 @@ export async function fetchWelfareCaseById(
       .from(schema.WelfareCaseMedia)
       .innerJoin(
         schema.Media,
-        eq(schema.WelfareCaseMedia.mediumId, schema.Media.id),
+        eq(schema.WelfareCaseMedia.mediumId, schema.Media.id)
       )
       .where(eq(schema.WelfareCaseMedia.welfareCaseId, welfareCaseId)),
 
@@ -230,7 +232,7 @@ export async function fetchWelfareCaseById(
  * Creates a new welfare case and optionally links beneficiaries.
  */
 export async function createWelfareCase(
-  data: z.infer<typeof CreateWelfareCaseSchema>,
+  data: z.infer<typeof CreateWelfareCaseSchema>
 ): Promise<string> {
   const { beneficiaryIds, ...caseData } = data;
 
@@ -247,7 +249,7 @@ export async function createWelfareCase(
         beneficiaryIds.map((beneficiaryId) => ({
           welfareCaseId: newCase.id,
           beneficiaryId,
-        })),
+        }))
       );
     }
 
@@ -260,12 +262,7 @@ export async function createWelfareCase(
  */
 export async function updateWelfareCase(
   welfareCaseId: string,
-  updates: Partial<{
-    title: string;
-    description: string;
-    date: Date;
-    type: "MEDICAL" | "EDUCATIONAL" | "FUNERAL" | "FINANCIAL_SUPPORT" | "OTHER";
-  }>,
+  updates: z.infer<typeof UpdateWelfareCaseSchema>
 ): Promise<void> {
   const result = await dbClient.db
     .update(schema.WelfareCases)
@@ -298,12 +295,12 @@ export async function deleteWelfareCase(welfareCaseId: string): Promise<void> {
 
 export async function addWelfareCaseBeneficiaries(
   welfareCaseId: string,
-  beneficiaryIds: string[],
+  beneficiaryIds: string[]
 ) {
-  const result = await dbClient.db
+  await dbClient.db
     .insert(schema.WelfareCaseBeneficiaries)
     .values(
-      beneficiaryIds.map((beneficiaryId) => ({ beneficiaryId, welfareCaseId })),
+      beneficiaryIds.map((beneficiaryId) => ({ beneficiaryId, welfareCaseId }))
     );
 }
 /**
@@ -311,9 +308,73 @@ export async function addWelfareCaseBeneficiaries(
  */
 export async function removeWelfareCaseBeneficiary(
   welfareCaseId: string,
-  beneficiaryId: string,
+  beneficiaryId: string
 ) {
-  const result = await dbClient.db
+  await dbClient.db
     .delete(schema.WelfareCaseBeneficiaries)
-    .where(eq(schema.WelfareCaseBeneficiaries.beneficiaryId, beneficiaryId));
+    .where(
+      and(
+        eq(schema.WelfareCaseBeneficiaries.beneficiaryId, beneficiaryId),
+        eq(schema.WelfareCaseBeneficiaries.welfareCaseId, welfareCaseId)
+      )
+    );
+}
+
+export async function fetchWelfareCaseEvents(
+  welfareCaseId: string,
+  query: { page?: number; pageSize?: number } = {}
+): Promise<Paginated<YPFEvent>> {
+  const { page = 1, pageSize = 10 } = query;
+  const offset = (page - 1) * pageSize;
+
+  const [events, [{ count: total }]] = await Promise.all([
+    dbClient.db
+      .select({
+        id: schema.Events.id,
+        name: schema.Events.name,
+        scheduledStart: schema.Events.scheduledStart,
+        scheduledEnd: schema.Events.scheduledEnd,
+        location: schema.Events.location,
+        type: schema.Events.type,
+        status: schema.Events.status,
+        featuredMediumExternalId: schema.Media.externalId,
+      })
+      .from(schema.Events)
+      .leftJoin(
+        schema.EventMedia,
+        and(
+          eq(schema.Events.id, schema.EventMedia.eventId),
+          eq(schema.EventMedia.isFeatured, true)
+        )
+      )
+      .leftJoin(schema.Media, eq(schema.EventMedia.mediumId, schema.Media.id))
+      .where(eq(schema.Events.welfareCaseId, welfareCaseId))
+      .orderBy(desc(schema.Events.scheduledStart))
+      .limit(pageSize)
+      .offset(offset),
+    dbClient.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(schema.Events)
+      .where(eq(schema.Events.welfareCaseId, welfareCaseId)),
+  ]);
+
+  const items: YPFEvent[] = events.map((event) => ({
+    id: event.id,
+    name: event.name,
+    scheduledStart: event.scheduledStart,
+    scheduledEnd: event.scheduledEnd,
+    location: event.location || undefined,
+    type: event.type,
+    status: event.status,
+    featuredMediumUrl: event.featuredMediumExternalId
+      ? generatePublicMediaUrl(event.featuredMediumExternalId)
+      : undefined,
+  }));
+
+  return {
+    items,
+    page,
+    pageSize,
+    total,
+  };
 }
