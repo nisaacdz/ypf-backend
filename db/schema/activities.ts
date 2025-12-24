@@ -29,8 +29,12 @@ export const EventStatusEnum = activities.enum("event_status", [
   "CANCELLED",
 ]);
 export const EventTypeEnum = activities.enum("event_type", [
-  "PROGRAM",
+  "MENTORSHIP",
   "WORKSHOP",
+  "WELFARE",
+  "CHILDCARE",
+  "NETWORKING",
+  "STREETCARE",
 ]);
 export const WelfareCaseTypeEnum = activities.enum("welfare_type", [
   "MEDICAL",
@@ -61,7 +65,9 @@ export const Projects = activities.table("projects", {
   }),
 });
 
-// Set at most one of [projectId, chapterId] non-null
+// Set at most one of [projectId, chapterId, welfareCaseId] non-null
+// Most important table
+//
 export const Events = activities.table("events", {
   id: uuid().defaultRandom().primaryKey(),
   name: text().notNull(),
@@ -74,6 +80,9 @@ export const Events = activities.table("events", {
   objective: text(),
   status: EventStatusEnum().default("UPCOMING").notNull(),
   projectId: uuid("project_id").references(() => Projects.id, {
+    onDelete: "set null",
+  }),
+  welfareCaseId: uuid("welfare_case_id").references(() => WelfareCases.id, {
     onDelete: "set null",
   }),
   chapterId: uuid("chapter_id").references(() => Chapters.id, {
@@ -89,6 +98,9 @@ export const WelfareCases = activities.table("welfare_cases", {
   description: text(),
   date: date({ mode: "date" }),
   type: WelfareCaseTypeEnum().notNull(),
+  chapterId: uuid("chapter_id").references(() => Chapters.id, {
+    onDelete: "set null",
+  }),
 });
 
 // TODO: Add unique (welfareCaseId, beneficiaryId) pair
@@ -102,7 +114,7 @@ export const WelfareCaseBeneficiaries = activities.table(
     beneficiaryId: uuid("beneficiary_id")
       .notNull()
       .references(() => Constituents.id, { onDelete: "restrict" }),
-  }
+  },
 );
 
 export const ProjectMedia = activities.table("project_media", {
@@ -203,7 +215,7 @@ export const ConstituentAnnouncements = activities.table(
   (table) => [
     // Ensure a user only gets an announcement once
     unique().on(table.announcementId, table.constituentId),
-  ]
+  ],
 );
 
 // === RELATIONS ===
@@ -216,7 +228,7 @@ export const announcementsRelations = relations(
       references: [Constituents.id],
     }),
     constituentAnnouncements: many(ConstituentAnnouncements),
-  })
+  }),
 );
 
 export const constituentAnnouncementsRelations = relations(
@@ -230,7 +242,7 @@ export const constituentAnnouncementsRelations = relations(
       fields: [ConstituentAnnouncements.constituentId],
       references: [Constituents.id],
     }),
-  })
+  }),
 );
 
 // export const Meetings = communications.table("meetings", {

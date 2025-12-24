@@ -1,5 +1,5 @@
 {
-  "id": "1a2943fc-d652-4c6a-b84c-093dc5bdbb84",
+  "id": "b0b563e1-b713-47a9-80d6-53816539c54d",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -2094,6 +2094,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "welfare_case_id": {
+          "name": "welfare_case_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "chapter_id": {
           "name": "chapter_id",
           "type": "uuid",
@@ -2109,6 +2115,16 @@
           "tableTo": "projects",
           "schemaTo": "activities",
           "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "events_welfare_case_id_welfare_cases_id_fk": {
+          "name": "events_welfare_case_id_welfare_cases_id_fk",
+          "tableFrom": "events",
+          "tableTo": "welfare_cases",
+          "schemaTo": "activities",
+          "columnsFrom": ["welfare_case_id"],
           "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
@@ -2425,10 +2441,27 @@
           "typeSchema": "activities",
           "primaryKey": false,
           "notNull": true
+        },
+        "chapter_id": {
+          "name": "chapter_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "welfare_cases_chapter_id_chapters_id_fk": {
+          "name": "welfare_cases_chapter_id_chapters_id_fk",
+          "tableFrom": "welfare_cases",
+          "tableTo": "chapters",
+          "schemaTo": "core",
+          "columnsFrom": ["chapter_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -3363,7 +3396,14 @@
     "activities.event_type": {
       "name": "event_type",
       "schema": "activities",
-      "values": ["PROGRAM", "WORKSHOP"]
+      "values": [
+        "MENTORSHIP",
+        "WORKSHOP",
+        "WELFARE",
+        "CHILDCARE",
+        "NETWORKING",
+        "STREETCARE"
+      ]
     },
     "activities.project_status": {
       "name": "project_status",

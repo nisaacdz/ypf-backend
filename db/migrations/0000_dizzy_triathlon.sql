@@ -16,7 +16,7 @@ CREATE TYPE "core"."media_type" AS ENUM('PICTURE', 'VIDEO');--> statement-breakp
 CREATE TYPE "core"."national_id_type" AS ENUM('ECOWASIDCARD');--> statement-breakpoint
 CREATE TYPE "activities"."attendance_status" AS ENUM('INVITED', 'ACCEPTED', 'DECLINED', 'ATTENDED');--> statement-breakpoint
 CREATE TYPE "activities"."event_status" AS ENUM('UPCOMING', 'ONGOING', 'COMPLETED', 'CANCELLED');--> statement-breakpoint
-CREATE TYPE "activities"."event_type" AS ENUM('PROGRAM', 'WORKSHOP');--> statement-breakpoint
+CREATE TYPE "activities"."event_type" AS ENUM('MENTORSHIP', 'WORKSHOP', 'WELFARE', 'CHILDCARE', 'NETWORKING', 'STREETCARE');--> statement-breakpoint
 CREATE TYPE "activities"."project_status" AS ENUM('UPCOMING', 'ONGOING', 'COMPLETED', 'CANCELLED');--> statement-breakpoint
 CREATE TYPE "activities"."welfare_type" AS ENUM('MEDICAL', 'EDUCATIONAL', 'FUNERAL', 'FINANCIAL_SUPPORT', 'OTHER');--> statement-breakpoint
 CREATE TYPE "finance"."external_provider" AS ENUM('PAYSTACK');--> statement-breakpoint
@@ -316,6 +316,7 @@ CREATE TABLE "activities"."events" (
 	"objective" text,
 	"status" "activities"."event_status" DEFAULT 'UPCOMING' NOT NULL,
 	"project_id" uuid,
+	"welfare_case_id" uuid,
 	"chapter_id" uuid
 );
 --> statement-breakpoint
@@ -357,7 +358,8 @@ CREATE TABLE "activities"."welfare_cases" (
 	"title" text NOT NULL,
 	"description" text,
 	"date" date,
-	"type" "activities"."welfare_type" NOT NULL
+	"type" "activities"."welfare_type" NOT NULL,
+	"chapter_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "finance"."donations" (
@@ -513,6 +515,7 @@ ALTER TABLE "activities"."event_documents" ADD CONSTRAINT "event_documents_docum
 ALTER TABLE "activities"."event_media" ADD CONSTRAINT "event_media_event_id_events_id_fk" FOREIGN KEY ("event_id") REFERENCES "activities"."events"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activities"."event_media" ADD CONSTRAINT "event_media_medium_id_media_id_fk" FOREIGN KEY ("medium_id") REFERENCES "core"."media"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activities"."events" ADD CONSTRAINT "events_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "activities"."projects"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "activities"."events" ADD CONSTRAINT "events_welfare_case_id_welfare_cases_id_fk" FOREIGN KEY ("welfare_case_id") REFERENCES "activities"."welfare_cases"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activities"."events" ADD CONSTRAINT "events_chapter_id_chapters_id_fk" FOREIGN KEY ("chapter_id") REFERENCES "core"."chapters"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activities"."project_media" ADD CONSTRAINT "project_media_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "activities"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activities"."project_media" ADD CONSTRAINT "project_media_medium_id_media_id_fk" FOREIGN KEY ("medium_id") REFERENCES "core"."media"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -521,6 +524,7 @@ ALTER TABLE "activities"."welfare_case_beneficiaries" ADD CONSTRAINT "welfare_ca
 ALTER TABLE "activities"."welfare_case_beneficiaries" ADD CONSTRAINT "welfare_case_beneficiaries_beneficiary_id_constituents_id_fk" FOREIGN KEY ("beneficiary_id") REFERENCES "core"."constituents"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activities"."welfare_case_media" ADD CONSTRAINT "welfare_case_media_welfare_case_id_welfare_cases_id_fk" FOREIGN KEY ("welfare_case_id") REFERENCES "activities"."welfare_cases"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activities"."welfare_case_media" ADD CONSTRAINT "welfare_case_media_medium_id_media_id_fk" FOREIGN KEY ("medium_id") REFERENCES "core"."media"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "activities"."welfare_cases" ADD CONSTRAINT "welfare_cases_chapter_id_chapters_id_fk" FOREIGN KEY ("chapter_id") REFERENCES "core"."chapters"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "finance"."donations" ADD CONSTRAINT "donations_transaction_id_financial_transactions_id_fk" FOREIGN KEY ("transaction_id") REFERENCES "finance"."financial_transactions"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "finance"."donations" ADD CONSTRAINT "donations_constituent_id_constituents_id_fk" FOREIGN KEY ("constituent_id") REFERENCES "core"."constituents"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "finance"."donations" ADD CONSTRAINT "donations_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "activities"."projects"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
