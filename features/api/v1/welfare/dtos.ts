@@ -9,6 +9,7 @@ export type YPFWelfareCase = {
   amount: number; // amount spent thus far on this welfarecase
   isSupported: boolean; // basically means that at least one expenditure record exists for this
   date: Date;
+  chapterName?: string;
 };
 
 export type YPFWelfareCaseDetail = {
@@ -20,6 +21,10 @@ export type YPFWelfareCaseDetail = {
     caption?: string;
     medium: Medium;
   }[];
+  chapter?: {
+    id: string;
+    name: string;
+  };
   expenditure?: {
     // missing if not supported
     id: string;

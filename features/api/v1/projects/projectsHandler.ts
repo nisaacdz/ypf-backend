@@ -14,7 +14,7 @@ import * as mediaUtils from "@/shared/utils/files";
 import * as mediaService from "@/shared/services/mediaService";
 
 export async function getProjects(
-  query: z.infer<typeof GetProjectsQuerySchema>,
+  query: z.infer<typeof GetProjectsQuerySchema>
 ): Promise<ApiResponse<Paginated<YPFProject>>> {
   const data = await projectsService.fetchProjects(query);
 
@@ -27,12 +27,12 @@ export async function getProjects(
 
 export async function getProjectMedia(
   projectId: string,
-  query: z.infer<typeof GetProjectMediaQuerySchema>,
+  query: z.infer<typeof GetProjectMediaQuerySchema>
 ): Promise<ApiResponse<Paginated<YPFProjectMedium>>> {
   const { page, pageSize } = query;
   const { items, total } = await projectsService.fetchProjectMedia(
     projectId,
-    query,
+    query
   );
   return {
     success: true,
@@ -81,7 +81,7 @@ export async function uploadProjectMedium({
 }
 
 export async function getProject(
-  projectId: string,
+  projectId: string
 ): Promise<ApiResponse<YPFProjectDetail>> {
   const data = await projectsService.fetchProjectById(projectId);
 
@@ -93,7 +93,7 @@ export async function getProject(
 }
 
 export async function createProject(
-  newProject: z.infer<typeof CreateProjectSchema>,
+  newProject: z.infer<typeof CreateProjectSchema>
 ): Promise<ApiResponse<string>> {
   const projectId = await projectsService.createProject(newProject);
 
@@ -106,7 +106,7 @@ export async function createProject(
 
 export async function updateProject(
   projectId: string,
-  updates: z.infer<typeof UpdateProjectSchema>,
+  updates: z.infer<typeof UpdateProjectSchema>
 ): Promise<ApiResponse<null>> {
   await projectsService.updateProject(projectId, updates);
 
@@ -119,7 +119,7 @@ export async function updateProject(
 
 export async function updateProjectMedium(
   projectMediumId: string,
-  updates: z.infer<typeof UpdateProjectMediumSchema>,
+  updates: z.infer<typeof UpdateProjectMediumSchema>
 ): Promise<ApiResponse<null>> {
   await projectsService.updateProjectMedium(projectMediumId, updates);
 
@@ -127,5 +127,20 @@ export async function updateProjectMedium(
     success: true,
     message: "Project medium updated successfully",
     data: null,
+  };
+}
+
+export async function getProjectEvents(
+  projectId: string,
+  query: { page?: number; pageSize?: number } = {}
+): Promise<
+  ApiResponse<Paginated<import("@/features/api/v1/events/dtos").YPFEvent>>
+> {
+  const data = await projectsService.fetchProjectEvents(projectId, query);
+
+  return {
+    success: true,
+    message: "Project events fetched successfully",
+    data,
   };
 }

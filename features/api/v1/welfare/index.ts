@@ -54,7 +54,7 @@ welfareRouter.get(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -88,7 +88,7 @@ welfareRouter.get(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 // Admin-only routes below
@@ -134,7 +134,7 @@ welfareRouter.use(authorize(Visitors.hasProfile("ADMIN")));
 welfareRouter.post(
   "/",
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER)),
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER))
   ),
   validateBody(CreateWelfareCaseSchema),
   async (req, res, next) => {
@@ -144,7 +144,7 @@ welfareRouter.post(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -188,20 +188,20 @@ welfareRouter.patch(
   "/:id",
   validateParams(z.object({ id: z.uuid("Invalid welfarecase id") })),
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER)),
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER))
   ),
   validateBody(UpdateWelfareCaseSchema),
   async (req, res, next) => {
     try {
       const response = await welfareHandler.updateWelfareCase(
         req.Params.id,
-        req.Body,
+        req.Body
       );
       res.json(response);
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -236,7 +236,7 @@ welfareRouter.delete(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 welfareRouter.post(
@@ -244,20 +244,20 @@ welfareRouter.post(
   authenticate,
   validateParams(z.object({ id: z.uuid("Invalid welfarecase id") })),
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER)),
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER))
   ),
   validateBody(z.array(z.uuid("Invalid id format"))),
   async (req, res, next) => {
     try {
       const response = await welfareHandler.addWelfareCaseBeneficiaries(
         req.Params.id,
-        req.Body,
+        req.Body
       );
       const ids = req.Body;
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 welfareRouter.delete(
@@ -266,10 +266,10 @@ welfareRouter.delete(
     z.object({
       id: z.uuid("Invalid welfarecase id"),
       beneficiaryId: z.uuid("Invalid beneficiary id"),
-    }),
+    })
   ),
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER)),
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER))
   ),
   async (req, res, next) => {
     try {
@@ -277,7 +277,83 @@ welfareRouter.delete(
     } catch (error) {
       next(error);
     }
-  },
+  }
+);
+
+/**
+ * @swagger
+ * /api/v1/welfare/{id}/events:
+ *   get:
+ *     summary: Get events associated with a welfare case
+ *     tags: [Welfare]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Welfare case events retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     items:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                     page:
+ *                       type: integer
+ *                     pageSize:
+ *                       type: integer
+ *                     total:
+ *                       type: integer
+ *       404:
+ *         description: Welfare case not found
+ */
+welfareRouter.get(
+  "/:id/events",
+  validateParams(z.object({ id: z.uuid("Invalid welfare case id") })),
+  validateQuery(
+    z.object({
+      page: z.coerce.number().min(1).default(1).optional(),
+      pageSize: z.coerce.number().min(1).max(100).default(10).optional(),
+    })
+  ),
+  async (req, res, next) => {
+    try {
+      const response = await welfareHandler.getWelfareCaseEvents(
+        req.Params.id,
+        req.Query
+      );
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
 );
 
 export default welfareRouter;

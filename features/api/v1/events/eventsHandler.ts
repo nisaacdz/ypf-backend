@@ -30,10 +30,7 @@ export async function getEvents(
 export async function createEvent(
   newEvent: z.infer<typeof CreateEventSchema>,
 ): Promise<ApiResponse<string>> {
-  const [event] = await dbClient.db
-    .insert(Events)
-    .values(newEvent)
-    .returning({ id: Events.id });
+  const event = await eventsService.createEvent(newEvent);
   if (!event) {
     throw new ApiError("A server error occurred", 500);
   }
