@@ -16,7 +16,7 @@ import {
 } from "drizzle-orm";
 
 export async function resolveAudience(
-  filters: TargetingFilter
+  filters: TargetingFilter,
 ): Promise<string[]> {
   const {
     chapterIds,
@@ -51,10 +51,10 @@ export async function resolveAudience(
         and(
           // Link back to constituent
           eq(schema.Members.constituentId, schema.Constituents.id),
-          
+
           // Status Filter
           getStatusCondition(schema.Members),
-          
+
           // Scope: Chapter (Exists check)
           chapterIds?.length
             ? exists(
@@ -64,9 +64,9 @@ export async function resolveAudience(
                   .where(
                     and(
                       eq(schema.ChapterMemberships.memberId, schema.Members.id),
-                      inArray(schema.ChapterMemberships.chapterId, chapterIds)
-                    )
-                  )
+                      inArray(schema.ChapterMemberships.chapterId, chapterIds),
+                    ),
+                  ),
               )
             : undefined,
 
@@ -78,13 +78,16 @@ export async function resolveAudience(
                   .from(schema.CommitteeMemberships)
                   .where(
                     and(
-                      eq(schema.CommitteeMemberships.memberId, schema.Members.id),
+                      eq(
+                        schema.CommitteeMemberships.memberId,
+                        schema.Members.id,
+                      ),
                       inArray(
                         schema.CommitteeMemberships.committeeId,
-                        committeeIds
-                      )
-                    )
-                  )
+                        committeeIds,
+                      ),
+                    ),
+                  ),
               )
             : undefined,
 
@@ -98,21 +101,21 @@ export async function resolveAudience(
                     schema.MemberTitles,
                     eq(
                       schema.MemberTitlesAssignments.titleId,
-                      schema.MemberTitles.id
-                    )
+                      schema.MemberTitles.id,
+                    ),
                   )
                   .where(
                     and(
                       eq(
                         schema.MemberTitlesAssignments.memberId,
-                        schema.Members.id
+                        schema.Members.id,
                       ),
-                      inArray(schema.MemberTitles.title, roles)
-                    )
-                  )
+                      inArray(schema.MemberTitles.title, roles),
+                    ),
+                  ),
               )
-            : undefined
-        )
+            : undefined,
+        ),
       );
 
     typeConditions.push(exists(memberSubquery));
@@ -127,8 +130,8 @@ export async function resolveAudience(
       .where(
         and(
           eq(schema.Volunteers.constituentId, schema.Constituents.id),
-          getStatusCondition(schema.Volunteers)
-        )
+          getStatusCondition(schema.Volunteers),
+        ),
       );
 
     typeConditions.push(exists(volunteerSubquery));
@@ -142,8 +145,8 @@ export async function resolveAudience(
       .where(
         and(
           eq(schema.Admins.constituentId, schema.Constituents.id),
-          getStatusCondition(schema.Admins)
-        )
+          getStatusCondition(schema.Admins),
+        ),
       );
 
     typeConditions.push(exists(adminSubquery));

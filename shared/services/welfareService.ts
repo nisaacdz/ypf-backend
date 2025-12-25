@@ -22,7 +22,7 @@ import { YPFEvent } from "@/features/api/v1/events/dtos";
  * Fetches paginated welfare cases.
  */
 export async function fetchWelfareCases(
-  query: z.infer<typeof GetWelfareCasesQuerySchema>
+  query: z.infer<typeof GetWelfareCasesQuerySchema>,
 ): Promise<Paginated<YPFWelfareCase>> {
   const { page, pageSize, filterType } = query;
   const offset = (page - 1) * pageSize;
@@ -38,7 +38,7 @@ export async function fetchWelfareCases(
     .select({ count: count() })
     .from(schema.WelfareCaseBeneficiaries)
     .where(
-      eq(schema.WelfareCaseBeneficiaries.welfareCaseId, schema.WelfareCases.id)
+      eq(schema.WelfareCaseBeneficiaries.welfareCaseId, schema.WelfareCases.id),
     );
 
   const expenditureSumSubquery = dbClient.db
@@ -65,12 +65,12 @@ export async function fetchWelfareCases(
         schema.WelfareCaseMedia,
         and(
           eq(schema.WelfareCases.id, schema.WelfareCaseMedia.welfareCaseId),
-          eq(schema.WelfareCaseMedia.isFeatured, true)
-        )
+          eq(schema.WelfareCaseMedia.isFeatured, true),
+        ),
       )
       .leftJoin(
         schema.Media,
-        eq(schema.WelfareCaseMedia.mediumId, schema.Media.id)
+        eq(schema.WelfareCaseMedia.mediumId, schema.Media.id),
       )
       .where(whereConditions)
       .orderBy(desc(schema.WelfareCases.date))
@@ -105,7 +105,7 @@ export async function fetchWelfareCases(
  * Fetches a single welfare case by ID with full details.
  */
 export async function fetchWelfareCaseById(
-  welfareCaseId: string
+  welfareCaseId: string,
 ): Promise<YPFWelfareCaseDetail> {
   const db = dbClient.db;
 
@@ -113,7 +113,6 @@ export async function fetchWelfareCaseById(
   const welfareCase = await db.query.WelfareCases.findFirst({
     where: eq(schema.WelfareCases.id, welfareCaseId),
     with: {
-      // Drizzle "with" is efficient for one-to-many
       chapter: true,
     },
   });
@@ -122,13 +121,9 @@ export async function fetchWelfareCaseById(
     throw new ApiError("Welfare case not found", 404);
   }
 
-  // 2. Parallel Fetch: Beneficiaries, Media, Expenditure
-  // NO LOOPS ALLOWED 🚫
   const [beneficiaries, media, expenditure] = await Promise.all([
-    // A. Efficient Beneficiaries Fetch
     db
       .select({
-        // Select exactly what YPFConstituent needs
         id: schema.Constituents.id,
         firstName: schema.Constituents.firstName,
         lastName: schema.Constituents.lastName,
@@ -141,16 +136,15 @@ export async function fetchWelfareCaseById(
         schema.Constituents,
         eq(
           schema.WelfareCaseBeneficiaries.beneficiaryId,
-          schema.Constituents.id
-        )
+          schema.Constituents.id,
+        ),
       )
       .leftJoin(
         schema.Media,
-        eq(schema.Constituents.profilePhotoId, schema.Media.id)
+        eq(schema.Constituents.profilePhotoId, schema.Media.id),
       )
       .where(eq(schema.WelfareCaseBeneficiaries.welfareCaseId, welfareCaseId)),
 
-    // B. Media
     db
       .select({
         caption: schema.WelfareCaseMedia.caption,
@@ -164,11 +158,10 @@ export async function fetchWelfareCaseById(
       .from(schema.WelfareCaseMedia)
       .innerJoin(
         schema.Media,
-        eq(schema.WelfareCaseMedia.mediumId, schema.Media.id)
+        eq(schema.WelfareCaseMedia.mediumId, schema.Media.id),
       )
       .where(eq(schema.WelfareCaseMedia.welfareCaseId, welfareCaseId)),
 
-    // C. Total Expenditure
     db
       .select({
         total: sql<number>`COALESCE(SUM(${schema.Expenditures.amount}), 0)`,
@@ -177,7 +170,6 @@ export async function fetchWelfareCaseById(
       .where(eq(schema.Expenditures.welfareCaseId, welfareCaseId)),
   ]);
 
-  // 3. Assemble
   return {
     id: welfareCase.id,
     title: welfareCase.title,
@@ -191,13 +183,10 @@ export async function fetchWelfareCaseById(
     beneficiaries: beneficiaries.map((b) => ({
       id: b.id,
       fullName: b.preferredName ?? `${b.firstName} ${b.lastName}`,
-      isActive: true, // You might want to fetch real active status if needed
       createdAt: b.createdAt,
       profilePhotoUrl: b.photoExternalId
         ? generatePublicMediaUrl(b.photoExternalId)
         : undefined,
-      profiles: [], // If you need profiles, you'd join Members table too, but for a list usually not needed
-      roles: [],
     })),
 
     featuredMedia: media.map((m) => ({
@@ -225,7 +214,7 @@ export async function fetchWelfareCaseById(
  * Creates a new welfare case and optionally links beneficiaries.
  */
 export async function createWelfareCase(
-  data: z.infer<typeof CreateWelfareCaseSchema>
+  data: z.infer<typeof CreateWelfareCaseSchema>,
 ): Promise<string> {
   const { beneficiaryIds, ...caseData } = data;
 
@@ -242,7 +231,7 @@ export async function createWelfareCase(
         beneficiaryIds.map((beneficiaryId) => ({
           welfareCaseId: newCase.id,
           beneficiaryId,
-        }))
+        })),
       );
     }
 
@@ -255,7 +244,7 @@ export async function createWelfareCase(
  */
 export async function updateWelfareCase(
   welfareCaseId: string,
-  updates: z.infer<typeof UpdateWelfareCaseSchema>
+  updates: z.infer<typeof UpdateWelfareCaseSchema>,
 ): Promise<void> {
   const result = await dbClient.db
     .update(schema.WelfareCases)
@@ -288,12 +277,12 @@ export async function deleteWelfareCase(welfareCaseId: string): Promise<void> {
 
 export async function addWelfareCaseBeneficiaries(
   welfareCaseId: string,
-  beneficiaryIds: string[]
+  beneficiaryIds: string[],
 ) {
   await dbClient.db
     .insert(schema.WelfareCaseBeneficiaries)
     .values(
-      beneficiaryIds.map((beneficiaryId) => ({ beneficiaryId, welfareCaseId }))
+      beneficiaryIds.map((beneficiaryId) => ({ beneficiaryId, welfareCaseId })),
     );
 }
 /**
@@ -301,21 +290,21 @@ export async function addWelfareCaseBeneficiaries(
  */
 export async function removeWelfareCaseBeneficiary(
   welfareCaseId: string,
-  beneficiaryId: string
+  beneficiaryId: string,
 ) {
   await dbClient.db
     .delete(schema.WelfareCaseBeneficiaries)
     .where(
       and(
         eq(schema.WelfareCaseBeneficiaries.beneficiaryId, beneficiaryId),
-        eq(schema.WelfareCaseBeneficiaries.welfareCaseId, welfareCaseId)
-      )
+        eq(schema.WelfareCaseBeneficiaries.welfareCaseId, welfareCaseId),
+      ),
     );
 }
 
 export async function fetchWelfareCaseEvents(
   welfareCaseId: string,
-  query: { page?: number; pageSize?: number } = {}
+  query: { page?: number; pageSize?: number } = {},
 ): Promise<Paginated<YPFEvent>> {
   const { page = 1, pageSize = 10 } = query;
   const offset = (page - 1) * pageSize;
@@ -337,8 +326,8 @@ export async function fetchWelfareCaseEvents(
         schema.EventMedia,
         and(
           eq(schema.Events.id, schema.EventMedia.eventId),
-          eq(schema.EventMedia.isFeatured, true)
-        )
+          eq(schema.EventMedia.isFeatured, true),
+        ),
       )
       .leftJoin(schema.Media, eq(schema.EventMedia.mediumId, schema.Media.id))
       .where(eq(schema.Events.welfareCaseId, welfareCaseId))

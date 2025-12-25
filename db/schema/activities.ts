@@ -113,7 +113,7 @@ export const WelfareCaseBeneficiaries = activities.table(
     beneficiaryId: uuid("beneficiary_id")
       .notNull()
       .references(() => Constituents.id, { onDelete: "restrict" }),
-  }
+  },
 );
 
 export const ProjectMedia = activities.table("project_media", {
@@ -180,7 +180,7 @@ export const welfareCaseRelations = relations(
     }),
     events: many(Events),
     beneficiaries: many(WelfareCaseBeneficiaries),
-  })
+  }),
 );
 
 export const Announcements = activities.table("announcements", {
@@ -226,7 +226,7 @@ export const ConstituentAnnouncements = activities.table(
   (table) => [
     // Ensure a user only gets an announcement once
     unique().on(table.announcementId, table.constituentId),
-  ]
+  ],
 );
 
 // === RELATIONS ===
@@ -239,7 +239,7 @@ export const announcementsRelations = relations(
       references: [Constituents.id],
     }),
     constituentAnnouncements: many(ConstituentAnnouncements),
-  })
+  }),
 );
 
 export const constituentAnnouncementsRelations = relations(
@@ -253,7 +253,7 @@ export const constituentAnnouncementsRelations = relations(
       fields: [ConstituentAnnouncements.constituentId],
       references: [Constituents.id],
     }),
-  })
+  }),
 );
 
 // export const Meetings = communications.table("meetings", {

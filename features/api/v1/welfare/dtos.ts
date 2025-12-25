@@ -30,5 +30,10 @@ export type YPFWelfareCaseDetail = {
     id: string;
     amount: number; // sum of all expenditure.amount where welfareCaseId = this.id
   };
-  beneficiaries: YPFConstituent[]; // realistically shouldn't be plenty -- let's fetch all
+  beneficiaries: {
+    id: string;
+    profilePhotoUrl?: string;
+    fullName: string;
+    createdAt: Date;
+  }[];
 };
