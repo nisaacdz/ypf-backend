@@ -9,3 +9,7 @@ export const GetCommitteesQuerySchema = z.object({
 export const GetConstituentCommitteesQuerySchema = z.object({
   ...PaginationQuery.shape,
 });
+
+export const GetCommitteeLeadershipQuerySchema = z.object({
+  ...PaginationQuery.shape,
+});

@@ -15,6 +15,7 @@ import {
   GetChaptersQuerySchema,
   UpdateChapterSchema,
   GetConstituentChaptersQuerySchema,
+  GetChapterLeadershipQuerySchema,
 } from "./schemas";
 import { Visitors, MEMBER, anyOf, ADMIN } from "@/configs/authorizer";
 import z from "zod";
@@ -311,6 +312,25 @@ chaptersRouter.patch(
       const response = await chaptersHandler.updateChapter(
         req.Params.id,
         req.Body,
+      );
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+chaptersRouter.get(
+  "/:id/leadership",
+  authenticateLax,
+  authorize(Visitors.hasProfile("MEMBER", "ADMIN")),
+  validateParams(z.object({ id: z.uuid("Invalid chapter ID") })),
+  validateQuery(GetChapterLeadershipQuerySchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await chaptersHandler.getLeadership(
+        req.Params.id,
+        req.Query,
       );
       res.status(200).json(response);
     } catch (error) {

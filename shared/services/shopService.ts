@@ -39,7 +39,7 @@ type GuestOrderInput = {
  * Validates stock availability and calculates total amount for order items
  */
 export async function validateOrderItems(
-  items: OrderItem[]
+  items: OrderItem[],
 ): Promise<ValidatedOrderItems> {
   if (items.length === 0) {
     return { validatedItems: [], totalAmount: 0 };
@@ -53,7 +53,7 @@ export async function validateOrderItems(
     .where(inArray(schema.Products.id, productIds));
 
   const productMap = new Map(
-    dbProducts.map((product) => [product.id, product])
+    dbProducts.map((product) => [product.id, product]),
   );
 
   const validatedItems: {
@@ -74,14 +74,14 @@ export async function validateOrderItems(
     if (!product.isActive) {
       throw new ApiError(
         `Product "${product.name}" is no longer available`,
-        400
+        400,
       );
     }
 
     if (product.stockQuantity < item.quantity) {
       throw new ApiError(
         `Insufficient stock for "${product.name}". Only ${product.stockQuantity} available.`,
-        400
+        400,
       );
     }
 
@@ -103,7 +103,7 @@ export async function validateOrderItems(
  */
 export async function createAuthenticatedOrder(
   input: CreateOrderInput,
-  user: AuthenticatedUser
+  user: AuthenticatedUser,
 ): Promise<OrderResponse> {
   const { items, currency } = input;
 
@@ -147,7 +147,7 @@ export async function createAuthenticatedOrder(
           productId: item.productId,
           quantity: item.quantity,
           priceAtPurchase: item.price,
-        }))
+        })),
       );
 
       await Promise.all(
@@ -160,10 +160,10 @@ export async function createAuthenticatedOrder(
             .where(
               and(
                 eq(schema.Products.id, item.productId),
-                gte(schema.Products.stockQuantity, item.quantity)
-              )
-            )
-        )
+                gte(schema.Products.stockQuantity, item.quantity),
+              ),
+            ),
+        ),
       );
 
       return {
@@ -197,7 +197,7 @@ export async function createAuthenticatedOrder(
           callback_url: `${variables.app.host}/shop/callback`,
           email: user.email,
         }),
-      }
+      },
     );
 
     if (!paystackResponse.ok) {
@@ -205,7 +205,7 @@ export async function createAuthenticatedOrder(
       logger.error("Paystack initialization failed:", errorData);
       throw new ApiError(
         `Failed to initialize payment: ${errorData.message || "Unknown error"}`,
-        500
+        500,
       );
     }
 
@@ -213,7 +213,7 @@ export async function createAuthenticatedOrder(
     paymentUrl = paystackData.data.authorization_url;
   } catch (apiError) {
     logger.warn(
-      `Compensating transaction for order [${orderId}] due to API failure.`
+      `Compensating transaction for order [${orderId}] due to API failure.`,
     );
     try {
       await dbClient.db
@@ -223,7 +223,7 @@ export async function createAuthenticatedOrder(
     } catch (compensationError) {
       logger.error(
         compensationError,
-        `CRITICAL: Failed to compensate (mark as FAILED) transaction [${transactionId}].`
+        `CRITICAL: Failed to compensate (mark as FAILED) transaction [${transactionId}].`,
       );
     }
     throw apiError;
@@ -261,7 +261,7 @@ export async function createAuthenticatedOrder(
  * Initiates a guest order by generating and sending an OTP
  */
 export async function initiateGuestOrder(
-  input: GuestOrderInput
+  input: GuestOrderInput,
 ): Promise<{ success: boolean; message: string }> {
   const { email, items } = input;
 
@@ -304,7 +304,7 @@ export async function initiateGuestOrder(
  */
 export async function completeGuestOrder(
   email: string,
-  otp: string
+  otp: string,
 ): Promise<OrderResponse> {
   // Verify OTP and retrieve payload
   const [otpRecord] = await dbClient.db
@@ -338,7 +338,7 @@ export async function completeGuestOrder(
 
   // Validate order items again (stock might have changed)
   const { validatedItems, totalAmount } = await validateOrderItems(
-    payload.items
+    payload.items,
   );
 
   const paymentReference = uuidv4();
@@ -401,7 +401,7 @@ export async function completeGuestOrder(
           productId: item.productId,
           quantity: item.quantity,
           priceAtPurchase: item.price,
-        }))
+        })),
       );
 
       // Decrease stock quantities (Parallel)
@@ -412,8 +412,8 @@ export async function completeGuestOrder(
             .set({
               stockQuantity: sql`${schema.Products.stockQuantity} - ${item.quantity}`,
             })
-            .where(eq(schema.Products.id, item.productId))
-        )
+            .where(eq(schema.Products.id, item.productId)),
+        ),
       );
 
       return {
@@ -447,7 +447,7 @@ export async function completeGuestOrder(
           callback_url: `${variables.app.host}/shop/callback`,
           email: payload.email,
         }),
-      }
+      },
     );
 
     if (!paystackResponse.ok) {
@@ -455,7 +455,7 @@ export async function completeGuestOrder(
       logger.error("Paystack initialization failed:", errorData);
       throw new ApiError(
         `Failed to initialize payment: ${errorData.message || "Unknown error"}`,
-        500
+        500,
       );
     }
 
@@ -463,7 +463,7 @@ export async function completeGuestOrder(
     paymentUrl = paystackData.data.authorization_url;
   } catch (apiError) {
     logger.warn(
-      `Compensating transaction for order [${orderId}] due to API failure.`
+      `Compensating transaction for order [${orderId}] due to API failure.`,
     );
     try {
       await dbClient.db
@@ -473,7 +473,7 @@ export async function completeGuestOrder(
     } catch (compensationError) {
       logger.error(
         compensationError,
-        `CRITICAL: Failed to compensate (mark as FAILED) transaction [${transactionId}].`
+        `CRITICAL: Failed to compensate (mark as FAILED) transaction [${transactionId}].`,
       );
     }
     throw apiError;
@@ -541,7 +541,7 @@ export async function getUserOrders(user: AuthenticatedUser): Promise<
 }
 
 export async function fetchShopProducts(
-  query: z.infer<typeof GetShopProductsQuerySchema>
+  query: z.infer<typeof GetShopProductsQuerySchema>,
 ): Promise<Paginated<ShopProduct>> {
   const { page = 1, pageSize = 10, onlyActive = true } = query;
   const offset = (page - 1) * pageSize;
@@ -570,8 +570,8 @@ export async function fetchShopProducts(
         schema.ProductMedia,
         and(
           eq(schema.Products.id, schema.ProductMedia.productId),
-          eq(schema.ProductMedia.isFeatured, true)
-        )
+          eq(schema.ProductMedia.isFeatured, true),
+        ),
       )
       .leftJoin(schema.Media, eq(schema.ProductMedia.mediumId, schema.Media.id))
       .where(whereClause)
@@ -585,7 +585,7 @@ export async function fetchShopProducts(
         schema.Products.price,
         schema.Products.stockQuantity,
         schema.Products.createdAt,
-        schema.Media.externalId
+        schema.Media.externalId,
       ),
     // Get total count
     dbClient.db
@@ -618,7 +618,7 @@ export async function fetchShopProducts(
 }
 
 export async function fetchShopProductById(
-  id: string
+  id: string,
 ): Promise<ShopProductDetail | null> {
   const product = await dbClient.db.query.Products.findFirst({
     where: eq(schema.Products.id, id),
@@ -706,7 +706,7 @@ export async function updateProduct(
     price?: string;
     stockQuantity?: number;
     isActive?: boolean;
-  }
+  },
 ): Promise<void> {
   const result = await dbClient.db
     .update(schema.Products)

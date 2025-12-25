@@ -5,6 +5,10 @@ export const GetChaptersQuerySchema = z.object({
   ...PaginationQuery.shape,
 });
 
+export const GetChapterLeadershipQuerySchema = z.object({
+  ...PaginationQuery.shape,
+});
+
 export const GetConstituentChaptersQuerySchema = z.object({
   ...PaginationQuery.shape,
 });

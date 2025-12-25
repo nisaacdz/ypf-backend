@@ -12,6 +12,7 @@ import {
   GetCommitteesQuerySchema,
   GetConstituentCommitteesQuerySchema,
 } from "@/features/api/v1/committees/schemas";
+import { YPFMember } from "@/features/api/v1/members/dtos";
 import * as mediaUtils from "@/shared/utils/files";
 import { ApiError } from "@/shared/types";
 
@@ -350,6 +351,81 @@ export async function getCommitteesByConstituentId(
       : undefined,
     chapterName: c.chapterName ?? undefined,
     memberCount: c.memberCount ?? 0,
+  }));
+
+  return {
+    items,
+    page,
+    pageSize,
+    total,
+  };
+}
+
+export async function getCommitteeLeadership(
+  committeeId: string,
+  query: { page?: number; pageSize?: number } = {},
+): Promise<Paginated<YPFMember>> {
+  const { page = 1, pageSize = 20 } = query;
+  const offset = (page - 1) * pageSize;
+
+  const baseQuery = dbClient.db
+    .select({
+      id: schema.Constituents.id,
+      firstName: schema.Constituents.firstName,
+      lastName: schema.Constituents.lastName,
+      preferredName: schema.Constituents.preferredName,
+      profilePhotoExternalId: schema.Media.externalId,
+      title: schema.MemberTitles.title,
+      joinedAt: schema.Members.startedAt,
+    })
+    .from(schema.MemberTitlesAssignments)
+    .innerJoin(
+      schema.MemberTitles,
+      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
+    )
+    .innerJoin(
+      schema.Members,
+      eq(schema.MemberTitlesAssignments.memberId, schema.Members.id),
+    )
+    .innerJoin(
+      schema.Constituents,
+      eq(schema.Members.constituentId, schema.Constituents.id),
+    )
+    .leftJoin(
+      schema.Media,
+      eq(schema.Constituents.profilePhotoId, schema.Media.id),
+    )
+    .where(
+      and(
+        eq(schema.MemberTitles.committeeId, committeeId),
+        sql`${schema.MemberTitlesAssignments.startedAt} <= now()`,
+        sql`(${schema.MemberTitlesAssignments.endedAt} IS NULL OR ${schema.MemberTitlesAssignments.endedAt} >= now())`,
+        // Ensure the underlying membership is also active
+        sql`${schema.Members.startedAt} <= now()`,
+        sql`(${schema.Members.endedAt} IS NULL OR ${schema.Members.endedAt} >= now())`,
+      ),
+    )
+    // Order by rank (lower is higher rank) then alphabetical
+    .orderBy(schema.MemberTitles._level, schema.MemberTitles.title);
+
+  const [totalResult, users] = await Promise.all([
+    dbClient.db.select({ total: count() }).from(baseQuery.as("sub")),
+    baseQuery.limit(pageSize).offset(offset),
+  ]);
+
+  const total = totalResult[0]?.total ?? 0;
+
+  const items: YPFMember[] = users.map((u) => ({
+    id: u.id,
+    fullName: u.preferredName ?? `${u.firstName} ${u.lastName}`,
+    profilePhotoUrl: u.profilePhotoExternalId
+      ? mediaUtils.generatePublicMediaUrl(u.profilePhotoExternalId, {
+          resolution: 360,
+        })
+      : undefined,
+    isActive: true, // filtered by query
+    joinedAt: u.joinedAt,
+    title: u.title,
   }));
 
   return {

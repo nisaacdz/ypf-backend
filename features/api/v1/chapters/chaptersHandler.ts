@@ -4,9 +4,11 @@ import {
   GetChaptersQuerySchema,
   GetConstituentChaptersQuerySchema,
   UpdateChapterSchema,
+  GetChapterLeadershipQuerySchema,
 } from "./schemas";
 import { Paginated } from "@/shared/dtos";
 import { YPFChapter, YPFChapterDetail } from "./dtos";
+import { YPFMember } from "@/features/api/v1/members/dtos";
 import z from "zod";
 
 export async function getChapters(
@@ -42,5 +44,13 @@ export async function getChaptersByConstituentId(
     constituentId,
     query,
   );
+  return { success: true, data };
+}
+
+export async function getLeadership(
+  chapterId: string,
+  query: z.infer<typeof GetChapterLeadershipQuerySchema>,
+): Promise<ApiResponse<Paginated<YPFMember>>> {
+  const data = await chaptersService.getChapterLeadership(chapterId, query);
   return { success: true, data };
 }

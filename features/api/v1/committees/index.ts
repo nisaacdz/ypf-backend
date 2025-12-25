@@ -10,6 +10,7 @@ import * as committeesHandler from "./committeesHandler";
 import {
   GetCommitteesQuerySchema,
   GetConstituentCommitteesQuerySchema,
+  GetCommitteeLeadershipQuerySchema,
 } from "./schemas";
 import { Visitors, anyOf } from "@/configs/authorizer";
 import z from "zod";
@@ -231,6 +232,25 @@ committeesRouter.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await committeesHandler.getCommittee(req.Params.id);
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+committeesRouter.get(
+  "/:id/leadership",
+  authenticateLax,
+  authorize(Visitors.hasProfile("MEMBER", "ADMIN")),
+  validateParams(z.object({ id: z.uuid("Invalid committee ID") })),
+  validateQuery(GetCommitteeLeadershipQuerySchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await committeesHandler.getLeadership(
+        req.Params.id,
+        req.Query,
+      );
       res.status(200).json(response);
     } catch (error) {
       next(error);
