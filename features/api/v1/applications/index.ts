@@ -93,7 +93,7 @@ applicationsRouter.get(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -151,13 +151,13 @@ applicationsRouter.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await applicationsHandler.getApplicationById(
-        req.Params.id,
+        req.Params.id
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -260,7 +260,7 @@ applicationsRouter.post(
   validateFiles({
     passportPhoto: UploadRegistrationFileSchema,
     nationalId: UploadRegistrationFileSchema,
-    resume: UploadRegistrationFileSchema,
+    resume: UploadRegistrationFileSchema.optional(),
   }),
   validateBody(PostApplicationBody),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -273,7 +273,7 @@ applicationsRouter.post(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 export default applicationsRouter;

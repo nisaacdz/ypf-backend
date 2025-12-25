@@ -87,17 +87,13 @@ export function validateFile<T>(schema: z.ZodType<T>) {
 
 export function validateFiles<T>(schemas: Record<string, z.ZodType<T>>) {
   return async (req: Request, res: Response, next: NextFunction) => {
-    if (!req.file) {
-      return next(new ApiError("File is required", 400));
-    }
-
     let raw = (req.files ?? {}) as unknown as {
       [fieldname: string]: Express.Multer.File[];
     };
 
     let files = Object.keys(schemas).reduce(
       (ac, b) => ({ ...ac, [b]: raw[b][0] }),
-      {} as Record<string, Express.Multer.File>,
+      {} as Record<string, Express.Multer.File>
     );
 
     for (let [fileName, schema] of Object.entries(schemas)) {
