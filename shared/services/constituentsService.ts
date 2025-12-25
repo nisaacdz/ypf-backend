@@ -1,4 +1,4 @@
-import { eq, and, lte, gte, isNull, or, sql } from "drizzle-orm";
+import { eq, and, lte, gte, isNull, or, inArray } from "drizzle-orm";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { ApiError, Profile } from "@/shared/types";
@@ -205,22 +205,17 @@ async function fetchRoles(constituentId: string): Promise<RolePeriod[]> {
 /**
  * Fetches all current committee memberships for a constituent.
  */
-async function fetchCommittees(constituentId: string): Promise<
-  {
-    id: string;
-    name: string;
-    featuredPhotoUrl?: string;
-    chapterName?: string;
-  }[]
-> {
+async function fetchCommittees(constituentId: string) {
   const db = dbClient.db;
   const now = new Date();
 
-  const committeeRows = await db
+  return await db
     .select({
       id: schema.Committees.id,
       name: schema.Committees.name,
       chapterName: schema.Chapters.name,
+      // Get the photo externalId directly here
+      photoExternalId: schema.Media.externalId,
     })
     .from(schema.Members)
     .innerJoin(
@@ -235,6 +230,15 @@ async function fetchCommittees(constituentId: string): Promise<
       schema.Chapters,
       eq(schema.Committees.chapterId, schema.Chapters.id),
     )
+    // Join Media via CommitteeMedia directly
+    .leftJoin(
+      schema.CommitteeMedia,
+      and(
+        eq(schema.CommitteeMedia.committeeId, schema.Committees.id),
+        eq(schema.CommitteeMedia.isFeatured, true), // Only get featured
+      ),
+    )
+    .leftJoin(schema.Media, eq(schema.CommitteeMedia.mediumId, schema.Media.id))
     .where(
       and(
         eq(schema.Members.constituentId, constituentId),
@@ -244,59 +248,33 @@ async function fetchCommittees(constituentId: string): Promise<
           gte(schema.CommitteeMemberships.endedAt, now),
         ),
       ),
+    )
+    .then((rows) =>
+      // Simple transformation at the end, no Maps
+      rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        chapterName: row.chapterName ?? undefined,
+        featuredPhotoUrl: row.photoExternalId
+          ? generatePublicMediaUrl(row.photoExternalId)
+          : undefined,
+      })),
     );
-
-  // Fetch featured photos for committees
-  const committeeIds = committeeRows.map((c) => c.id);
-  const featuredPhotos = committeeIds.length
-    ? await db
-        .select({
-          committeeId: schema.CommitteeMedia.committeeId,
-          externalId: schema.Media.externalId,
-        })
-        .from(schema.CommitteeMedia)
-        .innerJoin(
-          schema.Media,
-          eq(schema.CommitteeMedia.mediumId, schema.Media.id),
-        )
-        .where(
-          and(
-            eq(schema.CommitteeMedia.isFeatured, true),
-            sql`${schema.CommitteeMedia.committeeId} = ANY(${committeeIds})`,
-          ),
-        )
-    : [];
-
-  const photoMap = new Map(
-    featuredPhotos.map((p) => [p.committeeId, p.externalId]),
-  );
-
-  return committeeRows.map((c) => ({
-    id: c.id,
-    name: c.name,
-    featuredPhotoUrl: photoMap.has(c.id)
-      ? generatePublicMediaUrl(photoMap.get(c.id)!)
-      : undefined,
-    chapterName: c.chapterName ?? undefined,
-  }));
 }
 
 /**
  * Fetches all current chapter memberships for a constituent.
  */
-async function fetchChapters(
-  constituentId: string,
-): Promise<
-  { id: string; name: string; country: string; featuredPhotoUrl?: string }[]
-> {
+async function fetchChapters(constituentId: string) {
   const db = dbClient.db;
   const now = new Date();
 
-  const chapterRows = await db
+  return await db
     .select({
       id: schema.Chapters.id,
       name: schema.Chapters.name,
       country: schema.Chapters.country,
+      photoExternalId: schema.Media.externalId,
     })
     .from(schema.Members)
     .innerJoin(
@@ -307,6 +285,15 @@ async function fetchChapters(
       schema.Chapters,
       eq(schema.ChapterMemberships.chapterId, schema.Chapters.id),
     )
+    // Direct join to media
+    .leftJoin(
+      schema.ChapterMedia,
+      and(
+        eq(schema.ChapterMedia.chapterId, schema.Chapters.id),
+        eq(schema.ChapterMedia.isFeatured, true),
+      ),
+    )
+    .leftJoin(schema.Media, eq(schema.ChapterMedia.mediumId, schema.Media.id))
     .where(
       and(
         eq(schema.Members.constituentId, constituentId),
@@ -316,41 +303,17 @@ async function fetchChapters(
           gte(schema.ChapterMemberships.endedAt, now),
         ),
       ),
+    )
+    .then((rows) =>
+      rows.map((c) => ({
+        id: c.id,
+        name: c.name,
+        country: c.country,
+        featuredPhotoUrl: c.photoExternalId
+          ? generatePublicMediaUrl(c.photoExternalId)
+          : undefined,
+      })),
     );
-
-  // Fetch featured photos for chapters
-  const chapterIds = chapterRows.map((c) => c.id);
-  const featuredPhotos = chapterIds.length
-    ? await db
-        .select({
-          chapterId: schema.ChapterMedia.chapterId,
-          externalId: schema.Media.externalId,
-        })
-        .from(schema.ChapterMedia)
-        .innerJoin(
-          schema.Media,
-          eq(schema.ChapterMedia.mediumId, schema.Media.id),
-        )
-        .where(
-          and(
-            eq(schema.ChapterMedia.isFeatured, true),
-            sql`${schema.ChapterMedia.chapterId} = ANY(${chapterIds})`,
-          ),
-        )
-    : [];
-
-  const photoMap = new Map(
-    featuredPhotos.map((p) => [p.chapterId, p.externalId]),
-  );
-
-  return chapterRows.map((c) => ({
-    id: c.id,
-    name: c.name,
-    country: c.country,
-    featuredPhotoUrl: photoMap.has(c.id)
-      ? generatePublicMediaUrl(photoMap.get(c.id)!)
-      : undefined,
-  }));
 }
 
 export async function getConstituent(
@@ -384,7 +347,7 @@ export async function getConstituent(
     profilePhotoUrl,
     fullName:
       constituent.preferredName ??
-      `${constituent.firstName} ${constituent.firstName}`,
+      `${constituent.firstName} ${constituent.lastName}`,
     profiles: profilePeriods.map((p) => p.name),
     roles: roles.map((r) => r.title),
     isActive: true,
