@@ -7,7 +7,112 @@ import logger from "@/configs/logger";
 import { sendDonationAcknowledgementEmail } from "@/shared/utils/email";
 import { v4 as uuidv4 } from "uuid";
 import { paymentMethodMap, transactionStatusMap } from "../utils";
+import { sql, desc, gte, lte } from "drizzle-orm";
+import { Paginated } from "@/shared/dtos";
 import { YPFDonation } from "@/features/api/v1/donations/dtos";
+import { z } from "zod";
+import { GetDonationsQuerySchema } from "@/features/api/v1/donations/schemas";
+
+export async function getDonations(
+  query: z.infer<typeof GetDonationsQuerySchema>
+): Promise<Paginated<YPFDonation>> {
+  const { page = 1, pageSize = 20, startDate, endDate, status } = query;
+  const offset = (page - 1) * pageSize;
+
+  const whereClauses = [];
+
+  if (status) {
+    whereClauses.push(eq(schema.FinancialTransactions.status, status));
+  }
+  if (startDate) {
+    whereClauses.push(
+      gte(schema.FinancialTransactions.updatedAt, new Date(startDate))
+    );
+  }
+  if (endDate) {
+    whereClauses.push(
+      lte(schema.FinancialTransactions.updatedAt, new Date(endDate))
+    );
+  }
+
+  const queryBuilder = dbClient.db
+    .select({
+      id: schema.Donations.id,
+      amount: schema.FinancialTransactions.amount,
+      currency: schema.FinancialTransactions.currency,
+      status: schema.FinancialTransactions.status,
+      date: schema.FinancialTransactions.updatedAt,
+      guestName: schema.Donations.guestName,
+      guestEmail: schema.Donations.guestEmail,
+      constituentFirstName: schema.Constituents.firstName,
+      constituentLastName: schema.Constituents.lastName,
+      constituentEmail: schema.Constituents.email,
+    })
+    .from(schema.Donations)
+    .innerJoin(
+      schema.FinancialTransactions,
+      eq(schema.Donations.transactionId, schema.FinancialTransactions.id)
+    )
+    .leftJoin(
+      schema.Constituents,
+      eq(schema.Donations.constituentId, schema.Constituents.id)
+    )
+    .where(and(...whereClauses))
+    .orderBy(desc(schema.FinancialTransactions.updatedAt))
+    .limit(pageSize)
+    .offset(offset);
+
+  const [donations, [{ total }]] = await Promise.all([
+    queryBuilder,
+    dbClient.db
+      .select({ total: sql<number>`count(*)` })
+      .from(schema.Donations)
+      .innerJoin(
+        schema.FinancialTransactions,
+        eq(schema.Donations.transactionId, schema.FinancialTransactions.id)
+      )
+      .leftJoin(
+        schema.Constituents,
+        eq(schema.Donations.constituentId, schema.Constituents.id)
+      )
+      .where(and(...whereClauses)),
+  ]);
+
+  const items: YPFDonation[] = donations.map((d) => {
+    let donorName: string | undefined;
+    let donorEmail: string | undefined;
+
+    if (d.constituentEmail) {
+      donorName = `${d.constituentFirstName} ${d.constituentLastName}`;
+      donorEmail = d.constituentEmail;
+    } else if (d.guestEmail) {
+      donorName = d.guestName || "Guest";
+      donorEmail = d.guestEmail;
+    }
+
+    return {
+      id: d.id,
+      amount: d.amount,
+      currency: d.currency,
+      status: d.status,
+      date: d.date,
+      donor:
+        donorName || donorEmail
+          ? {
+              name: donorName,
+              email: donorEmail,
+            }
+          : undefined,
+    };
+  });
+
+  return {
+    items,
+    total,
+    page,
+    pageSize,
+  };
+}
 
 type CreateDonationInput = {
   amount: number;
@@ -83,7 +188,7 @@ export async function startPaystackDonation(
     projectId,
     eventId,
   }: CreateDonationInput,
-  user: AuthenticatedUser | null,
+  user: AuthenticatedUser | null
 ): Promise<{
   donation: YPFDonation;
   paymentUrl: string;
@@ -125,7 +230,7 @@ export async function startPaystackDonation(
           .returning();
 
         return { donation: newDonation, transaction: newTransaction };
-      },
+      }
     );
 
     newDonation = donation;
@@ -153,7 +258,7 @@ export async function startPaystackDonation(
           callback_url: `${variables.app.host}/donations/callback`,
           email: guestEmail ?? user?.email,
         }),
-      },
+      }
     );
 
     if (!paystackResponse.ok) {
@@ -161,14 +266,14 @@ export async function startPaystackDonation(
       logger.error("Paystack initialization failed:", errorData);
       throw new ApiError(
         `Failed to initialize payment: ${errorData.message || "Unknown error"}`,
-        500,
+        500
       );
     }
     paystackData =
       (await paystackResponse.json()) as PaystackInitializeResponse;
   } catch (apiError) {
     logger.warn(
-      `Compensating transaction for [${transactionId}] due to API failure.`,
+      `Compensating transaction for [${transactionId}] due to API failure.`
     );
     try {
       await dbClient.db
@@ -178,7 +283,7 @@ export async function startPaystackDonation(
     } catch (compensationError) {
       logger.error(
         compensationError,
-        `CRITICAL: Failed to compensate (mark as FAILED) transaction [${transactionId}].`,
+        `CRITICAL: Failed to compensate (mark as FAILED) transaction [${transactionId}].`
       );
     }
     throw apiError;
@@ -196,6 +301,8 @@ export async function startPaystackDonation(
       id: newDonation.id,
       amount: newTransaction.amount,
       currency: newTransaction.currency,
+      status: newTransaction.status,
+      date: newTransaction.createdAt,
       donor,
     },
     paymentUrl: paystackData.data.authorization_url,
@@ -207,7 +314,7 @@ export async function startPaystackDonation(
  */
 export async function verifyPaystackDonation(
   donation: Donation,
-  user: AuthenticatedUser | null,
+  user: AuthenticatedUser | null
 ): Promise<{
   status: string;
 }> {
@@ -221,7 +328,7 @@ export async function verifyPaystackDonation(
     if (!donation.transaction.externalRef) {
       throw new ApiError(
         "No external reference found for this transaction",
-        400,
+        400
       );
     }
 
@@ -235,7 +342,7 @@ export async function verifyPaystackDonation(
         headers: {
           Authorization: `Bearer ${paystackSecretKey}`,
         },
-      },
+      }
     );
 
     if (!verifyResponse.ok) {
@@ -265,15 +372,15 @@ export async function verifyPaystackDonation(
       .where(
         and(
           eq(schema.FinancialTransactions.id, donation.transaction.id),
-          eq(schema.FinancialTransactions.status, "PENDING"),
-        ),
+          eq(schema.FinancialTransactions.status, "PENDING")
+        )
       )
       .returning({ id: schema.FinancialTransactions.id });
 
     // Check if update was successful
     if (updateResult.length === 0) {
       logger.warn(
-        `Transaction ${donation.transaction.id} was not updated - may have been processed already`,
+        `Transaction ${donation.transaction.id} was not updated - may have been processed already`
       );
       // Return current status from database instead of from Paystack
       return {

@@ -35,3 +35,12 @@ export const CreateDonationSchema = z
       path: ["donorInfo"],
     },
   );
+
+import { PaginationQuery } from "@/shared/validators";
+
+export const GetDonationsQuerySchema = z.object({
+  ...PaginationQuery.shape,
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
+  status: z.enum(["PENDING", "COMPLETED", "FAILED", "REFUNDED"]).optional(),
+});
