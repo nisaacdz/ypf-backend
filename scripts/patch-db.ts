@@ -12,6 +12,111 @@ async function applyManualConstraints(
 
   await applyExclusionConstraints(tx);
 
+  console.log("Applying additional logical constraints...");
+
+  // 1. Events Scope: Ensure at most one of projectId, welfareCaseId, chapterId is set
+  console.log(
+    "Applying constraint 'events_scope_check' to 'activities.events'...",
+  );
+  await tx.execute(sql`
+    ALTER TABLE activities.events
+    DROP CONSTRAINT IF EXISTS events_scope_check;
+
+    ALTER TABLE activities.events
+    ADD CONSTRAINT events_scope_check
+    CHECK (num_nonnulls(project_id, welfare_case_id, chapter_id) <= 1);
+  `);
+  console.log("✅ Applied 'events_scope_check'.");
+
+  // 2. Welfare Beneficiaries: Unique (welfareCaseId, beneficiaryId)
+  console.log(
+    "Applying constraint 'welfare_beneficiaries_unique' to 'activities.welfare_case_beneficiaries'...",
+  );
+  await tx.execute(sql`
+    ALTER TABLE activities.welfare_case_beneficiaries
+    DROP CONSTRAINT IF EXISTS welfare_beneficiaries_unique;
+
+    ALTER TABLE activities.welfare_case_beneficiaries
+    ADD CONSTRAINT welfare_beneficiaries_unique
+    UNIQUE (welfare_case_id, beneficiary_id);
+  `);
+  console.log("✅ Applied 'welfare_beneficiaries_unique'.");
+
+  // 3. Featured Media Limit: Trigger to ensure max 10 featured items
+  console.log("Creating function 'check_featured_media_limit'...");
+  await tx.execute(sql`
+    CREATE OR REPLACE FUNCTION check_featured_media_limit()
+    RETURNS TRIGGER AS $$
+    DECLARE
+      featured_count INTEGER;
+      table_name TEXT;
+      parent_col TEXT;
+      parent_id UUID;
+    BEGIN
+      -- Only check if is_featured is being set to true
+      IF NEW.is_featured = true THEN
+        table_name := TG_TABLE_NAME;
+        
+        -- Determine the parent column based on the table name
+        IF table_name = 'project_media' THEN
+          parent_col := 'project_id';
+          parent_id := NEW.project_id;
+        ELSIF table_name = 'event_media' THEN
+          parent_col := 'event_id';
+          parent_id := NEW.event_id;
+        ELSIF table_name = 'welfare_case_media' THEN
+          parent_col := 'welfare_case_id';
+          parent_id := NEW.welfare_case_id;
+        ELSIF table_name = 'chapter_media' THEN
+          parent_col := 'chapter_id';
+          parent_id := NEW.chapter_id;
+        ELSIF table_name = 'committee_media' THEN
+          parent_col := 'committee_id';
+          parent_id := NEW.committee_id;
+        ELSE
+          RAISE EXCEPTION 'Unknown table for featured media limit: %', table_name;
+        END IF;
+
+        -- Execute dynamic query to count existing featured items for this parent
+        EXECUTE format('SELECT count(*) FROM %I.%I WHERE %I = $1 AND is_featured = true', TG_TABLE_SCHEMA, table_name, parent_col)
+        INTO featured_count
+        USING parent_id;
+
+        IF featured_count >= 10 THEN
+           RAISE EXCEPTION 'Cannot have more than 10 featured media items for this collection.';
+        END IF;
+      END IF;
+      
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+  `);
+
+  const mediaTables = [
+    { schema: "activities", table: "project_media" },
+    { schema: "activities", table: "event_media" },
+    { schema: "activities", table: "welfare_case_media" },
+    { schema: "core", table: "chapter_media" },
+    { schema: "core", table: "committee_media" },
+  ];
+
+  for (const t of mediaTables) {
+    console.log(
+      `Applying trigger 'check_featured_limit' to '${t.schema}.${t.table}'...`,
+    );
+    await tx.execute(
+      sql.raw(`
+      DROP TRIGGER IF EXISTS check_featured_limit ON ${t.schema}.${t.table};
+      
+      CREATE TRIGGER check_featured_limit
+      BEFORE INSERT OR UPDATE ON ${t.schema}.${t.table}
+      FOR EACH ROW
+      EXECUTE FUNCTION check_featured_media_limit();
+    `),
+    );
+    console.log(`✅ Applied trigger to '${t.schema}.${t.table}'.`);
+  }
+
   console.log("🎉 Successfully applied all manual constraints!");
 }
 
