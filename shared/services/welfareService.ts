@@ -1,4 +1,4 @@
-import { eq, and, desc, sql, count, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, count } from "drizzle-orm";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { Paginated } from "@/shared/dtos";
@@ -14,8 +14,6 @@ import {
   UpdateWelfareCaseSchema,
 } from "@/features/api/v1/welfare/schemas";
 import z from "zod";
-import * as constituentsService from "@/shared/services/constituentsService";
-import { YPFConstituent } from "@/features/api/v1/constituents/dtos";
 import { YPFEvent } from "@/features/api/v1/events/dtos";
 
 /**
@@ -203,8 +201,8 @@ export async function fetchWelfareCaseById(
     expenditure:
       expenditure[0].total > 0
         ? {
-            id: "aggregated", // It's a sum, not a single record
-            amount: Number(expenditure[0].total),
+            id: "aggregated",
+            amount: expenditure[0].total,
           }
         : undefined,
   };
