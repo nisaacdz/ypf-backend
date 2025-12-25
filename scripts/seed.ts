@@ -2,539 +2,591 @@ import { faker } from "@faker-js/faker";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import bcrypt from "bcryptjs";
+import { TargetingFilter } from "@/shared/types/targeting";
 
 async function seed(
   tx: Parameters<Parameters<typeof dbClient.db.transaction>[0]>[0],
 ) {
-  console.log("⚙️ Seeding core and app tables...");
+  console.log("🌱 Starting Real-World Seeding...");
 
-  // Seed Constituents
+  // ----------------------------------------------------------------------
+  // 1. CONSTITUENTS
+  // ----------------------------------------------------------------------
+  console.log("👤 Seeding Constituents...");
+  const constituentsData = Array.from({ length: 60 }, () => ({
+    firstName: faker.person.firstName(),
+    lastName: faker.person.lastName(),
+    email: faker.internet.email(),
+    phone: faker.phone.number(),
+    whatsapp: faker.phone.number(),
+    gender: faker.helpers.arrayElement(schema.GenderEnum.enumValues),
+    dateOfBirth: faker.date.birthdate({ min: 18, max: 60, mode: "age" }),
+    country: faker.location.country(),
+    city: faker.location.city(),
+    occupation: faker.person.jobTitle(),
+  }));
+
+  // Ensure some have org emails for admins
+  constituentsData[0].email = "president@ypf.org";
+  constituentsData[1].email = "vp@ypf.org";
+
   const constituents = await tx
     .insert(schema.Constituents)
-    .values(
-      Array.from({ length: 30 }, () => ({
-        firstName: faker.person.firstName(),
-        lastName: faker.person.lastName(),
-        dateOfBirth: faker.date.birthdate({ min: 18, max: 65, mode: "age" }),
-        gender: faker.helpers.arrayElement(schema.GenderEnum.enumValues),
-        email: faker.internet.email(),
-        phone: faker.phone.number(),
-        whatsapp: faker.phone.number(),
-        orgEmail: faker.internet.email(),
-      })),
-    )
+    .values(constituentsData)
     .returning();
 
-  // Seed Users
+  // ----------------------------------------------------------------------
+  // 2. AUTH (USERS)
+  // ----------------------------------------------------------------------
+  console.log("🔐 Seeding Users...");
   const hashedPassword = await bcrypt.hash("password123", 10);
   const users = await tx
     .insert(schema.Users)
     .values(
       constituents.map((c) => ({
         constituentId: c.id,
-        email: faker.internet.email({
-          firstName: c.firstName,
-          lastName: c.lastName,
-        }),
+        email: c.email!, // All generated have emails
         password: hashedPassword,
       })),
     )
     .returning();
 
-  // Seed Chapters
+  // ----------------------------------------------------------------------
+  // 3. ORGANIZATION STRUCTURE (Chapters, Committees)
+  // ----------------------------------------------------------------------
+  console.log("🏢 Seeding Chapters & Committees...");
+  const chaptersData = [
+    {
+      name: "Lagos Chapter",
+      country: "Nigeria",
+      foundingDate: new Date("2018-01-01"),
+    },
+    {
+      name: "Accra Chapter",
+      country: "Ghana",
+      foundingDate: new Date("2019-05-15"),
+    },
+    {
+      name: "Nairobi Chapter",
+      country: "Kenya",
+      foundingDate: new Date("2020-02-20"),
+    },
+    {
+      name: "New York Chapter",
+      country: "USA",
+      foundingDate: new Date("2021-08-10"),
+    },
+  ];
   const chapters = await tx
     .insert(schema.Chapters)
-    .values([
-      {
-        name: "Lagos Chapter",
-        country: "NG",
-        foundingDate: faker.date.past({ years: 5 }),
-      },
-      {
-        name: "Accra Chapter",
-        country: "GH",
-        foundingDate: faker.date.past({ years: 3 }),
-      },
-      {
-        name: "Nairobi Chapter",
-        country: "KE",
-        foundingDate: faker.date.past({ years: 2 }),
-      },
-    ])
+    .values(chaptersData)
     .returning();
 
-  // Seed Committees
+  const committeesData = [
+    // Lagos
+    { name: "Lagos Finance", chapterId: chapters[0].id },
+    { name: "Lagos Tech", chapterId: chapters[0].id },
+    // Accra
+    { name: "Accra Outreach", chapterId: chapters[1].id },
+    // Nairobi
+    { name: "Nairobi Events", chapterId: chapters[2].id },
+    // Global/No Chapter specific? Or just more chapters
+    { name: "Global Strategy", description: "Oversight committee" },
+  ];
   const committees = await tx
     .insert(schema.Committees)
-    .values([
-      { name: "Finance Committee", chapterId: chapters[0].id },
-      { name: "Tech Committee", chapterId: chapters[1].id },
-      { name: "Outreach Committee", chapterId: chapters[0].id },
-      { name: "Events Committee", chapterId: chapters[2].id },
-    ])
+    .values(committeesData)
     .returning();
 
-  // Seed Organizations
-  const organizations = await tx
-    .insert(schema.Organizations)
-    .values([
-      {
-        name: "TechCorp Foundation",
-        website: "https://techcorp.example.com",
-        description: "Technology-focused nonprofit partner",
-        isActive: true,
-      },
-      {
-        name: "Green Earth Initiative",
-        website: "https://greenearth.example.com",
-        description: "Environmental conservation partner",
-        isActive: true,
-      },
-      {
-        name: "Local Venue Co",
-        description: "Event venue provider",
-        isActive: true,
-      },
-    ])
-    .returning();
-
-  // Seed Organization Contacts
-  await tx.insert(schema.OrganizationContacts).values([
-    {
-      organizationId: organizations[0].id,
-      constituentId: constituents[10].id,
-      title: "Partnership Manager",
-      isPrimary: true,
-    },
-    {
-      organizationId: organizations[1].id,
-      constituentId: constituents[11].id,
-      title: "Director of Partnerships",
-      isPrimary: true,
-    },
-    {
-      organizationId: organizations[2].id,
-      constituentId: constituents[12].id,
-      title: "Sales Manager",
-      isPrimary: false,
-    },
-  ]);
-
-  // Seed Member Titles
-  const globalPresidentTitle = await tx
+  // ----------------------------------------------------------------------
+  // 4. ROLES & TITLES
+  // ----------------------------------------------------------------------
+  console.log("👑 Seeding Titles...");
+  // Global
+  const globalTitles = await tx
     .insert(schema.MemberTitles)
-    .values({
-      alias: "president",
-      title: "President",
-      description: "Global President of the organization",
-      _level: 100,
-    })
+    .values([
+      { title: "Global President", alias: "global_president", _level: 100 },
+      { title: "Global VP", alias: "global_vp", _level: 90 },
+      { title: "General Secretary", alias: "gen_sec", _level: 80 },
+    ])
     .returning();
 
-  const chapterLeadTitles = await tx
+  // Chapter Leads
+  const chapterTitles = await tx
     .insert(schema.MemberTitles)
     .values(
       chapters.map((c) => ({
-        alias: "chapterlead",
-        title: "Chapter Lead",
-        description: `Lead of the ${c.name}`,
-        _level: 50,
+        title: `${c.name} Lead`,
+        alias: `lead_${c.name.toLowerCase().replace(/\s/g, "_")}`,
+        _level: 60,
         chapterId: c.id,
       })),
     )
     .returning();
 
+  // Committee Chairs
   const committeeTitles = await tx
     .insert(schema.MemberTitles)
-    .values([
-      {
-        alias: `committeechair`,
-        title: "Committee Chair",
-        description: `Chair of ${committees[0].name}`,
-        _level: 40,
-        committeeId: committees[0].id,
-      },
-      {
-        alias: `committeechair`,
-        title: "Committee Chair",
-        description: `Chair of ${committees[1].name}`,
-        _level: 40,
-        committeeId: committees[1].id,
-      },
-    ])
-    .returning();
-
-  // Seed Admins
-  const admins = await tx
-    .insert(schema.Admins)
-    .values([
-      { constituentId: constituents[0].id, startedAt: new Date() },
-      { constituentId: constituents[1].id, startedAt: new Date() },
-    ])
-    .returning();
-
-  // Seed Admin Role Assignments
-  await tx.insert(schema.AdminRolesAssignments).values([
-    {
-      adminId: admins[0].id,
-      role: "SUPER_ADMIN",
-      startedAt: new Date(),
-    },
-    {
-      adminId: admins[1].id,
-      role: "REGULAR_ADMIN",
-      startedAt: new Date(),
-    },
-  ]);
-
-  // Seed Members
-  const members = await tx
-    .insert(schema.Members)
     .values(
-      constituents.slice(0, 25).map((c) => ({
-        constituentId: c.id,
-        startedAt: faker.date.past({ years: 2 }),
+      committees.map((com) => ({
+        title: `${com.name} Chair`,
+        alias: `chair_${com.name.toLowerCase().replace(/\s/g, "_")}`,
+        _level: 50,
+        committeeId: com.id,
       })),
     )
     .returning();
 
-  // Seed Volunteers
+  // ----------------------------------------------------------------------
+  // 5. MEMBERSHIPS & ROLES ASSIGNMENTS
+  // ----------------------------------------------------------------------
+  console.log("👥 Seeding Memberships...");
+  // Make the first 40 constituents Members
+  const memberConstituents = constituents.slice(0, 40);
+  const members = await tx
+    .insert(schema.Members)
+    .values(
+      memberConstituents.map((c) => ({
+        constituentId: c.id,
+        startedAt: faker.date.past({ years: 3 }),
+      })),
+    )
+    .returning();
+
+  // Make the next 10 Volunteers
+  const volunteerConstituents = constituents.slice(40, 50);
   await tx.insert(schema.Volunteers).values(
-    constituents.slice(15, 22).map((c) => ({
+    volunteerConstituents.map((c) => ({
       constituentId: c.id,
       startedAt: faker.date.past({ years: 1 }),
     })),
   );
 
-  // Seed Auditors
-  await tx.insert(schema.Auditors).values([
-    {
-      constituentId: constituents[25].id,
-      startedAt: faker.date.past({ years: 1 }),
-    },
-    {
-      constituentId: constituents[26].id,
-      startedAt: faker.date.past(),
-    },
+  // Make some Admins (Top 5 members)
+  const adminMembers = members.slice(0, 5);
+  const admins = await tx
+    .insert(schema.Admins)
+    .values(
+      adminMembers.map((m) => ({
+        constituentId: m.constituentId,
+        startedAt: faker.date.past({ years: 2 }),
+      })),
+    )
+    .returning();
+
+  // Assign Admin Roles
+  await tx.insert(schema.AdminRolesAssignments).values([
+    { adminId: admins[0].id, role: "SUPER_ADMIN", startedAt: new Date() }, // President
+    { adminId: admins[1].id, role: "SUPER_ADMIN", startedAt: new Date() }, // VP
+    { adminId: admins[2].id, role: "REGULAR_ADMIN", startedAt: new Date() },
+    { adminId: admins[3].id, role: "REGULAR_ADMIN", startedAt: new Date() },
+    { adminId: admins[4].id, role: "REGULAR_ADMIN", startedAt: new Date() },
   ]);
 
-  // Seed Member Titles Assignments
-  await tx.insert(schema.MemberTitlesAssignments).values([
-    {
-      memberId: members[1].id,
-      titleId: globalPresidentTitle[0].id,
-      startedAt: new Date(),
-    },
-    {
-      memberId: members[2].id,
-      titleId: chapterLeadTitles[0].id,
-      startedAt: new Date(),
-    },
-    {
-      memberId: members[3].id,
-      titleId: chapterLeadTitles[1].id,
-      startedAt: faker.date.past(),
-    },
-    {
-      memberId: members[5].id,
-      titleId: committeeTitles[0].id,
-      startedAt: faker.date.past(),
-    },
-    {
-      memberId: members[6].id,
-      titleId: committeeTitles[1].id,
-      startedAt: faker.date.past(),
-    },
-  ]);
+  // Assign Titles
+  // President
+  await tx.insert(schema.MemberTitlesAssignments).values({
+    memberId: members[0].id,
+    titleId: globalTitles.find((t) => t.alias === "global_president")!.id,
+    startedAt: new Date(),
+  });
+  // VP
+  await tx.insert(schema.MemberTitlesAssignments).values({
+    memberId: members[1].id,
+    titleId: globalTitles.find((t) => t.alias === "global_vp")!.id,
+    startedAt: new Date(),
+  });
 
-  // Seed Chapter Memberships
-  await tx.insert(schema.ChapterMemberships).values(
-    members.map((m) => ({
-      memberId: m.id,
-      chapterId: faker.helpers.arrayElement(chapters).id,
-      startedAt: faker.date.past(),
-    })),
-  );
+  // Assign Chapter Leads (Members 5,6,7,8)
+  for (let i = 0; i < chapters.length; i++) {
+    await tx.insert(schema.MemberTitlesAssignments).values({
+      memberId: members[5 + i].id,
+      titleId: chapterTitles[i].id,
+      startedAt: new Date(),
+    });
+  }
 
-  // Seed Committee Memberships
-  await tx.insert(schema.CommitteeMemberships).values(
-    members.slice(0, 15).map((m) => ({
+  // Assign Chapter Memberships (Random distribution)
+  const chapterMembershipsData = members.map((m) => ({
+    memberId: m.id,
+    chapterId: faker.helpers.arrayElement(chapters).id,
+    startedAt: faker.date.past({ years: 2 }),
+  }));
+  await tx.insert(schema.ChapterMemberships).values(chapterMembershipsData);
+
+  // Assign Committee Memberships (Random subset)
+  const committeeMembershipsData = members
+    .filter(() => Math.random() > 0.3) // 70% are in a committee
+    .map((m) => ({
       memberId: m.id,
       committeeId: faker.helpers.arrayElement(committees).id,
-      startedAt: faker.date.past(),
+      startedAt: faker.date.past({ years: 1 }),
+    }));
+  await tx.insert(schema.CommitteeMemberships).values(committeeMembershipsData);
+
+  // ----------------------------------------------------------------------
+  // 6. EXTERNAL ORGANIZATIONS
+  // ----------------------------------------------------------------------
+  console.log("🤝 Seeding Organizations...");
+  const organizations = await tx
+    .insert(schema.Organizations)
+    .values([
+      { name: "TechCorp Foundation", website: "techcorp.org", isActive: true },
+      { name: "Green Earth NGO", website: "greenearth.org", isActive: true },
+      {
+        name: "City General Hospital",
+        website: "cityhospital.gov",
+        isActive: true,
+      },
+      {
+        name: "Bright Future Schools",
+        website: "brightfuture.edu",
+        isActive: true,
+      },
+      { name: "Grand Venue Halls", isActive: true },
+    ])
+    .returning();
+
+  // Org Contacts (Use random constituents not in members/volunteers list effectively, or reuse)
+  // Let's use the last 10 constituents who are not members/volunteers (50-59)
+  const pocs = constituents.slice(50, 55);
+  await tx.insert(schema.OrganizationContacts).values(
+    organizations.map((org, idx) => ({
+      organizationId: org.id,
+      constituentId: pocs[idx] ? pocs[idx].id : pocs[0].id,
+      title: "Partnership Lead",
+      isPrimary: true,
     })),
   );
 
-  console.log("✅ Core and app tables seeded.");
+  // ----------------------------------------------------------------------
+  // 7. ACTIVITIES (Projects, Events, Welfare)
+  // ----------------------------------------------------------------------
+  console.log("🚀 Seeding Activities...");
 
-  console.log("🎉 Seeding activities...");
-  // Seed Projects
+  // Projects
   const projects = await tx
     .insert(schema.Projects)
-    .values(
-      Array.from({ length: 5 }, () => ({
-        title: faker.company.catchPhrase(),
-        abstract: faker.lorem.sentence(),
-        description: faker.lorem.paragraphs(3),
+    .values([
+      {
+        title: "Code for Kids",
+        description: "Teaching coding to underprivileged children.",
+        status: "ONGOING",
+        chapterId: chapters[0].id,
+        scheduledStart: faker.date.past(),
+        scheduledEnd: faker.date.future(),
+      },
+      {
+        title: "Clean Water 2024",
+        description: "Borehole installation in rural areas.",
+        status: "UPCOMING",
+        chapterId: chapters[1].id,
         scheduledStart: faker.date.future(),
         scheduledEnd: faker.date.future(),
-        status: faker.helpers.arrayElement(schema.ProjectStatusEnum.enumValues),
-        chapterId: faker.helpers.arrayElement(chapters).id,
-      })),
-    )
+      },
+      {
+        title: "Annual Leadership Summit",
+        description: "Global gathering of all chapters.",
+        status: "UPCOMING",
+        // global project
+        scheduledStart: faker.date.future(),
+        scheduledEnd: faker.date.future(),
+      },
+    ])
     .returning();
 
-  // Seed Events
+  // Events
   const events = await tx
     .insert(schema.Events)
-    .values(
-      Array.from({ length: 10 }, () => ({
-        name: faker.company.buzzPhrase(),
-        location: faker.location.city(),
-        objective: faker.lorem.sentence(),
+    .values([
+      // Project related
+      {
+        name: "Python Workshop 101",
+        type: "WORKSHOP",
+        projectId: projects[0].id,
+        scheduledStart: faker.date.recent(),
+        scheduledEnd: faker.date.recent(),
+        status: "COMPLETED",
+        location: "TechHub Lagos",
+      },
+      // Fundraising
+      {
+        name: "Charity Gala Night",
+        type: "NETWORKING",
+        projectId: projects[2].id,
         scheduledStart: faker.date.future(),
         scheduledEnd: faker.date.future(),
-        status: faker.helpers.arrayElement(schema.EventStatusEnum.enumValues),
-        projectId: faker.helpers.arrayElement(projects).id,
-        type: faker.helpers.arrayElement(schema.EventTypeEnum.enumValues),
-      })),
-    )
+        status: "UPCOMING",
+        location: "Grand Venue Halls",
+      },
+      // General
+      {
+        name: "Community Cleanup",
+        type: "STREETCARE",
+        chapterId: chapters[2].id, // Nairobi
+        scheduledStart: faker.date.past(),
+        scheduledEnd: faker.date.past(),
+        status: "COMPLETED",
+        location: "Nairobi Central Park",
+      },
+    ])
     .returning();
 
-  console.log("✅ Activities seeded.");
-
-  console.log("💰 Seeding finance...");
-  // Seed Financial Transactions for Donations
-  const donationTransactions = await tx
-    .insert(schema.FinancialTransactions)
-    .values(
-      Array.from({ length: 8 }, () => ({
-        amount: faker.finance.amount({ min: 10, max: 500, dec: 2 }),
-        currency: "USD",
-        createdAt: faker.date.recent(),
-        paymentMethod: faker.helpers.arrayElement(
-          schema.PaymentMethodEnum.enumValues,
-        ),
-        externalProvider: "PAYSTACK" as const,
-        status: faker.helpers.arrayElement(
-          schema.TransactionStatusEnum.enumValues,
-        ),
-      })),
-    )
+  // Welfare Cases
+  const welfareCases = await tx
+    .insert(schema.WelfareCases)
+    .values([
+      {
+        title: "Emergency Surgery for Member A",
+        type: "MEDICAL",
+        description: "Appendicitis surgery support.",
+        chapterId: chapters[0].id,
+        date: new Date(),
+      },
+      {
+        title: "School Fees Drive",
+        type: "EDUCATIONAL",
+        description: "Supporting 50 kids with fees.",
+        chapterId: chapters[1].id,
+        date: new Date(),
+      },
+    ])
     .returning();
 
-  // Seed Donations
-  await tx.insert(schema.Donations).values(
-    donationTransactions.map((txn, i) => ({
-      transactionId: txn.id,
-      constituentId: i < 10 ? constituents[20 + i].id : null, // First 8 with constituents, rest anonymous
-      projectId: i < 4 ? projects[i % projects.length].id : null,
-      eventId: i >= 4 ? events[i % events.length].id : null,
-    })),
-  );
+  // ----------------------------------------------------------------------
+  // 8. FINANCE
+  // ----------------------------------------------------------------------
+  console.log("💰 Seeding Finance...");
 
-  // Seed Dues
+  // Dues
   const dues = await tx
     .insert(schema.Dues)
     .values(
-      chapters.map((ch) => ({
-        chapterId: ch.id,
-        amount: "100.00",
+      chapters.map((c) => ({
+        chapterId: c.id,
+        amount: "50.00",
         currency: "USD",
-        periodStart: faker.date.past(),
-        periodEnd: faker.date.future(),
+        periodStart: new Date("2024-01-01"),
+        periodEnd: new Date("2024-12-31"),
       })),
     )
     .returning();
 
-  // Seed Financial Transactions for Dues Payments
+  // Financial Transactions (Dues Payments)
+  // Let's say half of the members paid dues
+  const payingMembers = members.slice(0, 20);
   const duesTransactions = await tx
     .insert(schema.FinancialTransactions)
     .values(
-      Array.from({ length: 10 }, () => ({
-        amount: "100.00",
+      payingMembers.map(() => ({
+        amount: "50.00",
         currency: "USD",
-        createdAt: faker.date.recent(),
-        paymentMethod: faker.helpers.arrayElement(
-          schema.PaymentMethodEnum.enumValues,
-        ),
-        externalProvider: "PAYSTACK" as const,
+        paymentMethod: "BANK_TRANSFER" as const,
         status: "COMPLETED" as const,
+        externalProvider: "PAYSTACK" as const,
+        externalRef: faker.string.uuid(),
       })),
     )
     .returning();
 
-  // Seed Dues Payments
   await tx.insert(schema.DuesPayments).values(
-    duesTransactions.map((txn, i) => ({
-      transactionId: txn.id,
-      duesId: dues[i % dues.length].id,
-      memberId: members[i].id,
+    duesTransactions.map((t, i) => ({
+      transactionId: t.id,
+      duesId:
+        dues.find(
+          (d) =>
+            // find due matching member's chapter roughly, or just pick random due
+            true,
+        )!.id ?? dues[0].id,
+      // For simplicity, just assigned to dues[0] or random if logic complex
+      memberId: payingMembers[i].id,
     })),
   );
 
-  // Seed Expenditures
-  await tx.insert(schema.Expenditures).values([
-    {
-      timestamp: faker.date.recent(),
-      amount: "500.00",
-      currency: "USD",
-      description: "Event venue rental",
-      category: "Venue",
-      projectId: projects[0].id,
-      eventId: events[0].id,
-      vendorId: organizations[2].id,
-    },
-    {
-      timestamp: faker.date.recent(),
-      amount: "250.00",
-      currency: "USD",
-      description: "Catering services",
-      category: "Food",
-      eventId: events[1].id,
-    },
-    {
-      timestamp: faker.date.recent(),
-      amount: "1200.00",
-      currency: "USD",
-      description: "Technology infrastructure",
-      category: "IT",
-      projectId: projects[1].id,
-    },
-  ]);
+  // Donations
+  const donationTransactions = await tx
+    .insert(schema.FinancialTransactions)
+    .values(
+      Array.from({ length: 10 }, () => ({
+        amount: faker.finance.amount({ min: 100, max: 1000, dec: 2 }),
+        currency: "USD",
+        paymentMethod: "CREDIT_CARD" as const,
+        status: "COMPLETED" as const,
+        externalProvider: "PAYSTACK" as const,
+        externalRef: faker.string.uuid(),
+      })),
+    )
+    .returning();
 
-  // Seed Partnerships
-  await tx.insert(schema.Partnerships).values([
-    {
-      organizationId: organizations[0].id,
-      partnershipType: "SPONSOR" as const,
-      projectId: projects[0].id,
-      startedAt: new Date("2024-01-01"),
-      value: "5000.00",
-      metadata: "Tech sponsorship for digital infrastructure",
-    },
-    {
-      organizationId: organizations[1].id,
-      partnershipType: "IN_KIND" as const,
-      eventId: events[0].id,
-      startedAt: faker.date.past(),
-      metadata: "Provided environmental materials",
-    },
-    {
-      organizationId: organizations[2].id,
-      partnershipType: "VENUE" as const,
-      eventId: events[1].id,
-      startedAt: faker.date.past(),
-      value: "800.00",
-    },
-  ]);
-
-  console.log("✅ Finance seeded.");
-
-  // Seed Notifications (linked to broadcasts)
-  await tx.insert(schema.AppNotifications).values(
-    members.slice(0, 10).flatMap((m, i) => [
-      {
-        userId: users[i].id,
-        title: faker.lorem.sentence(),
-        message: faker.lorem.paragraph(),
-        isRead: faker.datatype.boolean(),
-        createdAt: faker.date.past(),
-      },
-    ]),
+  await tx.insert(schema.Donations).values(
+    donationTransactions.map((t, i) => ({
+      transactionId: t.id,
+      constituentId: i < 5 ? constituents[i].id : null,
+      projectId: i % 2 === 0 ? projects[0].id : null,
+      eventId: i % 2 !== 0 ? events[1].id : null,
+    })),
   );
 
-  console.log("✅ Communications seeded.");
+  // Partnerships
+  await tx.insert(schema.Partnerships).values([
+    {
+      organizationId: organizations[0].id, // TechCorp
+      partnershipType: "TECHNICAL",
+      projectId: projects[0].id, // Code for Kids
+      startedAt: new Date(),
+      metadata: "Providing laptops and curriculum.",
+    },
+    {
+      organizationId: organizations[4].id, // Grand Venue
+      partnershipType: "VENUE",
+      eventId: events[1].id, // Gala
+      startedAt: new Date(),
+      value: "2000.00",
+    },
+  ]);
 
-  console.log("🛍️ Seeding shop...");
-  // Seed Products
+  // Expenditures
+  await tx.insert(schema.Expenditures).values([
+    {
+      timestamp: new Date(),
+      amount: "1500.00",
+      currency: "USD",
+      description: "Venue Deposit",
+      vendorId: organizations[4].id,
+      eventId: events[1].id,
+    },
+    {
+      timestamp: new Date(),
+      amount: "500.00",
+      currency: "USD",
+      description: "Hospital Bill Payment",
+      vendorId: organizations[2].id,
+      welfareCaseId: welfareCases[0].id,
+    },
+  ]);
+
+  // ----------------------------------------------------------------------
+  // 9. SHOP
+  // ----------------------------------------------------------------------
+  console.log("🛍️ Seeding Shop...");
   const products = await tx
     .insert(schema.Products)
     .values([
       {
-        name: "YPF Branded T-Shirt",
-        sku: "YPF-TSH-001",
-        description: "High-quality cotton t-shirt",
-        price: "25.00",
+        name: "YPF T-Shirt",
+        sku: "TSHIRT-001",
+        price: "20.00",
         stockQuantity: 100,
       },
       {
-        name: "YPF Hoodie",
-        sku: "YPF-HD-001",
-        description: "Cozy YPF-branded hoodie",
-        price: "50.00",
-        stockQuantity: 50,
+        name: "YPF Notebook",
+        sku: "NOTE-001",
+        price: "5.00",
+        stockQuantity: 200,
       },
       {
-        name: "YPF Coffee Mug",
-        sku: "YPF-MUG-001",
-        description: "YPF-branded coffee mug",
-        price: "15.00",
-        stockQuantity: 75,
+        name: "YPF Hoodie",
+        sku: "HOODIE-001",
+        price: "40.00",
+        stockQuantity: 50,
       },
     ])
     .returning();
 
-  // Seed Orders
   const orders = await tx
     .insert(schema.Orders)
     .values([
       {
-        constituentId: constituents[5].id,
-        totalAmount: "75.00",
+        constituentId: members[0].constituentId,
+        totalAmount: "60.00",
         status: "COMPLETED",
       },
       {
-        constituentId: constituents[8].id,
-        totalAmount: "15.00",
+        constituentId: members[1].constituentId,
+        totalAmount: "25.00",
         status: "PENDING",
-      },
-      {
-        constituentId: constituents[10].id,
-        totalAmount: "50.00",
-        status: "COMPLETED",
       },
     ])
     .returning();
 
-  // Seed Order Items
   await tx.insert(schema.OrderItems).values([
     {
       orderId: orders[0].id,
       productId: products[0].id,
       quantity: 1,
-      priceAtPurchase: products[0].price,
+      priceAtPurchase: "20.00",
     },
     {
       orderId: orders[0].id,
-      productId: products[1].id,
+      productId: products[2].id,
       quantity: 1,
-      priceAtPurchase: products[1].price,
+      priceAtPurchase: "40.00",
     },
     {
       orderId: orders[1].id,
-      productId: products[2].id,
+      productId: products[0].id,
       quantity: 1,
-      priceAtPurchase: products[2].price,
+      priceAtPurchase: "20.00",
     },
     {
-      orderId: orders[2].id,
+      orderId: orders[1].id,
       productId: products[1].id,
       quantity: 1,
-      priceAtPurchase: products[1].price,
+      priceAtPurchase: "5.00",
     },
   ]);
-  console.log("✅ Shop seeded.");
+
+  // ----------------------------------------------------------------------
+  // 10. ANNOUNCEMENTS
+  // ----------------------------------------------------------------------
+  console.log("📢 Seeding Announcements...");
+  await tx.insert(schema.Announcements).values([
+    {
+      title: "Welcome to our new platform!",
+      content: "We are excited to launch...",
+      targetCriteria: {
+        status: "ALL",
+      },
+      authorId: members[0].constituentId, // President
+      status: "PUBLISHED",
+      publishedAt: new Date(),
+    },
+    {
+      title: "Lagos Chapter Meeting",
+      content: "Monthly sync up...",
+      targetCriteria: {
+        chapterIds: [chapters[0].id],
+        status: "ACTIVE",
+      },
+      authorId: members[5].constituentId, // Lagos Lead
+      status: "PUBLISHED",
+      publishedAt: new Date(),
+    },
+    {
+      title: "Urgent: Finance Committee",
+      content: "Please review the budget.",
+      targetCriteria: {
+        committeeIds: [committees[0].id],
+        status: "ACTIVE",
+      },
+      authorId: members[0].constituentId,
+      status: "PUBLISHED",
+      publishedAt: new Date(),
+    },
+  ]);
+
+  console.log("✅ Database Seeded Successfully!");
 }
 
 dbClient
   .initialize()
-  .then(() => dbClient.db.transaction((tx) => seed(tx)))
+  .then(() => dbClient.db.transaction(seed))
   .then(() => {
-    console.log("Database seeded successfully with the new schema! 🎉");
+    console.log("Execution complete.");
     process.exit(0);
   })
   .catch((err) => {
-    console.error("❌ Error seeding database:", err);
+    console.error("❌ Seeding failed:", err);
     process.exit(1);
   });
