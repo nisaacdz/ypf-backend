@@ -43,8 +43,11 @@ export async function fetchProjects(
     dbClient.db
       .select({
         id: Projects.id,
+        publicId: Projects.publicId,
         title: Projects.title,
         abstract: Projects.abstract,
+        type: Projects.type,
+        category: Projects.category,
         scheduledStart: Projects.scheduledStart,
         scheduledEnd: Projects.scheduledEnd,
         status: Projects.status,
@@ -66,8 +69,11 @@ export async function fetchProjects(
       .offset(offset)
       .groupBy(
         Projects.id,
+        Projects.publicId,
         Projects.title,
         Projects.abstract,
+        Projects.type,
+        Projects.category,
         Projects.scheduledStart,
         Projects.scheduledEnd,
         Projects.status,
@@ -84,8 +90,10 @@ export async function fetchProjects(
 
   const items: YPFProject[] = projects.map((project) => ({
     id: project.id,
+    publicId: project.publicId,
     title: project.title,
-    abstract: project.abstract || undefined,
+    type: project.type,
+    category: project.category || undefined,
     scheduledStart: project.scheduledStart,
     scheduledEnd: project.scheduledEnd,
     status: project.status,
@@ -173,7 +181,10 @@ export async function fetchProjectById(
   const [ypfProject] = await dbClient.db
     .select({
       id: Projects.id,
+      publicId: Projects.publicId,
       title: Projects.title,
+      type: Projects.type,
+      category: Projects.category,
       abstract: Projects.abstract,
       description: Projects.description,
       scheduledStart: Projects.scheduledStart,
@@ -214,7 +225,10 @@ export async function fetchProjectById(
 
   return {
     id: ypfProject.id,
+    publicId: ypfProject.publicId,
     title: ypfProject.title,
+    type: ypfProject.type,
+    category: ypfProject.category || undefined,
     abstract: ypfProject.abstract || undefined,
     description: ypfProject.description || undefined,
     scheduledStart: ypfProject.scheduledStart,
@@ -249,12 +263,26 @@ export async function fetchProjectById(
   };
 }
 
+function generatePublicId(title: string): string {
+  return title
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 export async function createProject(
   data: z.infer<typeof CreateProjectSchema>,
 ): Promise<string> {
+  const publicId = generatePublicId(data.title);
+
   const [project] = await dbClient.db
     .insert(Projects)
-    .values(data)
+    .values({
+      ...data,
+      publicId,
+    })
     .returning({ id: Projects.id });
 
   if (!project) {

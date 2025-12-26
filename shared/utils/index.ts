@@ -10,6 +10,7 @@ import {
   EventStatusEnum,
   ProjectStatusEnum,
   EventTypeEnum,
+  ProjectTypeEnum,
 } from "@/db/schema/activities";
 
 import {
@@ -39,6 +40,7 @@ export type ApplicationStatus =
 export type DocumentType = (typeof DocumentTypeEnum.enumValues)[number];
 export type MediumType = (typeof MediumTypeEnum.enumValues)[number];
 export type EventStatus = (typeof EventStatusEnum.enumValues)[number];
+export type ProjectType = (typeof ProjectTypeEnum.enumValues)[number];
 export type ProjectStatus = (typeof ProjectStatusEnum.enumValues)[number];
 export type EventType = (typeof EventTypeEnum.enumValues)[number];
 export type Gender = (typeof GenderEnum.enumValues)[number];

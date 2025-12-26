@@ -54,7 +54,7 @@ constituentsRouter.get(
   "/",
   authenticate,
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER))
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER)),
   ),
   validateQuery(GetConstituentsQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -64,7 +64,7 @@ constituentsRouter.get(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -133,13 +133,13 @@ constituentsRouter.post(
       const dashboardUrl = `${variables.app.dashboardUrl}/auth/onboarding`;
       const response = await constituentsHandler.onboardConstituent(
         req.Body,
-        dashboardUrl
+        dashboardUrl,
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -168,13 +168,13 @@ constituentsRouter.get(
   "/:constituentId",
   authenticate,
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER))
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER)),
   ),
   validateParams(z.object({ constituentId: z.uuid("Invalid constituent ID") })),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await constituentsHandler.getConstituent(
-        req.Params.constituentId
+        req.Params.constituentId,
       );
       if (!response.data) {
         res
@@ -186,7 +186,7 @@ constituentsRouter.get(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 export default constituentsRouter;

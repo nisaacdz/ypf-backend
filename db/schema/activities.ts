@@ -4,13 +4,18 @@ import {
   uuid,
   text,
   timestamp,
-  date,
+  varchar,
   jsonb,
   unique,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { Chapters, Constituents, Documents, Media } from "./core";
 import { TargetingFilter } from "@/shared/types/targeting";
+import { customAlphabet } from "nanoid";
+const generatePublicId = customAlphabet(
+  "2346789ABCDEFGHJKLMNPQRTUVWXYZabcdefghijkmnpqrtwxyz",
+  8,
+);
 export const activities = pgSchema("activities");
 
 // Keep `featured` media less than 10 for each collection.
@@ -21,6 +26,12 @@ export const ProjectStatusEnum = activities.enum("project_status", [
   "COMPLETED",
   "CANCELLED",
 ]);
+export const ProjectTypeEnum = activities.enum("project_type", [
+  "WELFARE",
+  "COMMUNITY",
+  "ADVOCACY",
+  "OTHER",
+]);
 export const EventStatusEnum = activities.enum("event_status", [
   "UPCOMING",
   "ONGOING",
@@ -30,17 +41,9 @@ export const EventStatusEnum = activities.enum("event_status", [
 export const EventTypeEnum = activities.enum("event_type", [
   "MENTORSHIP",
   "WORKSHOP",
-  "WELFARE",
   "CHILDCARE",
   "NETWORKING",
   "STREETCARE",
-]);
-export const WelfareCaseTypeEnum = activities.enum("welfare_type", [
-  "MEDICAL",
-  "EDUCATIONAL",
-  "FUNERAL",
-  "FINANCIAL_SUPPORT",
-  "OTHER",
 ]);
 export const AttendanceStatusEnum = activities.enum("attendance_status", [
   "INVITED",
@@ -51,8 +54,14 @@ export const AttendanceStatusEnum = activities.enum("attendance_status", [
 
 export const Projects = activities.table("projects", {
   id: uuid().defaultRandom().primaryKey(),
+  publicId: varchar("public_id", { length: 8 })
+    .notNull()
+    .unique()
+    .$defaultFn(() => generatePublicId()),
   title: text().notNull(),
   abstract: text(),
+  type: ProjectTypeEnum().notNull(),
+  category: text(),
   description: text(),
   scheduledStart: timestamp("scheduled_start", {
     withTimezone: true,
@@ -64,7 +73,7 @@ export const Projects = activities.table("projects", {
   }),
 });
 
-// Set at most one of [projectId, chapterId, welfareCaseId] non-null
+// Set at most one of [projectId, chapterId] non-null
 // Most important table
 //
 export const Events = activities.table("events", {
@@ -81,39 +90,23 @@ export const Events = activities.table("events", {
   projectId: uuid("project_id").references(() => Projects.id, {
     onDelete: "set null",
   }),
-  welfareCaseId: uuid("welfare_case_id").references(() => WelfareCases.id, {
-    onDelete: "set null",
-  }),
   chapterId: uuid("chapter_id").references(() => Chapters.id, {
     onDelete: "set null",
   }),
 });
 
-// If this case is supported, then there will be an entry in `Expenditures` table with
-// expenditure.welfareCaseId == welfareCase.id
-export const WelfareCases = activities.table("welfare_cases", {
-  id: uuid().defaultRandom().primaryKey(),
-  title: text().notNull(),
-  description: text(),
-  date: date({ mode: "date" }),
-  type: WelfareCaseTypeEnum().notNull(),
-  chapterId: uuid("chapter_id").references(() => Chapters.id, {
-    onDelete: "set null",
-  }),
-});
-
-// TODO: Add unique (welfareCaseId, beneficiaryId) pair
-export const WelfareCaseBeneficiaries = activities.table(
-  "welfare_case_beneficiaries",
+export const ProjectBeneficiaries = activities.table(
+  "project_beneficiaries",
   {
     id: uuid().defaultRandom().primaryKey(),
-    welfareCaseId: uuid("welfare_case_id")
+    projectId: uuid("project_id")
       .notNull()
-      .references(() => WelfareCases.id, { onDelete: "restrict" }),
+      .references(() => Projects.id, { onDelete: "restrict" }),
     beneficiaryId: uuid("beneficiary_id")
       .notNull()
       .references(() => Constituents.id, { onDelete: "restrict" }),
   },
+  (table) => [unique().on(table.projectId, table.beneficiaryId)],
 );
 
 export const ProjectMedia = activities.table("project_media", {
@@ -151,18 +144,6 @@ export const EventDocuments = activities.table("event_documents", {
   title: text().notNull(),
 });
 
-export const WelfareCaseMedia = activities.table("welfare_case_media", {
-  id: uuid().defaultRandom().primaryKey(),
-  welfareCaseId: uuid("welfare_case_id")
-    .notNull()
-    .references(() => WelfareCases.id, { onDelete: "restrict" }),
-  mediumId: uuid("medium_id").references(() => Media.id, {
-    onDelete: "cascade",
-  }),
-  caption: text(),
-  isFeatured: boolean("is_featured").notNull().default(false),
-});
-
 export const projectsRelations = relations(Projects, ({ one, many }) => ({
   chapter: one(Chapters, {
     fields: [Projects.chapterId],
@@ -170,18 +151,6 @@ export const projectsRelations = relations(Projects, ({ one, many }) => ({
   }),
   events: many(Events),
 }));
-
-export const welfareCaseRelations = relations(
-  WelfareCases,
-  ({ one, many }) => ({
-    chapter: one(Chapters, {
-      fields: [WelfareCases.chapterId],
-      references: [Chapters.id],
-    }),
-    events: many(Events),
-    beneficiaries: many(WelfareCaseBeneficiaries),
-  }),
-);
 
 export const Announcements = activities.table("announcements", {
   id: uuid().defaultRandom().primaryKey(),

@@ -1,5 +1,5 @@
 import z from "zod";
-import { ProjectStatusEnum } from "@/db/schema/activities";
+import { ProjectStatusEnum, ProjectTypeEnum } from "@/db/schema/activities";
 import { MediumTypeEnum } from "@/db/schema/core";
 import { PaginationQuery } from "@/shared/validators";
 
@@ -69,15 +69,21 @@ export const CreateProjectSchema = z.object({
     .string({ message: "Project title is required." })
     .min(3, { message: "Project title must be at least 3 characters." })
     .max(200, { message: "Project title must not exceed 200 characters." }),
+  type: z.enum(ProjectTypeEnum.enumValues, {
+    message: "Invalid project type.",
+  }),
+  category: z.string().optional(),
   abstract: z.string().optional(),
   description: z.string().optional(),
   scheduledStart: z.coerce.date({
     message: "Please enter a valid start date.",
   }),
   scheduledEnd: z.coerce.date({ message: "Please enter a valid end date." }),
-  status: z.enum(ProjectStatusEnum.enumValues, {
-    message: "Invalid project status.",
-  }),
+  status: z
+    .enum(ProjectStatusEnum.enumValues, {
+      message: "Invalid project status.",
+    })
+    .default("UPCOMING"),
   chapterId: z.uuid({ message: "Invalid chapter ID format." }).optional(),
 });
 
@@ -87,6 +93,12 @@ export const UpdateProjectSchema = z.object({
     .min(3, { message: "Project title must be at least 3 characters." })
     .max(200, { message: "Project title must not exceed 200 characters." })
     .optional(),
+  type: z
+    .enum(ProjectTypeEnum.enumValues, {
+      message: "Invalid project type.",
+    })
+    .optional(),
+  category: z.string().optional(),
   abstract: z.string().optional(),
   description: z.string().optional(),
   scheduledStart: z.coerce.date().optional(),
