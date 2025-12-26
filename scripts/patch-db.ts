@@ -6,7 +6,7 @@ import { sql } from "drizzle-orm";
  * This function is designed to be called by dbClient.db.transaction().
  */
 async function applyManualConstraints(
-  tx: Parameters<Parameters<typeof dbClient.db.transaction>[0]>[0],
+  tx: Parameters<Parameters<typeof dbClient.db.transaction>[0]>[0]
 ) {
   console.log("Starting application of manual constraints...");
 
@@ -14,9 +14,9 @@ async function applyManualConstraints(
 
   console.log("Applying additional logical constraints...");
 
-  // 1. Events Scope: Ensure at most one of projectId, welfareCaseId, chapterId is set
+  // 1. Events Scope: Ensure at most one of projectId, chapterId is set
   console.log(
-    "Applying constraint 'events_scope_check' to 'activities.events'...",
+    "Applying constraint 'events_scope_check' to 'activities.events'..."
   );
   await tx.execute(sql`
     ALTER TABLE activities.events
@@ -24,23 +24,9 @@ async function applyManualConstraints(
 
     ALTER TABLE activities.events
     ADD CONSTRAINT events_scope_check
-    CHECK (num_nonnulls(project_id, welfare_case_id, chapter_id) <= 1);
+    CHECK (num_nonnulls(project_id, chapter_id) <= 1);
   `);
   console.log("✅ Applied 'events_scope_check'.");
-
-  // 2. Welfare Beneficiaries: Unique (welfareCaseId, beneficiaryId)
-  console.log(
-    "Applying constraint 'welfare_beneficiaries_unique' to 'activities.welfare_case_beneficiaries'...",
-  );
-  await tx.execute(sql`
-    ALTER TABLE activities.welfare_case_beneficiaries
-    DROP CONSTRAINT IF EXISTS welfare_beneficiaries_unique;
-
-    ALTER TABLE activities.welfare_case_beneficiaries
-    ADD CONSTRAINT welfare_beneficiaries_unique
-    UNIQUE (welfare_case_id, beneficiary_id);
-  `);
-  console.log("✅ Applied 'welfare_beneficiaries_unique'.");
 
   // 3. Featured Media Limit: Trigger to ensure max 10 featured items
   console.log("Creating function 'check_featured_media_limit'...");
@@ -64,9 +50,7 @@ async function applyManualConstraints(
         ELSIF table_name = 'event_media' THEN
           parent_col := 'event_id';
           parent_id := NEW.event_id;
-        ELSIF table_name = 'welfare_case_media' THEN
-          parent_col := 'welfare_case_id';
-          parent_id := NEW.welfare_case_id;
+
         ELSIF table_name = 'chapter_media' THEN
           parent_col := 'chapter_id';
           parent_id := NEW.chapter_id;
@@ -95,14 +79,14 @@ async function applyManualConstraints(
   const mediaTables = [
     { schema: "activities", table: "project_media" },
     { schema: "activities", table: "event_media" },
-    { schema: "activities", table: "welfare_case_media" },
+
     { schema: "core", table: "chapter_media" },
     { schema: "core", table: "committee_media" },
   ];
 
   for (const t of mediaTables) {
     console.log(
-      `Applying trigger 'check_featured_limit' to '${t.schema}.${t.table}'...`,
+      `Applying trigger 'check_featured_limit' to '${t.schema}.${t.table}'...`
     );
     await tx.execute(
       sql.raw(`
@@ -112,7 +96,7 @@ async function applyManualConstraints(
       BEFORE INSERT OR UPDATE ON ${t.schema}.${t.table}
       FOR EACH ROW
       EXECUTE FUNCTION check_featured_media_limit();
-    `),
+    `)
     );
     console.log(`✅ Applied trigger to '${t.schema}.${t.table}'.`);
   }
@@ -121,7 +105,7 @@ async function applyManualConstraints(
 }
 
 async function applyExclusionConstraints(
-  tx: Parameters<Parameters<typeof dbClient.db.transaction>[0]>[0],
+  tx: Parameters<Parameters<typeof dbClient.db.transaction>[0]>[0]
 ) {
   console.log("Ensuring 'btree_gist' extension exists...");
   await tx.execute(sql`CREATE EXTENSION IF NOT EXISTS btree_gist;`);
@@ -213,7 +197,7 @@ async function applyExclusionConstraints(
     );
   `);
   console.log(
-    "✅ Successfully applied constraint to 'core.chapter_memberships'.",
+    "✅ Successfully applied constraint to 'core.chapter_memberships'."
   );
 
   console.log("Applying constraint to 'core.committee_memberships'...");
@@ -230,7 +214,7 @@ async function applyExclusionConstraints(
     );
   `);
   console.log(
-    "✅ Successfully applied constraint to 'core.committee_memberships'.",
+    "✅ Successfully applied constraint to 'core.committee_memberships'."
   );
 
   console.log("Applying constraint to 'core.member_titles_assignments'...");
@@ -247,7 +231,7 @@ async function applyExclusionConstraints(
     );
   `);
   console.log(
-    "✅ Successfully applied constraint to 'core.member_titles_assignments'.",
+    "✅ Successfully applied constraint to 'core.member_titles_assignments'."
   );
 
   console.log("Applying constraint to 'core.admin_roles_assignments'...");
@@ -264,7 +248,7 @@ async function applyExclusionConstraints(
     );
   `);
   console.log(
-    "✅ Successfully applied constraint to 'core.admin_roles_assignments'.",
+    "✅ Successfully applied constraint to 'core.admin_roles_assignments'."
   );
 }
 
