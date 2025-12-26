@@ -1,10 +1,17 @@
 import { Request, Response, NextFunction } from "express";
 import { Router } from "express";
 import { authenticate, authorize } from "@/shared/middlewares/auth";
-import { validateQuery, validateParams } from "@/shared/middlewares/validate";
+import {
+  validateQuery,
+  validateParams,
+  validateBody,
+} from "@/shared/middlewares/validate";
 import * as constituentsHandler from "./constituentsHandler";
-import { GetConstituentsQuerySchema } from "./schemas";
-import { Visitors, MEMBER, anyOf } from "@/configs/authorizer";
+import {
+  GetConstituentsQuerySchema,
+  OnboardConstituentSchema,
+} from "./schemas";
+import { Visitors, MEMBER, ADMIN, anyOf } from "@/configs/authorizer";
 import z from "zod";
 
 const constituentsRouter = Router();
@@ -46,7 +53,7 @@ constituentsRouter.get(
   "/",
   authenticate,
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER)),
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER))
   ),
   validateQuery(GetConstituentsQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -56,7 +63,82 @@ constituentsRouter.get(
     } catch (error) {
       next(error);
     }
-  },
+  }
+);
+
+/**
+ * @swagger
+ * /api/v1/constituents/onboard:
+ *   post:
+ *     summary: Onboard constituents to the platform
+ *     description: Creates User accounts for constituents and sends invitation emails. Only accessible by SUPER_ADMIN.
+ *     tags: [Constituents]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - ids
+ *             properties:
+ *               ids:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: uuid
+ *                 minItems: 1
+ *                 description: Array of constituent IDs to onboard
+ *     responses:
+ *       200:
+ *         description: Onboarding results
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     successful:
+ *                       type: integer
+ *                     failed:
+ *                       type: integer
+ *                     errors:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           constituentId:
+ *                             type: string
+ *                           error:
+ *                             type: string
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - requires SUPER_ADMIN role
+ */
+constituentsRouter.post(
+  "/onboard",
+  authenticate,
+  authorize(Visitors.hasRole(ADMIN.SUPER)),
+  validateBody(OnboardConstituentSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const dashboardUrl = `${req.get("origin")}/auth/onboarding`;
+      const response = await constituentsHandler.onboardConstituent(
+        req.Body,
+        dashboardUrl
+      );
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
 );
 
 /**
@@ -85,13 +167,13 @@ constituentsRouter.get(
   "/:constituentId",
   authenticate,
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER)),
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER))
   ),
   validateParams(z.object({ constituentId: z.uuid("Invalid constituent ID") })),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await constituentsHandler.getConstituent(
-        req.Params.constituentId,
+        req.Params.constituentId
       );
       if (!response.data) {
         res
@@ -103,7 +185,7 @@ constituentsRouter.get(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 export default constituentsRouter;

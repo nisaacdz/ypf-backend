@@ -16,6 +16,9 @@ const envSchema = z
     JWT_SECRET: z
       .string()
       .min(32, "JWT_SECRET must be at least 32 characters long"),
+
+    DASHBOARD_ORIGIN: z.string().optional(),
+    WEBSITE_ORIGIN: z.string().optional(),
     ALLOWED_ORIGINS: z
       .string()
       .transform((val) => val.split(",").map((s) => s.trim())),
@@ -57,6 +60,8 @@ const envSchema = z
       logoUrl: env.LOGO_URL,
       year: env.YEAR,
       version: env.VERSION,
+      dashboardOrigin: env.DASHBOARD_ORIGIN,
+      websiteOrigin: env.WEBSITE_ORIGIN,
     },
     security: {
       jwtSecret: env.JWT_SECRET,
@@ -91,7 +96,7 @@ const parsedEnv = envSchema.safeParse(process.env);
 if (!parsedEnv.success) {
   console.error(
     "❌ Invalid environment variables:",
-    JSON.stringify(z.treeifyError(parsedEnv.error), null, 4),
+    JSON.stringify(z.treeifyError(parsedEnv.error), null, 4)
   );
   process.exit(1);
 }

@@ -536,3 +536,46 @@ export async function sendOrderPlacementEmail(params: {
 
   await sendEmail(params.email, subject, htmlBody, textContent);
 }
+
+/**
+ * Sends an onboarding invitation email to a constituent who has been onboarded.
+ * @param params - Email parameters including recipient info and onboarding link
+ */
+export async function sendOnboardingInvitationEmail(params: {
+  email: string;
+  name: string;
+  onboardingUrl: string;
+}): Promise<void> {
+  const subject = "Welcome to YPF Africa - Complete Your Account Setup";
+
+  const content = `
+    <p>Dear ${params.name},</p>
+    <p>Congratulations! You have been invited to join the YPF Africa platform.</p>
+    <p>To complete your account setup and gain access to your dashboard, please click the button below:</p>
+    <br>
+    <a href="${params.onboardingUrl}" class="button">Complete Account Setup</a>
+    <br><br>
+    <p>You will be asked to verify your email and set a password to secure your account.</p>
+    <p>If you have any questions, please don't hesitate to reach out to our support team.</p>
+    <br>
+    <p>Best regards,<br>The YPF Africa Team</p>
+  `;
+
+  const htmlBody = generateBaseHtml(subject, content);
+
+  const textContent = [
+    `Dear ${params.name},`,
+    "",
+    "Congratulations! You have been invited to join the YPF Africa platform.",
+    "",
+    "To complete your account setup and gain access to your dashboard, please visit:",
+    params.onboardingUrl,
+    "",
+    "You will be asked to verify your email and set a password to secure your account.",
+    "",
+    "Best regards,",
+    "The YPF Africa Team",
+  ].join("\n");
+
+  await sendEmail(params.email, subject, htmlBody, textContent);
+}

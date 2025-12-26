@@ -32,7 +32,7 @@ interface RolePeriod {
  * @throws ApiError if constituent is not found.
  */
 export async function getDetailedConstituent(
-  constituentId: string,
+  constituentId: string
 ): Promise<YPFConstituentDetail | null> {
   // Fetch the constituent with profile photo
   const constituent = await dbClient.db.query.Constituents.findFirst({
@@ -91,7 +91,7 @@ export async function getDetailedConstituent(
  * Fetches all profile periods (MEMBER, ADMIN, VOLUNTEER, AUDITOR, DIRECTOR) for a constituent.
  */
 async function fetchProfilePeriods(
-  constituentId: string,
+  constituentId: string
 ): Promise<ProfilePeriod[]> {
   const db = dbClient.db;
   const profiles: ProfilePeriod[] = [];
@@ -146,35 +146,35 @@ async function fetchProfilePeriods(
       name: "MEMBER",
       startedAt: p.startedAt,
       endedAt: p.endedAt ?? undefined,
-    }),
+    })
   );
   adminPeriods.forEach((p) =>
     profiles.push({
       name: "ADMIN",
       startedAt: p.startedAt,
       endedAt: p.endedAt ?? undefined,
-    }),
+    })
   );
   volunteerPeriods.forEach((p) =>
     profiles.push({
       name: "VOLUNTEER",
       startedAt: p.startedAt,
       endedAt: p.endedAt ?? undefined,
-    }),
+    })
   );
   auditorPeriods.forEach((p) =>
     profiles.push({
       name: "AUDITOR",
       startedAt: p.startedAt,
       endedAt: p.endedAt ?? undefined,
-    }),
+    })
   );
   directorPeriods.forEach((p) =>
     profiles.push({
       name: "DIRECTOR",
       startedAt: p.startedAt,
       endedAt: p.endedAt ?? undefined,
-    }),
+    })
   );
 
   return profiles;
@@ -195,11 +195,11 @@ async function fetchRoles(constituentId: string): Promise<RolePeriod[]> {
     .from(schema.Members)
     .innerJoin(
       schema.MemberTitlesAssignments,
-      eq(schema.Members.id, schema.MemberTitlesAssignments.memberId),
+      eq(schema.Members.id, schema.MemberTitlesAssignments.memberId)
     )
     .innerJoin(
       schema.MemberTitles,
-      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
+      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id)
     )
     .where(eq(schema.Members.constituentId, constituentId));
 
@@ -229,23 +229,23 @@ async function fetchCommittees(constituentId: string) {
     .from(schema.Members)
     .innerJoin(
       schema.CommitteeMemberships,
-      eq(schema.Members.id, schema.CommitteeMemberships.memberId),
+      eq(schema.Members.id, schema.CommitteeMemberships.memberId)
     )
     .innerJoin(
       schema.Committees,
-      eq(schema.CommitteeMemberships.committeeId, schema.Committees.id),
+      eq(schema.CommitteeMemberships.committeeId, schema.Committees.id)
     )
     .leftJoin(
       schema.Chapters,
-      eq(schema.Committees.chapterId, schema.Chapters.id),
+      eq(schema.Committees.chapterId, schema.Chapters.id)
     )
     // Join Media via CommitteeMedia directly
     .leftJoin(
       schema.CommitteeMedia,
       and(
         eq(schema.CommitteeMedia.committeeId, schema.Committees.id),
-        eq(schema.CommitteeMedia.isFeatured, true), // Only get featured
-      ),
+        eq(schema.CommitteeMedia.isFeatured, true) // Only get featured
+      )
     )
     .leftJoin(schema.Media, eq(schema.CommitteeMedia.mediumId, schema.Media.id))
     .where(
@@ -254,9 +254,9 @@ async function fetchCommittees(constituentId: string) {
         lte(schema.CommitteeMemberships.startedAt, now),
         or(
           isNull(schema.CommitteeMemberships.endedAt),
-          gte(schema.CommitteeMemberships.endedAt, now),
-        ),
-      ),
+          gte(schema.CommitteeMemberships.endedAt, now)
+        )
+      )
     )
     .then((rows) =>
       // Simple transformation at the end, no Maps
@@ -267,7 +267,7 @@ async function fetchCommittees(constituentId: string) {
         featuredPhotoUrl: row.photoExternalId
           ? generatePublicMediaUrl(row.photoExternalId)
           : undefined,
-      })),
+      }))
     );
 }
 
@@ -288,19 +288,19 @@ async function fetchChapters(constituentId: string) {
     .from(schema.Members)
     .innerJoin(
       schema.ChapterMemberships,
-      eq(schema.Members.id, schema.ChapterMemberships.memberId),
+      eq(schema.Members.id, schema.ChapterMemberships.memberId)
     )
     .innerJoin(
       schema.Chapters,
-      eq(schema.ChapterMemberships.chapterId, schema.Chapters.id),
+      eq(schema.ChapterMemberships.chapterId, schema.Chapters.id)
     )
     // Direct join to media
     .leftJoin(
       schema.ChapterMedia,
       and(
         eq(schema.ChapterMedia.chapterId, schema.Chapters.id),
-        eq(schema.ChapterMedia.isFeatured, true),
-      ),
+        eq(schema.ChapterMedia.isFeatured, true)
+      )
     )
     .leftJoin(schema.Media, eq(schema.ChapterMedia.mediumId, schema.Media.id))
     .where(
@@ -309,9 +309,9 @@ async function fetchChapters(constituentId: string) {
         lte(schema.ChapterMemberships.startedAt, now),
         or(
           isNull(schema.ChapterMemberships.endedAt),
-          gte(schema.ChapterMemberships.endedAt, now),
-        ),
-      ),
+          gte(schema.ChapterMemberships.endedAt, now)
+        )
+      )
     )
     .then((rows) =>
       rows.map((c) => ({
@@ -321,12 +321,12 @@ async function fetchChapters(constituentId: string) {
         featuredPhotoUrl: c.photoExternalId
           ? generatePublicMediaUrl(c.photoExternalId)
           : undefined,
-      })),
+      }))
     );
 }
 
 export async function getConstituent(
-  constituentId: string,
+  constituentId: string
 ): Promise<YPFConstituent | null> {
   // Fetch the constituent with profile photo
   const constituent = await dbClient.db.query.Constituents.findFirst({
@@ -368,7 +368,7 @@ export async function getConstituent(
  * Gets a paginated list of all constituents.
  */
 export async function getConstituents(
-  query: z.infer<typeof GetConstituentsQuerySchema>,
+  query: z.infer<typeof GetConstituentsQuerySchema>
 ): Promise<Paginated<YPFConstituent>> {
   const { page = 1, pageSize = 20, search } = query;
   const offset = (page - 1) * pageSize;
@@ -401,7 +401,7 @@ export async function getConstituents(
     .from(schema.Constituents)
     .leftJoin(
       schema.Media,
-      eq(schema.Constituents.profilePhotoId, schema.Media.id),
+      eq(schema.Constituents.profilePhotoId, schema.Media.id)
     )
     .where(and(...whereClauses))
     .limit(pageSize)
@@ -426,4 +426,78 @@ export async function getConstituents(
     pageSize,
     total,
   };
+}
+
+/**
+ * Onboards a single constituent by creating a User record and sending an invitation email.
+ *
+ * @param constituentId The ID of the constituent to onboard
+ * @param dashboardUrl Base URL for the dashboard
+ * @throws Error if constituent not found, has no email, or is already onboarded
+ */
+export async function onboardConstituent(
+  constituentId: string,
+  dashboardUrl: string
+): Promise<{ id: string }> {
+  const { sendOnboardingInvitationEmail } = await import(
+    "@/shared/utils/email"
+  );
+
+  const constituent = await dbClient.db.query.Constituents.findFirst({
+    where: eq(schema.Constituents.id, constituentId),
+    columns: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      preferredName: true,
+    },
+  });
+
+  if (!constituent) {
+    throw new Error("Constituent not found");
+  }
+
+  if (!constituent.email) {
+    throw new Error("Constituent does not have an email address");
+  }
+
+  const existingUser = await dbClient.db.query.Users.findFirst({
+    where: eq(schema.Users.constituentId, constituentId),
+    columns: { id: true },
+  });
+
+  if (existingUser) {
+    throw new Error("Constituent already has a User account");
+  }
+
+  const [newUser] = await dbClient.db
+    .insert(schema.Users)
+    .values({
+      email: constituent.email,
+      username: constituent.email,
+      constituentId: constituent.id,
+    })
+    .onConflictDoNothing({ target: schema.Users.constituentId })
+    .returning({ id: schema.Users.id });
+
+  if (!newUser) {
+    throw new Error("User has already been onboarded");
+  }
+
+  const name =
+    constituent.preferredName ??
+    `${constituent.firstName} ${constituent.lastName}`;
+
+  const onboardingUrl = `${dashboardUrl}/auth/onboard?email=${encodeURIComponent(
+    constituent.email
+  )}`;
+
+  sendOnboardingInvitationEmail({
+    email: constituent.email,
+    name,
+    onboardingUrl,
+  });
+
+  return newUser;
 }
