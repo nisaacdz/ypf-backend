@@ -93,7 +93,7 @@ applicationsRouter.get(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -151,13 +151,13 @@ applicationsRouter.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await applicationsHandler.getApplicationById(
-        req.Params.id,
+        req.Params.id
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -177,6 +177,10 @@ applicationsRouter.get(
  *               - lastName
  *               - email
  *               - phone
+ *               - commitmentStatement
+ *               - willingToServe
+ *               - nationalIdType
+ *               - dateOfBirth
  *             properties:
  *               firstName:
  *                 type: string
@@ -189,9 +193,7 @@ applicationsRouter.get(
  *                 format: email
  *               phone:
  *                 type: string
- *               whatsappNumber:
- *                 type: string
- *               salutation:
+ *               whatsapp:
  *                 type: string
  *               dateOfBirth:
  *                 type: string
@@ -209,16 +211,39 @@ applicationsRouter.get(
  *                 type: string
  *               campus:
  *                 type: string
- *               chapterId:
+ *               nationalIdType:
+ *                 type: string
+ *                 enum: [ECOWASIDCARD]
+ *               emergencyContactName:
+ *                 type: string
+ *               emergencyContactPhone:
+ *                 type: string
+ *               skills:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               linkedinProfile:
+ *                 type: string
+ *               twitterHandle:
+ *                 type: string
+ *               preferredChapterId:
  *                 type: string
  *                 format: uuid
- *               committeeId:
+ *               preferredCommitteeId:
  *                 type: string
  *                 format: uuid
+ *               preferredProfile:
+ *                 type: string
+ *                 default: MEMBER
+ *                 enum: [MEMBER, VOLUNTEER]
  *               commitmentStatement:
  *                 type: string
  *               referralSource:
  *                 type: string
+ *               previousVolunteerExperience:
+ *                 type: string
+ *               willingToServe:
+ *                 type: boolean
  *               passportPhoto:
  *                 type: string
  *                 format: binary
@@ -273,7 +298,7 @@ applicationsRouter.post(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 export default applicationsRouter;
