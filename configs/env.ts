@@ -17,8 +17,8 @@ const envSchema = z
       .string()
       .min(32, "JWT_SECRET must be at least 32 characters long"),
 
-    DASHBOARD_ORIGIN: z.string().optional(),
-    WEBSITE_ORIGIN: z.string().optional(),
+    DASHBOARD_URL: z.string().optional(),
+    WEBSITE_URL: z.string().optional(),
     ALLOWED_ORIGINS: z
       .string()
       .transform((val) => val.split(",").map((s) => s.trim())),
@@ -60,8 +60,8 @@ const envSchema = z
       logoUrl: env.LOGO_URL,
       year: env.YEAR,
       version: env.VERSION,
-      dashboardOrigin: env.DASHBOARD_ORIGIN,
-      websiteOrigin: env.WEBSITE_ORIGIN,
+      dashboardUrl: env.DASHBOARD_URL,
+      websiteUrl: env.WEBSITE_URL,
     },
     security: {
       jwtSecret: env.JWT_SECRET,

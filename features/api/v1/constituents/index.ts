@@ -13,6 +13,7 @@ import {
 } from "./schemas";
 import { Visitors, MEMBER, ADMIN, anyOf } from "@/configs/authorizer";
 import z from "zod";
+import variables from "@/configs/env";
 
 const constituentsRouter = Router();
 
@@ -129,7 +130,7 @@ constituentsRouter.post(
   validateBody(OnboardConstituentSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const dashboardUrl = `${req.get("origin")}/auth/onboarding`;
+      const dashboardUrl = `${variables.app.dashboardUrl}/auth/onboarding`;
       const response = await constituentsHandler.onboardConstituent(
         req.Body,
         dashboardUrl
