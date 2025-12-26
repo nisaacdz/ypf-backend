@@ -20,7 +20,7 @@ type CreateApplication = {
     nationalIdDocumentId: string;
     profilePhotoId: string;
   };
-  cvDocumentId: string;
+  cvDocumentId?: string;
   willingToServe: boolean;
   commitmentStatement: string;
   preferredChapterId?: string;

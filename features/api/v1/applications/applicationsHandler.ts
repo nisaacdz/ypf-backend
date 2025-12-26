@@ -49,7 +49,7 @@ export async function createApplication({
   data: z.infer<typeof PostApplicationBody>;
   files: {
     passportPhoto: Express.Multer.File;
-    resume: Express.Multer.File;
+    resume: Express.Multer.File | null;
     nationalId: Express.Multer.File;
   };
 }): Promise<ApiResponse<string>> {
@@ -57,9 +57,9 @@ export async function createApplication({
     fileUtils
       .storeMediumFile(files.passportPhoto)
       .then(mediaService.uploadMedium),
-    fileUtils
+    files.resume ? fileUtils
       .storeDocumentFile(files.resume)
-      .then(documentsService.uploadDocument),
+      .then(documentsService.uploadDocument) : null,
     fileUtils
       .storeDocumentFile(files.nationalId)
       .then(documentsService.uploadDocument),
@@ -74,7 +74,7 @@ export async function createApplication({
       profilePhotoId: passportPhoto.id,
       nationalIdDocumentId: nationalId.id,
     },
-    cvDocumentId: resume.id,
+    cvDocumentId: resume?.id,
     willingToServe: applicationData.willingToServe,
   });
 
