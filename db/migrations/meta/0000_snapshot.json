@@ -1,5 +1,5 @@
 {
-  "id": "b0b563e1-b713-47a9-80d6-53816539c54d",
+  "id": "6c16cd0a-9808-4985-bb6c-58b9454d5bb2",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -2094,12 +2094,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "welfare_case_id": {
-          "name": "welfare_case_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "chapter_id": {
           "name": "chapter_id",
           "type": "uuid",
@@ -2119,16 +2113,6 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "events_welfare_case_id_welfare_cases_id_fk": {
-          "name": "events_welfare_case_id_welfare_cases_id_fk",
-          "tableFrom": "events",
-          "tableTo": "welfare_cases",
-          "schemaTo": "activities",
-          "columnsFrom": ["welfare_case_id"],
-          "columnsTo": ["id"],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "events_chapter_id_chapters_id_fk": {
           "name": "events_chapter_id_chapters_id_fk",
           "tableFrom": "events",
@@ -2142,6 +2126,65 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "activities.project_beneficiaries": {
+      "name": "project_beneficiaries",
+      "schema": "activities",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "project_id": {
+          "name": "project_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "beneficiary_id": {
+          "name": "beneficiary_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "project_beneficiaries_project_id_projects_id_fk": {
+          "name": "project_beneficiaries_project_id_projects_id_fk",
+          "tableFrom": "project_beneficiaries",
+          "tableTo": "projects",
+          "schemaTo": "activities",
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "project_beneficiaries_beneficiary_id_constituents_id_fk": {
+          "name": "project_beneficiaries_beneficiary_id_constituents_id_fk",
+          "tableFrom": "project_beneficiaries",
+          "tableTo": "constituents",
+          "schemaTo": "core",
+          "columnsFrom": ["beneficiary_id"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "project_beneficiaries_project_id_beneficiary_id_unique": {
+          "name": "project_beneficiaries_project_id_beneficiary_id_unique",
+          "nullsNotDistinct": false,
+          "columns": ["project_id", "beneficiary_id"]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -2223,6 +2266,12 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
+        "public_id": {
+          "name": "public_id",
+          "type": "varchar(8)",
+          "primaryKey": false,
+          "notNull": true
+        },
         "title": {
           "name": "title",
           "type": "text",
@@ -2231,6 +2280,19 @@
         },
         "abstract": {
           "name": "abstract",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "type": {
+          "name": "type",
+          "type": "project_type",
+          "typeSchema": "activities",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "category": {
+          "name": "category",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -2282,188 +2344,13 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "activities.welfare_case_beneficiaries": {
-      "name": "welfare_case_beneficiaries",
-      "schema": "activities",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "welfare_case_id": {
-          "name": "welfare_case_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "beneficiary_id": {
-          "name": "beneficiary_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
+      "uniqueConstraints": {
+        "projects_public_id_unique": {
+          "name": "projects_public_id_unique",
+          "nullsNotDistinct": false,
+          "columns": ["public_id"]
         }
       },
-      "indexes": {},
-      "foreignKeys": {
-        "welfare_case_beneficiaries_welfare_case_id_welfare_cases_id_fk": {
-          "name": "welfare_case_beneficiaries_welfare_case_id_welfare_cases_id_fk",
-          "tableFrom": "welfare_case_beneficiaries",
-          "tableTo": "welfare_cases",
-          "schemaTo": "activities",
-          "columnsFrom": ["welfare_case_id"],
-          "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "welfare_case_beneficiaries_beneficiary_id_constituents_id_fk": {
-          "name": "welfare_case_beneficiaries_beneficiary_id_constituents_id_fk",
-          "tableFrom": "welfare_case_beneficiaries",
-          "tableTo": "constituents",
-          "schemaTo": "core",
-          "columnsFrom": ["beneficiary_id"],
-          "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "activities.welfare_case_media": {
-      "name": "welfare_case_media",
-      "schema": "activities",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "welfare_case_id": {
-          "name": "welfare_case_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "medium_id": {
-          "name": "medium_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "caption": {
-          "name": "caption",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "is_featured": {
-          "name": "is_featured",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "welfare_case_media_welfare_case_id_welfare_cases_id_fk": {
-          "name": "welfare_case_media_welfare_case_id_welfare_cases_id_fk",
-          "tableFrom": "welfare_case_media",
-          "tableTo": "welfare_cases",
-          "schemaTo": "activities",
-          "columnsFrom": ["welfare_case_id"],
-          "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "welfare_case_media_medium_id_media_id_fk": {
-          "name": "welfare_case_media_medium_id_media_id_fk",
-          "tableFrom": "welfare_case_media",
-          "tableTo": "media",
-          "schemaTo": "core",
-          "columnsFrom": ["medium_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "activities.welfare_cases": {
-      "name": "welfare_cases",
-      "schema": "activities",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "title": {
-          "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "date": {
-          "name": "date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "type": {
-          "name": "type",
-          "type": "welfare_type",
-          "typeSchema": "activities",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "chapter_id": {
-          "name": "chapter_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "welfare_cases_chapter_id_chapters_id_fk": {
-          "name": "welfare_cases_chapter_id_chapters_id_fk",
-          "tableFrom": "welfare_cases",
-          "tableTo": "chapters",
-          "schemaTo": "core",
-          "columnsFrom": ["chapter_id"],
-          "columnsTo": ["id"],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -2765,12 +2652,6 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
-        },
-        "welfare_case_id": {
-          "name": "welfare_case_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {},
@@ -2801,16 +2682,6 @@
           "tableTo": "organizations",
           "schemaTo": "core",
           "columnsFrom": ["vendor_id"],
-          "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "expenditures_welfare_case_id_welfare_cases_id_fk": {
-          "name": "expenditures_welfare_case_id_welfare_cases_id_fk",
-          "tableFrom": "expenditures",
-          "tableTo": "welfare_cases",
-          "schemaTo": "activities",
-          "columnsFrom": ["welfare_case_id"],
           "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
@@ -3399,7 +3270,6 @@
       "values": [
         "MENTORSHIP",
         "WORKSHOP",
-        "WELFARE",
         "CHILDCARE",
         "NETWORKING",
         "STREETCARE"
@@ -3410,16 +3280,10 @@
       "schema": "activities",
       "values": ["UPCOMING", "ONGOING", "COMPLETED", "CANCELLED"]
     },
-    "activities.welfare_type": {
-      "name": "welfare_type",
+    "activities.project_type": {
+      "name": "project_type",
       "schema": "activities",
-      "values": [
-        "MEDICAL",
-        "EDUCATIONAL",
-        "FUNERAL",
-        "FINANCIAL_SUPPORT",
-        "OTHER"
-      ]
+      "values": ["WELFARE", "COMMUNITY", "ADVOCACY", "OTHER"]
     },
     "finance.external_provider": {
       "name": "external_provider",
