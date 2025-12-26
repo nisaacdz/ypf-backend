@@ -16,6 +16,7 @@ import duesRouter from "./dues";
 import partnershipsRouter from "./partnerships";
 import welfareRouter from "./welfare";
 import dashboardRouter from "./dashboard";
+import constituentsRouter from "./constituents";
 
 const apiRouter = Router();
 
@@ -36,5 +37,6 @@ apiRouter.use("/dues", duesRouter);
 apiRouter.use("/partnerships", partnershipsRouter);
 apiRouter.use("/welfare", welfareRouter);
 apiRouter.use("/dashboard", dashboardRouter);
+apiRouter.use("/constituents", constituentsRouter);
 
 export default apiRouter;

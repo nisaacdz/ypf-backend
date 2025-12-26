@@ -1,10 +1,26 @@
 import { Request, Response, NextFunction } from "express";
 import { Router } from "express";
-import { authenticateLax, authorize } from "@/shared/middlewares/auth";
-import { validateQuery, validateParams } from "@/shared/middlewares/validate";
+import {
+  authenticateLax,
+  authenticate,
+  authorize,
+} from "@/shared/middlewares/auth";
+import {
+  validateQuery,
+  validateParams,
+  validateBody,
+} from "@/shared/middlewares/validate";
 import * as membersHandler from "./membersHandler";
-import { GetMembersQuerySchema } from "./schemas";
-import { Visitors } from "@/configs/authorizer";
+import {
+  GetMembersQuerySchema,
+  EnrollMemberSchema,
+  UnenrollMemberSchema,
+  EnrollRoleSchema,
+  UnenrollRoleSchema,
+  GetRolesQuerySchema,
+  GetLeadershipQuerySchema,
+} from "./schemas";
+import { Visitors, ADMIN, MEMBER, anyOf } from "@/configs/authorizer";
 import z from "zod";
 
 const membersRouter = Router();
@@ -163,6 +179,312 @@ membersRouter.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await membersHandler.getMember(req.Params.constituentId);
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/**
+ * @swagger
+ * /api/v1/members/enroll:
+ *   post:
+ *     summary: Enroll a constituent as a global member
+ *     tags: [Members]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - constituentId
+ *             properties:
+ *               constituentId:
+ *                 type: string
+ *                 format: uuid
+ *               startedAt:
+ *                 type: string
+ *                 format: date-time
+ *     responses:
+ *       200:
+ *         description: Member enrolled successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - requires SUPER_ADMIN role
+ */
+membersRouter.post(
+  "/enroll",
+  authenticate,
+  authorize(Visitors.hasRole(ADMIN.SUPER)),
+  validateBody(EnrollMemberSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await membersHandler.enrollMember(req.Body);
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/**
+ * @swagger
+ * /api/v1/members/unenroll:
+ *   patch:
+ *     summary: Unenroll a constituent from global membership
+ *     tags: [Members]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - constituentId
+ *             properties:
+ *               constituentId:
+ *                 type: string
+ *                 format: uuid
+ *     responses:
+ *       200:
+ *         description: Member unenrolled successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - requires SUPER_ADMIN role
+ *       404:
+ *         description: No active membership found
+ */
+membersRouter.patch(
+  "/unenroll",
+  authenticate,
+  authorize(Visitors.hasRole(ADMIN.SUPER)),
+  validateBody(UnenrollMemberSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await membersHandler.unenrollMember(req.Body);
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/**
+ * @swagger
+ * /api/v1/members/roles:
+ *   get:
+ *     summary: Get paginated list of member roles/titles
+ *     description: Search roles by title or alias. Returns { id, title, alias, _level, scope }
+ *     tags: [Members]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search by role title or alias
+ *     responses:
+ *       200:
+ *         description: Roles retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - requires ADMIN or MEMBER leader role
+ */
+membersRouter.get(
+  "/roles",
+  authenticate,
+  authorize(
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER)),
+  ),
+  validateQuery(GetRolesQuerySchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await membersHandler.getRoles(req.Query);
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/**
+ * @swagger
+ * /api/v1/members/leadership:
+ *   get:
+ *     summary: Get global leadership
+ *     description: Returns members with active global role assignments (roles not scoped to chapter/committee)
+ *     tags: [Members]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
+ *     responses:
+ *       200:
+ *         description: Leadership retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - requires ADMIN or MEMBER leader role
+ */
+membersRouter.get(
+  "/leadership",
+  authenticate,
+  authorize(
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER)),
+  ),
+  validateQuery(GetLeadershipQuerySchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await membersHandler.getLeadership(req.Query);
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/**
+ * @swagger
+ * /api/v1/members/roles/{id}/enroll:
+ *   post:
+ *     summary: Assign a role to a member
+ *     tags: [Members]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Role/Title ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - constituentId
+ *             properties:
+ *               constituentId:
+ *                 type: string
+ *                 format: uuid
+ *               startedAt:
+ *                 type: string
+ *                 format: date-time
+ *     responses:
+ *       200:
+ *         description: Role assigned successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - requires SUPER_ADMIN role
+ *       404:
+ *         description: No active membership found
+ */
+membersRouter.post(
+  "/roles/:id/enroll",
+  authenticate,
+  authorize(Visitors.hasRole(ADMIN.SUPER)),
+  validateParams(z.object({ id: z.uuid("Invalid role ID") })),
+  validateBody(EnrollRoleSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await membersHandler.enrollRole(req.Params.id, req.Body);
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/**
+ * @swagger
+ * /api/v1/members/roles/{id}/unenroll:
+ *   patch:
+ *     summary: Unassign a role from a member
+ *     tags: [Members]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Role/Title ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - constituentId
+ *             properties:
+ *               constituentId:
+ *                 type: string
+ *                 format: uuid
+ *     responses:
+ *       200:
+ *         description: Role unassigned successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - requires SUPER_ADMIN role
+ *       404:
+ *         description: No active role assignment found
+ */
+membersRouter.patch(
+  "/roles/:id/unenroll",
+  authenticate,
+  authorize(Visitors.hasRole(ADMIN.SUPER)),
+  validateParams(z.object({ id: z.uuid("Invalid role ID") })),
+  validateBody(UnenrollRoleSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await membersHandler.unenrollRole(
+        req.Params.id,
+        req.Body,
+      );
       res.status(200).json(response);
     } catch (error) {
       next(error);

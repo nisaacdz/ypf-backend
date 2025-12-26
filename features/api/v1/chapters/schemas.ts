@@ -22,3 +22,12 @@ export const UpdateChapterSchema = z
   .refine((data) => Object.keys(data).length > 0, {
     message: "At least one field must be provided for update.",
   });
+
+export const EnrollChapterSchema = z.object({
+  constituentId: z.uuid({ message: "Invalid constituent ID." }),
+  startedAt: z.string().datetime().optional(),
+});
+
+export const UnenrollChapterSchema = z.object({
+  constituentId: z.uuid({ message: "Invalid constituent ID." }),
+});

@@ -1,12 +1,15 @@
-import { eq, and, lte, gte, isNull, or, inArray } from "drizzle-orm";
+import { eq, and, lte, gte, isNull, or, sql, count, ilike } from "drizzle-orm";
+import z from "zod";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
-import { ApiError, Profile } from "@/shared/types";
+import { Profile } from "@/shared/types";
 import {
   YPFConstituent,
   YPFConstituentDetail,
 } from "@/features/api/v1/constituents/dtos";
 import { generatePublicMediaUrl } from "@/shared/utils/files";
+import { Paginated } from "@/shared/dtos";
+import { GetConstituentsQuerySchema } from "@/features/api/v1/constituents/schemas";
 
 interface ProfilePeriod {
   name: Profile;
@@ -358,5 +361,69 @@ export async function getConstituent(
     roles: roles.map((r) => r.title),
     isActive: true,
     createdAt: constituent.createdAt,
+  };
+}
+
+/**
+ * Gets a paginated list of all constituents.
+ */
+export async function getConstituents(
+  query: z.infer<typeof GetConstituentsQuerySchema>,
+): Promise<Paginated<YPFConstituent>> {
+  const { page = 1, pageSize = 20, search } = query;
+  const offset = (page - 1) * pageSize;
+
+  // Build where clauses
+  const whereClauses = [];
+  if (search) {
+    const fullName = sql<string>`concat(${schema.Constituents.firstName}, ' ', ${schema.Constituents.lastName})`;
+    whereClauses.push(ilike(fullName, `%${search}%`));
+  }
+
+  // Get total count
+  const [totalResult] = await dbClient.db
+    .select({ total: count() })
+    .from(schema.Constituents)
+    .where(and(...whereClauses));
+
+  const total = totalResult?.total ?? 0;
+
+  // Get paginated constituents
+  const constituents = await dbClient.db
+    .select({
+      id: schema.Constituents.id,
+      firstName: schema.Constituents.firstName,
+      lastName: schema.Constituents.lastName,
+      preferredName: schema.Constituents.preferredName,
+      createdAt: schema.Constituents.createdAt,
+      profilePhotoExternalId: schema.Media.externalId,
+    })
+    .from(schema.Constituents)
+    .leftJoin(
+      schema.Media,
+      eq(schema.Constituents.profilePhotoId, schema.Media.id),
+    )
+    .where(and(...whereClauses))
+    .limit(pageSize)
+    .offset(offset)
+    .orderBy(schema.Constituents.createdAt);
+
+  const items: YPFConstituent[] = constituents.map((c) => ({
+    id: c.id,
+    fullName: c.preferredName ?? `${c.firstName} ${c.lastName}`,
+    profilePhotoUrl: c.profilePhotoExternalId
+      ? generatePublicMediaUrl(c.profilePhotoExternalId, { resolution: 360 })
+      : undefined,
+    profiles: [], // Would need additional queries for full population
+    roles: [],
+    isActive: true,
+    createdAt: c.createdAt,
+  }));
+
+  return {
+    items,
+    page,
+    pageSize,
+    total,
   };
 }

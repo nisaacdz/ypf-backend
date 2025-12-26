@@ -5,6 +5,8 @@ import {
   GetConstituentChaptersQuerySchema,
   UpdateChapterSchema,
   GetChapterLeadershipQuerySchema,
+  EnrollChapterSchema,
+  UnenrollChapterSchema,
 } from "./schemas";
 import { Paginated } from "@/shared/dtos";
 import { YPFChapter, YPFChapterDetail } from "./dtos";
@@ -53,4 +55,24 @@ export async function getLeadership(
 ): Promise<ApiResponse<Paginated<YPFMember>>> {
   const data = await chaptersService.getChapterLeadership(chapterId, query);
   return { success: true, data };
+}
+
+export async function enrollToChapter(
+  chapterId: string,
+  body: z.infer<typeof EnrollChapterSchema>,
+): Promise<ApiResponse<{ membershipId: string }>> {
+  const membershipId = await chaptersService.enrollToChapter(
+    chapterId,
+    body.constituentId,
+    body.startedAt ? new Date(body.startedAt) : undefined,
+  );
+  return { success: true, data: { membershipId } };
+}
+
+export async function unenrollFromChapter(
+  chapterId: string,
+  body: z.infer<typeof UnenrollChapterSchema>,
+): Promise<ApiResponse<null>> {
+  await chaptersService.unenrollFromChapter(chapterId, body.constituentId);
+  return { success: true, data: null };
 }

@@ -5,14 +5,20 @@ import {
   authenticate,
   authorize,
 } from "@/shared/middlewares/auth";
-import { validateQuery, validateParams } from "@/shared/middlewares/validate";
+import {
+  validateQuery,
+  validateParams,
+  validateBody,
+} from "@/shared/middlewares/validate";
 import * as committeesHandler from "./committeesHandler";
 import {
   GetCommitteesQuerySchema,
   GetConstituentCommitteesQuerySchema,
   GetCommitteeLeadershipQuerySchema,
+  EnrollCommitteeSchema,
+  UnenrollCommitteeSchema,
 } from "./schemas";
-import { Visitors, anyOf } from "@/configs/authorizer";
+import { Visitors, anyOf, ADMIN } from "@/configs/authorizer";
 import z from "zod";
 
 const committeesRouter = Router();
@@ -92,7 +98,7 @@ committeesRouter.get(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -167,20 +173,20 @@ committeesRouter.get(
   authorize(
     anyOf(
       Visitors.hasProfile("ADMIN"),
-      Visitors.hasID((req) => req.Params.constituentId)
-    )
+      Visitors.hasID((req) => req.Params.constituentId),
+    ),
   ),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await committeesHandler.getCommitteesByConstituentId(
         req.Params.constituentId,
-        req.Query
+        req.Query,
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -236,7 +242,7 @@ committeesRouter.get(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -310,13 +316,130 @@ committeesRouter.get(
     try {
       const response = await committeesHandler.getLeadership(
         req.Params.id,
-        req.Query
+        req.Query,
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
+);
+
+/**
+ * @swagger
+ * /api/v1/committees/{id}/enroll:
+ *   post:
+ *     summary: Enroll a constituent to a committee
+ *     tags: [Committees]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Committee ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - constituentId
+ *             properties:
+ *               constituentId:
+ *                 type: string
+ *                 format: uuid
+ *               startedAt:
+ *                 type: string
+ *                 format: date-time
+ *     responses:
+ *       200:
+ *         description: Enrolled successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - requires SUPER_ADMIN role
+ *       404:
+ *         description: No active membership found
+ */
+committeesRouter.post(
+  "/:id/enroll",
+  authenticate,
+  authorize(Visitors.hasRole(ADMIN.SUPER)),
+  validateParams(z.object({ id: z.uuid("Invalid committee ID") })),
+  validateBody(EnrollCommitteeSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await committeesHandler.enrollToCommittee(
+        req.Params.id,
+        req.Body,
+      );
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/**
+ * @swagger
+ * /api/v1/committees/{id}/unenroll:
+ *   patch:
+ *     summary: Unenroll a constituent from a committee
+ *     tags: [Committees]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Committee ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - constituentId
+ *             properties:
+ *               constituentId:
+ *                 type: string
+ *                 format: uuid
+ *     responses:
+ *       200:
+ *         description: Unenrolled successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - requires SUPER_ADMIN role
+ *       404:
+ *         description: No active committee membership found
+ */
+committeesRouter.patch(
+  "/:id/unenroll",
+  authenticate,
+  authorize(Visitors.hasRole(ADMIN.SUPER)),
+  validateParams(z.object({ id: z.uuid("Invalid committee ID") })),
+  validateBody(UnenrollCommitteeSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await committeesHandler.unenrollFromCommittee(
+        req.Params.id,
+        req.Body,
+      );
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
 );
 
 export default committeesRouter;

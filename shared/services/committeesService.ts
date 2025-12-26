@@ -1,4 +1,15 @@
-import { sql, and, eq, count, ilike, isNull, desc, or } from "drizzle-orm";
+import {
+  sql,
+  and,
+  eq,
+  count,
+  ilike,
+  isNull,
+  desc,
+  or,
+  lte,
+  gte,
+} from "drizzle-orm";
 import z from "zod";
 
 import dbClient from "@/configs/db";
@@ -434,4 +445,88 @@ export async function getCommitteeLeadership(
     pageSize,
     total,
   };
+}
+
+/**
+ * Enrolls a constituent to a committee.
+ * Finds the active member record and creates a CommitteeMembership.
+ */
+export async function enrollToCommittee(
+  committeeId: string,
+  constituentId: string,
+  startedAt?: Date,
+): Promise<string> {
+  const now = new Date();
+
+  // Find active member record
+  const [member] = await dbClient.db
+    .select({ id: schema.Members.id })
+    .from(schema.Members)
+    .where(
+      and(
+        eq(schema.Members.constituentId, constituentId),
+        lte(schema.Members.startedAt, now),
+        or(isNull(schema.Members.endedAt), gte(schema.Members.endedAt, now)),
+      ),
+    )
+    .limit(1);
+
+  if (!member) {
+    throw new ApiError("No active membership found for constituent", 404);
+  }
+
+  const [membership] = await dbClient.db
+    .insert(schema.CommitteeMemberships)
+    .values({
+      memberId: member.id,
+      committeeId,
+      startedAt: startedAt ?? now,
+    })
+    .returning({ id: schema.CommitteeMemberships.id });
+
+  return membership.id;
+}
+
+/**
+ * Unenrolls a constituent from a committee by setting endedAt on the active membership.
+ */
+export async function unenrollFromCommittee(
+  committeeId: string,
+  constituentId: string,
+): Promise<void> {
+  const now = new Date();
+
+  // Find active member record
+  const [member] = await dbClient.db
+    .select({ id: schema.Members.id })
+    .from(schema.Members)
+    .where(
+      and(
+        eq(schema.Members.constituentId, constituentId),
+        lte(schema.Members.startedAt, now),
+        or(isNull(schema.Members.endedAt), gte(schema.Members.endedAt, now)),
+      ),
+    )
+    .limit(1);
+
+  if (!member) {
+    throw new ApiError("No active membership found for constituent", 404);
+  }
+
+  const result = await dbClient.db
+    .update(schema.CommitteeMemberships)
+    .set({ endedAt: now })
+    .where(
+      and(
+        eq(schema.CommitteeMemberships.memberId, member.id),
+        eq(schema.CommitteeMemberships.committeeId, committeeId),
+        isNull(schema.CommitteeMemberships.endedAt),
+        lte(schema.CommitteeMemberships.startedAt, now),
+      ),
+    )
+    .returning({ id: schema.CommitteeMemberships.id });
+
+  if (result.length === 0) {
+    throw new ApiError("No active committee membership found", 404);
+  }
 }

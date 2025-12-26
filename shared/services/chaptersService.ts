@@ -1,4 +1,15 @@
-import { sql, and, eq, count, ilike, isNull, desc } from "drizzle-orm";
+import {
+  sql,
+  and,
+  eq,
+  count,
+  ilike,
+  isNull,
+  desc,
+  lte,
+  gte,
+  or,
+} from "drizzle-orm";
 import z from "zod";
 
 import dbClient from "@/configs/db";
@@ -427,4 +438,88 @@ export async function getChapterLeadership(
     pageSize,
     total,
   };
+}
+
+/**
+ * Enrolls a constituent to a chapter.
+ * Finds the active member record and creates a ChapterMembership.
+ */
+export async function enrollToChapter(
+  chapterId: string,
+  constituentId: string,
+  startedAt?: Date,
+): Promise<string> {
+  const now = new Date();
+
+  // Find active member record
+  const [member] = await dbClient.db
+    .select({ id: schema.Members.id })
+    .from(schema.Members)
+    .where(
+      and(
+        eq(schema.Members.constituentId, constituentId),
+        lte(schema.Members.startedAt, now),
+        or(isNull(schema.Members.endedAt), gte(schema.Members.endedAt, now)),
+      ),
+    )
+    .limit(1);
+
+  if (!member) {
+    throw new ApiError("No active membership found for constituent", 404);
+  }
+
+  const [membership] = await dbClient.db
+    .insert(schema.ChapterMemberships)
+    .values({
+      memberId: member.id,
+      chapterId,
+      startedAt: startedAt ?? now,
+    })
+    .returning({ id: schema.ChapterMemberships.id });
+
+  return membership.id;
+}
+
+/**
+ * Unenrolls a constituent from a chapter by setting endedAt on the active membership.
+ */
+export async function unenrollFromChapter(
+  chapterId: string,
+  constituentId: string,
+): Promise<void> {
+  const now = new Date();
+
+  // Find active member record
+  const [member] = await dbClient.db
+    .select({ id: schema.Members.id })
+    .from(schema.Members)
+    .where(
+      and(
+        eq(schema.Members.constituentId, constituentId),
+        lte(schema.Members.startedAt, now),
+        or(isNull(schema.Members.endedAt), gte(schema.Members.endedAt, now)),
+      ),
+    )
+    .limit(1);
+
+  if (!member) {
+    throw new ApiError("No active membership found for constituent", 404);
+  }
+
+  const result = await dbClient.db
+    .update(schema.ChapterMemberships)
+    .set({ endedAt: now })
+    .where(
+      and(
+        eq(schema.ChapterMemberships.memberId, member.id),
+        eq(schema.ChapterMemberships.chapterId, chapterId),
+        isNull(schema.ChapterMemberships.endedAt),
+        lte(schema.ChapterMemberships.startedAt, now),
+      ),
+    )
+    .returning({ id: schema.ChapterMemberships.id });
+
+  if (result.length === 0) {
+    throw new ApiError("No active chapter membership found", 404);
+  }
 }

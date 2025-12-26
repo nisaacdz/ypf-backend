@@ -30,3 +30,11 @@ export type YPFMemberDetail = {
   joinedAt: Date;
   isActive: boolean;
 };
+
+export type MemberRole = {
+  id: string;
+  title: string;
+  alias: string;
+  _level: number;
+  scope?: { type: "chapter" | "committee"; id: string; name: string };
+};

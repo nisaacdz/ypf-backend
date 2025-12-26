@@ -93,7 +93,7 @@ export function validateFiles<T>(schemas: Record<string, z.ZodType<T>>) {
 
     let files = Object.keys(schemas).reduce(
       (ac, b) => ({ ...ac, [b]: raw[b][0] }),
-      {} as Record<string, Express.Multer.File>
+      {} as Record<string, Express.Multer.File>,
     );
 
     for (let [fileName, schema] of Object.entries(schemas)) {

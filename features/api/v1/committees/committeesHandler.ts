@@ -4,6 +4,8 @@ import {
   GetCommitteesQuerySchema,
   GetConstituentCommitteesQuerySchema,
   GetCommitteeLeadershipQuerySchema,
+  EnrollCommitteeSchema,
+  UnenrollCommitteeSchema,
 } from "./schemas";
 import { Paginated } from "@/shared/dtos";
 import { YPFCommittee, YPFCommitteeDetail } from "./dtos";
@@ -44,4 +46,27 @@ export async function getLeadership(
     query,
   );
   return { success: true, data };
+}
+
+export async function enrollToCommittee(
+  committeeId: string,
+  body: z.infer<typeof EnrollCommitteeSchema>,
+): Promise<ApiResponse<{ membershipId: string }>> {
+  const membershipId = await committeesService.enrollToCommittee(
+    committeeId,
+    body.constituentId,
+    body.startedAt ? new Date(body.startedAt) : undefined,
+  );
+  return { success: true, data: { membershipId } };
+}
+
+export async function unenrollFromCommittee(
+  committeeId: string,
+  body: z.infer<typeof UnenrollCommitteeSchema>,
+): Promise<ApiResponse<null>> {
+  await committeesService.unenrollFromCommittee(
+    committeeId,
+    body.constituentId,
+  );
+  return { success: true, data: null };
 }
