@@ -7,9 +7,12 @@ import { Paginated } from "@/shared/dtos";
 import { YPFApplication, YPFApplicationDetail } from "./dtos";
 import * as documentsService from "@/shared/services/documentsService";
 import * as mediaService from "@/shared/services/mediaService";
+import dbClient from "@/configs/db";
+import schema from "@/db/schema";
+import { eq, or } from "drizzle-orm";
 
 export async function getApplications(
-  query: z.infer<typeof GetApplicationsQuerySchema>,
+  query: z.infer<typeof GetApplicationsQuerySchema>
 ): Promise<ApiResponse<Paginated<YPFApplication>>> {
   const result = await applicationsService.getApplications(query);
 
@@ -26,7 +29,7 @@ export async function getApplications(
 }
 
 export async function getApplicationById(
-  applicationId: string,
+  applicationId: string
 ): Promise<ApiResponse<YPFApplicationDetail>> {
   const application =
     await applicationsService.getApplicationById(applicationId);
@@ -53,13 +56,35 @@ export async function createApplication({
     nationalId: Express.Multer.File;
   };
 }): Promise<ApiResponse<string>> {
+  const existingUser = await dbClient.db.query.Constituents.findFirst({
+    where: or(
+      eq(schema.Constituents.email, data.applicantData.email),
+      eq(schema.Constituents.phone, data.applicantData.phone),
+      data.applicantData.whatsapp
+        ? eq(schema.Constituents.whatsapp, data.applicantData.whatsapp)
+        : undefined
+    ),
+    columns: { id: true, email: true, phone: true, whatsapp: true },
+  });
+
+  if (existingUser) {
+    if (existingUser.email === data.applicantData.email)
+      throw new ApiError("Email already exists", 400);
+    if (existingUser.phone === data.applicantData.phone)
+      throw new ApiError("Phone already exists", 400);
+    if (existingUser.whatsapp === data.applicantData.whatsapp)
+      throw new ApiError("WhatsApp already exists", 400);
+  }
+
   const [passportPhoto, resume, nationalId] = await Promise.all([
     fileUtils
       .storeMediumFile(files.passportPhoto)
       .then(mediaService.uploadMedium),
-    files.resume ? fileUtils
-      .storeDocumentFile(files.resume)
-      .then(documentsService.uploadDocument) : null,
+    files.resume
+      ? fileUtils
+          .storeDocumentFile(files.resume)
+          .then(documentsService.uploadDocument)
+      : null,
     fileUtils
       .storeDocumentFile(files.nationalId)
       .then(documentsService.uploadDocument),
