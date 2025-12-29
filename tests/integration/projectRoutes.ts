@@ -270,6 +270,7 @@ describe("Projects API", () => {
         scheduledStart: newProjectData.scheduledStart.toISOString(),
         scheduledEnd: newProjectData.scheduledEnd.toISOString(),
         status: "UPCOMING",
+        type: "COMMUNITY" ,
         chapterId: testData.chapterId,
       };
 

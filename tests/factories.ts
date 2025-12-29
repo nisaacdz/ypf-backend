@@ -1,3 +1,4 @@
+import { ProjectTypeEnum } from "@/db/schema/activities";
 import { faker } from "@faker-js/faker";
 import { randomUUID } from "crypto";
 
@@ -65,6 +66,7 @@ export function generateTestProject() {
     id: "",
     title: `Test Project ${uniqueId}`,
     abstract: faker.lorem.sentence(),
+    type: faker.helpers.arrayElement(ProjectTypeEnum.enumValues),
     description: faker.lorem.paragraph(),
     scheduledStart: startDate,
     scheduledEnd: endDate,
