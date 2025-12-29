@@ -2,7 +2,6 @@ import { faker } from "@faker-js/faker";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import bcrypt from "bcryptjs";
-import { TargetingFilter } from "@/shared/types/targeting";
 import { ProjectTypeEnum } from "@/db/schema/activities";
 
 async function seed(
@@ -41,7 +40,7 @@ async function seed(
   // ----------------------------------------------------------------------
   console.log("🔐 Seeding Users...");
   const hashedPassword = await bcrypt.hash("password123", 10);
-  const users = await tx
+  await tx
     .insert(schema.Users)
     .values(
       constituents.map((c) => ({
@@ -126,8 +125,7 @@ async function seed(
     )
     .returning();
 
-  // Committee Chairs
-  const committeeTitles = await tx
+  await tx
     .insert(schema.MemberTitles)
     .values(
       committees.map((com) => ({
@@ -377,7 +375,7 @@ async function seed(
       transactionId: t.id,
       duesId:
         dues.find(
-          (d) =>
+          () =>
             // find due matching member's chapter roughly, or just pick random due
             true
         )!.id ?? dues[0].id,
