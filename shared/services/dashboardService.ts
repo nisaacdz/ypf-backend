@@ -1,8 +1,7 @@
-import { and, eq, sql, count, lte, or, isNull, gte } from "drizzle-orm";
+import { and, eq, count, lte, or, isNull, gte } from "drizzle-orm";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import * as projectsService from "@/shared/services/projectsService";
-import * as welfareService from "@/shared/services/welfareService";
 import * as eventsService from "@/shared/services/eventsService";
 import * as shopService from "@/shared/services/shopService";
 import { Activity, Stats } from "@/features/api/v1/dashboard/dtos";
@@ -48,13 +47,9 @@ export async function getStats(): Promise<Stats> {
 }
 
 export async function getRecentActivity(): Promise<Activity> {
-  const [projects, welfareProjects, workshopEvents, shopProducts] =
+  const [projects, workshopEvents, shopProducts] =
     await Promise.all([
       projectsService.fetchProjects({
-        page: 1,
-        pageSize: 3,
-      }),
-      welfareService.fetchWelfareCases({
         page: 1,
         pageSize: 3,
       }),
@@ -71,7 +66,6 @@ export async function getRecentActivity(): Promise<Activity> {
 
   return {
     projects,
-    welfareProjects,
     workshopEvents,
     shopProducts,
   };

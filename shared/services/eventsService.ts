@@ -26,7 +26,6 @@ export async function fetchEvents(
       or(
         ilike(schema.Events.name, `%${search}%`),
         ilike(schema.Projects.title, `%${search}%`),
-        ilike(schema.WelfareCases.title, `%${search}%`),
       ),
     );
   }
@@ -56,7 +55,6 @@ export async function fetchEvents(
         type: schema.Events.type,
         status: schema.Events.status,
         projectTitle: schema.Projects.title,
-        welfareCaseTitle: schema.WelfareCases.title,
         chapterName: schema.Chapters.name,
         featuredMediumExternalId: schema.Media.externalId,
       })
@@ -64,10 +62,6 @@ export async function fetchEvents(
       .leftJoin(
         schema.Projects,
         eq(schema.Events.projectId, schema.Projects.id),
-      )
-      .leftJoin(
-        schema.WelfareCases,
-        eq(schema.Events.welfareCaseId, schema.WelfareCases.id),
       )
       .leftJoin(
         schema.Chapters,
@@ -94,8 +88,6 @@ export async function fetchEvents(
         schema.Events.status,
         schema.Projects.title,
         schema.Projects.id,
-        schema.WelfareCases.title,
-        schema.WelfareCases.id,
         schema.Chapters.name,
         schema.Chapters.id,
         schema.Media.externalId,
@@ -121,7 +113,6 @@ export async function fetchEvents(
     type: event.type,
     status: event.status,
     projectTitle: event.projectTitle || undefined,
-    welfareCaseTitle: event.welfareCaseTitle || undefined,
     chapterName: event.chapterName || undefined,
     featuredMediumUrl: event.featuredMediumExternalId
       ? mediaUtils.generateSignedMediaUrl(event.featuredMediumExternalId, {
@@ -217,18 +208,9 @@ export async function fetchEventById(
         title: schema.Projects.title,
         scheduledStart: schema.Projects.scheduledStart,
       },
-      welfareCase: {
-        id: schema.WelfareCases.id,
-        title: schema.WelfareCases.title,
-        date: schema.WelfareCases.date,
-      },
     })
     .from(schema.Events)
     .leftJoin(schema.Projects, eq(schema.Events.projectId, schema.Projects.id))
-    .leftJoin(
-      schema.WelfareCases,
-      eq(schema.Events.welfareCaseId, schema.WelfareCases.id),
-    )
     .leftJoin(
       schema.Chapters,
       eq(schema.Projects.chapterId, schema.Chapters.id),
@@ -277,13 +259,6 @@ export async function fetchEventById(
           id: ypfEvent.project.id,
           title: ypfEvent.project.title,
           date: ypfEvent.project.scheduledStart,
-        }
-      : undefined,
-    welfareCase: ypfEvent.welfareCase
-      ? {
-          id: ypfEvent.welfareCase.id,
-          title: ypfEvent.welfareCase.title,
-          date: ypfEvent.welfareCase.date ?? undefined,
         }
       : undefined,
     chapter:
