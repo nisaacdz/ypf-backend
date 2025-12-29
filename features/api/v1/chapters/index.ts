@@ -84,7 +84,7 @@ const chaptersRouter = Router();
 chaptersRouter.get(
   "/",
   authenticateLax,
-  authorize(Visitors.hasProfile("MEMBER", "ADMIN")),
+  authorize(Visitors.ALL),
   validateQuery(GetChaptersQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
