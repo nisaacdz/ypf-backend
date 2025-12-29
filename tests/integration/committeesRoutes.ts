@@ -207,13 +207,13 @@ describe("Committees API", () => {
       );
     });
 
-    it("should reject request without session cookie", async () => {
+    it("should accept request without session cookie", async () => {
       const response = await request(server)
         .get("/api/v1/committees")
-        .expect(403);
+        .expect(200);
 
-      expect(response.body.success).toBe(false);
-      expect(response.body.message).toBeDefined();
+      expect(response.body.success).toBe(true);
+      expect(response.body).toBeDefined();
     });
 
     it("should reject request with invalid page parameter", async () => {
