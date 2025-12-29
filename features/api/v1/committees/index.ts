@@ -88,7 +88,6 @@ const committeesRouter = Router();
  */
 committeesRouter.get(
   "/",
-  authenticateLax,
   authorize(Visitors.ALL),
   validateQuery(GetCommitteesQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
