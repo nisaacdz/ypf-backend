@@ -92,6 +92,7 @@ describe("Projects API", () => {
         scheduledStart: testProject.scheduledStart,
         scheduledEnd: testProject.scheduledEnd,
         status: "ONGOING",
+        type: "COMMUNITY",
         chapterId: testData.chapterId,
       })
       .returning();
