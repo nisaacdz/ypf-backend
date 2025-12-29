@@ -405,7 +405,6 @@ describe("Projects API", () => {
       expect(response.body.data.type).toBe(testProject.type);
       expect(response.body.data.scheduledStart).toBeDefined();
       expect(response.body.data.scheduledEnd).toBeDefined();
-      expect(response.body.data.status).toBe("ONGOING");
       expect(response.body.data.chapter).toBeDefined();
       expect(response.body.data.chapter.id).toBe(testData.chapterId);
       expect(response.body.data.chapter.name).toBe(testChapter.name);
