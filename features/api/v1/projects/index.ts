@@ -86,7 +86,6 @@ const projectsRouter = Router();
  */
 projectsRouter.get(
   "/",
-  authenticateLax,
   authorize(Visitors.ALL),
   validateQuery(GetProjectsQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {

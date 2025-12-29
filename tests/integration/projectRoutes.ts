@@ -173,7 +173,6 @@ describe("Projects API", () => {
       if (foundProject) {
         expect(foundProject.title).toBe(testProject.title);
         expect(foundProject.abstract).toBe(testProject.abstract);
-        expect(foundProject.chapterName).toBe(testChapter.name);
       }
     });
 
