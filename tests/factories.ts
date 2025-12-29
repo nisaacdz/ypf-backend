@@ -1,6 +1,12 @@
 import { ProjectTypeEnum } from "@/db/schema/activities";
 import { faker } from "@faker-js/faker";
 import { randomUUID } from "crypto";
+import { customAlphabet } from "nanoid";
+
+const generatePublicId = customAlphabet(
+  "2346789ABCDEFGHJKLMNPQRTUVWXYZabcdefghijkmnpqrtwxyz",
+  8
+);
 
 /**
  * Test data factories to generate unique test data for each test run.
@@ -47,7 +53,6 @@ export function generateTestEvent() {
   endDate.setDate(endDate.getDate() + faker.number.int({ min: 1, max: 7 }));
 
   return {
-    id: "",
     name: `Test Event ${uniqueId}`,
     description: faker.lorem.sentence(),
     startDate,
@@ -63,7 +68,7 @@ export function generateTestProject() {
   endDate.setMonth(endDate.getMonth() + faker.number.int({ min: 1, max: 6 }));
 
   return {
-    id: "",
+    publicId: generatePublicId(),
     title: `Test Project ${uniqueId}`,
     abstract: faker.lorem.sentence(),
     type: faker.helpers.arrayElement(ProjectTypeEnum.enumValues),

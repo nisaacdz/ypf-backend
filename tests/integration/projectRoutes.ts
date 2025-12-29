@@ -92,12 +92,7 @@ describe("Projects API", () => {
     const [newProject] = await dbClient.db
       .insert(schema.Projects)
       .values({
-        title: testProject.title,
-        abstract: testProject.abstract,
-        scheduledStart: testProject.scheduledStart,
-        scheduledEnd: testProject.scheduledEnd,
-        status: "ONGOING",
-        type: testProject.type,
+        ...testProject,
         chapterId: testData.chapterId,
       })
       .returning();
@@ -273,12 +268,7 @@ describe("Projects API", () => {
     it("should create a new project with authentication", async () => {
       const newProjectData = generateTestProject();
       const newProject = {
-        title: newProjectData.title.substring(0, 50),
-        abstract: newProjectData.abstract,
-        description: newProjectData.description,
-        scheduledStart: newProjectData.scheduledStart,
-        scheduledEnd: newProjectData.scheduledEnd,
-        type: newProjectData.type,
+        ...newProjectData,
         chapterId: testData.chapterId,
       };
 
