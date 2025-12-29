@@ -12,11 +12,16 @@ import {
 } from "../factories";
 import { v4 as uuidv4 } from "uuid";
 
-interface ProjectResponse {
+interface ProjectListItemResponse {
   id: string;
+  publicId: string;
   title: string;
-  abstract?: string;
+  type: string;
+  category?: string;
+  scheduledStart: string;
+  scheduledEnd: string;
   status: string;
+  featuredMediumUrl?: string;
   chapterName?: string;
 }
 
@@ -92,7 +97,7 @@ describe("Projects API", () => {
         scheduledStart: testProject.scheduledStart,
         scheduledEnd: testProject.scheduledEnd,
         status: "ONGOING",
-        type: "COMMUNITY",
+        type: testProject.type,
         chapterId: testData.chapterId,
       })
       .returning();
@@ -168,11 +173,14 @@ describe("Projects API", () => {
 
       // Check if our test project is in the list
       const foundProject = response.body.data.items.find(
-        (p: ProjectResponse) => p.id === testData.projectId
+        (p: ProjectListItemResponse) => p.id === testData.projectId
       );
       if (foundProject) {
         expect(foundProject.title).toBe(testProject.title);
-        // Abstract check removed as requested
+        expect(foundProject.publicId).toBeDefined();
+        expect(foundProject.type).toBe(testProject.type);
+        expect(foundProject.scheduledStart).toBeDefined();
+        expect(foundProject.scheduledEnd).toBeDefined();
       }
     });
 
@@ -198,7 +206,8 @@ describe("Projects API", () => {
       // If we find results, they should contain the search term in the title
       if (response.body.data.items.length > 0) {
         const hasMatchingTitle = response.body.data.items.some(
-          (p: ProjectResponse) => p.title.toLowerCase().includes("test project")
+          (p: ProjectListItemResponse) =>
+            p.title.toLowerCase().includes("test project")
         );
         expect(hasMatchingTitle).toBe(true);
       }
@@ -215,7 +224,7 @@ describe("Projects API", () => {
       // All returned projects should have ONGOING status
       if (response.body.data.items.length > 0) {
         const allInProgress = response.body.data.items.every(
-          (p: ProjectResponse) => p.status === "ONGOING"
+          (p: ProjectListItemResponse) => p.status === "ONGOING"
         );
         expect(allInProgress).toBe(true);
       }
@@ -264,13 +273,12 @@ describe("Projects API", () => {
     it("should create a new project with authentication", async () => {
       const newProjectData = generateTestProject();
       const newProject = {
-        title: newProjectData.title.substring(0, 50), // Ensure title length is safe
-        abstract: "Valid short abstract", // Hardcode to ensure validation passes
-        description: "Valid description for testing purposes.", // Hardcode to ensure validation passes
-        scheduledStart: newProjectData.scheduledStart.toISOString(),
-        scheduledEnd: newProjectData.scheduledEnd.toISOString(),
-        status: "UPCOMING",
-        type: "COMMUNITY" ,
+        title: newProjectData.title.substring(0, 50),
+        abstract: newProjectData.abstract,
+        description: newProjectData.description,
+        scheduledStart: newProjectData.scheduledStart,
+        scheduledEnd: newProjectData.scheduledEnd,
+        type: newProjectData.type,
         chapterId: testData.chapterId,
       };
 
@@ -293,6 +301,8 @@ describe("Projects API", () => {
 
       expect(getResponse.body.data.title).toBe(newProject.title);
       expect(getResponse.body.data.abstract).toBe(newProject.abstract);
+      expect(getResponse.body.data.type).toBe(newProject.type);
+      expect(getResponse.body.data.publicId).toBeDefined();
       expect(getResponse.body.data.status).toBe("UPCOMING");
     });
 
@@ -399,8 +409,12 @@ describe("Projects API", () => {
       expect(response.body.success).toBe(true);
       expect(response.body.data).toBeDefined();
       expect(response.body.data.id).toBe(testData.projectId);
+      expect(response.body.data.publicId).toBeDefined();
       expect(response.body.data.title).toBe(testProject.title);
       expect(response.body.data.abstract).toBe(testProject.abstract);
+      expect(response.body.data.type).toBe(testProject.type);
+      expect(response.body.data.scheduledStart).toBeDefined();
+      expect(response.body.data.scheduledEnd).toBeDefined();
       expect(response.body.data.status).toBe("ONGOING");
       expect(response.body.data.chapter).toBeDefined();
       expect(response.body.data.chapter.id).toBe(testData.chapterId);
