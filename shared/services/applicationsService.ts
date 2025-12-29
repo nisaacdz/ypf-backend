@@ -1,6 +1,7 @@
 import { eq, desc, count, and, ilike, or } from "drizzle-orm";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
+import logger from "@/configs/logger";
 import { ApiError } from "@/shared/types";
 import { Paginated } from "@/shared/dtos";
 import {
@@ -8,6 +9,7 @@ import {
   YPFApplicationDetail,
 } from "@/features/api/v1/applications/dtos";
 import { ApplicationStatus, NationalIdType } from "@/shared/utils";
+import { sendApplicationAcknowledgementEmail } from "@/shared/utils/email";
 
 type CreateApplication = {
   constituent: {
@@ -28,8 +30,8 @@ type CreateApplication = {
 };
 
 export async function createApplication(data: CreateApplication) {
-  let { constituent: constituentData, ...remApplicationData } = data;
-  return await dbClient.db.transaction(async (tx) => {
+  const { constituent: constituentData, ...remApplicationData } = data;
+  const result = await dbClient.db.transaction(async (tx) => {
     const [newConstituent] = await tx
       .insert(schema.Constituents)
       .values(constituentData)
@@ -37,7 +39,7 @@ export async function createApplication(data: CreateApplication) {
         id: schema.Constituents.id,
       });
 
-    let applicationData = {
+    const applicationData = {
       ...remApplicationData,
       constituentId: newConstituent.id,
     };
@@ -49,6 +51,16 @@ export async function createApplication(data: CreateApplication) {
 
     return newApplication;
   });
+
+  // Send acknowledgement email (fire and forget)
+  sendApplicationAcknowledgementEmail({
+    email: constituentData.email,
+    name: `${constituentData.firstName} ${constituentData.lastName}`,
+  }).catch((error) => {
+    logger.error("Failed to send application acknowledgement email", error);
+  });
+
+  return result;
 }
 
 export async function getApplications(query: {
@@ -63,7 +75,7 @@ export async function getApplications(query: {
   const conditions = [];
   if (status) conditions.push(eq(schema.Applications.status, status));
 
-  let baseQuery = dbClient.db
+  const baseQuery = dbClient.db
     .select({
       id: schema.Applications.id,
       status: schema.Applications.status,
@@ -78,7 +90,7 @@ export async function getApplications(query: {
     .from(schema.Applications)
     .innerJoin(
       schema.Constituents,
-      eq(schema.Applications.constituentId, schema.Constituents.id),
+      eq(schema.Applications.constituentId, schema.Constituents.id)
     );
 
   if (search) {
@@ -86,8 +98,8 @@ export async function getApplications(query: {
       or(
         ilike(schema.Constituents.email, `%${search}%`),
         ilike(schema.Constituents.firstName, `%${search}%`),
-        ilike(schema.Constituents.lastName, `%${search}%`),
-      ),
+        ilike(schema.Constituents.lastName, `%${search}%`)
+      )
     );
   }
 
@@ -125,7 +137,7 @@ export async function getApplications(query: {
 }
 
 export async function getApplicationById(
-  id: string,
+  id: string
 ): Promise<YPFApplicationDetail | null> {
   const [application] = await dbClient.db
     .select({
@@ -169,7 +181,7 @@ export async function getApplicationById(
     .from(schema.Applications)
     .innerJoin(
       schema.Constituents,
-      eq(schema.Applications.constituentId, schema.Constituents.id),
+      eq(schema.Applications.constituentId, schema.Constituents.id)
     )
     .where(eq(schema.Applications.id, id))
     .limit(1);
@@ -221,7 +233,7 @@ export async function getApplicationById(
 export async function updateApplicationStatus(
   id: string,
   newStatus: ApplicationStatus,
-  adminId: string,
+  adminId: string
 ) {
   const [updated] = await dbClient.db
     .update(schema.Applications)
