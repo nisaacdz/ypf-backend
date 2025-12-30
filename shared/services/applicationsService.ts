@@ -127,6 +127,7 @@ export async function getApplications(query: {
         applicant: {
           id: it.constituent.id,
           fullName: `${it.constituent.firstName} ${it.constituent.lastName}`,
+          email: it.constituent.email ?? undefined,
         },
       };
     }),
@@ -183,6 +184,18 @@ export async function getApplicationById(
       schema.Constituents,
       eq(schema.Applications.constituentId, schema.Constituents.id)
     )
+    .leftJoin(
+      schema.Chapters,
+      eq(schema.Applications.preferredChapterId, schema.Chapters.id)
+    )
+    .leftJoin(
+      schema.Committees,
+      eq(schema.Applications.preferredCommitteeId, schema.Committees.id)
+    )
+    .leftJoin(
+      schema.Documents,
+      eq(schema.Applications.cvDocumentId, schema.Documents.id)
+    )
     .where(eq(schema.Applications.id, id))
     .limit(1);
 
@@ -218,7 +231,12 @@ export async function getApplicationById(
           name: application.preferredChapter.name,
         }
       : undefined,
-    preferredCommittee: undefined, // Not included in current service query
+    preferredCommittee: application.preferredCommittee
+      ? {
+          id: application.preferredCommittee.id,
+          name: application.preferredCommittee.name,
+        }
+      : undefined,
     cvDocument: application.cvDocument
       ? {
           id: application.cvDocument.id,
