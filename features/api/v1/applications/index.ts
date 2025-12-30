@@ -70,6 +70,25 @@ const applicationsRouter = Router();
  *                       type: array
  *                       items:
  *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             format: uuid
+ *                           status:
+ *                             type: string
+ *                           createdAt:
+ *                             type: string
+ *                             format: date-time
+ *                           applicant:
+ *                             type: object
+ *                             properties:
+ *                               id:
+ *                                 type: string
+ *                                 format: uuid
+ *                               fullName:
+ *                                 type: string
+ *                               email:
+ *                                 type: string
  *                     page:
  *                       type: integer
  *                     pageSize:
@@ -130,12 +149,75 @@ applicationsRouter.get(
  *                       format: uuid
  *                     status:
  *                       type: string
- *                     constituent:
+ *                     commitmentStatement:
+ *                       type: string
+ *                     referralSource:
+ *                       type: string
+ *                     declinedReason:
+ *                       type: string
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
+ *                     approvedAt:
+ *                       type: string
+ *                       format: date-time
+ *                     applicant:
  *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                           format: uuid
+ *                         firstName:
+ *                           type: string
+ *                         lastName:
+ *                           type: string
+ *                         email:
+ *                           type: string
+ *                         phone:
+ *                           type: string
+ *                         occupation:
+ *                           type: string
+ *                         country:
+ *                           type: string
+ *                         region:
+ *                           type: string
+ *                         city:
+ *                           type: string
+ *                         campus:
+ *                           type: string
+ *                         skills:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *                         previousVolunteerExperience:
+ *                           type: string
  *                     preferredChapter:
  *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                           format: uuid
+ *                         name:
+ *                           type: string
+ *                     preferredCommittee:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                           format: uuid
+ *                         name:
+ *                           type: string
  *                     cvDocument:
  *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                           format: uuid
+ *                         externalId:
+ *                           type: string
  *       401:
  *         description: Unauthorized
  *       403:
