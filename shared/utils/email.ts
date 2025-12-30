@@ -108,7 +108,7 @@ export const sendEmail = async (
   try {
     const info = await emailer.transporter.sendMail(mailOptions);
     logger.info(
-      `Email sent to ${Array.isArray(to) ? to.length + " recipients" : to}. Message ID: ${info.messageId}`
+      `Email sent to ${Array.isArray(to) ? to.length : 1} recipient(s). Message ID: ${info.messageId}`
     );
   } catch (error) {
     logger.error(error, `Error sending email:`);
@@ -472,7 +472,6 @@ export async function sendOrderPlacementEmail(params: {
       price: string;
     }>;
   };
-  paymentUrl: string;
 }): Promise<void> {
   const subject = "Complete Your Order Payment";
 
@@ -497,10 +496,8 @@ export async function sendOrderPlacementEmail(params: {
       </div>
       <p style="margin: 8px 0 0 0; font-size: 12px; color: ${colors.mutedForeground}; font-family: monospace;">Order ID: ${params.order.id}</p>
     </div>
-    <p>Please complete your payment to confirm your order:</p>
+    <p>Please complete your payment to process your order.</p>
     <br>
-    <a href="${params.paymentUrl}" class="button">Complete Payment</a>
-    <br><br>
     <p>Once payment is confirmed, we will send you a receipt and begin processing your order.</p>
     <br>
     <p>Best regards,<br>The YPF Africa Team</p>
@@ -525,8 +522,7 @@ export async function sendOrderPlacementEmail(params: {
     `Total: ${params.order.currency} ${params.order.amount}`,
     `Order ID: ${params.order.id}`,
     "",
-    "Please complete your payment to confirm your order:",
-    params.paymentUrl,
+    "Please complete your payment to process your order.",
     "",
     "Once payment is confirmed, we will send you a receipt and begin processing your order.",
     "",
