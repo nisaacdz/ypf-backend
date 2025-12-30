@@ -52,6 +52,9 @@ dashboardRouter.use(authorize(Visitors.hasProfile("ADMIN")));
  *                     projectsCount:
  *                       type: integer
  *                       description: Total projects count
+ *                     welfareProjectsCount:
+ *                       type: integer
+ *                       description: Total welfare projects count
  *       401:
  *         description: Not authenticated
  *       403:
@@ -66,7 +69,7 @@ dashboardRouter.get(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -95,17 +98,25 @@ dashboardRouter.get(
  *                   type: object
  *                   properties:
  *                     projects:
- *                       type: object
- *                       description: Paginated recent projects
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Project'
+ *                       description: Recent community projects
  *                     welfareProjects:
- *                       type: object
- *                       description: Paginated recent welfare cases
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Project'
+ *                       description: Recent welfare cases
  *                     workshopEvents:
- *                       type: object
- *                       description: Paginated recent workshop events
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Event'
+ *                       description: Recent workshop events
  *                     shopProducts:
- *                       type: object
- *                       description: Paginated recent shop products
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/ShopProduct'
+ *                       description: Recent shop products
  *       401:
  *         description: Not authenticated
  *       403:
@@ -120,7 +131,7 @@ dashboardRouter.get(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 export default dashboardRouter;

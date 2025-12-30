@@ -4,9 +4,10 @@ import { YPFEvent } from "../events/dtos";
 import { ShopProduct } from "../shop/dtos";
 
 export type Activity = {
-  projects: Paginated<YPFProject>;
-  workshopEvents: Paginated<YPFEvent>;
-  shopProducts: Paginated<ShopProduct>;
+  projects: YPFProject[];
+  welfareProjects: YPFProject[];
+  workshopEvents: YPFEvent[];
+  shopProducts: ShopProduct[];
 };
 
 export type Stats = {
@@ -14,4 +15,5 @@ export type Stats = {
   donationsCount: number;
   eventsCount: number;
   projectsCount: number;
+  welfareProjectsCount: number;
 };
