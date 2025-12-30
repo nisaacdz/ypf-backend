@@ -14,7 +14,7 @@ import { z } from "zod";
 import { GetDonationsQuerySchema } from "@/features/api/v1/donations/schemas";
 
 export async function getDonations(
-  query: z.infer<typeof GetDonationsQuerySchema>,
+  query: z.infer<typeof GetDonationsQuerySchema>
 ): Promise<Paginated<YPFDonation>> {
   const { page = 1, pageSize = 20, startDate, endDate, status } = query;
   const offset = (page - 1) * pageSize;
@@ -26,12 +26,12 @@ export async function getDonations(
   }
   if (startDate) {
     whereClauses.push(
-      gte(schema.FinancialTransactions.updatedAt, new Date(startDate)),
+      gte(schema.FinancialTransactions.updatedAt, new Date(startDate))
     );
   }
   if (endDate) {
     whereClauses.push(
-      lte(schema.FinancialTransactions.updatedAt, new Date(endDate)),
+      lte(schema.FinancialTransactions.updatedAt, new Date(endDate))
     );
   }
 
@@ -51,11 +51,11 @@ export async function getDonations(
     .from(schema.Donations)
     .innerJoin(
       schema.FinancialTransactions,
-      eq(schema.Donations.transactionId, schema.FinancialTransactions.id),
+      eq(schema.Donations.transactionId, schema.FinancialTransactions.id)
     )
     .leftJoin(
       schema.Constituents,
-      eq(schema.Donations.constituentId, schema.Constituents.id),
+      eq(schema.Donations.constituentId, schema.Constituents.id)
     )
     .where(and(...whereClauses))
     .orderBy(desc(schema.FinancialTransactions.updatedAt))
@@ -69,11 +69,11 @@ export async function getDonations(
       .from(schema.Donations)
       .innerJoin(
         schema.FinancialTransactions,
-        eq(schema.Donations.transactionId, schema.FinancialTransactions.id),
+        eq(schema.Donations.transactionId, schema.FinancialTransactions.id)
       )
       .leftJoin(
         schema.Constituents,
-        eq(schema.Donations.constituentId, schema.Constituents.id),
+        eq(schema.Donations.constituentId, schema.Constituents.id)
       )
       .where(and(...whereClauses)),
   ]);
@@ -90,19 +90,18 @@ export async function getDonations(
       donorEmail = d.guestEmail;
     }
 
+    const donor =
+      donorName && donorEmail
+        ? { name: donorName, email: donorEmail }
+        : undefined;
+
     return {
       id: d.id,
       amount: d.amount,
       currency: d.currency,
       status: d.status,
       date: d.date,
-      donor:
-        donorName || donorEmail
-          ? {
-              name: donorName,
-              email: donorEmail,
-            }
-          : undefined,
+      donor,
     };
   });
 
@@ -188,7 +187,7 @@ export async function startPaystackDonation(
     projectId,
     eventId,
   }: CreateDonationInput,
-  user: AuthenticatedUser | null,
+  user: AuthenticatedUser | null
 ): Promise<{
   donation: YPFDonation;
   paymentUrl: string;
@@ -230,7 +229,7 @@ export async function startPaystackDonation(
           .returning();
 
         return { donation: newDonation, transaction: newTransaction };
-      },
+      }
     );
 
     newDonation = donation;
@@ -258,7 +257,7 @@ export async function startPaystackDonation(
           callback_url: `${variables.app.host}/donations/callback`,
           email: guestEmail ?? user?.email,
         }),
-      },
+      }
     );
 
     if (!paystackResponse.ok) {
@@ -266,14 +265,14 @@ export async function startPaystackDonation(
       logger.error("Paystack initialization failed:", errorData);
       throw new ApiError(
         `Failed to initialize payment: ${errorData.message || "Unknown error"}`,
-        500,
+        500
       );
     }
     paystackData =
       (await paystackResponse.json()) as PaystackInitializeResponse;
   } catch (apiError) {
     logger.warn(
-      `Compensating transaction for [${transactionId}] due to API failure.`,
+      `Compensating transaction for [${transactionId}] due to API failure.`
     );
     try {
       await dbClient.db
@@ -283,18 +282,22 @@ export async function startPaystackDonation(
     } catch (compensationError) {
       logger.error(
         compensationError,
-        `CRITICAL: Failed to compensate (mark as FAILED) transaction [${transactionId}].`,
+        `CRITICAL: Failed to compensate (mark as FAILED) transaction [${transactionId}].`
       );
     }
     throw apiError;
   }
 
-  const donor = anonymous
+  const data = anonymous
     ? undefined
     : {
         name: guestName ?? user?.fullName,
         email: guestEmail ?? user?.email,
       };
+  const donor =
+    data?.name && data?.email
+      ? { name: data.name, email: data.email }
+      : undefined;
 
   return {
     donation: {
@@ -314,7 +317,7 @@ export async function startPaystackDonation(
  */
 export async function verifyPaystackDonation(
   donation: Donation,
-  user: AuthenticatedUser | null,
+  user: AuthenticatedUser | null
 ): Promise<{
   status: string;
 }> {
@@ -328,7 +331,7 @@ export async function verifyPaystackDonation(
     if (!donation.transaction.externalRef) {
       throw new ApiError(
         "No external reference found for this transaction",
-        400,
+        400
       );
     }
 
@@ -342,7 +345,7 @@ export async function verifyPaystackDonation(
         headers: {
           Authorization: `Bearer ${paystackSecretKey}`,
         },
-      },
+      }
     );
 
     if (!verifyResponse.ok) {
@@ -372,15 +375,15 @@ export async function verifyPaystackDonation(
       .where(
         and(
           eq(schema.FinancialTransactions.id, donation.transaction.id),
-          eq(schema.FinancialTransactions.status, "PENDING"),
-        ),
+          eq(schema.FinancialTransactions.status, "PENDING")
+        )
       )
       .returning({ id: schema.FinancialTransactions.id });
 
     // Check if update was successful
     if (updateResult.length === 0) {
       logger.warn(
-        `Transaction ${donation.transaction.id} was not updated - may have been processed already`,
+        `Transaction ${donation.transaction.id} was not updated - may have been processed already`
       );
       // Return current status from database instead of from Paystack
       return {

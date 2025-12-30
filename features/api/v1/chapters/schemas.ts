@@ -25,7 +25,7 @@ export const UpdateChapterSchema = z
 
 export const EnrollChapterSchema = z.object({
   constituentId: z.uuid({ message: "Invalid constituent ID." }),
-  startedAt: z.string().datetime().optional(),
+  startedAt: z.iso.datetime().optional(),
 });
 
 export const UnenrollChapterSchema = z.object({

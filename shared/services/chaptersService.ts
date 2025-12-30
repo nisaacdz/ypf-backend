@@ -26,7 +26,7 @@ import * as mediaUtils from "@/shared/utils/files";
 import { ApiError } from "@/shared/types";
 
 export async function getChapters(
-  query: z.infer<typeof GetChaptersQuerySchema>,
+  query: z.infer<typeof GetChaptersQuerySchema>
 ): Promise<Paginated<YPFChapter>> {
   const { page, pageSize, search } = query;
 
@@ -36,19 +36,19 @@ export async function getChapters(
       chapterId: schema.ChapterMemberships.chapterId,
       memberCount:
         sql<number>`COUNT(DISTINCT ${schema.Members.constituentId})`.as(
-          "member_count",
+          "member_count"
         ),
     })
     .from(schema.ChapterMemberships)
     .innerJoin(
       schema.Members,
-      eq(schema.ChapterMemberships.memberId, schema.Members.id),
+      eq(schema.ChapterMemberships.memberId, schema.Members.id)
     )
     .where(
       and(
         sql`${schema.ChapterMemberships.startedAt} <= now()`,
-        sql`(${schema.ChapterMemberships.endedAt} IS NULL OR ${schema.ChapterMemberships.endedAt} >= now())`,
-      ),
+        sql`(${schema.ChapterMemberships.endedAt} IS NULL OR ${schema.ChapterMemberships.endedAt} >= now())`
+      )
     )
     .groupBy(schema.ChapterMemberships.chapterId)
     .as("member_counts");
@@ -59,12 +59,17 @@ export async function getChapters(
       chapterId: schema.ChapterMedia.chapterId,
       externalId: schema.Media.externalId,
       rn: sql<number>`row_number() OVER (PARTITION BY ${schema.ChapterMedia.chapterId} ORDER BY ${schema.Media.uploadedAt} DESC)`.as(
-        "photo_rn",
+        "photo_rn"
       ),
     })
     .from(schema.ChapterMedia)
     .innerJoin(schema.Media, eq(schema.ChapterMedia.mediumId, schema.Media.id))
-    .where(eq(schema.ChapterMedia.isFeatured, true))
+    .where(
+      and(
+        eq(schema.ChapterMedia.isFeatured, true),
+        eq(schema.Media.type, "PICTURE")
+      )
+    )
     .as("featured_photos");
 
   // --- DYNAMIC FILTERS ---
@@ -87,14 +92,14 @@ export async function getChapters(
     .from(schema.Chapters)
     .leftJoin(
       memberCountSubquery,
-      eq(schema.Chapters.id, memberCountSubquery.chapterId),
+      eq(schema.Chapters.id, memberCountSubquery.chapterId)
     )
     .leftJoin(
       featuredPhotoSubquery,
       and(
         eq(schema.Chapters.id, featuredPhotoSubquery.chapterId),
-        eq(featuredPhotoSubquery.rn, 1),
-      ),
+        eq(featuredPhotoSubquery.rn, 1)
+      )
     )
     .where(and(...whereClauses));
 
@@ -129,7 +134,7 @@ export async function getChapters(
 }
 
 export async function getChapterById(
-  chapterId: string,
+  chapterId: string
 ): Promise<YPFChapterDetail> {
   const [chapter] = await dbClient.db
     .select({
@@ -160,23 +165,23 @@ export async function getChapterById(
         mediumUploadedAt: schema.Media.uploadedAt,
         mediumUploadedBy:
           sql<string>`concat(${schema.Constituents.firstName}, ' ', ${schema.Constituents.lastName})`.as(
-            "uploader_name",
+            "uploader_name"
           ),
       })
       .from(schema.ChapterMedia)
       .innerJoin(
         schema.Media,
-        eq(schema.ChapterMedia.mediumId, schema.Media.id),
+        eq(schema.ChapterMedia.mediumId, schema.Media.id)
       )
       .leftJoin(
         schema.Constituents,
-        eq(schema.Media.uploadedBy, schema.Constituents.id),
+        eq(schema.Media.uploadedBy, schema.Constituents.id)
       )
       .where(
         and(
           eq(schema.ChapterMedia.chapterId, chapterId),
-          eq(schema.ChapterMedia.isFeatured, true),
-        ),
+          eq(schema.ChapterMedia.isFeatured, true)
+        )
       )
       .orderBy(desc(schema.Media.uploadedAt))
       .limit(5),
@@ -228,7 +233,7 @@ export async function getChapterById(
 
 export async function updateChapter(
   chapterId: string,
-  updates: z.infer<typeof UpdateChapterSchema>,
+  updates: z.infer<typeof UpdateChapterSchema>
 ): Promise<{ id: string }> {
   const [updatedChapter] = await dbClient.db
     .update(schema.Chapters)
@@ -245,7 +250,7 @@ export async function updateChapter(
 
 export async function getChaptersByConstituentId(
   constituentId: string,
-  query: z.infer<typeof GetConstituentChaptersQuerySchema>,
+  query: z.infer<typeof GetConstituentChaptersQuerySchema>
 ): Promise<Paginated<YPFChapter>> {
   const { page, pageSize } = query;
 
@@ -265,19 +270,19 @@ export async function getChaptersByConstituentId(
       chapterId: schema.ChapterMemberships.chapterId,
       memberCount:
         sql<number>`COUNT(DISTINCT ${schema.Members.constituentId})`.as(
-          "member_count",
+          "member_count"
         ),
     })
     .from(schema.ChapterMemberships)
     .innerJoin(
       schema.Members,
-      eq(schema.ChapterMemberships.memberId, schema.Members.id),
+      eq(schema.ChapterMemberships.memberId, schema.Members.id)
     )
     .where(
       and(
         sql`${schema.ChapterMemberships.startedAt} <= now()`,
-        sql`(${schema.ChapterMemberships.endedAt} IS NULL OR ${schema.ChapterMemberships.endedAt} >= now())`,
-      ),
+        sql`(${schema.ChapterMemberships.endedAt} IS NULL OR ${schema.ChapterMemberships.endedAt} >= now())`
+      )
     )
     .groupBy(schema.ChapterMemberships.chapterId)
     .as("member_counts");
@@ -288,12 +293,17 @@ export async function getChaptersByConstituentId(
       chapterId: schema.ChapterMedia.chapterId,
       externalId: schema.Media.externalId,
       rn: sql<number>`row_number() OVER (PARTITION BY ${schema.ChapterMedia.chapterId} ORDER BY ${schema.Media.uploadedAt} DESC)`.as(
-        "photo_rn",
+        "photo_rn"
       ),
     })
     .from(schema.ChapterMedia)
     .innerJoin(schema.Media, eq(schema.ChapterMedia.mediumId, schema.Media.id))
-    .where(eq(schema.ChapterMedia.isFeatured, true))
+    .where(
+      and(
+        eq(schema.ChapterMedia.isFeatured, true),
+        eq(schema.Media.type, "PICTURE")
+      )
+    )
     .as("featured_photos");
 
   // --- BASE QUERY ---
@@ -310,29 +320,29 @@ export async function getChaptersByConstituentId(
     .from(schema.ChapterMemberships)
     .innerJoin(
       memberSubquery,
-      eq(schema.ChapterMemberships.memberId, memberSubquery.memberId),
+      eq(schema.ChapterMemberships.memberId, memberSubquery.memberId)
     )
     .innerJoin(
       schema.Chapters,
-      eq(schema.ChapterMemberships.chapterId, schema.Chapters.id),
+      eq(schema.ChapterMemberships.chapterId, schema.Chapters.id)
     )
     .leftJoin(
       memberCountSubquery,
-      eq(schema.Chapters.id, memberCountSubquery.chapterId),
+      eq(schema.Chapters.id, memberCountSubquery.chapterId)
     )
     .leftJoin(
       featuredPhotoSubquery,
       and(
         eq(schema.Chapters.id, featuredPhotoSubquery.chapterId),
-        eq(featuredPhotoSubquery.rn, 1),
-      ),
+        eq(featuredPhotoSubquery.rn, 1)
+      )
     )
     .where(
       and(
         isNull(schema.Chapters.archivedAt),
         sql`${schema.ChapterMemberships.startedAt} <= now()`,
-        sql`(${schema.ChapterMemberships.endedAt} IS NULL OR ${schema.ChapterMemberships.endedAt} >= now())`,
-      ),
+        sql`(${schema.ChapterMemberships.endedAt} IS NULL OR ${schema.ChapterMemberships.endedAt} >= now())`
+      )
     );
 
   // --- QUERY EXECUTION ---
@@ -367,7 +377,7 @@ export async function getChaptersByConstituentId(
 
 export async function getChapterLeadership(
   chapterId: string,
-  query: { page?: number; pageSize?: number } = {},
+  query: { page?: number; pageSize?: number } = {}
 ): Promise<Paginated<YPFMember>> {
   const { page = 1, pageSize = 20 } = query;
   const offset = (page - 1) * pageSize;
@@ -385,19 +395,19 @@ export async function getChapterLeadership(
     .from(schema.MemberTitlesAssignments)
     .innerJoin(
       schema.MemberTitles,
-      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
+      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id)
     )
     .innerJoin(
       schema.Members,
-      eq(schema.MemberTitlesAssignments.memberId, schema.Members.id),
+      eq(schema.MemberTitlesAssignments.memberId, schema.Members.id)
     )
     .innerJoin(
       schema.Constituents,
-      eq(schema.Members.constituentId, schema.Constituents.id),
+      eq(schema.Members.constituentId, schema.Constituents.id)
     )
     .leftJoin(
       schema.Media,
-      eq(schema.Constituents.profilePhotoId, schema.Media.id),
+      eq(schema.Constituents.profilePhotoId, schema.Media.id)
     )
     .where(
       and(
@@ -406,8 +416,8 @@ export async function getChapterLeadership(
         sql`(${schema.MemberTitlesAssignments.endedAt} IS NULL OR ${schema.MemberTitlesAssignments.endedAt} >= now())`,
         // Ensure the underlying membership is also active
         sql`${schema.Members.startedAt} <= now()`,
-        sql`(${schema.Members.endedAt} IS NULL OR ${schema.Members.endedAt} >= now())`,
-      ),
+        sql`(${schema.Members.endedAt} IS NULL OR ${schema.Members.endedAt} >= now())`
+      )
     )
     // Order by rank (lower is higher rank) then alphabetical
     .orderBy(schema.MemberTitles._level, schema.MemberTitles.title);
@@ -447,7 +457,7 @@ export async function getChapterLeadership(
 export async function enrollToChapter(
   chapterId: string,
   constituentId: string,
-  startedAt?: Date,
+  startedAt?: Date
 ): Promise<string> {
   const now = new Date();
 
@@ -459,8 +469,8 @@ export async function enrollToChapter(
       and(
         eq(schema.Members.constituentId, constituentId),
         lte(schema.Members.startedAt, now),
-        or(isNull(schema.Members.endedAt), gte(schema.Members.endedAt, now)),
-      ),
+        or(isNull(schema.Members.endedAt), gte(schema.Members.endedAt, now))
+      )
     )
     .limit(1);
 
@@ -485,7 +495,7 @@ export async function enrollToChapter(
  */
 export async function unenrollFromChapter(
   chapterId: string,
-  constituentId: string,
+  constituentId: string
 ): Promise<void> {
   const now = new Date();
 
@@ -497,8 +507,8 @@ export async function unenrollFromChapter(
       and(
         eq(schema.Members.constituentId, constituentId),
         lte(schema.Members.startedAt, now),
-        or(isNull(schema.Members.endedAt), gte(schema.Members.endedAt, now)),
-      ),
+        or(isNull(schema.Members.endedAt), gte(schema.Members.endedAt, now))
+      )
     )
     .limit(1);
 
@@ -514,8 +524,8 @@ export async function unenrollFromChapter(
         eq(schema.ChapterMemberships.memberId, member.id),
         eq(schema.ChapterMemberships.chapterId, chapterId),
         isNull(schema.ChapterMemberships.endedAt),
-        lte(schema.ChapterMemberships.startedAt, now),
-      ),
+        lte(schema.ChapterMemberships.startedAt, now)
+      )
     )
     .returning({ id: schema.ChapterMemberships.id });
 

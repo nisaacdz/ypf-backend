@@ -28,7 +28,7 @@ import * as mediaUtils from "@/shared/utils/files";
 import { ApiError } from "@/shared/types";
 
 export async function getCommittees(
-  query: z.infer<typeof GetCommitteesQuerySchema>,
+  query: z.infer<typeof GetCommitteesQuerySchema>
 ): Promise<Paginated<YPFCommittee>> {
   const { page, pageSize, search, chapterId } = query;
 
@@ -38,19 +38,19 @@ export async function getCommittees(
       committeeId: schema.CommitteeMemberships.committeeId,
       memberCount:
         sql<number>`COUNT(DISTINCT ${schema.Members.constituentId})`.as(
-          "member_count",
+          "member_count"
         ),
     })
     .from(schema.CommitteeMemberships)
     .innerJoin(
       schema.Members,
-      eq(schema.CommitteeMemberships.memberId, schema.Members.id),
+      eq(schema.CommitteeMemberships.memberId, schema.Members.id)
     )
     .where(
       and(
         sql`${schema.CommitteeMemberships.startedAt} <= now()`,
-        sql`(${schema.CommitteeMemberships.endedAt} IS NULL OR ${schema.CommitteeMemberships.endedAt} >= now())`,
-      ),
+        sql`(${schema.CommitteeMemberships.endedAt} IS NULL OR ${schema.CommitteeMemberships.endedAt} >= now())`
+      )
     )
     .groupBy(schema.CommitteeMemberships.committeeId)
     .as("member_counts");
@@ -61,15 +61,20 @@ export async function getCommittees(
       committeeId: schema.CommitteeMedia.committeeId,
       externalId: schema.Media.externalId,
       rn: sql<number>`row_number() OVER (PARTITION BY ${schema.CommitteeMedia.committeeId} ORDER BY ${schema.Media.uploadedAt} DESC)`.as(
-        "photo_rn",
+        "photo_rn"
       ),
     })
     .from(schema.CommitteeMedia)
     .innerJoin(
       schema.Media,
-      eq(schema.CommitteeMedia.mediumId, schema.Media.id),
+      eq(schema.CommitteeMedia.mediumId, schema.Media.id)
     )
-    .where(eq(schema.CommitteeMedia.isFeatured, true))
+    .where(
+      and(
+        eq(schema.CommitteeMedia.isFeatured, true),
+        eq(schema.Media.type, "PICTURE")
+      )
+    )
     .as("featured_photos");
 
   // --- DYNAMIC FILTERS ---
@@ -99,18 +104,18 @@ export async function getCommittees(
     .from(schema.Committees)
     .leftJoin(
       schema.Chapters,
-      eq(schema.Committees.chapterId, schema.Chapters.id),
+      eq(schema.Committees.chapterId, schema.Chapters.id)
     )
     .leftJoin(
       memberCountSubquery,
-      eq(schema.Committees.id, memberCountSubquery.committeeId),
+      eq(schema.Committees.id, memberCountSubquery.committeeId)
     )
     .leftJoin(
       featuredPhotoSubquery,
       and(
         eq(schema.Committees.id, featuredPhotoSubquery.committeeId),
-        eq(featuredPhotoSubquery.rn, 1),
-      ),
+        eq(featuredPhotoSubquery.rn, 1)
+      )
     )
     .where(and(...whereClauses));
 
@@ -145,7 +150,7 @@ export async function getCommittees(
 }
 
 export async function getCommitteeById(
-  committeeId: string,
+  committeeId: string
 ): Promise<YPFCommitteeDetail> {
   const [committee] = await dbClient.db
     .select({
@@ -165,7 +170,7 @@ export async function getCommitteeById(
     .from(schema.Committees)
     .leftJoin(
       schema.Chapters,
-      eq(schema.Committees.chapterId, schema.Chapters.id),
+      eq(schema.Committees.chapterId, schema.Chapters.id)
     )
     .where(eq(schema.Committees.id, committeeId));
 
@@ -184,23 +189,23 @@ export async function getCommitteeById(
       mediumUploadedAt: schema.Media.uploadedAt,
       mediumUploadedBy:
         sql<string>`concat(${schema.Constituents.firstName}, ' ', ${schema.Constituents.lastName})`.as(
-          "uploader_name",
+          "uploader_name"
         ),
     })
     .from(schema.CommitteeMedia)
     .innerJoin(
       schema.Media,
-      eq(schema.CommitteeMedia.mediumId, schema.Media.id),
+      eq(schema.CommitteeMedia.mediumId, schema.Media.id)
     )
     .leftJoin(
       schema.Constituents,
-      eq(schema.Media.uploadedBy, schema.Constituents.id),
+      eq(schema.Media.uploadedBy, schema.Constituents.id)
     )
     .where(
       and(
         eq(schema.CommitteeMedia.committeeId, committeeId),
-        eq(schema.CommitteeMedia.isFeatured, true),
-      ),
+        eq(schema.CommitteeMedia.isFeatured, true)
+      )
     )
     .orderBy(desc(schema.Media.uploadedAt))
     .limit(5);
@@ -243,7 +248,7 @@ export async function getCommitteeById(
 
 export async function getCommitteesByConstituentId(
   constituentId: string,
-  query: z.infer<typeof GetConstituentCommitteesQuerySchema>,
+  query: z.infer<typeof GetConstituentCommitteesQuerySchema>
 ): Promise<Paginated<YPFCommittee>> {
   const { page, pageSize } = query;
 
@@ -262,19 +267,19 @@ export async function getCommitteesByConstituentId(
       committeeId: schema.CommitteeMemberships.committeeId,
       memberCount:
         sql<number>`COUNT(DISTINCT ${schema.Members.constituentId})`.as(
-          "member_count",
+          "member_count"
         ),
     })
     .from(schema.CommitteeMemberships)
     .innerJoin(
       schema.Members,
-      eq(schema.CommitteeMemberships.memberId, schema.Members.id),
+      eq(schema.CommitteeMemberships.memberId, schema.Members.id)
     )
     .where(
       and(
         sql`${schema.CommitteeMemberships.startedAt} <= now()`,
-        sql`(${schema.CommitteeMemberships.endedAt} IS NULL OR ${schema.CommitteeMemberships.endedAt} >= now())`,
-      ),
+        sql`(${schema.CommitteeMemberships.endedAt} IS NULL OR ${schema.CommitteeMemberships.endedAt} >= now())`
+      )
     )
     .groupBy(schema.CommitteeMemberships.committeeId)
     .as("member_counts");
@@ -285,15 +290,20 @@ export async function getCommitteesByConstituentId(
       committeeId: schema.CommitteeMedia.committeeId,
       externalId: schema.Media.externalId,
       rn: sql<number>`row_number() OVER (PARTITION BY ${schema.CommitteeMedia.committeeId} ORDER BY ${schema.Media.uploadedAt} DESC)`.as(
-        "photo_rn",
+        "photo_rn"
       ),
     })
     .from(schema.CommitteeMedia)
     .innerJoin(
       schema.Media,
-      eq(schema.CommitteeMedia.mediumId, schema.Media.id),
+      eq(schema.CommitteeMedia.mediumId, schema.Media.id)
     )
-    .where(eq(schema.CommitteeMedia.isFeatured, true))
+    .where(
+      and(
+        eq(schema.CommitteeMedia.isFeatured, true),
+        eq(schema.Media.type, "PICTURE")
+      )
+    )
     .as("featured_photos");
 
   // --- BASE QUERY ---
@@ -309,37 +319,37 @@ export async function getCommitteesByConstituentId(
     .from(schema.CommitteeMemberships)
     .innerJoin(
       memberSubquery,
-      eq(schema.CommitteeMemberships.memberId, memberSubquery.memberId),
+      eq(schema.CommitteeMemberships.memberId, memberSubquery.memberId)
     )
     .innerJoin(
       schema.Committees,
-      eq(schema.CommitteeMemberships.committeeId, schema.Committees.id),
+      eq(schema.CommitteeMemberships.committeeId, schema.Committees.id)
     )
     .leftJoin(
       schema.Chapters,
-      eq(schema.Committees.chapterId, schema.Chapters.id),
+      eq(schema.Committees.chapterId, schema.Chapters.id)
     )
     .leftJoin(
       memberCountSubquery,
-      eq(schema.Committees.id, memberCountSubquery.committeeId),
+      eq(schema.Committees.id, memberCountSubquery.committeeId)
     )
     .leftJoin(
       featuredPhotoSubquery,
       and(
         eq(schema.Committees.id, featuredPhotoSubquery.committeeId),
-        eq(featuredPhotoSubquery.rn, 1),
-      ),
+        eq(featuredPhotoSubquery.rn, 1)
+      )
     )
     .where(
       and(
         isNull(schema.Committees.archivedAt),
         or(
           isNull(schema.Committees.chapterId),
-          isNull(schema.Chapters.archivedAt),
+          isNull(schema.Chapters.archivedAt)
         ),
         sql`${schema.CommitteeMemberships.startedAt} <= now()`,
-        sql`(${schema.CommitteeMemberships.endedAt} IS NULL OR ${schema.CommitteeMemberships.endedAt} >= now())`,
-      ),
+        sql`(${schema.CommitteeMemberships.endedAt} IS NULL OR ${schema.CommitteeMemberships.endedAt} >= now())`
+      )
     );
 
   // --- QUERY EXECUTION ---
@@ -374,7 +384,7 @@ export async function getCommitteesByConstituentId(
 
 export async function getCommitteeLeadership(
   committeeId: string,
-  query: { page?: number; pageSize?: number } = {},
+  query: { page?: number; pageSize?: number } = {}
 ): Promise<Paginated<YPFMember>> {
   const { page = 1, pageSize = 20 } = query;
   const offset = (page - 1) * pageSize;
@@ -392,19 +402,19 @@ export async function getCommitteeLeadership(
     .from(schema.MemberTitlesAssignments)
     .innerJoin(
       schema.MemberTitles,
-      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
+      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id)
     )
     .innerJoin(
       schema.Members,
-      eq(schema.MemberTitlesAssignments.memberId, schema.Members.id),
+      eq(schema.MemberTitlesAssignments.memberId, schema.Members.id)
     )
     .innerJoin(
       schema.Constituents,
-      eq(schema.Members.constituentId, schema.Constituents.id),
+      eq(schema.Members.constituentId, schema.Constituents.id)
     )
     .leftJoin(
       schema.Media,
-      eq(schema.Constituents.profilePhotoId, schema.Media.id),
+      eq(schema.Constituents.profilePhotoId, schema.Media.id)
     )
     .where(
       and(
@@ -413,8 +423,8 @@ export async function getCommitteeLeadership(
         sql`(${schema.MemberTitlesAssignments.endedAt} IS NULL OR ${schema.MemberTitlesAssignments.endedAt} >= now())`,
         // Ensure the underlying membership is also active
         sql`${schema.Members.startedAt} <= now()`,
-        sql`(${schema.Members.endedAt} IS NULL OR ${schema.Members.endedAt} >= now())`,
-      ),
+        sql`(${schema.Members.endedAt} IS NULL OR ${schema.Members.endedAt} >= now())`
+      )
     )
     // Order by rank (lower is higher rank) then alphabetical
     .orderBy(schema.MemberTitles._level, schema.MemberTitles.title);
@@ -454,7 +464,7 @@ export async function getCommitteeLeadership(
 export async function enrollToCommittee(
   committeeId: string,
   constituentId: string,
-  startedAt?: Date,
+  startedAt?: Date
 ): Promise<string> {
   const now = new Date();
 
@@ -466,8 +476,8 @@ export async function enrollToCommittee(
       and(
         eq(schema.Members.constituentId, constituentId),
         lte(schema.Members.startedAt, now),
-        or(isNull(schema.Members.endedAt), gte(schema.Members.endedAt, now)),
-      ),
+        or(isNull(schema.Members.endedAt), gte(schema.Members.endedAt, now))
+      )
     )
     .limit(1);
 
@@ -492,7 +502,7 @@ export async function enrollToCommittee(
  */
 export async function unenrollFromCommittee(
   committeeId: string,
-  constituentId: string,
+  constituentId: string
 ): Promise<void> {
   const now = new Date();
 
@@ -504,8 +514,8 @@ export async function unenrollFromCommittee(
       and(
         eq(schema.Members.constituentId, constituentId),
         lte(schema.Members.startedAt, now),
-        or(isNull(schema.Members.endedAt), gte(schema.Members.endedAt, now)),
-      ),
+        or(isNull(schema.Members.endedAt), gte(schema.Members.endedAt, now))
+      )
     )
     .limit(1);
 
@@ -521,8 +531,8 @@ export async function unenrollFromCommittee(
         eq(schema.CommitteeMemberships.memberId, member.id),
         eq(schema.CommitteeMemberships.committeeId, committeeId),
         isNull(schema.CommitteeMemberships.endedAt),
-        lte(schema.CommitteeMemberships.startedAt, now),
-      ),
+        lte(schema.CommitteeMemberships.startedAt, now)
+      )
     )
     .returning({ id: schema.CommitteeMemberships.id });
 
