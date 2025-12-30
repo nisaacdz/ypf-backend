@@ -33,6 +33,10 @@ export async function fetchProjects(
     conditions.push(eq(Projects.status, filterStatus));
   }
 
+  if (query.filterType) {
+    conditions.push(eq(Projects.type, query.filterType));
+  }
+
   if (chapterId) {
     conditions.push(eq(Projects.chapterId, chapterId));
   }

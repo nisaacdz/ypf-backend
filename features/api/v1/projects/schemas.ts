@@ -9,6 +9,11 @@ export const GetProjectsQuerySchema = z.object({
       message: "Invalid project status.",
     })
     .optional(),
+  filterType: z
+    .enum(ProjectTypeEnum.enumValues, {
+      message: "Invalid project type.",
+    })
+    .optional(),
   chapterId: z.uuid({ message: "Invalid chapter ID format." }).optional(),
   ...PaginationQuery.shape,
 });
@@ -41,7 +46,7 @@ export const UploadProjectFileSchema = z
     {
       message: "Image size cannot exceed 50MB.",
       path: ["size"],
-    },
+    }
   )
   .refine(
     (data) => {
@@ -53,7 +58,7 @@ export const UploadProjectFileSchema = z
     {
       message: "Video size cannot exceed 250MB.",
       path: ["size"],
-    },
+    }
   );
 
 export const UploadProjectMediumOptionsSchema = z.object({
