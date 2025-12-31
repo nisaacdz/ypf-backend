@@ -113,8 +113,7 @@ export const sendEmail = async (
   } catch (error) {
     logger.error(error, `Error sending email:`);
     throw new Error(
-      `Failed to send email: ${
-        error instanceof Error ? error.message : String(error)
+      `Failed to send email: ${error instanceof Error ? error.message : String(error)
       }`
     );
   }
@@ -636,4 +635,43 @@ export async function sendApplicationAcknowledgementEmail(params: {
   ].join("\n");
 
   await sendEmail(params.email, subject, htmlBody, textContent);
+}
+
+/**
+ * Sends a password reset confirmation email after successful password reset.
+ * @param to - The recipient's email address.
+ */
+export async function sendPasswordResetConfirmationEmail(to: string): Promise<void> {
+  const subject = "Your Password Has Been Reset";
+
+  const content = `
+    <p>Your password for your YPF Africa account has been successfully reset.</p>
+    <div style="background-color: #ECFDF5; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #A7F3D0;">
+      <p style="margin: 0; color: #065F46; font-weight: 600;">✓ Password Reset Successful</p>
+    </div>
+    <p>You can now log in to your account with your new password.</p>
+    <br>
+    <a href="https://dashboard.ypfafrica.live/login" class="button">Login to Your Account</a>
+    <br><br>
+    <p><strong>Security Notice:</strong> If you did not make this change, please contact our support team immediately as your account may have been compromised.</p>
+    <br>
+    <p>Best regards,<br>The YPF Africa Team</p>
+  `;
+
+  const htmlBody = generateBaseHtml(subject, content);
+
+  const textContent = [
+    "Your password for your YPF Africa account has been successfully reset.",
+    "",
+    "You can now log in to your account with your new password.",
+    "",
+    "Login at: https://dashboard.ypfafrica.live/login",
+    "",
+    "Security Notice: If you did not make this change, please contact our support team immediately.",
+    "",
+    "Best regards,",
+    "The YPF Africa Team",
+  ].join("\n");
+
+  await sendEmail(to, subject, htmlBody, textContent);
 }

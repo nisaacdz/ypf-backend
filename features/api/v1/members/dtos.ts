@@ -14,12 +14,20 @@ export type YPFMemberDetail = {
   firstName: string;
   lastName: string;
   salutation?: string;
+  campus?: string;
+  country?: string;
   profilePhoto?: Omit<Medium, "uploadedBy">; // excludes uploadedBy
   contactInfo: {
     phone?: string;
     whatsapp?: string;
     email?: string;
   };
+  chapters: {
+    id: string;
+    name: string;
+    country: string;
+    joinedAt: Date;
+  }[];
   titles: {
     name: string; // eg. president
     scope?: { type: "chapter" | "committee"; name: string; id: string }; // undefined if global

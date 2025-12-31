@@ -16,6 +16,7 @@ export type YPFChapterDetail = {
   country: string;
   description?: string;
   foundingDate: Date;
+  memberCount: number;
   // from chaptermedia table, filter isFeatured = true, sort by latest, limit to 5
   featuredMedia?: {
     caption?: string;

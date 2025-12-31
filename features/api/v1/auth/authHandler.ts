@@ -2,7 +2,7 @@ import * as authService from "@/shared/services/authService";
 import * as constituentsService from "@/shared/services/constituentsService";
 import { encodeData } from "@/shared/utils/jwt";
 import { ApiResponse, ApiError } from "@/shared/types";
-import { sendOtpEmail } from "@/shared/utils/email";
+import { sendOtpEmail, sendPasswordResetConfirmationEmail } from "@/shared/utils/email";
 import { ForgotPasswordSchema, ResetPasswordSchema, ChangePasswordSchema } from "./schemas";
 import { AuthData } from "./dtos";
 import { z } from "zod";
@@ -100,6 +100,11 @@ export async function resetPassword({
   password,
 }: z.infer<typeof ResetPasswordSchema>): Promise<ApiResponse<null>> {
   await authService.resetPassword(email, otp, password);
+
+  // Send confirmation email (fire and forget - don't block the response)
+  sendPasswordResetConfirmationEmail(email).catch((err) => {
+    console.error('Failed to send password reset confirmation email:', err);
+  });
 
   return {
     success: true,

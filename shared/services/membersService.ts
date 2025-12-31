@@ -192,8 +192,8 @@ export async function getMembers(
     fullName: m.fullName,
     profilePhotoUrl: m.profilePhotoExternalId
       ? mediaUtils.generatePublicMediaUrl(m.profilePhotoExternalId, {
-          resolution: 360,
-        })
+        resolution: 360,
+      })
       : undefined,
     isActive: m.isActive,
     joinedAt: m.joinedAt ?? undefined,
@@ -219,6 +219,8 @@ export async function getMemberByConstituentId(
       firstName: schema.Constituents.firstName,
       lastName: schema.Constituents.lastName,
       salutation: schema.Constituents.salutation,
+      campus: schema.Constituents.campus,
+      country: schema.Constituents.country,
       phone: schema.Constituents.phone,
       whatsapp: schema.Constituents.whatsapp,
       email: schema.Constituents.email,
@@ -310,37 +312,79 @@ export async function getMemberByConstituentId(
       ),
     );
 
+  // Query chapters the member is enrolled in
+  const chapters = await dbClient.db
+    .select({
+      chapterId: schema.Chapters.id,
+      chapterName: schema.Chapters.name,
+      chapterCountry: schema.Chapters.country,
+      joinedAt: schema.ChapterMemberships.startedAt,
+    })
+    .from(schema.ChapterMemberships)
+    .innerJoin(
+      schema.Members,
+      eq(schema.ChapterMemberships.memberId, schema.Members.id),
+    )
+    .innerJoin(
+      schema.Chapters,
+      eq(schema.ChapterMemberships.chapterId, schema.Chapters.id),
+    )
+    .where(
+      and(
+        eq(schema.Members.constituentId, constituentId),
+        lte(schema.ChapterMemberships.startedAt, now),
+        or(
+          isNull(schema.ChapterMemberships.endedAt),
+          gte(schema.ChapterMemberships.endedAt, now),
+        ),
+        // Also ensure the underlying membership is active
+        lte(schema.Members.startedAt, now),
+        or(
+          isNull(schema.Members.endedAt),
+          gte(schema.Members.endedAt, now),
+        ),
+      ),
+    );
+
   const memberDetail: YPFMemberDetail = {
     id: constituent.id,
     firstName: constituent.firstName,
     lastName: constituent.lastName,
     salutation: constituent.salutation ?? undefined,
+    campus: constituent.campus ?? undefined,
+    country: constituent.country ?? undefined,
     profilePhoto:
       constituent.profilePhotoExternalId &&
-      constituent.profilePhotoType &&
-      constituent.profilePhotoWidth !== null &&
-      constituent.profilePhotoHeight !== null &&
-      constituent.profilePhotoSize !== null &&
-      constituent.profilePhotoUploadedAt
+        constituent.profilePhotoType &&
+        constituent.profilePhotoWidth !== null &&
+        constituent.profilePhotoHeight !== null &&
+        constituent.profilePhotoSize !== null &&
+        constituent.profilePhotoUploadedAt
         ? {
-            url: mediaUtils.generatePublicMediaUrl(
-              constituent.profilePhotoExternalId,
-              { resolution: 720 },
-            ),
-            type: constituent.profilePhotoType,
-            dimensions: {
-              width: constituent.profilePhotoWidth,
-              height: constituent.profilePhotoHeight,
-            },
-            size: constituent.profilePhotoSize,
-            uploadedAt: constituent.profilePhotoUploadedAt,
-          }
+          url: mediaUtils.generatePublicMediaUrl(
+            constituent.profilePhotoExternalId,
+            { resolution: 720 },
+          ),
+          type: constituent.profilePhotoType,
+          dimensions: {
+            width: constituent.profilePhotoWidth,
+            height: constituent.profilePhotoHeight,
+          },
+          size: constituent.profilePhotoSize,
+          uploadedAt: constituent.profilePhotoUploadedAt,
+        }
         : undefined,
     contactInfo: {
       phone: constituent.phone ?? undefined,
       whatsapp: constituent.whatsapp ?? undefined,
       email: constituent.email ?? undefined,
     },
+    chapters: chapters.map((c) => ({
+      id: c.chapterId,
+      name: c.chapterName,
+      country: c.chapterCountry,
+      joinedAt: c.joinedAt,
+    })),
     titles: titles.map((t) => ({
       name: t.name,
       scope:
@@ -348,10 +392,10 @@ export async function getMemberByConstituentId(
           ? { type: "chapter" as const, name: t.chapterName, id: t.chapterId }
           : t.committeeId && t.committeeName
             ? {
-                type: "committee" as const,
-                name: t.committeeName,
-                id: t.committeeId,
-              }
+              type: "committee" as const,
+              name: t.committeeName,
+              id: t.committeeId,
+            }
             : undefined,
       _level: t._level,
       startedAt: t.startedAt,
@@ -473,10 +517,10 @@ export async function getRoles(query: {
         ? { type: "chapter" as const, id: r.chapterId, name: r.chapterName }
         : r.committeeId && r.committeeName
           ? {
-              type: "committee" as const,
-              id: r.committeeId,
-              name: r.committeeName,
-            }
+            type: "committee" as const,
+            id: r.committeeId,
+            name: r.committeeName,
+          }
           : undefined,
   }));
 
@@ -553,8 +597,8 @@ export async function getLeadership(query: {
     fullName: u.preferredName ?? `${u.firstName} ${u.lastName}`,
     profilePhotoUrl: u.profilePhotoExternalId
       ? mediaUtils.generatePublicMediaUrl(u.profilePhotoExternalId, {
-          resolution: 360,
-        })
+        resolution: 360,
+      })
       : undefined,
     isActive: true,
     joinedAt: u.joinedAt,

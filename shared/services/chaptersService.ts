@@ -20,6 +20,7 @@ import {
   GetChaptersQuerySchema,
   GetConstituentChaptersQuerySchema,
   UpdateChapterSchema,
+  CreateChapterSchema,
 } from "@/features/api/v1/chapters/schemas";
 import { YPFMember } from "@/features/api/v1/members/dtos";
 import * as mediaUtils from "@/shared/utils/files";
@@ -113,8 +114,8 @@ export async function getChapters(
     country: c.country,
     featuredPhotoUrl: c.featuredPhotoExternalId
       ? mediaUtils.generatePublicMediaUrl(c.featuredPhotoExternalId, {
-          resolution: 360,
-        })
+        resolution: 360,
+      })
       : undefined,
     memberCount: c.memberCount ?? 0,
     foundingDate: c.foundingDate,
@@ -148,7 +149,7 @@ export async function getChapterById(
     throw new ApiError("Chapter not found", 404);
   }
 
-  const [featuredMedia, parentChapter] = await Promise.all([
+  const [featuredMedia, parentChapter, memberCountResult] = await Promise.all([
     dbClient.db
       .select({
         caption: schema.ChapterMedia.caption,
@@ -182,14 +183,32 @@ export async function getChapterById(
       .limit(5),
     chapter.parentChapterId
       ? dbClient.db
-          .select({
-            id: schema.Chapters.id,
-            name: schema.Chapters.name,
-          })
-          .from(schema.Chapters)
-          .where(eq(schema.Chapters.id, chapter.parentChapterId))
-          .then((rows) => rows[0])
+        .select({
+          id: schema.Chapters.id,
+          name: schema.Chapters.name,
+        })
+        .from(schema.Chapters)
+        .where(eq(schema.Chapters.id, chapter.parentChapterId))
+        .then((rows) => rows[0])
       : Promise.resolve(undefined),
+    // Count active members in this chapter
+    dbClient.db
+      .select({ count: count() })
+      .from(schema.ChapterMemberships)
+      .innerJoin(
+        schema.Members,
+        eq(schema.ChapterMemberships.memberId, schema.Members.id),
+      )
+      .where(
+        and(
+          eq(schema.ChapterMemberships.chapterId, chapterId),
+          sql`${schema.ChapterMemberships.startedAt} <= now()`,
+          sql`(${schema.ChapterMemberships.endedAt} IS NULL OR ${schema.ChapterMemberships.endedAt} >= now())`,
+          sql`${schema.Members.startedAt} <= now()`,
+          sql`(${schema.Members.endedAt} IS NULL OR ${schema.Members.endedAt} >= now())`,
+        ),
+      )
+      .then((rows) => rows[0]?.count ?? 0),
   ]);
 
   const detailedChapter: YPFChapterDetail = {
@@ -198,6 +217,7 @@ export async function getChapterById(
     country: chapter.country,
     description: chapter.description ?? undefined,
     foundingDate: chapter.foundingDate,
+    memberCount: memberCountResult,
     featuredMedia: featuredMedia.map((m) => ({
       caption: m.caption ?? undefined,
       medium: {
@@ -217,9 +237,9 @@ export async function getChapterById(
     isActive: chapter.archivedAt === null,
     parentChapter: parentChapter
       ? {
-          id: parentChapter.id,
-          name: parentChapter.name,
-        }
+        id: parentChapter.id,
+        name: parentChapter.name,
+      }
       : undefined,
   };
 
@@ -241,6 +261,40 @@ export async function updateChapter(
   }
 
   return updatedChapter;
+}
+
+export async function createChapter(
+  data: z.infer<typeof CreateChapterSchema>,
+): Promise<{ id: string }> {
+  // If parentId is provided, verify it exists
+  if (data.parentId) {
+    const [parentChapter] = await dbClient.db
+      .select({ id: schema.Chapters.id })
+      .from(schema.Chapters)
+      .where(
+        and(
+          eq(schema.Chapters.id, data.parentId),
+          isNull(schema.Chapters.archivedAt),
+        ),
+      );
+
+    if (!parentChapter) {
+      throw new ApiError("Parent chapter not found or is archived", 404);
+    }
+  }
+
+  const [newChapter] = await dbClient.db
+    .insert(schema.Chapters)
+    .values({
+      name: data.name,
+      country: data.country,
+      description: data.description,
+      foundingDate: data.foundingDate,
+      parentId: data.parentId,
+    })
+    .returning({ id: schema.Chapters.id });
+
+  return newChapter;
 }
 
 export async function getChaptersByConstituentId(
@@ -350,8 +404,8 @@ export async function getChaptersByConstituentId(
     country: c.country,
     featuredPhotoUrl: c.featuredPhotoExternalId
       ? mediaUtils.generatePublicMediaUrl(c.featuredPhotoExternalId, {
-          resolution: 360,
-        })
+        resolution: 360,
+      })
       : undefined,
     memberCount: c.memberCount ?? 0,
     foundingDate: c.foundingDate,
@@ -424,12 +478,97 @@ export async function getChapterLeadership(
     fullName: u.preferredName ?? `${u.firstName} ${u.lastName}`,
     profilePhotoUrl: u.profilePhotoExternalId
       ? mediaUtils.generatePublicMediaUrl(u.profilePhotoExternalId, {
-          resolution: 360,
-        })
+        resolution: 360,
+      })
       : undefined,
     isActive: true, // filtered by query
     joinedAt: u.joinedAt,
     title: u.title,
+  }));
+
+  return {
+    items,
+    page,
+    pageSize,
+    total,
+  };
+}
+
+/**
+ * Gets all members enrolled in a chapter.
+ * Queries through ChapterMemberships to find currently enrolled members.
+ */
+export async function getChapterMembers(
+  chapterId: string,
+  query: { page?: number; pageSize?: number; search?: string } = {},
+): Promise<Paginated<YPFMember>> {
+  const { page = 1, pageSize = 20, search } = query;
+  const offset = (page - 1) * pageSize;
+
+  // Build where clauses
+  const whereClauses = [
+    eq(schema.ChapterMemberships.chapterId, chapterId),
+    sql`${schema.ChapterMemberships.startedAt} <= now()`,
+    sql`(${schema.ChapterMemberships.endedAt} IS NULL OR ${schema.ChapterMemberships.endedAt} >= now())`,
+    // Ensure the underlying membership is also active
+    sql`${schema.Members.startedAt} <= now()`,
+    sql`(${schema.Members.endedAt} IS NULL OR ${schema.Members.endedAt} >= now())`,
+  ];
+
+  // Add search filter if provided
+  if (search) {
+    whereClauses.push(
+      or(
+        ilike(schema.Constituents.firstName, `%${search}%`),
+        ilike(schema.Constituents.lastName, `%${search}%`),
+        ilike(schema.Constituents.email, `%${search}%`),
+      )!,
+    );
+  }
+
+  const baseQuery = dbClient.db
+    .select({
+      id: schema.Constituents.id,
+      firstName: schema.Constituents.firstName,
+      lastName: schema.Constituents.lastName,
+      preferredName: schema.Constituents.preferredName,
+      profilePhotoExternalId: schema.Media.externalId,
+      email: schema.Constituents.email,
+      joinedAt: schema.ChapterMemberships.startedAt,
+    })
+    .from(schema.ChapterMemberships)
+    .innerJoin(
+      schema.Members,
+      eq(schema.ChapterMemberships.memberId, schema.Members.id),
+    )
+    .innerJoin(
+      schema.Constituents,
+      eq(schema.Members.constituentId, schema.Constituents.id),
+    )
+    .leftJoin(
+      schema.Media,
+      eq(schema.Constituents.profilePhotoId, schema.Media.id),
+    )
+    .where(and(...whereClauses))
+    .orderBy(schema.Constituents.firstName, schema.Constituents.lastName);
+
+  const [totalResult, users] = await Promise.all([
+    dbClient.db.select({ total: count() }).from(baseQuery.as("sub")),
+    baseQuery.limit(pageSize).offset(offset),
+  ]);
+
+  const total = totalResult[0]?.total ?? 0;
+
+  const items: YPFMember[] = users.map((u) => ({
+    id: u.id,
+    fullName: u.preferredName ?? `${u.firstName} ${u.lastName}`,
+    profilePhotoUrl: u.profilePhotoExternalId
+      ? mediaUtils.generatePublicMediaUrl(u.profilePhotoExternalId, {
+        resolution: 360,
+      })
+      : undefined,
+    isActive: true, // filtered by query
+    joinedAt: u.joinedAt,
   }));
 
   return {

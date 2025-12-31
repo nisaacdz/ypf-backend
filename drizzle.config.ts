@@ -7,6 +7,7 @@ export default {
   dbCredentials: {
     url: process.env.DATABASE_URL as string,
   },
+  schemaFilter: ["app", "core", "activities", "finance", "shop"],
   verbose: true,
   strict: true,
 } satisfies Config;

@@ -9,7 +9,10 @@ import {
 } from "@/features/api/v1/constituents/dtos";
 import { generatePublicMediaUrl } from "@/shared/utils/files";
 import { Paginated } from "@/shared/dtos";
-import { GetConstituentsQuerySchema } from "@/features/api/v1/constituents/schemas";
+import {
+  GetConstituentsQuerySchema,
+  UpdateConstituentSchema,
+} from "@/features/api/v1/constituents/schemas";
 
 interface ProfilePeriod {
   name: Profile;
@@ -63,15 +66,15 @@ export async function getDetailedConstituent(
   // Build the Medium object for profile photo
   const profilePhoto = constituent.profilePhoto
     ? {
-        url: generatePublicMediaUrl(constituent.profilePhoto.externalId),
-        type: constituent.profilePhoto.type,
-        dimensions: {
-          width: constituent.profilePhoto.width,
-          height: constituent.profilePhoto.height,
-        },
-        size: constituent.profilePhoto.size,
-        uploadedAt: constituent.profilePhoto.uploadedAt,
-      }
+      url: generatePublicMediaUrl(constituent.profilePhoto.externalId),
+      type: constituent.profilePhoto.type,
+      dimensions: {
+        width: constituent.profilePhoto.width,
+        height: constituent.profilePhoto.height,
+      },
+      size: constituent.profilePhoto.size,
+      uploadedAt: constituent.profilePhoto.uploadedAt,
+    }
     : undefined;
 
   return {
@@ -499,5 +502,34 @@ export async function onboardConstituent(
     onboardingUrl,
   });
 
+  sendOnboardingInvitationEmail({
+    email: constituent.email,
+    name,
+    onboardingUrl,
+  });
+
   return newUser;
+}
+
+/**
+ * Updates a constituent's basic information.
+ */
+export async function updateConstituent(
+  constituentId: string,
+  data: z.infer<typeof UpdateConstituentSchema>,
+): Promise<void> {
+  const updateData: any = {};
+  if (data.firstName) updateData.firstName = data.firstName;
+  if (data.lastName) updateData.lastName = data.lastName;
+  if (data.email) updateData.email = data.email;
+  if (data.phone) updateData.phone = data.phone;
+  if (data.country) updateData.country = data.country;
+  if (data.campus) updateData.campus = data.campus;
+
+  if (Object.keys(updateData).length > 0) {
+    await dbClient.db
+      .update(schema.Constituents)
+      .set(updateData)
+      .where(eq(schema.Constituents.id, constituentId));
+  }
 }

@@ -10,6 +10,7 @@ import * as constituentsHandler from "./constituentsHandler";
 import {
   GetConstituentsQuerySchema,
   OnboardConstituentSchema,
+  UpdateConstituentSchema,
 } from "./schemas";
 import { Visitors, MEMBER, ADMIN, anyOf } from "@/configs/authorizer";
 import z from "zod";
@@ -182,6 +183,55 @@ constituentsRouter.get(
           .json({ success: false, error: "Constituent not found" });
         return;
       }
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/**
+ * @swagger
+ * /api/v1/constituents/{constituentId}:
+ *   patch:
+ *     summary: Update constituent details
+ *     description: Update basic information for a specific constituent.
+ *     tags: [Constituents]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: constituentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UpdateConstituent'
+ *     responses:
+ *       200:
+ *         description: Success
+ *       404:
+ *         description: Not Found
+ */
+constituentsRouter.patch(
+  "/:constituentId",
+  authenticate,
+  authorize(
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER)),
+  ),
+  validateParams(z.object({ constituentId: z.uuid("Invalid constituent ID") })),
+  validateBody(UpdateConstituentSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await constituentsHandler.updateConstituent(
+        req.Params.constituentId,
+        req.Body,
+      );
       res.status(200).json(response);
     } catch (error) {
       next(error);

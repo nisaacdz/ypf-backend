@@ -3,6 +3,7 @@ import { ApiResponse } from "@/shared/types";
 import {
   GetConstituentsQuerySchema,
   OnboardConstituentSchema,
+  UpdateConstituentSchema,
 } from "./schemas";
 import { Paginated } from "@/shared/dtos";
 import { YPFConstituent, YPFConstituentDetail } from "./dtos";
@@ -31,4 +32,12 @@ export async function onboardConstituent(
     dashboardUrl,
   );
   return { success: true, data: id };
+}
+
+export async function updateConstituent(
+  constituentId: string,
+  body: z.infer<typeof UpdateConstituentSchema>,
+): Promise<ApiResponse<null>> {
+  await constituentsService.updateConstituent(constituentId, body);
+  return { success: true, data: null };
 }

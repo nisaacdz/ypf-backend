@@ -1,0 +1,12 @@
+Initializing DB...
+Checking for constituent ID: e54a5f20-a1e0-451d-bf29-0d652868f084
+Constituent NOT FOUND
+Starting simplified check...
+DB Initialized.
+DB Ping Result: [{"val":1}]
+Checking for constituent ID: e54a5f20-a1e0-451d-bf29-0d652868f084
+Error: Error: Failed query: SELECT * FROM "Constituents" WHERE id = $1
+params: e54a5f20-a1e0-451d-bf29-0d652868f084
+Done.
+DB URL: ep-curly-fire-adlcj3sd-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+Found users (raw core.constituents): 0

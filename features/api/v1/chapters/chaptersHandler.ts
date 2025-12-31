@@ -7,6 +7,7 @@ import {
   GetChapterLeadershipQuerySchema,
   EnrollChapterSchema,
   UnenrollChapterSchema,
+  CreateChapterSchema,
 } from "./schemas";
 import { Paginated } from "@/shared/dtos";
 import { YPFChapter, YPFChapterDetail } from "./dtos";
@@ -38,6 +39,13 @@ export async function updateChapter(
   return { success: true, data: updatedChapter.id };
 }
 
+export async function createChapter(
+  body: z.infer<typeof CreateChapterSchema>,
+): Promise<ApiResponse<{ id: string }>> {
+  const newChapter = await chaptersService.createChapter(body);
+  return { success: true, data: newChapter, message: "Chapter created successfully" };
+}
+
 export async function getChaptersByConstituentId(
   constituentId: string,
   query: z.infer<typeof GetConstituentChaptersQuerySchema>,
@@ -54,6 +62,14 @@ export async function getLeadership(
   query: z.infer<typeof GetChapterLeadershipQuerySchema>,
 ): Promise<ApiResponse<Paginated<YPFMember>>> {
   const data = await chaptersService.getChapterLeadership(chapterId, query);
+  return { success: true, data };
+}
+
+export async function getChapterMembers(
+  chapterId: string,
+  query: { page?: number; pageSize?: number; search?: string },
+): Promise<ApiResponse<Paginated<YPFMember>>> {
+  const data = await chaptersService.getChapterMembers(chapterId, query);
   return { success: true, data };
 }
 

@@ -31,3 +31,11 @@ export const EnrollChapterSchema = z.object({
 export const UnenrollChapterSchema = z.object({
   constituentId: z.uuid({ message: "Invalid constituent ID." }),
 });
+
+export const CreateChapterSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  country: z.string().min(1, "Country is required"),
+  description: z.string().optional(),
+  foundingDate: z.coerce.date({ message: "Invalid founding date format." }),
+  parentId: z.uuid({ message: "Invalid parent chapter ID." }).optional(),
+});
