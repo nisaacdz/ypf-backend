@@ -10,6 +10,7 @@ import * as mediaService from "@/shared/services/mediaService";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { eq, or } from "drizzle-orm";
+import { ApplicationStatus } from "@/shared/utils";
 
 export async function getApplications(
   query: z.infer<typeof GetApplicationsQuerySchema>
@@ -82,8 +83,8 @@ export async function createApplication({
       .then(mediaService.uploadMedium),
     files.resume
       ? fileUtils
-          .storeDocumentFile(files.resume)
-          .then(documentsService.uploadDocument)
+        .storeDocumentFile(files.resume)
+        .then(documentsService.uploadDocument)
       : null,
     fileUtils
       .storeDocumentFile(files.nationalId)
@@ -107,5 +108,49 @@ export async function createApplication({
     success: true,
     message: "Application submitted successfully",
     data: application.id,
+  };
+}
+
+export async function getCredentialsPreview(): Promise<ApiResponse<{ memberId: string; password: string }>> {
+  const credentials = await applicationsService.getCredentialsPreview();
+  return {
+    success: true,
+    message: "Credentials generated successfully",
+    data: credentials,
+  };
+}
+
+export async function updateApplicationStatus({
+  id,
+  status,
+  reason,
+  adminId,
+  role,
+  memberId,
+  password,
+}: {
+  id: string;
+  status: ApplicationStatus;
+  reason?: string;
+  adminId: string;
+  role?: string;
+  memberId?: string;
+  password?: string;
+}): Promise<ApiResponse<YPFApplication & { credentials?: { memberId: string; password: string; role: string } }>> {
+  console.log(`Handler received updateApplicationStatus request for ID ${id}. fields: status=${status}, role=${role}, memberId=${memberId}, password=${password ? (password.length > 0 ? "EXISTS" : "EMPTY") : "MISSING"}`);
+  const result = await applicationsService.updateApplicationStatus(
+    id,
+    status,
+    adminId,
+    reason,
+    memberId,
+    password,
+    role
+  );
+
+  return {
+    success: true,
+    message: "Application status updated successfully",
+    data: result,
   };
 }

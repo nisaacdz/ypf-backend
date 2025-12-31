@@ -27,6 +27,17 @@ export const AuthenticatedUserSchema = z.object({
     .max(Profiles.length, {
       message: `You can have at most ${Profiles.length} active profiles.`,
     }),
+  passwordChanged: z.boolean().default(false),
+});
+
+export const UpdateApplicationStatusSchema = z.object({
+  status: z.enum(["ACCEPTED", "REJECTED"], {
+    message: "Status must be either ACCEPTED or REJECTED.",
+  }),
+  declinedReason: z.string().optional(),
+  memberId: z.string().optional(),
+  password: z.string().optional(),
+  role: z.string().optional(),
 });
 
 export const RefreshTokenPayloadSchema = z.object({

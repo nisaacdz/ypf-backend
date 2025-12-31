@@ -3,7 +3,7 @@ import * as constituentsService from "@/shared/services/constituentsService";
 import { encodeData } from "@/shared/utils/jwt";
 import { ApiResponse, ApiError } from "@/shared/types";
 import { sendOtpEmail } from "@/shared/utils/email";
-import { ForgotPasswordSchema, ResetPasswordSchema } from "./schemas";
+import { ForgotPasswordSchema, ResetPasswordSchema, ChangePasswordSchema } from "./schemas";
 import { AuthData } from "./dtos";
 import { z } from "zod";
 
@@ -204,3 +204,24 @@ export async function logout(): Promise<{
 //     token,
 //   };
 // }
+
+/**
+ * Changes the authenticated user's password.
+ *
+ * @param userId - The ID of the authenticated user
+ * @param newPassword - The new password
+ * @returns Success response
+ * @throws ApiError if user not found
+ */
+export async function changePassword(
+  userId: string,
+  { newPassword }: z.infer<typeof ChangePasswordSchema>,
+): Promise<ApiResponse<null>> {
+  await authService.updateUserPassword(userId, newPassword);
+
+  return {
+    success: true,
+    data: null,
+    message: "Password changed successfully",
+  };
+}

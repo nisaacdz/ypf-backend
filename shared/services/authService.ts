@@ -1,4 +1,4 @@
-import { eq, or, sql } from "drizzle-orm";
+import { eq, or, sql, ilike } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
@@ -21,6 +21,9 @@ export async function loginWithUsernameAndPassword(
   username: string,
   password: string,
 ): Promise<AuthenticatedUser> {
+  const identifier = username.trim();
+  console.log(`Login attempt for identifier: "${identifier}". Password length: ${password.length}. Char codes: ${password.split('').map(c => c.charCodeAt(0)).join(',')}`);
+
   const [user] = await dbClient.db
     .select({
       id: schema.Users.id,
@@ -30,6 +33,7 @@ export async function loginWithUsernameAndPassword(
       username: schema.Users.username,
       firstName: schema.Constituents.firstName,
       lastName: schema.Constituents.lastName,
+      passwordChanged: schema.Users.passwordChanged,
     })
     .from(schema.Users)
     .innerJoin(
@@ -37,15 +41,34 @@ export async function loginWithUsernameAndPassword(
       eq(schema.Users.constituentId, schema.Constituents.id),
     )
     .where(
-      or(eq(schema.Users.username, username), eq(schema.Users.email, username)),
+      or(
+        ilike(schema.Users.username, identifier),
+        ilike(schema.Users.email, identifier)
+      ),
     );
 
   if (!user || !user.password) {
+    console.warn(`Login failed: User not found or no password for identifier: "${identifier}"`);
     throw new ApiError("Invalid username or password", 401);
   }
 
-  const isPasswordValid = await bcrypt.compare(password, user.password);
+  console.log(`User found: ${user.email} (ID: ${user.id}). Comparing passwords (input length: ${password.length})...`);
+
+  // Diagnostic self-test
+  try {
+    const testPlain = "diagnostic_test_123";
+    const testHash = bcrypt.hashSync(testPlain, 10);
+    const testMatchAsync = await bcrypt.compare(testPlain, testHash);
+    const testMatchSync = bcrypt.compareSync(testPlain, testHash);
+    console.log(`Diagnostic: lib behavior test - hash starts with ${testHash.substring(0, 7)}, asyncMatch: ${testMatchAsync}, syncMatch: ${testMatchSync}`);
+  } catch (diagErr) {
+    console.error("Diagnostic self-test failed:", diagErr);
+  }
+
+  const isPasswordValid = bcrypt.compareSync(password, user.password);
   if (!isPasswordValid) {
+    console.warn(`Login failed: Password mismatch for identifier: "${identifier}"`);
+    console.log(`DB Hash starts with: ${user.password?.substring(0, 10)}... (length: ${user.password?.length})`);
     throw new ApiError("Invalid username or password", 401);
   }
 
@@ -66,6 +89,7 @@ export async function loginWithUsernameAndPassword(
     email: user.email,
     roles,
     profiles,
+    passwordChanged: user.passwordChanged ?? false,
   };
 
   return authUser;
@@ -121,6 +145,7 @@ export async function loginWithUsername(
     email: user.email,
     roles,
     profiles,
+    passwordChanged: user.passwordChanged ?? false,
   };
 
   return authUser;
@@ -245,4 +270,31 @@ export async function resetPassword(
       throw new ApiError("User not found", 404);
     }
   });
+}
+
+/**
+ * Updates a user's password and marks it as changed.
+ *
+ * @param userId The ID of the user.
+ * @param newPassword The new plain-text password.
+ * @throws ApiError if user not found.
+ */
+export async function updateUserPassword(
+  userId: string,
+  newPassword: string,
+): Promise<void> {
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+  const result = await dbClient.db
+    .update(schema.Users)
+    .set({
+      password: hashedPassword,
+      passwordChanged: true,
+    })
+    .where(eq(schema.Users.id, userId))
+    .returning({ id: schema.Users.id });
+
+  if (result.length === 0) {
+    throw new ApiError("User not found", 404);
+  }
 }

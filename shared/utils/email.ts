@@ -148,36 +148,67 @@ export async function sendAnnouncementEmail(
 
 /**
  * Sends a welcome email to a new user.
- * @param to - The recipient's email address.
- * @param name - The user's name to personalize the email.
+ * @param options - The email options including recipient, name, and credentials.
  */
-export async function sendWelcomeEmail(
-  to: string,
-  name: string
-): Promise<void> {
-  const subject = "Welcome to YPF Africa!";
+export async function sendWelcomeEmail(options: {
+  email: string;
+  firstName: string;
+  lastName: string;
+  memberId: string;
+  password: string;
+  role: string;
+}): Promise<void> {
+  const { email, firstName, lastName, memberId, password, role } = options;
+  const subject = "Welcome to YPF Africa - Your Account is Ready!";
 
   const content = `
-    <p>Hi ${name},</p>
-    <p>We are thrilled to have you join the YPF Africa community! Our mission is to connect and empower young professionals across the continent, and you are now a part of that journey.</p>
+    <p>Hi ${firstName} ${lastName},</p>
+    <p>Congratulations! Your YPF Africa membership application has been approved. We are thrilled to welcome you to our community!</p>
+
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+      <h3 style="margin-top: 0; color: #2d3748;">Your Login Credentials</h3>
+      <p><strong>Email:</strong> ${email}</p>
+      <p><strong>Member ID:</strong> ${memberId}</p>
+      <p><strong>Role:</strong> ${role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
+      <p><strong>Temporary Password:</strong> ${password}</p>
+    </div>
+
+    <p><strong>Important:</strong> Please change your password immediately after your first login for security reasons.</p>
+
     <p>Here are a few things you can do to get started:</p>
     <ul>
       <li>Complete your profile to connect with others.</li>
       <li>Explore upcoming events and projects.</li>
       <li>Join a chapter or committee to get involved.</li>
     </ul>
+
     <p>If you have any questions, feel free to reach out. We're excited to see the impact you'll make!</p>
     <br>
-    <a href="https://dashboard.ypfafrica.live" class="button">Go to Your Dashboard</a>
+    <a href="https://dashboard.ypfafrica.live" class="button">Login to Your Dashboard</a>
     <br><br>
     <p>Best regards,<br>The YPF Africa Team</p>
   `;
 
   const htmlBody = generateBaseHtml(subject, content);
 
-  const textContent = `Hi ${name},\n\nWelcome to YPF Africa! We are thrilled to have you join our community.\n\nVisit your dashboard to get started: https://dashboard.ypfafrica.live\n\nBest regards,\nThe YPF Africa Team`;
+  const textContent = `Hi ${firstName} ${lastName},
 
-  await sendEmail(to, subject, htmlBody, textContent);
+Congratulations! Your YPF Africa membership application has been approved.
+
+Your Login Credentials:
+Email: ${email}
+Member ID: ${memberId}
+Role: ${role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+Temporary Password: ${password}
+
+Important: Please change your password immediately after your first login.
+
+Visit your dashboard to get started: https://dashboard.ypfafrica.live
+
+Best regards,
+The YPF Africa Team`;
+
+  await sendEmail(email, subject, htmlBody, textContent);
 }
 
 /**

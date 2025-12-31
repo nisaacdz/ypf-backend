@@ -6,8 +6,9 @@ import {
   UsernameAndPasswordSchema,
   ForgotPasswordSchema,
   ResetPasswordSchema,
+  ChangePasswordSchema,
 } from "./schemas";
-import { authenticateLax } from "@/shared/middlewares/auth";
+import { authenticateLax, authenticate } from "@/shared/middlewares/auth";
 
 const authRouter = Router();
 
@@ -244,6 +245,65 @@ authRouter.post(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await authHandler.resetPassword(req.Body);
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/**
+ * @swagger
+ * /api/v1/auth/change-password:
+ *   post:
+ *     summary: Change authenticated user's password
+ *     description: Updates the password for the currently logged-in user. Usually used for first-time login.
+ *     tags: [Authentication]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - newPassword
+ *             properties:
+ *               newPassword:
+ *                 type: string
+ *                 minLength: 4
+ *                 maxLength: 55
+ *                 description: The new password to set
+ *     responses:
+ *       200:
+ *         description: Password changed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Password changed successfully
+ *                 data:
+ *                   type: null
+ *       401:
+ *         description: Not authenticated
+ *       404:
+ *         description: User not found
+ */
+authRouter.post(
+  "/change-password",
+  authenticate,
+  validateBody(ChangePasswordSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.User) throw new ApiError("User not found", 404);
+      const response = await authHandler.changePassword(req.User.id, req.Body);
       res.status(200).json(response);
     } catch (error) {
       next(error);

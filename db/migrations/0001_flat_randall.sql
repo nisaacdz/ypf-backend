@@ -1,0 +1,1 @@
+ALTER TABLE "app"."users" ADD COLUMN "password_changed" boolean DEFAULT false NOT NULL;

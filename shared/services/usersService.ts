@@ -32,11 +32,11 @@ const columns = Object.fromEntries(
     )
     .map((col) => [col, true]),
 ) as {
-  [K in Exclude<
-    keyof typeof allColumns,
-    (typeof excludedColumns)[number]
-  >]: true;
-};
+    [K in Exclude<
+      keyof typeof allColumns,
+      (typeof excludedColumns)[number]
+    >]: true;
+  };
 
 export async function getUserById(userId: string) {
   const user = await dbClient.db.query.Users.findFirst({
@@ -287,6 +287,42 @@ export async function findUserByEmail(email: string) {
       eq(schema.Users.constituentId, schema.Constituents.id),
     )
     .where(eq(schema.Users.email, email));
+
+  return user;
+}
+
+/**
+ * Creates a new user account for a constituent.
+ *
+ * @param userData The user data to create.
+ * @returns A promise that resolves to the created user.
+ */
+export async function createUser(userData: {
+  email: string;
+  password: string;
+  username: string;
+  constituentId: string;
+  passwordChanged?: boolean;
+}) {
+  const { hashSync } = await import('bcryptjs');
+
+  console.log(`Creating user ${userData.email} with password of length ${userData.password.length}. Char codes: ${userData.password.split('').map(c => c.charCodeAt(0)).join(',')}`);
+  const hashedPassword = hashSync(userData.password, 10);
+
+  const [user] = await dbClient.db
+    .insert(schema.Users)
+    .values({
+      email: userData.email,
+      password: hashedPassword,
+      username: userData.username,
+      constituentId: userData.constituentId,
+      passwordChanged: userData.passwordChanged ?? false,
+    })
+    .returning({
+      id: schema.Users.id,
+      email: schema.Users.email,
+      username: schema.Users.username,
+    });
 
   return user;
 }

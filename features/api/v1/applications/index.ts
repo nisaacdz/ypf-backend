@@ -226,6 +226,21 @@ applicationsRouter.get(
  *         description: Application not found
  */
 applicationsRouter.get(
+  "/credentials-preview",
+  authenticate,
+  authorize(Visitors.hasProfile("ADMIN")),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await applicationsHandler.getCredentialsPreview();
+      res.status(200).json(response);
+    } catch (error) {
+      console.log(error);
+      next(error);
+    }
+  }
+);
+
+applicationsRouter.get(
   "/:id",
   validateParams(z.object({ id: z.uuid("Invalid Request") })),
   authenticate,
@@ -377,6 +392,81 @@ applicationsRouter.post(
         files: req.Files,
       });
       res.status(201).json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/v1/applications/{id}/status:
+ *   put:
+ *     summary: Update application status
+ *     tags: [Applications]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Application ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [PENDING, APPROVED, REJECTED]
+ *               reason:
+ *                 type: string
+ *                 description: Reason for rejection (required if status is REJECTED)
+ *     responses:
+ *       200:
+ *         description: Status updated successfully
+ *       400:
+ *         description: Invalid request
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Application not found
+ */
+// Route moved to avoid conflict with /:id
+/*
+applicationsRouter.get(
+  "/credentials-preview",
+  ...
+);
+*/
+
+applicationsRouter.put(
+  "/:id/status",
+  validateParams(z.object({ id: z.uuid("Invalid Request") })),
+  validateBody(UpdateApplicationStatusSchema),
+  authenticate,
+  authorize(Visitors.hasProfile("ADMIN")),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await applicationsHandler.updateApplicationStatus({
+        id: req.Params.id,
+        status: req.Body.status,
+        reason: req.Body.declinedReason,
+        adminId: req.User.id,
+        role: req.Body.role,
+        memberId: req.Body.memberId,
+        password: req.Body.password,
+      });
+      res.status(200).json(response);
     } catch (error) {
       next(error);
     }

@@ -122,16 +122,14 @@ export const PostApplicationBody = FlatApplicationInput.transform((data) => {
   };
 });
 
-export const UpdateApplicationStatusSchema = z
-  .object({
-    status: z.enum(ApplicationStatusEnum.enumValues),
-  })
-  .or(
-    z.object({
-      status: "REJECTED" as const,
-      declinedReason: z.string().optional(),
-    })
-  );
+export const UpdateApplicationStatusSchema = z.object({
+  // Aligning with DB Enum which uses ACCEPTED.
+  status: z.enum(ApplicationStatusEnum.enumValues),
+  declinedReason: z.string().optional(),
+  role: z.string().optional(),
+  memberId: z.string().optional(),
+  password: z.string().optional(),
+});
 
 export const GetApplicationsQuerySchema = z.object({
   page: z.coerce.number().default(1),

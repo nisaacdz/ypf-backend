@@ -1,10 +1,12 @@
 import { v4 as uuidv4 } from "uuid";
 import path from "path";
 import sharp from "sharp";
+import { BlobSASPermissions, generateBlobSASQueryParameters, SASProtocol, StorageSharedKeyCredential } from "@azure/storage-blob";
 
 import blobServiceClient, { containerNames } from "@/configs/fs";
 import { imagekit } from "@/configs/fs/cdn";
 import logger from "@/configs/logger";
+import variables from "@/configs/env";
 
 import fs from "fs/promises";
 import { AllowedDocumentsMimeTypes } from "../middlewares/multipart";
@@ -203,6 +205,12 @@ export function generatePublicMediaUrl(
   });
 }
 
+export function generatePublicDocumentUrl(externalId: string): string {
+  return imagekit.url({
+    path: externalId,
+  });
+}
+
 export function generateSignedMediaUrl(
   externalId: string,
   options: { resolution?: number; expireSeconds: number },
@@ -218,4 +226,55 @@ export function generateSignedMediaUrl(
     transformation: transformations,
     signed: true,
   });
+}
+
+export function generateBlobSASUrl(
+  containerName: string,
+  blobName: string,
+  expireMinutes: number = 60,
+): string {
+  // Extract account name and key from connection string
+  const connectionString = variables.services.azure.connectionString;
+  const accountNameMatch = connectionString.match(/AccountName=([^;]+)/);
+  const accountKeyMatch = connectionString.match(/AccountKey=([^;]+)/);
+
+  if (!accountNameMatch || !accountKeyMatch) {
+    throw new Error("Invalid Azure Storage connection string");
+  }
+
+  const accountName = accountNameMatch[1];
+  const accountKey = accountKeyMatch[1];
+
+  const credential = new StorageSharedKeyCredential(accountName, accountKey);
+  const containerClient = blobServiceClient.getContainerClient(containerName);
+  const blobClient = containerClient.getBlockBlobClient(blobName);
+
+  const expiresOn = new Date();
+  expiresOn.setMinutes(expiresOn.getMinutes() + expireMinutes);
+
+  const sasOptions = {
+    containerName,
+    blobName,
+    expiresOn,
+    permissions: BlobSASPermissions.parse("r"), // read permission only
+    protocol: SASProtocol.Https,
+  };
+
+  const sasToken = generateBlobSASQueryParameters(sasOptions, credential).toString();
+
+  return `${blobClient.url}?${sasToken}`;
+}
+
+export function generateMediaBlobUrl(externalId: string, expireMinutes: number = 60): string {
+  if (!externalId || typeof externalId !== 'string') {
+    throw new Error('Invalid externalId provided for media blob URL generation');
+  }
+  return generateBlobSASUrl(containerNames.media, externalId, expireMinutes);
+}
+
+export function generateDocumentBlobUrl(externalId: string, expireMinutes: number = 60): string {
+  if (!externalId || typeof externalId !== 'string') {
+    throw new Error('Invalid externalId provided for document blob URL generation');
+  }
+  return generateBlobSASUrl(containerNames.docs, externalId, expireMinutes);
 }

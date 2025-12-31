@@ -50,3 +50,9 @@ export const ResetPasswordSchema = z.object({
     .min(4, { message: "Password must be at least 4 characters." })
     .max(55, { message: "Password must not exceed 55 characters." }),
 });
+export const ChangePasswordSchema = z.object({
+  newPassword: z
+    .string({ message: "New password is required." })
+    .min(4, { message: "Password must be at least 4 characters." })
+    .max(55, { message: "Password must not exceed 55 characters." }),
+});

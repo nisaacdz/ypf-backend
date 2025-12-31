@@ -24,6 +24,7 @@ export const Users = app.table("users", {
   googleId: text("google_id").unique(),
   appleId: text("apple_id").unique(),
   facebookId: text("facebook_id").unique(),
+  passwordChanged: boolean("password_changed").default(false).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
