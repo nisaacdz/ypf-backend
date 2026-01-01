@@ -45,7 +45,7 @@ export const Media = core.table("media", {
   size: integer().notNull(),
   uploadedBy: uuid("uploaded_by").references(
     (): AnyPgColumn => Constituents.id,
-    { onDelete: "set null" },
+    { onDelete: "set null" }
   ),
   uploadedAt: timestamp("uploaded_at", { withTimezone: true })
     .defaultNow()
@@ -59,7 +59,7 @@ export const Documents = core.table("documents", {
   size: integer().notNull(),
   uploadedBy: uuid("uploaded_by").references(
     (): AnyPgColumn => Constituents.id,
-    { onDelete: "set null" },
+    { onDelete: "set null" }
   ),
   uploadedAt: timestamp("uploaded_at", { withTimezone: true })
     .defaultNow()
@@ -95,7 +95,7 @@ export const Constituents = core.table("constituents", {
   campus: text("campus"),
   nationalIdType: NationalIdTypeEnum("national_id_type"),
   nationalIdDocumentId: uuid("national_id_document_id").references(
-    () => Documents.id,
+    () => Documents.id
   ),
 
   // passportPhotoId: uuid("passport_photo_id").references(() => Media.id), = profilePhotoId
@@ -115,7 +115,7 @@ export const Constituents = core.table("constituents", {
     .notNull(),
 });
 
-export const Applications = core.table("applications", {
+export const MembershipApplications = core.table("membership_applications", {
   id: uuid().defaultRandom().primaryKey(),
   constituentId: uuid("constituent_id")
     .notNull()
@@ -129,10 +129,10 @@ export const Applications = core.table("applications", {
   // willingToServe: text("willing_to_serve"), I mean, this will implicitly be yes or true
   commitmentStatement: text("commitment_statement"),
   preferredChapterId: uuid("preferred_chapter_id").references(
-    () => Chapters.id,
+    () => Chapters.id
   ),
   preferredCommitteeId: uuid("preferred_committee_id").references(
-    () => Committees.id,
+    () => Committees.id
   ),
   preferredProfile: text("preferred_profile").default("Member"),
 
@@ -218,10 +218,10 @@ export const MemberTitles = core.table(
   (table) => [
     check(
       "at_most_one_scope",
-      sql`num_nonnulls(${table.chapterId}, ${table.committeeId}) <= 1`,
+      sql`num_nonnulls(${table.chapterId}, ${table.committeeId}) <= 1`
     ),
     unique().on(table.title, table.chapterId, table.committeeId),
-  ],
+  ]
 );
 
 // add constraint at dbms level for non overlapping (memberId, titleId) assignments
@@ -327,7 +327,7 @@ export const OrganizationContacts = core.table(
     title: text(), // their role at the org
     isPrimary: boolean("is_primary").default(false).notNull(),
   },
-  (table) => [unique().on(table.organizationId, table.constituentId)],
+  (table) => [unique().on(table.organizationId, table.constituentId)]
 );
 
 export const ChapterMedia = core.table("chapter_media", {
@@ -379,7 +379,7 @@ export const constituentsRelations = relations(
       references: [Media.id],
     }),
     organizationContacts: many(OrganizationContacts),
-  }),
+  })
 );
 
 export const membersRelations = relations(Members, ({ one, many }) => ({
@@ -432,7 +432,7 @@ export const memberTitlesRelations = relations(
       references: [Committees.id],
     }),
     assignments: many(MemberTitlesAssignments),
-  }),
+  })
 );
 
 export const memberTitlesAssignmentsRelations = relations(
@@ -446,7 +446,7 @@ export const memberTitlesAssignmentsRelations = relations(
       fields: [MemberTitlesAssignments.titleId],
       references: [MemberTitles.id],
     }),
-  }),
+  })
 );
 
 export const adminRolesAssignmentsRelations = relations(
@@ -456,7 +456,7 @@ export const adminRolesAssignmentsRelations = relations(
       fields: [AdminRolesAssignments.adminId],
       references: [Admins.id],
     }),
-  }),
+  })
 );
 
 export const chaptersRelations = relations(Chapters, ({ one, many }) => ({
@@ -483,7 +483,7 @@ export const chapterMembershipsRelations = relations(
       fields: [ChapterMemberships.chapterId],
       references: [Chapters.id],
     }),
-  }),
+  })
 );
 
 export const committeesRelations = relations(Committees, ({ one, many }) => ({
@@ -507,7 +507,7 @@ export const committeeMembershipsRelations = relations(
       fields: [CommitteeMemberships.committeeId],
       references: [Committees.id],
     }),
-  }),
+  })
 );
 
 export const organizationsRelations = relations(Organizations, ({ many }) => ({
@@ -525,7 +525,7 @@ export const organizationContactsRelations = relations(
       fields: [OrganizationContacts.constituentId],
       references: [Constituents.id],
     }),
-  }),
+  })
 );
 
 export const chapterMediaRelations = relations(ChapterMedia, ({ one }) => ({

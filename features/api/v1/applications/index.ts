@@ -13,9 +13,9 @@ import { documentsUpload } from "@/shared/middlewares/multipart";
 import { Visitors } from "@/configs/authorizer";
 import z from "zod";
 import {
-  PostApplicationBody,
-  UpdateApplicationStatusSchema,
-  GetApplicationsQuerySchema,
+  PostMembershipApplicationBody,
+  UpdateMembershipApplicationStatusSchema,
+  GetMembershipApplicationsQuerySchema,
   UploadRegistrationFileSchema,
 } from "./schemas";
 
@@ -23,7 +23,7 @@ const applicationsRouter = Router();
 
 /**
  * @swagger
- * /api/v1/applications:
+ * /api/v1/applications/membership:
  *   get:
  *     summary: Get list of applications
  *     tags: [Applications]
@@ -101,13 +101,15 @@ const applicationsRouter = Router();
  *         description: Forbidden - insufficient permissions
  */
 applicationsRouter.get(
-  "/",
+  "/membership",
   authenticate,
   authorize(Visitors.hasProfile("ADMIN")),
-  validateQuery(GetApplicationsQuerySchema),
+  validateQuery(GetMembershipApplicationsQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const response = await applicationsHandler.getApplications(req.Query);
+      const response = await applicationsHandler.getMembershipApplications(
+        req.Query
+      );
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -117,7 +119,7 @@ applicationsRouter.get(
 
 /**
  * @swagger
- * /api/v1/applications/{id}:
+ * /api/v1/applications/membership/{id}:
  *   get:
  *     summary: Get application details
  *     tags: [Applications]
@@ -226,13 +228,13 @@ applicationsRouter.get(
  *         description: Application not found
  */
 applicationsRouter.get(
-  "/:id",
+  "/membership/:id",
   validateParams(z.object({ id: z.uuid("Invalid Request") })),
   authenticate,
   authorize(Visitors.hasProfile("ADMIN")),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const response = await applicationsHandler.getApplicationById(
+      const response = await applicationsHandler.getMembershipApplicationById(
         req.Params.id
       );
       res.status(200).json(response);
@@ -244,7 +246,7 @@ applicationsRouter.get(
 
 /**
  * @swagger
- * /api/v1/applications:
+ * /api/v1/applications/membership:
  *   post:
  *     summary: Submit a new application
  *     tags: [Applications]
@@ -358,7 +360,7 @@ applicationsRouter.get(
  *         description: Invalid request data
  */
 applicationsRouter.post(
-  "/",
+  "/membership",
   documentsUpload.fields([
     { name: "passportPhoto", maxCount: 1 },
     { name: "nationalId", maxCount: 1 },
@@ -369,10 +371,10 @@ applicationsRouter.post(
     nationalId: UploadRegistrationFileSchema,
     resume: UploadRegistrationFileSchema.optional(),
   }),
-  validateBody(PostApplicationBody),
+  validateBody(PostMembershipApplicationBody),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const response = await applicationsHandler.createApplication({
+      const response = await applicationsHandler.createMembershipApplication({
         data: req.Body,
         files: req.Files,
       });

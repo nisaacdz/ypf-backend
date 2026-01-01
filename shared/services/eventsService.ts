@@ -14,7 +14,7 @@ import { YPFEvent, YPFEventDetail } from "@/features/api/v1/events/dtos";
 import { ApiError } from "@/shared/types";
 
 export async function fetchEvents(
-  query: z.infer<typeof GetEventsQuerySchema>,
+  query: z.infer<typeof GetEventsQuerySchema>
 ): Promise<Paginated<YPFEvent>> {
   const { page, pageSize, search, projectId, filterStatus, filterType } = query;
   const offset = (page - 1) * pageSize;
@@ -25,8 +25,8 @@ export async function fetchEvents(
     conditions.push(
       or(
         ilike(schema.Events.name, `%${search}%`),
-        ilike(schema.Projects.title, `%${search}%`),
-      ),
+        ilike(schema.Projects.title, `%${search}%`)
+      )
     );
   }
 
@@ -61,18 +61,18 @@ export async function fetchEvents(
       .from(schema.Events)
       .leftJoin(
         schema.Projects,
-        eq(schema.Events.projectId, schema.Projects.id),
+        eq(schema.Events.projectId, schema.Projects.id)
       )
       .leftJoin(
         schema.Chapters,
-        eq(schema.Projects.chapterId, schema.Chapters.id),
+        eq(schema.Projects.chapterId, schema.Chapters.id)
       )
       .leftJoin(
         schema.EventMedia,
         and(
           eq(schema.Events.id, schema.EventMedia.eventId),
-          eq(schema.EventMedia.isFeatured, true),
-        ),
+          eq(schema.EventMedia.isFeatured, true)
+        )
       )
       .leftJoin(schema.Media, eq(schema.EventMedia.mediumId, schema.Media.id))
       .where(whereClause)
@@ -90,7 +90,7 @@ export async function fetchEvents(
         schema.Projects.id,
         schema.Chapters.name,
         schema.Chapters.id,
-        schema.Media.externalId,
+        schema.Media.externalId
       ),
 
     dbClient.db
@@ -98,7 +98,7 @@ export async function fetchEvents(
       .from(schema.Events)
       .leftJoin(
         schema.Projects,
-        eq(schema.Events.projectId, schema.Projects.id),
+        eq(schema.Events.projectId, schema.Projects.id)
       )
       .where(whereClause)
       .then((res) => res[0].total),
@@ -132,7 +132,7 @@ export async function fetchEvents(
 
 export async function fetchEventMedia(
   eventId: string,
-  query: z.infer<typeof GetEventMediaQuerySchema>,
+  query: z.infer<typeof GetEventMediaQuerySchema>
 ) {
   const { page, pageSize } = query;
 
@@ -186,8 +186,57 @@ export async function fetchEventMedia(
   return { items, total };
 }
 
-export async function fetchEventById(
+export async function fetchEventDocuments(
   eventId: string,
+  query: z.infer<typeof GetEventMediaQuerySchema>
+) {
+  const { page, pageSize } = query;
+
+  const [eventDocuments, total] = await Promise.all([
+    dbClient.db
+      .select({
+        id: schema.EventDocuments.id,
+        title: schema.EventDocuments.title,
+        document: {
+          id: schema.Documents.id,
+          externalId: schema.Documents.externalId,
+          type: schema.Documents.type,
+          size: schema.Documents.size,
+          uploadedAt: schema.Documents.uploadedAt,
+        },
+      })
+      .from(schema.EventDocuments)
+      .innerJoin(
+        schema.Documents,
+        eq(schema.EventDocuments.documentId, schema.Documents.id)
+      )
+      .where(eq(schema.EventDocuments.eventId, eventId))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize),
+    dbClient.db
+      .select({ count: count() })
+      .from(schema.EventDocuments)
+      .where(eq(schema.EventDocuments.eventId, eventId))
+      .then((res) => res[0].count),
+  ]);
+
+  const items = eventDocuments.map((d) => ({
+    ...d,
+    document: {
+      url: mediaUtils.generateSignedDocumentUrl(d.document.externalId, {
+        expireSeconds: 60 * 60 * 24,
+      }),
+      type: d.document.type,
+      size: d.document.size,
+      uploadedAt: d.document.uploadedAt,
+    },
+  }));
+
+  return { items, total };
+}
+
+export async function fetchEventById(
+  eventId: string
 ): Promise<YPFEventDetail | null> {
   const [ypfEvent] = await dbClient.db
     .select({
@@ -213,7 +262,7 @@ export async function fetchEventById(
     .leftJoin(schema.Projects, eq(schema.Events.projectId, schema.Projects.id))
     .leftJoin(
       schema.Chapters,
-      eq(schema.Projects.chapterId, schema.Chapters.id),
+      eq(schema.Projects.chapterId, schema.Chapters.id)
     )
     .where(eq(schema.Events.id, eventId))
     .limit(1);
@@ -241,9 +290,27 @@ export async function fetchEventById(
     .where(
       and(
         eq(schema.EventMedia.eventId, eventId),
-        eq(schema.EventMedia.isFeatured, true),
-      ),
+        eq(schema.EventMedia.isFeatured, true)
+      )
     );
+
+  const featuredDocuments = await dbClient.db
+    .select({
+      title: schema.EventDocuments.title,
+      document: {
+        id: schema.Documents.id,
+        externalId: schema.Documents.externalId,
+        type: schema.Documents.type,
+        size: schema.Documents.size,
+        uploadedAt: schema.Documents.uploadedAt,
+      },
+    })
+    .from(schema.EventDocuments)
+    .innerJoin(
+      schema.Documents,
+      eq(schema.EventDocuments.documentId, schema.Documents.id)
+    )
+    .where(eq(schema.EventDocuments.eventId, eventId));
 
   return {
     id: ypfEvent.id,
@@ -288,12 +355,26 @@ export async function fetchEventById(
             },
           }))
         : undefined,
+    featuredDocuments:
+      featuredDocuments.length > 0
+        ? featuredDocuments.map((d) => ({
+            title: d.title,
+            document: {
+              url: mediaUtils.generateSignedDocumentUrl(d.document.externalId, {
+                expireSeconds: 60 * 60 * 24,
+              }),
+              type: d.document.type,
+              size: d.document.size,
+              uploadedAt: d.document.uploadedAt,
+            },
+          }))
+        : undefined,
   };
 }
 
 export async function updateEvent(
   eventId: string,
-  data: z.infer<typeof UpdateEventSchema>,
+  data: z.infer<typeof UpdateEventSchema>
 ): Promise<void> {
   const [updatedEvent] = await dbClient.db
     .update(schema.Events)
@@ -308,7 +389,7 @@ export async function updateEvent(
 
 export async function updateEventMedium(
   eventMediumId: string,
-  data: { caption?: string; isFeatured?: boolean },
+  data: { caption?: string; isFeatured?: boolean }
 ): Promise<void> {
   const [updatedData] = await dbClient.db
     .update(schema.EventMedia)
@@ -322,7 +403,7 @@ export async function updateEventMedium(
 }
 
 export async function createEvent(
-  newEvent: z.infer<typeof CreateEventSchema>,
+  newEvent: z.infer<typeof CreateEventSchema>
 ): Promise<{ id: string } | null> {
   const [createdEvent] = await dbClient.db
     .insert(schema.Events)

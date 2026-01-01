@@ -72,32 +72,9 @@ const FlatApplicationInput = z.object({
   }),
 });
 
-export const PostApplicationBody = FlatApplicationInput.transform((data) => {
-  const {
-    firstName,
-    lastName,
-    preferredName,
-    email,
-    phone,
-    whatsapp,
-    dateOfBirth,
-    gender,
-    occupation,
-    country,
-    region,
-    city,
-    campus,
-    nationalIdType,
-    emergencyContactName,
-    emergencyContactPhone,
-    skills,
-    linkedinProfile,
-    twitterHandle,
-    ...rest
-  } = data;
-
-  return {
-    applicantData: {
+export const PostMembershipApplicationBody = FlatApplicationInput.transform(
+  (data) => {
+    const {
       firstName,
       lastName,
       preferredName,
@@ -117,12 +94,37 @@ export const PostApplicationBody = FlatApplicationInput.transform((data) => {
       skills,
       linkedinProfile,
       twitterHandle,
-    },
-    ...rest,
-  };
-});
+      ...rest
+    } = data;
 
-export const UpdateApplicationStatusSchema = z
+    return {
+      applicantData: {
+        firstName,
+        lastName,
+        preferredName,
+        email,
+        phone,
+        whatsapp,
+        dateOfBirth,
+        gender,
+        occupation,
+        country,
+        region,
+        city,
+        campus,
+        nationalIdType,
+        emergencyContactName,
+        emergencyContactPhone,
+        skills,
+        linkedinProfile,
+        twitterHandle,
+      },
+      ...rest,
+    };
+  }
+);
+
+export const UpdateMembershipApplicationStatusSchema = z
   .object({
     status: z.enum(ApplicationStatusEnum.enumValues),
   })
@@ -133,7 +135,7 @@ export const UpdateApplicationStatusSchema = z
     })
   );
 
-export const GetApplicationsQuerySchema = z.object({
+export const GetMembershipApplicationsQuerySchema = z.object({
   page: z.coerce.number().default(1),
   pageSize: z.coerce.number().default(10),
   status: z.string().optional(),

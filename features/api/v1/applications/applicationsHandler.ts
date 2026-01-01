@@ -1,20 +1,26 @@
 import { ApiResponse, ApiError } from "@/shared/types";
-import { PostApplicationBody, GetApplicationsQuerySchema } from "./schemas";
+import {
+  PostMembershipApplicationBody,
+  GetMembershipApplicationsQuerySchema,
+} from "./schemas";
 import z from "zod";
 import * as applicationsService from "@/shared/services/applicationsService";
 import * as fileUtils from "@/shared/utils/files";
 import { Paginated } from "@/shared/dtos";
-import { YPFApplication, YPFApplicationDetail } from "./dtos";
+import {
+  YPFMembershipApplication,
+  YPFMembershipApplicationDetail,
+} from "./dtos";
 import * as documentsService from "@/shared/services/documentsService";
 import * as mediaService from "@/shared/services/mediaService";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { eq, or } from "drizzle-orm";
 
-export async function getApplications(
-  query: z.infer<typeof GetApplicationsQuerySchema>
-): Promise<ApiResponse<Paginated<YPFApplication>>> {
-  const result = await applicationsService.getApplications(query);
+export async function getMembershipApplications(
+  query: z.infer<typeof GetMembershipApplicationsQuerySchema>
+): Promise<ApiResponse<Paginated<YPFMembershipApplication>>> {
+  const result = await applicationsService.getMembershipApplications(query);
 
   return {
     success: true,
@@ -28,11 +34,11 @@ export async function getApplications(
   };
 }
 
-export async function getApplicationById(
+export async function getMembershipApplicationById(
   applicationId: string
-): Promise<ApiResponse<YPFApplicationDetail>> {
+): Promise<ApiResponse<YPFMembershipApplicationDetail>> {
   const application =
-    await applicationsService.getApplicationById(applicationId);
+    await applicationsService.getMembershipApplicationById(applicationId);
 
   if (!application) {
     throw new ApiError("Application not found", 404);
@@ -45,11 +51,11 @@ export async function getApplicationById(
   };
 }
 
-export async function createApplication({
+export async function createMembershipApplication({
   data,
   files,
 }: {
-  data: z.infer<typeof PostApplicationBody>;
+  data: z.infer<typeof PostMembershipApplicationBody>;
   files: {
     passportPhoto: Express.Multer.File;
     resume: Express.Multer.File | null;
@@ -92,7 +98,7 @@ export async function createApplication({
 
   let { applicantData, ...applicationData } = data;
 
-  const application = await applicationsService.createApplication({
+  const application = await applicationsService.createMembershipApplication({
     ...applicationData,
     constituent: {
       ...applicantData,

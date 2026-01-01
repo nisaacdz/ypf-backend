@@ -34,16 +34,6 @@ export const UpdateEventMediumSchema = z.object({
   isFeatured: z.coerce.boolean().optional(),
 });
 
-const u = z
-  .object({
-    projectId: z.uuid({ message: "Invalid project ID format." }),
-  })
-  .or(
-    z.object({
-      welfareCaseId: z.uuid({ message: "Invalid welfareCase ID format." }),
-    }),
-  );
-
 export const CreateEventSchema = z
   .object({
     name: z
@@ -63,12 +53,6 @@ export const CreateEventSchema = z
       message: "Invalid event status.",
     }),
     projectId: z.uuid({ message: "Invalid project ID format." }).optional(),
-    welfareCaseId: z
-      .uuid({ message: "Invalid welfareCase ID format." })
-      .optional(),
-  })
-  .refine((data) => !(data.welfareCaseId && data.projectId), {
-    message: "Must supply only one: projectId or welfareCaseId",
   });
 
 export const UploadEventMediumOptionsSchema = z.object({

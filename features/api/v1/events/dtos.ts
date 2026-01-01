@@ -10,7 +10,6 @@ export type YPFEvent = {
   status: EventStatus;
   type: EventType;
   projectTitle?: string;
-  welfareCaseTitle?: string;
   featuredMediumUrl?: string;
   chapterName?: string;
 };
@@ -29,11 +28,6 @@ export type YPFEventDetail = {
     title: string;
     date: Date;
   };
-  welfareCase?: {
-    id: string;
-    title: string;
-    date?: Date;
-  };
   chapter?: {
     id: string;
     name: string;
@@ -41,6 +35,10 @@ export type YPFEventDetail = {
   featuredMedia?: {
     caption?: string;
     medium: Medium;
+  }[];
+  featuredDocuments?: {
+    title: string;
+    document: import("@/shared/dtos").Document;
   }[];
 };
 

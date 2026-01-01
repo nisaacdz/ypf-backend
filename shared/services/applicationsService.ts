@@ -5,13 +5,14 @@ import logger from "@/configs/logger";
 import { ApiError } from "@/shared/types";
 import { Paginated } from "@/shared/dtos";
 import {
-  YPFApplication,
-  YPFApplicationDetail,
+  YPFMembershipApplication,
+  YPFMembershipApplicationDetail,
 } from "@/features/api/v1/applications/dtos";
 import { ApplicationStatus, NationalIdType } from "@/shared/utils";
+import { generateSignedDocumentUrl } from "@/shared/utils/files";
 import { sendApplicationAcknowledgementEmail } from "@/shared/utils/email";
 
-type CreateApplication = {
+type CreateMembershipApplication = {
   constituent: {
     firstName: string;
     lastName: string;
@@ -29,7 +30,9 @@ type CreateApplication = {
   preferredCommitteeId?: string;
 };
 
-export async function createApplication(data: CreateApplication) {
+export async function createMembershipApplication(
+  data: CreateMembershipApplication
+) {
   const { constituent: constituentData, ...remApplicationData } = data;
   const result = await dbClient.db.transaction(async (tx) => {
     const [newConstituent] = await tx
@@ -45,9 +48,9 @@ export async function createApplication(data: CreateApplication) {
     };
 
     const [newApplication] = await tx
-      .insert(schema.Applications)
+      .insert(schema.MembershipApplications)
       .values(applicationData)
-      .returning({ id: schema.Applications.id });
+      .returning({ id: schema.MembershipApplications.id });
 
     return newApplication;
   });
@@ -63,23 +66,23 @@ export async function createApplication(data: CreateApplication) {
   return result;
 }
 
-export async function getApplications(query: {
+export async function getMembershipApplications(query: {
   page: number;
   pageSize: number;
   status?: string;
   search?: string;
-}): Promise<Paginated<YPFApplication>> {
+}): Promise<Paginated<YPFMembershipApplication>> {
   const { page, pageSize, status, search } = query;
   const offset = (page - 1) * pageSize;
 
   const conditions = [];
-  if (status) conditions.push(eq(schema.Applications.status, status));
+  if (status) conditions.push(eq(schema.MembershipApplications.status, status));
 
   const baseQuery = dbClient.db
     .select({
-      id: schema.Applications.id,
-      status: schema.Applications.status,
-      createdAt: schema.Applications.createdAt,
+      id: schema.MembershipApplications.id,
+      status: schema.MembershipApplications.status,
+      createdAt: schema.MembershipApplications.createdAt,
       constituent: {
         id: schema.Constituents.id,
         firstName: schema.Constituents.firstName,
@@ -87,10 +90,10 @@ export async function getApplications(query: {
         email: schema.Constituents.email,
       },
     })
-    .from(schema.Applications)
+    .from(schema.MembershipApplications)
     .innerJoin(
       schema.Constituents,
-      eq(schema.Applications.constituentId, schema.Constituents.id)
+      eq(schema.MembershipApplications.constituentId, schema.Constituents.id)
     );
 
   if (search) {
@@ -111,10 +114,10 @@ export async function getApplications(query: {
       .where(whereClause)
       .limit(pageSize)
       .offset(offset)
-      .orderBy(desc(schema.Applications.createdAt)),
+      .orderBy(desc(schema.MembershipApplications.createdAt)),
     dbClient.db
       .select({ count: count() })
-      .from(schema.Applications)
+      .from(schema.MembershipApplications)
       .where(whereClause),
   ]);
 
@@ -137,19 +140,19 @@ export async function getApplications(query: {
   };
 }
 
-export async function getApplicationById(
+export async function getMembershipApplicationById(
   id: string
-): Promise<YPFApplicationDetail | null> {
+): Promise<YPFMembershipApplicationDetail | null> {
   const [application] = await dbClient.db
     .select({
-      id: schema.Applications.id,
-      status: schema.Applications.status,
-      commitmentStatement: schema.Applications.commitmentStatement,
-      referralSource: schema.Applications.referralSource,
-      declinedReason: schema.Applications.declinedReason,
-      createdAt: schema.Applications.createdAt,
-      updatedAt: schema.Applications.updatedAt,
-      approvedAt: schema.Applications.approvedAt,
+      id: schema.MembershipApplications.id,
+      status: schema.MembershipApplications.status,
+      commitmentStatement: schema.MembershipApplications.commitmentStatement,
+      referralSource: schema.MembershipApplications.referralSource,
+      declinedReason: schema.MembershipApplications.declinedReason,
+      createdAt: schema.MembershipApplications.createdAt,
+      updatedAt: schema.MembershipApplications.updatedAt,
+      approvedAt: schema.MembershipApplications.approvedAt,
       constituent: {
         id: schema.Constituents.id,
         firstName: schema.Constituents.firstName,
@@ -179,29 +182,32 @@ export async function getApplicationById(
         externalId: schema.Documents.externalId,
       },
     })
-    .from(schema.Applications)
+    .from(schema.MembershipApplications)
     .innerJoin(
       schema.Constituents,
-      eq(schema.Applications.constituentId, schema.Constituents.id)
+      eq(schema.MembershipApplications.constituentId, schema.Constituents.id)
     )
     .leftJoin(
       schema.Chapters,
-      eq(schema.Applications.preferredChapterId, schema.Chapters.id)
+      eq(schema.MembershipApplications.preferredChapterId, schema.Chapters.id)
     )
     .leftJoin(
       schema.Committees,
-      eq(schema.Applications.preferredCommitteeId, schema.Committees.id)
+      eq(
+        schema.MembershipApplications.preferredCommitteeId,
+        schema.Committees.id
+      )
     )
     .leftJoin(
       schema.Documents,
-      eq(schema.Applications.cvDocumentId, schema.Documents.id)
+      eq(schema.MembershipApplications.cvDocumentId, schema.Documents.id)
     )
-    .where(eq(schema.Applications.id, id))
+    .where(eq(schema.MembershipApplications.id, id))
     .limit(1);
 
   if (!application) return null;
 
-  const detail: YPFApplicationDetail = {
+  const detail: YPFMembershipApplicationDetail = {
     id: application.id,
     status: application.status,
     commitmentStatement: application.commitmentStatement ?? undefined,
@@ -241,6 +247,9 @@ export async function getApplicationById(
       ? {
           id: application.cvDocument.id,
           externalId: application.cvDocument.externalId,
+          url: generateSignedDocumentUrl(application.cvDocument.externalId, {
+            expireSeconds: 60 * 60,
+          }),
         }
       : undefined,
   };
@@ -248,31 +257,31 @@ export async function getApplicationById(
   return detail;
 }
 
-export async function updateApplicationStatus(
+export async function updateMembershipApplicationStatus(
   id: string,
   newStatus: ApplicationStatus,
   adminId: string
 ) {
   const [updated] = await dbClient.db
-    .update(schema.Applications)
+    .update(schema.MembershipApplications)
     .set({
       status: newStatus,
     })
-    .where(eq(schema.Applications.id, id))
+    .where(eq(schema.MembershipApplications.id, id))
     .returning();
 
   if (!updated) throw new ApiError("Application not found", 404);
   return updated;
 }
 
-export async function getApplicationStats() {
+export async function getMembershipApplicationStats() {
   const stats = await dbClient.db
     .select({
-      status: schema.Applications.status,
+      status: schema.MembershipApplications.status,
       count: count(),
     })
-    .from(schema.Applications)
-    .groupBy(schema.Applications.status);
+    .from(schema.MembershipApplications)
+    .groupBy(schema.MembershipApplications.status);
 
   return stats;
 }

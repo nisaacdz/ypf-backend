@@ -1,4 +1,4 @@
-export type YPFApplication = {
+export type YPFMembershipApplication = {
   id: string;
   status: string;
   createdAt: Date;
@@ -9,7 +9,7 @@ export type YPFApplication = {
   };
 };
 
-export type YPFApplicationDetail = {
+export type YPFMembershipApplicationDetail = {
   id: string;
   status: string;
   commitmentStatement?: string;
@@ -43,5 +43,6 @@ export type YPFApplicationDetail = {
   cvDocument?: {
     id: string;
     externalId: string;
+    url?: string;
   };
 };
