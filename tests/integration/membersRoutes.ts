@@ -29,6 +29,7 @@ describe("Members API", () => {
         firstName: testUser.name.firstName,
         lastName: testUser.name.lastName,
         email: testUser.email,
+        publicId: "YPFC-TEST-001",
       })
       .returning();
 
@@ -99,9 +100,8 @@ describe("Members API", () => {
       expect(response.body.data.lastName).toBe(testUser.name.lastName);
       expect(response.body.data).toHaveProperty("titles");
       expect(Array.isArray(response.body.data.titles)).toBe(true);
-      expect(response.body.data).toHaveProperty("joinedAt");
-      expect(response.body.data).toHaveProperty("isActive");
-      expect(response.body.data.isActive).toBe(true);
+      expect(response.body.data).toHaveProperty("startedAt");
+      expect(response.body.data).toHaveProperty("publicId");
     });
 
     it("should reject the request if the session cookie is not provided", async () => {
