@@ -1,17 +1,25 @@
+import { MembershipApplicationStatus } from "@/shared/utils";
+
 export type YPFMembershipApplication = {
   id: string;
-  status: string;
+  status: MembershipApplicationStatus;
   createdAt: Date;
   applicant: {
     id: string;
     fullName: string;
     email?: string;
+    phone?: string;
+    profilePhotoUrl?: string;
+    occupation?: string;
+    skills?: string[];
   };
+  preferredChapterName?: string;
+  preferredCommitteeName?: string;
 };
 
 export type YPFMembershipApplicationDetail = {
   id: string;
-  status: string;
+  status: MembershipApplicationStatus;
   commitmentStatement?: string;
   referralSource?: string;
   declinedReason?: string;
@@ -31,6 +39,14 @@ export type YPFMembershipApplicationDetail = {
     campus?: string;
     skills?: string[];
     previousVolunteerExperience?: string;
+    profilePhoto?: {
+      url: string;
+      dimensions: {
+        width: number;
+        height: number;
+      };
+      size: number;
+    };
   };
   preferredChapter?: {
     id: string;
@@ -42,7 +58,10 @@ export type YPFMembershipApplicationDetail = {
   };
   cvDocument?: {
     id: string;
-    externalId: string;
-    url?: string;
+    url: string;
+  };
+  nationalIdDocument?: {
+    id: string;
+    url: string;
   };
 };

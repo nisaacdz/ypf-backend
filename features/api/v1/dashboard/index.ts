@@ -69,7 +69,7 @@ dashboardRouter.get(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -131,7 +131,7 @@ dashboardRouter.get(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 export default dashboardRouter;

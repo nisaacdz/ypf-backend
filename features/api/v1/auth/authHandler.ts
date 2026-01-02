@@ -3,7 +3,11 @@ import * as constituentsService from "@/shared/services/constituentsService";
 import { encodeData } from "@/shared/utils/jwt";
 import { ApiResponse, ApiError } from "@/shared/types";
 import { sendOtpEmail } from "@/shared/utils/email";
-import { ForgotPasswordSchema, ResetPasswordSchema } from "./schemas";
+import {
+  ForgotPasswordSchema,
+  ResetPasswordSchema,
+  OnboardSchema,
+} from "./schemas";
 import { AuthData } from "./dtos";
 import { z } from "zod";
 
@@ -82,6 +86,27 @@ export async function forgotPassword({
     success: true,
     data: null,
     message: "Password reset code sent to your email",
+  };
+}
+
+/**
+ * Onboards a user by sending an OTP if they exist but have no auth method set.
+ *
+ * @param email - The user's email address
+ * @returns Success response indicating OTP was sent
+ * @throws ApiError if user not found or has auth method
+ */
+export async function onboard({
+  email,
+}: z.infer<typeof OnboardSchema>): Promise<ApiResponse<null>> {
+  const otp = await authService.onboardUser(email);
+
+  await sendOtpEmail(email, otp);
+
+  return {
+    success: true,
+    data: null,
+    message: "Onboarding verification code sent to your email",
   };
 }
 

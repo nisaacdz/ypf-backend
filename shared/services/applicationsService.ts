@@ -9,7 +9,10 @@ import {
   YPFMembershipApplicationDetail,
 } from "@/features/api/v1/applications/dtos";
 import { ApplicationStatus, NationalIdType } from "@/shared/utils";
-import { generateSignedDocumentUrl } from "@/shared/utils/files";
+import {
+  generateSignedDocumentUrl,
+  generateSignedMediaUrl,
+} from "@/shared/utils/files";
 import { sendApplicationAcknowledgementEmail } from "@/shared/utils/email";
 
 type CreateMembershipApplication = {
@@ -31,7 +34,7 @@ type CreateMembershipApplication = {
 };
 
 export async function createMembershipApplication(
-  data: CreateMembershipApplication
+  data: CreateMembershipApplication,
 ) {
   const { constituent: constituentData, ...remApplicationData } = data;
   const result = await dbClient.db.transaction(async (tx) => {
@@ -88,12 +91,39 @@ export async function getMembershipApplications(query: {
         firstName: schema.Constituents.firstName,
         lastName: schema.Constituents.lastName,
         email: schema.Constituents.email,
+        phone: schema.Constituents.phone,
+        occupation: schema.Constituents.occupation,
+        skills: schema.Constituents.skills,
+      },
+      profilePhoto: {
+        externalId: schema.Media.externalId,
+      },
+      preferredChapter: {
+        name: schema.Chapters.name,
+      },
+      preferredCommittee: {
+        name: schema.Committees.name,
       },
     })
     .from(schema.MembershipApplications)
     .innerJoin(
       schema.Constituents,
-      eq(schema.MembershipApplications.constituentId, schema.Constituents.id)
+      eq(schema.MembershipApplications.constituentId, schema.Constituents.id),
+    )
+    .leftJoin(
+      schema.Media,
+      eq(schema.Constituents.profilePhotoId, schema.Media.id),
+    )
+    .leftJoin(
+      schema.Chapters,
+      eq(schema.MembershipApplications.preferredChapterId, schema.Chapters.id),
+    )
+    .leftJoin(
+      schema.Committees,
+      eq(
+        schema.MembershipApplications.preferredCommitteeId,
+        schema.Committees.id,
+      ),
     );
 
   if (search) {
@@ -101,8 +131,8 @@ export async function getMembershipApplications(query: {
       or(
         ilike(schema.Constituents.email, `%${search}%`),
         ilike(schema.Constituents.firstName, `%${search}%`),
-        ilike(schema.Constituents.lastName, `%${search}%`)
-      )
+        ilike(schema.Constituents.lastName, `%${search}%`),
+      ),
     );
   }
 
@@ -131,7 +161,17 @@ export async function getMembershipApplications(query: {
           id: it.constituent.id,
           fullName: `${it.constituent.firstName} ${it.constituent.lastName}`,
           email: it.constituent.email ?? undefined,
+          phone: it.constituent.phone ?? undefined,
+          occupation: it.constituent.occupation ?? undefined,
+          skills: it.constituent.skills ?? undefined,
+          profilePhotoUrl: it.profilePhoto?.externalId
+            ? generateSignedMediaUrl(it.profilePhoto.externalId, {
+                expireSeconds: 60 * 60,
+              })
+            : undefined,
         },
+        preferredChapterName: it.preferredChapter?.name,
+        preferredCommitteeName: it.preferredCommittee?.name,
       };
     }),
     total: Number(totalResult[0]?.count || 0),
@@ -141,7 +181,7 @@ export async function getMembershipApplications(query: {
 }
 
 export async function getMembershipApplicationById(
-  id: string
+  id: string,
 ): Promise<YPFMembershipApplicationDetail | null> {
   const [application] = await dbClient.db
     .select({
@@ -168,6 +208,13 @@ export async function getMembershipApplicationById(
         skills: schema.Constituents.skills,
         previousVolunteerExperience:
           schema.Constituents.previousVolunteerExperience,
+        nationalIdDocumentId: schema.Constituents.nationalIdDocumentId,
+      },
+      profilePhoto: {
+        externalId: schema.Media.externalId,
+        width: schema.Media.width,
+        height: schema.Media.height,
+        size: schema.Media.size,
       },
       preferredChapter: {
         id: schema.Chapters.id,
@@ -185,27 +232,48 @@ export async function getMembershipApplicationById(
     .from(schema.MembershipApplications)
     .innerJoin(
       schema.Constituents,
-      eq(schema.MembershipApplications.constituentId, schema.Constituents.id)
+      eq(schema.MembershipApplications.constituentId, schema.Constituents.id),
     )
     .leftJoin(
       schema.Chapters,
-      eq(schema.MembershipApplications.preferredChapterId, schema.Chapters.id)
+      eq(schema.MembershipApplications.preferredChapterId, schema.Chapters.id),
     )
     .leftJoin(
       schema.Committees,
       eq(
         schema.MembershipApplications.preferredCommitteeId,
-        schema.Committees.id
-      )
+        schema.Committees.id,
+      ),
     )
     .leftJoin(
       schema.Documents,
-      eq(schema.MembershipApplications.cvDocumentId, schema.Documents.id)
+      eq(schema.MembershipApplications.cvDocumentId, schema.Documents.id),
+    )
+    .leftJoin(
+      schema.Media,
+      eq(schema.Constituents.profilePhotoId, schema.Media.id),
     )
     .where(eq(schema.MembershipApplications.id, id))
     .limit(1);
 
   if (!application) return null;
+
+  let nationalIdDocument: { id: string; externalId: string } | undefined =
+    undefined;
+
+  if (application.constituent.nationalIdDocumentId) {
+    const [doc] = await dbClient.db
+      .select({
+        id: schema.Documents.id,
+        externalId: schema.Documents.externalId,
+      })
+      .from(schema.Documents)
+      .where(
+        eq(schema.Documents.id, application.constituent.nationalIdDocumentId),
+      )
+      .limit(1);
+    nationalIdDocument = doc;
+  }
 
   const detail: YPFMembershipApplicationDetail = {
     id: application.id,
@@ -230,6 +298,18 @@ export async function getMembershipApplicationById(
       skills: application.constituent.skills ?? undefined,
       previousVolunteerExperience:
         application.constituent.previousVolunteerExperience ?? undefined,
+      profilePhoto: application.profilePhoto?.externalId
+        ? {
+            url: generateSignedMediaUrl(application.profilePhoto.externalId, {
+              expireSeconds: 60 * 60,
+            }),
+            dimensions: {
+              width: application.profilePhoto.width,
+              height: application.profilePhoto.height,
+            },
+            size: application.profilePhoto.size,
+          }
+        : undefined,
     },
     preferredChapter: application.preferredChapter
       ? {
@@ -246,8 +326,15 @@ export async function getMembershipApplicationById(
     cvDocument: application.cvDocument
       ? {
           id: application.cvDocument.id,
-          externalId: application.cvDocument.externalId,
           url: generateSignedDocumentUrl(application.cvDocument.externalId, {
+            expireSeconds: 60 * 60,
+          }),
+        }
+      : undefined,
+    nationalIdDocument: nationalIdDocument
+      ? {
+          id: nationalIdDocument.id,
+          url: generateSignedDocumentUrl(nationalIdDocument.externalId, {
             expireSeconds: 60 * 60,
           }),
         }
@@ -260,7 +347,7 @@ export async function getMembershipApplicationById(
 export async function updateMembershipApplicationStatus(
   id: string,
   newStatus: ApplicationStatus,
-  adminId: string
+  adminId: string,
 ) {
   const [updated] = await dbClient.db
     .update(schema.MembershipApplications)

@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import { ProjectTypeEnum } from "@/db/schema/activities";
 
 async function seed(
-  tx: Parameters<Parameters<typeof dbClient.db.transaction>[0]>[0]
+  tx: Parameters<Parameters<typeof dbClient.db.transaction>[0]>[0],
 ) {
   console.log("🌱 Starting Real-World Seeding...");
 
@@ -47,7 +47,7 @@ async function seed(
         constituentId: c.id,
         email: c.email!, // All generated have emails
         password: hashedPassword,
-      }))
+      })),
     )
     .returning();
 
@@ -121,7 +121,7 @@ async function seed(
         alias: `lead_${c.name.toLowerCase().replace(/\s/g, "_")}`,
         _level: 60,
         chapterId: c.id,
-      }))
+      })),
     )
     .returning();
 
@@ -133,7 +133,7 @@ async function seed(
         alias: `chair_${com.name.toLowerCase().replace(/\s/g, "_")}`,
         _level: 50,
         committeeId: com.id,
-      }))
+      })),
     )
     .returning();
 
@@ -149,7 +149,7 @@ async function seed(
       memberConstituents.map((c) => ({
         constituentId: c.id,
         startedAt: faker.date.past({ years: 3 }),
-      }))
+      })),
     )
     .returning();
 
@@ -159,7 +159,7 @@ async function seed(
     volunteerConstituents.map((c) => ({
       constituentId: c.id,
       startedAt: faker.date.past({ years: 1 }),
-    }))
+    })),
   );
 
   // Make some Admins (Top 5 members)
@@ -170,7 +170,7 @@ async function seed(
       adminMembers.map((m) => ({
         constituentId: m.constituentId,
         startedAt: faker.date.past({ years: 2 }),
-      }))
+      })),
     )
     .returning();
 
@@ -256,7 +256,7 @@ async function seed(
       constituentId: pocs[idx] ? pocs[idx].id : pocs[0].id,
       title: "Partnership Lead",
       isPrimary: true,
-    }))
+    })),
   );
 
   // ----------------------------------------------------------------------
@@ -349,7 +349,7 @@ async function seed(
         currency: "USD",
         periodStart: new Date("2024-01-01"),
         periodEnd: new Date("2024-12-31"),
-      }))
+      })),
     )
     .returning();
 
@@ -366,7 +366,7 @@ async function seed(
         status: "COMPLETED" as const,
         externalProvider: "PAYSTACK" as const,
         externalRef: faker.string.uuid(),
-      }))
+      })),
     )
     .returning();
 
@@ -377,11 +377,11 @@ async function seed(
         dues.find(
           () =>
             // find due matching member's chapter roughly, or just pick random due
-            true
+            true,
         )!.id ?? dues[0].id,
       // For simplicity, just assigned to dues[0] or random if logic complex
       memberId: payingMembers[i].id,
-    }))
+    })),
   );
 
   // Donations
@@ -395,7 +395,7 @@ async function seed(
         status: "COMPLETED" as const,
         externalProvider: "PAYSTACK" as const,
         externalRef: faker.string.uuid(),
-      }))
+      })),
     )
     .returning();
 
@@ -405,7 +405,7 @@ async function seed(
       constituentId: i < 5 ? constituents[i].id : null,
       projectId: i % 2 === 0 ? projects[0].id : null,
       eventId: i % 2 !== 0 ? events[1].id : null,
-    }))
+    })),
   );
 
   // Partnerships

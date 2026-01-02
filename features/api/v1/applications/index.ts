@@ -2,7 +2,6 @@ import { Request, Response, NextFunction } from "express";
 import { Router } from "express";
 import {
   validateBody,
-  validateFile,
   validateFiles,
   validateParams,
   validateQuery,
@@ -108,13 +107,13 @@ applicationsRouter.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await applicationsHandler.getMembershipApplications(
-        req.Query
+        req.Query,
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -235,13 +234,13 @@ applicationsRouter.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await applicationsHandler.getMembershipApplicationById(
-        req.Params.id
+        req.Params.id,
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -382,7 +381,7 @@ applicationsRouter.post(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 export default applicationsRouter;

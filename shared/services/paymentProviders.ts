@@ -66,14 +66,14 @@ export class PaystackProvider implements IPaymentProvider {
           headers: {
             Authorization: `Bearer ${this.secretKey}`,
           },
-        }
+        },
       );
 
       if (!response.ok) {
         const errorData = await response.json();
         logger.error("Paystack verification failed:", errorData);
         throw new Error(
-          `Paystack API error: ${response.status} ${response.statusText}`
+          `Paystack API error: ${response.status} ${response.statusText}`,
         );
       }
 
@@ -112,7 +112,7 @@ export class PaystackProvider implements IPaymentProvider {
  * This makes it easy to add new providers in the future.
  */
 export function getPaymentProvider(
-  providerName: string
+  providerName: string,
 ): IPaymentProvider | null {
   switch (providerName.toUpperCase()) {
     case "PAYSTACK":

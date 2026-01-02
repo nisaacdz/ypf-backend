@@ -18,7 +18,7 @@ import schema from "@/db/schema";
 import { eq, or } from "drizzle-orm";
 
 export async function getMembershipApplications(
-  query: z.infer<typeof GetMembershipApplicationsQuerySchema>
+  query: z.infer<typeof GetMembershipApplicationsQuerySchema>,
 ): Promise<ApiResponse<Paginated<YPFMembershipApplication>>> {
   const result = await applicationsService.getMembershipApplications(query);
 
@@ -35,7 +35,7 @@ export async function getMembershipApplications(
 }
 
 export async function getMembershipApplicationById(
-  applicationId: string
+  applicationId: string,
 ): Promise<ApiResponse<YPFMembershipApplicationDetail>> {
   const application =
     await applicationsService.getMembershipApplicationById(applicationId);
@@ -68,7 +68,7 @@ export async function createMembershipApplication({
       eq(schema.Constituents.phone, data.applicantData.phone),
       data.applicantData.whatsapp
         ? eq(schema.Constituents.whatsapp, data.applicantData.whatsapp)
-        : undefined
+        : undefined,
     ),
     columns: { id: true, email: true, phone: true, whatsapp: true },
   });

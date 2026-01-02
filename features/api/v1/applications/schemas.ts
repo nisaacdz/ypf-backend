@@ -1,11 +1,10 @@
 import {
-  ApplicationStatusEnum,
+  MembershipApplicationStatusEnum,
   GenderEnum,
   NationalIdTypeEnum,
 } from "@/db/schema/core";
 import { z } from "zod";
-import { Profiles } from "../../../../shared/types";
-import { AllowedDocumentsMimeTypes } from "../../../../shared/middlewares/multipart";
+import { AllowedDocumentsMimeTypes } from "@/shared/middlewares/multipart";
 
 const ApplicantData = z.object({
   firstName: z.string().min(1),
@@ -64,9 +63,8 @@ const FlatApplicationInput = z.object({
   previousVolunteerExperience: z.string().optional(),
   // Application specific
   commitmentStatement: z.string(),
-  preferredChapterId: z.string().uuid().optional(), // Changed to string().uuid() for simpler multipart handling
-  preferredCommitteeId: z.string().uuid().optional(),
-  preferredProfile: z.enum(Profiles).default("MEMBER"),
+  preferredChapterId: z.uuid().optional(),
+  preferredCommitteeId: z.uuid().optional(),
   willingToServe: z.coerce.boolean().refine((val) => val === true, {
     message: "You must agree to be willing to serve.",
   }),
@@ -121,18 +119,18 @@ export const PostMembershipApplicationBody = FlatApplicationInput.transform(
       },
       ...rest,
     };
-  }
+  },
 );
 
 export const UpdateMembershipApplicationStatusSchema = z
   .object({
-    status: z.enum(ApplicationStatusEnum.enumValues),
+    status: z.enum(MembershipApplicationStatusEnum.enumValues),
   })
   .or(
     z.object({
       status: "REJECTED" as const,
       declinedReason: z.string().optional(),
-    })
+    }),
   );
 
 export const GetMembershipApplicationsQuerySchema = z.object({

@@ -1,5 +1,5 @@
 import {
-  ApplicationStatusEnum,
+  MembershipApplicationStatusEnum,
   DocumentTypeEnum,
   MediumTypeEnum,
   NationalIdTypeEnum,
@@ -35,8 +35,8 @@ export const paymentMethodMap: Record<string, PaymentMethod> = {
 };
 
 export type NationalIdType = (typeof NationalIdTypeEnum.enumValues)[number];
-export type ApplicationStatus =
-  (typeof ApplicationStatusEnum.enumValues)[number];
+export type MembershipApplicationStatus =
+  (typeof MembershipApplicationStatusEnum.enumValues)[number];
 export type DocumentType = (typeof DocumentTypeEnum.enumValues)[number];
 export type MediumType = (typeof MediumTypeEnum.enumValues)[number];
 export type EventStatus = (typeof EventStatusEnum.enumValues)[number];

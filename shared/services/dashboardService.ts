@@ -23,16 +23,16 @@ export async function getStats(): Promise<Stats> {
           lte(schema.Members.startedAt, new Date()),
           or(
             isNull(schema.Members.endedAt),
-            gte(schema.Members.endedAt, new Date())
-          )
-        )
+            gte(schema.Members.endedAt, new Date()),
+          ),
+        ),
       ),
     dbClient.db
       .select({ value: count() })
       .from(schema.Donations)
       .innerJoin(
         schema.FinancialTransactions,
-        eq(schema.Donations.transactionId, schema.FinancialTransactions.id)
+        eq(schema.Donations.transactionId, schema.FinancialTransactions.id),
       )
       .where(eq(schema.FinancialTransactions.status, "COMPLETED")),
     dbClient.db.select({ value: count() }).from(schema.Events),

@@ -6,6 +6,7 @@ import {
   UsernameAndPasswordSchema,
   ForgotPasswordSchema,
   ResetPasswordSchema,
+  OnboardSchema,
 } from "./schemas";
 import { authenticateLax } from "@/shared/middlewares/auth";
 
@@ -365,5 +366,73 @@ authRouter.get("/me", authenticateLax, async (req: Request, res: Response) => {
     data: req.User ?? null,
   });
 });
+
+/**
+ * @swagger
+ * /api/v1/auth/onboard:
+ *   post:
+ *     summary: Onboard user by sending OTP
+ *     description: Sends an OTP to the user's email if they exist but have no authentication method set.
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: User's email address
+ *     responses:
+ *       200:
+ *         description: Onboarding verification code sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Onboarding verification code sent to your email
+ *                 data:
+ *                   type: null
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       409:
+ *         description: User already has an authentication method set
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+authRouter.post(
+  "/onboard",
+  validateBody(OnboardSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await authHandler.onboard(req.Body);
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 export default authRouter;

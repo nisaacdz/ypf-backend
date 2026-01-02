@@ -34,26 +34,25 @@ export const UpdateEventMediumSchema = z.object({
   isFeatured: z.coerce.boolean().optional(),
 });
 
-export const CreateEventSchema = z
-  .object({
-    name: z
-      .string({ message: "Event name is required." })
-      .min(3, { message: "Event name must be at least 3 characters." })
-      .max(100, { message: "Event name must not exceed 100 characters." }),
-    objective: z.string().optional(),
-    type: z.enum(EventTypeEnum.enumValues, {
-      message: "Invalid event type.",
-    }),
-    location: z.string({ message: "Location is required." }),
-    scheduledStart: z.coerce.date({
-      message: "Please enter a valid start date.",
-    }),
-    scheduledEnd: z.coerce.date({ message: "Please enter a valid end date." }),
-    status: z.enum(EventStatusEnum.enumValues, {
-      message: "Invalid event status.",
-    }),
-    projectId: z.uuid({ message: "Invalid project ID format." }).optional(),
-  });
+export const CreateEventSchema = z.object({
+  name: z
+    .string({ message: "Event name is required." })
+    .min(3, { message: "Event name must be at least 3 characters." })
+    .max(100, { message: "Event name must not exceed 100 characters." }),
+  objective: z.string().optional(),
+  type: z.enum(EventTypeEnum.enumValues, {
+    message: "Invalid event type.",
+  }),
+  location: z.string({ message: "Location is required." }),
+  scheduledStart: z.coerce.date({
+    message: "Please enter a valid start date.",
+  }),
+  scheduledEnd: z.coerce.date({ message: "Please enter a valid end date." }),
+  status: z.enum(EventStatusEnum.enumValues, {
+    message: "Invalid event status.",
+  }),
+  projectId: z.uuid({ message: "Invalid project ID format." }).optional(),
+});
 
 export const UploadEventMediumOptionsSchema = z.object({
   caption: z
