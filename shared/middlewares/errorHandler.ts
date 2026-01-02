@@ -33,10 +33,9 @@ const cleanupFiles = async (req: Request) => {
         try {
           await fs.unlink(path);
         } catch (error) {
-          // Ignore errors if file doesn't exist or can't be deleted
-          // logger.warn(`Failed to cleanup temp file: ${path}`, error);
+          logger.warn(error, `Failed to cleanup temp file: ${path}`);
         }
-      }),
+      })
     );
   }
 };
@@ -45,12 +44,13 @@ export const errorHandler = (
   err: any,
   req: Request,
   res: Response,
-  _next: NextFunction,
+  _next: NextFunction
 ) => {
-  // Always attempt to cleanup files on error
-  cleanupFiles(req).catch((cleanupErr) => {
-    logger.error(cleanupErr, "Error during file cleanup in errorHandler");
-  });
+  if (!!req.file || !!req.files) {
+    cleanupFiles(req).catch((cleanupErr) => {
+      logger.error(cleanupErr, "Error during file cleanup in errorHandler");
+    });
+  }
 
   if (err instanceof ApiError) {
     return res.status(err.statusCode).json({
