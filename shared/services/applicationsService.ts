@@ -13,7 +13,10 @@ import {
   generateSignedDocumentUrl,
   generateSignedMediaUrl,
 } from "@/shared/utils/files";
-import { sendApplicationAcknowledgementEmail } from "@/shared/utils/email";
+import {
+  sendMembershipApplicationAcknowledgementEmail,
+  sendMembershipApplicationAcceptanceEmail,
+} from "@/shared/utils/email";
 import { GetMembershipApplicationsQuerySchema } from "@/features/api/v1/applications/schemas";
 import z from "zod";
 
@@ -55,15 +58,19 @@ export async function createMembershipApplication(
     const [newApplication] = await tx
       .insert(schema.MembershipApplications)
       .values(applicationData)
-      .returning({ id: schema.MembershipApplications.id });
+      .returning({
+        id: schema.MembershipApplications.id,
+        trackingNumber: schema.MembershipApplications.trackingNumber,
+      });
 
     return newApplication;
   });
 
   // Send acknowledgement email (fire and forget)
-  sendApplicationAcknowledgementEmail({
+  sendMembershipApplicationAcknowledgementEmail({
     email: constituentData.email,
     name: `${constituentData.firstName} ${constituentData.lastName}`,
+    trackingNumber: result.trackingNumber,
   }).catch((error) => {
     logger.error("Failed to send application acknowledgement email", error);
   });
@@ -83,6 +90,7 @@ export async function getMembershipApplications(
   const baseQuery = dbClient.db
     .select({
       id: schema.MembershipApplications.id,
+      trackingNumber: schema.MembershipApplications.trackingNumber,
       status: schema.MembershipApplications.status,
       createdAt: schema.MembershipApplications.createdAt,
       constituent: {
@@ -154,6 +162,7 @@ export async function getMembershipApplications(
     items: items.map((it) => {
       return {
         id: it.id,
+        trackingNumber: it.trackingNumber,
         createdAt: it.createdAt,
         status: it.status,
         applicant: {
@@ -185,6 +194,7 @@ export async function getMembershipApplicationById(
   const [application] = await dbClient.db
     .select({
       id: schema.MembershipApplications.id,
+      trackingNumber: schema.MembershipApplications.trackingNumber,
       status: schema.MembershipApplications.status,
       commitmentStatement: schema.MembershipApplications.commitmentStatement,
       referralSource: schema.MembershipApplications.referralSource,
@@ -276,6 +286,7 @@ export async function getMembershipApplicationById(
 
   const detail: YPFMembershipApplicationDetail = {
     id: application.id,
+    trackingNumber: application.trackingNumber,
     status: application.status,
     commitmentStatement: application.commitmentStatement ?? undefined,
     referralSource: application.referralSource ?? undefined,
@@ -357,6 +368,31 @@ export async function updateMembershipApplicationStatus(
     .returning();
 
   if (!updated) throw new ApiError("Application not found", 404);
+
+  // If accepted, send email
+  if (newStatus === "ACCEPTED") {
+    // Fetch constituent for email
+    const [constituent] = await dbClient.db
+      .select({
+        firstName: schema.Constituents.firstName,
+        lastName: schema.Constituents.lastName,
+        email: schema.Constituents.email,
+      })
+      .from(schema.Constituents)
+      .where(eq(schema.Constituents.id, updated.constituentId))
+      .limit(1);
+
+    if (constituent && constituent.email) {
+      sendMembershipApplicationAcceptanceEmail({
+        email: constituent.email,
+        name: `${constituent.firstName} ${constituent.lastName}`,
+        trackingNumber: updated.trackingNumber,
+      }).catch((err) => {
+        logger.error("Failed to send acceptance email", err);
+      });
+    }
+  }
+
   return updated;
 }
 

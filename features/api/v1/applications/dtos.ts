@@ -4,6 +4,7 @@ export type YPFMembershipApplication = {
   id: string;
   status: MembershipApplicationStatus;
   createdAt: Date;
+  trackingNumber: string;
   applicant: {
     id: string;
     fullName: string;
@@ -20,6 +21,7 @@ export type YPFMembershipApplication = {
 export type YPFMembershipApplicationDetail = {
   id: string;
   status: MembershipApplicationStatus;
+  trackingNumber: string;
   commitmentStatement?: string;
   referralSource?: string;
   declinedReason?: string;

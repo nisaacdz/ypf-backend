@@ -84,7 +84,7 @@ export const sendEmail = async (
   subject: string,
   html: string,
   text?: string,
-  isBcc: boolean = false,
+  isBcc: boolean = false
 ): Promise<void> => {
   if (variables.app.environment === "test") {
     return;
@@ -108,14 +108,14 @@ export const sendEmail = async (
   try {
     const info = await emailer.transporter.sendMail(mailOptions);
     logger.info(
-      `Email sent to ${Array.isArray(to) ? to.length : 1} recipient(s). Message ID: ${info.messageId}`,
+      `Email sent to ${Array.isArray(to) ? to.length : 1} recipient(s). Message ID: ${info.messageId}`
     );
   } catch (error) {
     logger.error(error, `Error sending email:`);
     throw new Error(
       `Failed to send email: ${
         error instanceof Error ? error.message : String(error)
-      }`,
+      }`
     );
   }
 };
@@ -128,7 +128,7 @@ export const sendEmail = async (
 export async function sendAnnouncementEmail(
   recipients: string[],
   title: string,
-  markdownContent: string,
+  markdownContent: string
 ): Promise<void> {
   if (!recipients.length) return;
 
@@ -140,7 +140,7 @@ export async function sendAnnouncementEmail(
     `
     <h1 style="margin-top: 0;">${title}</h1>
     ${htmlContent}
-    `,
+    `
   );
 
   await sendEmail(recipients, title, htmlBody, undefined, true);
@@ -153,7 +153,7 @@ export async function sendAnnouncementEmail(
  */
 export async function sendWelcomeEmail(
   to: string,
-  name: string,
+  name: string
 ): Promise<void> {
   const subject = "Welcome to YPF Africa!";
 
@@ -478,7 +478,7 @@ export async function sendOrderPlacementEmail(params: {
   const itemsList = params.order.items
     .map(
       (item) =>
-        `<li style="margin: 5px 0; color: ${colors.foreground};">${item.quantity}x ${item.name} - <span style="font-weight: 600;">${params.order.currency} ${item.price}</span></li>`,
+        `<li style="margin: 5px 0; color: ${colors.foreground};">${item.quantity}x ${item.name} - <span style="font-weight: 600;">${params.order.currency} ${item.price}</span></li>`
     )
     .join("");
 
@@ -508,7 +508,7 @@ export async function sendOrderPlacementEmail(params: {
   const itemsText = params.order.items
     .map(
       (item) =>
-        `  ${item.quantity}x ${item.name} - ${params.order.currency} ${item.price}`,
+        `  ${item.quantity}x ${item.name} - ${params.order.currency} ${item.price}`
     )
     .join("\n");
 
@@ -580,15 +580,20 @@ export async function sendOnboardingInvitationEmail(params: {
  * Sends an acknowledgement email to an applicant.
  * @param params - Email parameters including recipient info
  */
-export async function sendApplicationAcknowledgementEmail(params: {
+export async function sendMembershipApplicationAcknowledgementEmail(params: {
   email: string;
   name: string;
+  trackingNumber: string;
 }): Promise<void> {
-  const subject = "Application Received - YPF Africa";
+  const subject = "Membership Application Received - YPF Africa";
 
   const content = `
     <p>Dear ${params.name},</p>
     <p>Thank you for applying to YPF Africa. We have received your application and will review it shortly.</p>
+    <div style="background-color: ${colors.muted}; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid ${colors.border};">
+      <p style="margin: 0 0 8px 0; font-size: 14px; color: ${colors.mutedForeground}; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Application Details</p>
+      <p style="margin: 0; font-size: 16px; color: ${colors.foreground}; font-family: monospace;">Tracking Number: ${params.trackingNumber}</p>
+    </div>
     <br>
     <p>Best regards,<br>The YPF Africa Team</p>
   `;
@@ -599,6 +604,49 @@ export async function sendApplicationAcknowledgementEmail(params: {
     `Dear ${params.name},`,
     "",
     "Thank you for applying to YPF Africa. We have received your application and will review it shortly.",
+    "",
+    `Tracking Number: ${params.trackingNumber}`,
+    "",
+    "Best regards,",
+    "The YPF Africa Team",
+  ].join("\\n");
+
+  await sendEmail(params.email, subject, htmlBody, textContent);
+}
+
+/**
+ * Sends an acceptance email to an applicant.
+ * @param params - Email parameters including recipient info
+ */
+export async function sendMembershipApplicationAcceptanceEmail(params: {
+  email: string;
+  name: string;
+  trackingNumber: string;
+}): Promise<void> {
+  const subject = "Membership Application Accepted - YPF Africa";
+
+  const content = `
+    <p>Dear ${params.name},</p>
+    <p>Congratulations! We are pleased to inform you that your membership application to YPF Africa has been accepted.</p>
+     <div style="background-color: ${colors.muted}; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid ${colors.border};">
+      <p style="margin: 0 0 8px 0; font-size: 14px; color: ${colors.mutedForeground}; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Application Details</p>
+      <p style="margin: 0; font-size: 16px; color: ${colors.foreground}; font-family: monospace;">Tracking Number: ${params.trackingNumber}</p>
+    </div>
+    <p>We will be in touch shortly with next steps regarding your onboarding and induction.</p>
+    <br>
+    <p>Best regards,<br>The YPF Africa Team</p>
+  `;
+
+  const htmlBody = generateBaseHtml(subject, content);
+
+  const textContent = [
+    `Dear ${params.name},`,
+    "",
+    "Congratulations! We are pleased to inform you that your membership application to YPF Africa has been accepted.",
+    "",
+    `Tracking Number: ${params.trackingNumber}`,
+    "",
+    "We will be in touch shortly with next steps regarding your onboarding and induction.",
     "",
     "Best regards,",
     "The YPF Africa Team",
