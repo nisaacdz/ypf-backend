@@ -8,12 +8,14 @@ import {
   YPFMembershipApplication,
   YPFMembershipApplicationDetail,
 } from "@/features/api/v1/applications/dtos";
-import { ApplicationStatus, NationalIdType } from "@/shared/utils";
+import { MembershipApplicationStatus, NationalIdType } from "@/shared/utils";
 import {
   generateSignedDocumentUrl,
   generateSignedMediaUrl,
 } from "@/shared/utils/files";
 import { sendApplicationAcknowledgementEmail } from "@/shared/utils/email";
+import { GetMembershipApplicationsQuerySchema } from "@/features/api/v1/applications/schemas";
+import z from "zod";
 
 type CreateMembershipApplication = {
   constituent: {
@@ -34,7 +36,7 @@ type CreateMembershipApplication = {
 };
 
 export async function createMembershipApplication(
-  data: CreateMembershipApplication,
+  data: CreateMembershipApplication
 ) {
   const { constituent: constituentData, ...remApplicationData } = data;
   const result = await dbClient.db.transaction(async (tx) => {
@@ -69,12 +71,9 @@ export async function createMembershipApplication(
   return result;
 }
 
-export async function getMembershipApplications(query: {
-  page: number;
-  pageSize: number;
-  status?: string;
-  search?: string;
-}): Promise<Paginated<YPFMembershipApplication>> {
+export async function getMembershipApplications(
+  query: z.infer<typeof GetMembershipApplicationsQuerySchema>
+): Promise<Paginated<YPFMembershipApplication>> {
   const { page, pageSize, status, search } = query;
   const offset = (page - 1) * pageSize;
 
@@ -108,22 +107,22 @@ export async function getMembershipApplications(query: {
     .from(schema.MembershipApplications)
     .innerJoin(
       schema.Constituents,
-      eq(schema.MembershipApplications.constituentId, schema.Constituents.id),
+      eq(schema.MembershipApplications.constituentId, schema.Constituents.id)
     )
     .leftJoin(
       schema.Media,
-      eq(schema.Constituents.profilePhotoId, schema.Media.id),
+      eq(schema.Constituents.profilePhotoId, schema.Media.id)
     )
     .leftJoin(
       schema.Chapters,
-      eq(schema.MembershipApplications.preferredChapterId, schema.Chapters.id),
+      eq(schema.MembershipApplications.preferredChapterId, schema.Chapters.id)
     )
     .leftJoin(
       schema.Committees,
       eq(
         schema.MembershipApplications.preferredCommitteeId,
-        schema.Committees.id,
-      ),
+        schema.Committees.id
+      )
     );
 
   if (search) {
@@ -131,8 +130,8 @@ export async function getMembershipApplications(query: {
       or(
         ilike(schema.Constituents.email, `%${search}%`),
         ilike(schema.Constituents.firstName, `%${search}%`),
-        ilike(schema.Constituents.lastName, `%${search}%`),
-      ),
+        ilike(schema.Constituents.lastName, `%${search}%`)
+      )
     );
   }
 
@@ -181,7 +180,7 @@ export async function getMembershipApplications(query: {
 }
 
 export async function getMembershipApplicationById(
-  id: string,
+  id: string
 ): Promise<YPFMembershipApplicationDetail | null> {
   const [application] = await dbClient.db
     .select({
@@ -232,26 +231,26 @@ export async function getMembershipApplicationById(
     .from(schema.MembershipApplications)
     .innerJoin(
       schema.Constituents,
-      eq(schema.MembershipApplications.constituentId, schema.Constituents.id),
+      eq(schema.MembershipApplications.constituentId, schema.Constituents.id)
     )
     .leftJoin(
       schema.Chapters,
-      eq(schema.MembershipApplications.preferredChapterId, schema.Chapters.id),
+      eq(schema.MembershipApplications.preferredChapterId, schema.Chapters.id)
     )
     .leftJoin(
       schema.Committees,
       eq(
         schema.MembershipApplications.preferredCommitteeId,
-        schema.Committees.id,
-      ),
+        schema.Committees.id
+      )
     )
     .leftJoin(
       schema.Documents,
-      eq(schema.MembershipApplications.cvDocumentId, schema.Documents.id),
+      eq(schema.MembershipApplications.cvDocumentId, schema.Documents.id)
     )
     .leftJoin(
       schema.Media,
-      eq(schema.Constituents.profilePhotoId, schema.Media.id),
+      eq(schema.Constituents.profilePhotoId, schema.Media.id)
     )
     .where(eq(schema.MembershipApplications.id, id))
     .limit(1);
@@ -269,7 +268,7 @@ export async function getMembershipApplicationById(
       })
       .from(schema.Documents)
       .where(
-        eq(schema.Documents.id, application.constituent.nationalIdDocumentId),
+        eq(schema.Documents.id, application.constituent.nationalIdDocumentId)
       )
       .limit(1);
     nationalIdDocument = doc;
@@ -346,8 +345,8 @@ export async function getMembershipApplicationById(
 
 export async function updateMembershipApplicationStatus(
   id: string,
-  newStatus: ApplicationStatus,
-  adminId: string,
+  newStatus: MembershipApplicationStatus,
+  adminId: string
 ) {
   const [updated] = await dbClient.db
     .update(schema.MembershipApplications)

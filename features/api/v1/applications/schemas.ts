@@ -119,7 +119,7 @@ export const PostMembershipApplicationBody = FlatApplicationInput.transform(
       },
       ...rest,
     };
-  },
+  }
 );
 
 export const UpdateMembershipApplicationStatusSchema = z
@@ -130,13 +130,13 @@ export const UpdateMembershipApplicationStatusSchema = z
     z.object({
       status: "REJECTED" as const,
       declinedReason: z.string().optional(),
-    }),
+    })
   );
 
 export const GetMembershipApplicationsQuerySchema = z.object({
   page: z.coerce.number().default(1),
   pageSize: z.coerce.number().default(10),
-  status: z.string().optional(),
+  status: z.enum(MembershipApplicationStatusEnum.enumValues).optional(),
   search: z.string().optional(),
 });
 
