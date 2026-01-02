@@ -12,8 +12,9 @@ CREATE TYPE "core"."admin_roles" AS ENUM('SUPER_ADMIN', 'REGULAR_ADMIN');--> sta
 CREATE TYPE "core"."document_type" AS ENUM('PDF', 'DOC', 'SPREADSHEET', 'PRESENTATION', 'IMAGE', 'OTHER');--> statement-breakpoint
 CREATE TYPE "core"."gender" AS ENUM('MALE', 'FEMALE', 'OTHER');--> statement-breakpoint
 CREATE TYPE "core"."media_type" AS ENUM('PICTURE', 'VIDEO');--> statement-breakpoint
-CREATE TYPE "core"."application_status" AS ENUM('DRAFT', 'PENDING', 'REJECTED', 'ACCEPTED');--> statement-breakpoint
+CREATE TYPE "core"."application_status" AS ENUM('DRAFT', 'PENDING', 'REJECTED', 'REJECTED', 'ACCEPTED');--> statement-breakpoint
 CREATE TYPE "core"."national_id_type" AS ENUM('ECOWASIDCARD');--> statement-breakpoint
+CREATE TYPE "core"."volunteer_application_status" AS ENUM('PENDING', 'ACCEPTED', 'DECLINED');--> statement-breakpoint
 CREATE TYPE "activities"."attendance_status" AS ENUM('INVITED', 'ACCEPTED', 'DECLINED', 'ATTENDED');--> statement-breakpoint
 CREATE TYPE "activities"."event_status" AS ENUM('UPCOMING', 'ONGOING', 'COMPLETED', 'CANCELLED');--> statement-breakpoint
 CREATE TYPE "activities"."event_type" AS ENUM('MENTORSHIP', 'WORKSHOP', 'CHILDCARE', 'NETWORKING', 'STREETCARE');--> statement-breakpoint
@@ -239,8 +240,10 @@ CREATE TABLE "core"."membership_applications" (
 	"preferred_committee_id" uuid,
 	"cv_document_id" uuid,
 	"referral_source" text,
+	"tracking_number" text DEFAULT generate_public_id('', 12) NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "membership_applications_tracking_number_unique" UNIQUE("tracking_number")
 );
 --> statement-breakpoint
 CREATE TABLE "core"."organization_contacts" (
@@ -260,6 +263,18 @@ CREATE TABLE "core"."organizations" (
 	"logo_url" text,
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "core"."volunteer_applications" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"constituent_id" uuid NOT NULL,
+	"status" "core"."volunteer_application_status" DEFAULT 'PENDING' NOT NULL,
+	"reason" text,
+	"notes" text,
+	"tracking_number" text DEFAULT generate_public_id('', 12) NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "volunteer_applications_tracking_number_unique" UNIQUE("tracking_number")
 );
 --> statement-breakpoint
 CREATE TABLE "core"."volunteers" (
@@ -493,6 +508,7 @@ ALTER TABLE "core"."membership_applications" ADD CONSTRAINT "membership_applicat
 ALTER TABLE "core"."membership_applications" ADD CONSTRAINT "membership_applications_cv_document_id_documents_id_fk" FOREIGN KEY ("cv_document_id") REFERENCES "core"."documents"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."organization_contacts" ADD CONSTRAINT "organization_contacts_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "core"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."organization_contacts" ADD CONSTRAINT "organization_contacts_constituent_id_constituents_id_fk" FOREIGN KEY ("constituent_id") REFERENCES "core"."constituents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "core"."volunteer_applications" ADD CONSTRAINT "volunteer_applications_constituent_id_constituents_id_fk" FOREIGN KEY ("constituent_id") REFERENCES "core"."constituents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."volunteers" ADD CONSTRAINT "volunteers_constituent_id_constituents_id_fk" FOREIGN KEY ("constituent_id") REFERENCES "core"."constituents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activities"."announcements" ADD CONSTRAINT "announcements_author_id_constituents_id_fk" FOREIGN KEY ("author_id") REFERENCES "core"."constituents"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activities"."constituent_announcements" ADD CONSTRAINT "constituent_announcements_announcement_id_announcements_id_fk" FOREIGN KEY ("announcement_id") REFERENCES "activities"."announcements"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

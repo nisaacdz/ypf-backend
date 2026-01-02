@@ -13,8 +13,10 @@ import { Visitors } from "@/configs/authorizer";
 import z from "zod";
 import {
   PostMembershipApplicationBody,
+  PostVolunteerApplicationBody,
   UpdateMembershipApplicationStatusSchema,
   GetMembershipApplicationsQuerySchema,
+  GetVolunteerApplicationsQuerySchema,
   UploadRegistrationFileSchema,
 } from "./schemas";
 
@@ -377,6 +379,279 @@ applicationsRouter.post(
         data: req.Body,
         files: req.Files,
       });
+      res.status(201).json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/v1/applications/volunteer:
+ *   get:
+ *     summary: Get list of volunteer applications
+ *     tags: [Volunteer Applications]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 10
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *         description: Filter by application status
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search by name or email
+ *     responses:
+ *       200:
+ *         description: Volunteer applications list retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     items:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             format: uuid
+ *                           trackingNumber:
+ *                             type: string
+ *                           status:
+ *                             type: string
+ *                           createdAt:
+ *                             type: string
+ *                             format: date-time
+ *                           applicant:
+ *                             type: object
+ *                             properties:
+ *                               id:
+ *                                 type: string
+ *                                 format: uuid
+ *                               fullName:
+ *                                 type: string
+ *                               email:
+ *                                 type: string
+ *                     page:
+ *                       type: integer
+ *                     pageSize:
+ *                       type: integer
+ *                     total:
+ *                       type: integer
+ *       401:
+ *         description: Unauthorized - authentication required
+ *       403:
+ *         description: Forbidden - insufficient permissions
+ */
+applicationsRouter.get(
+  "/volunteer",
+  authenticate,
+  authorize(Visitors.hasProfile("ADMIN")),
+  validateQuery(GetVolunteerApplicationsQuerySchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await applicationsHandler.getVolunteerApplications(
+        req.Query
+      );
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/v1/applications/volunteer/{id}:
+ *   get:
+ *     summary: Get volunteer application details
+ *     tags: [Volunteer Applications]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Application ID
+ *     responses:
+ *       200:
+ *         description: Volunteer application details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       format: uuid
+ *                     trackingNumber:
+ *                       type: string
+ *                     status:
+ *                       type: string
+ *                     reason:
+ *                       type: string
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
+ *                     applicant:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                           format: uuid
+ *                         firstName:
+ *                           type: string
+ *                         lastName:
+ *                           type: string
+ *                         email:
+ *                           type: string
+ *                         phone:
+ *                           type: string
+ *                         occupation:
+ *                           type: string
+ *                         country:
+ *                           type: string
+ *                         region:
+ *                           type: string
+ *                         city:
+ *                           type: string
+ *                         skills:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Application not found
+ */
+applicationsRouter.get(
+  "/volunteer/:id",
+  validateParams(z.object({ id: z.uuid("Invalid Request") })),
+  authenticate,
+  authorize(Visitors.hasProfile("ADMIN")),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await applicationsHandler.getVolunteerApplicationById(
+        req.Params.id
+      );
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/v1/applications/volunteer:
+ *   post:
+ *     summary: Submit a new volunteer application
+ *     tags: [Volunteer Applications]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - firstName
+ *               - lastName
+ *               - email
+ *               - phone
+ *               - reason
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *               lastName:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               phone:
+ *                 type: string
+ *               whatsapp:
+ *                 type: string
+ *               occupation:
+ *                 type: string
+ *               country:
+ *                 type: string
+ *               region:
+ *                 type: string
+ *               city:
+ *                 type: string
+ *               skills:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               reason:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Application submitted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       format: uuid
+ *                     trackingNumber:
+ *                       type: string
+ *                   description: ID and Tracking Number of the created application
+ *       400:
+ *         description: Invalid request data
+ */
+applicationsRouter.post(
+  "/volunteer",
+  validateBody(PostVolunteerApplicationBody),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await applicationsHandler.createVolunteerApplication(
+        req.Body
+      );
       res.status(201).json(response);
     } catch (error) {
       next(error);

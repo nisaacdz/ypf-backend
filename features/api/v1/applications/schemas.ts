@@ -1,5 +1,6 @@
 import {
   MembershipApplicationStatusEnum,
+  VolunteerApplicationStatusEnum,
   GenderEnum,
   NationalIdTypeEnum,
 } from "@/db/schema/core";
@@ -138,6 +139,69 @@ export const GetMembershipApplicationsQuerySchema = z.object({
   pageSize: z.coerce.number().default(10),
   status: z.enum(MembershipApplicationStatusEnum.enumValues).optional(),
   search: z.string().optional(),
+});
+
+// Volunteer Application Schemas
+
+const FlatVolunteerApplicationInput = z.object({
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  email: z.email(),
+  phone: z.string().min(1),
+  whatsapp: z.string().optional(),
+  country: z.string().optional(),
+  region: z.string().optional(),
+  city: z.string().optional(),
+  occupation: z.string().optional(),
+  skills: z.array(z.string()).optional(),
+  reason: z
+    .string()
+    .min(10, "Please provide a reason for volunteering (min 10 chars)."),
+});
+
+export const PostVolunteerApplicationBody =
+  FlatVolunteerApplicationInput.transform((data) => {
+    const {
+      firstName,
+      lastName,
+      email,
+      phone,
+      whatsapp,
+      country,
+      region,
+      city,
+      occupation,
+      skills,
+      ...rest
+    } = data;
+
+    return {
+      applicantData: {
+        firstName,
+        lastName,
+        email,
+        phone,
+        whatsapp,
+        country,
+        region,
+        city,
+        occupation,
+        skills,
+      },
+      ...rest,
+    };
+  });
+
+export const GetVolunteerApplicationsQuerySchema = z.object({
+  page: z.coerce.number().default(1),
+  pageSize: z.coerce.number().default(10),
+  status: z.enum(VolunteerApplicationStatusEnum.enumValues).optional(),
+  search: z.string().optional(),
+});
+
+export const UpdateVolunteerApplicationStatusSchema = z.object({
+  status: z.enum(VolunteerApplicationStatusEnum.enumValues),
+  notes: z.string().optional(),
 });
 
 export const UploadRegistrationFileSchema = z.object({

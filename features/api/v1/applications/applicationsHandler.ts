@@ -1,7 +1,9 @@
 import { ApiResponse, ApiError } from "@/shared/types";
 import {
   PostMembershipApplicationBody,
+  PostVolunteerApplicationBody,
   GetMembershipApplicationsQuerySchema,
+  GetVolunteerApplicationsQuerySchema,
 } from "./schemas";
 import z from "zod";
 import * as applicationsService from "@/shared/services/applicationsService";
@@ -10,6 +12,8 @@ import { Paginated } from "@/shared/dtos";
 import {
   YPFMembershipApplication,
   YPFMembershipApplicationDetail,
+  YPFVolunteerApplication,
+  YPFVolunteerApplicationDetail,
 } from "./dtos";
 import * as documentsService from "@/shared/services/documentsService";
 import * as mediaService from "@/shared/services/mediaService";
@@ -18,7 +22,7 @@ import schema from "@/db/schema";
 import { eq, or } from "drizzle-orm";
 
 export async function getMembershipApplications(
-  query: z.infer<typeof GetMembershipApplicationsQuerySchema>,
+  query: z.infer<typeof GetMembershipApplicationsQuerySchema>
 ): Promise<ApiResponse<Paginated<YPFMembershipApplication>>> {
   const result = await applicationsService.getMembershipApplications(query);
 
@@ -35,7 +39,7 @@ export async function getMembershipApplications(
 }
 
 export async function getMembershipApplicationById(
-  applicationId: string,
+  applicationId: string
 ): Promise<ApiResponse<YPFMembershipApplicationDetail>> {
   const application =
     await applicationsService.getMembershipApplicationById(applicationId);
@@ -68,7 +72,7 @@ export async function createMembershipApplication({
       eq(schema.Constituents.phone, data.applicantData.phone),
       data.applicantData.whatsapp
         ? eq(schema.Constituents.whatsapp, data.applicantData.whatsapp)
-        : undefined,
+        : undefined
     ),
     columns: { id: true, email: true, phone: true, whatsapp: true },
   });
@@ -113,5 +117,70 @@ export async function createMembershipApplication({
     success: true,
     message: "Application submitted successfully",
     data: application.id,
+  };
+}
+
+export async function getVolunteerApplications(
+  query: z.infer<typeof GetVolunteerApplicationsQuerySchema>
+): Promise<ApiResponse<Paginated<YPFVolunteerApplication>>> {
+  const result = await applicationsService.getVolunteerApplications(query);
+
+  return {
+    success: true,
+    message: "Volunteer applications fetched successfully",
+    data: {
+      items: result.items,
+      page: result.page,
+      pageSize: result.pageSize,
+      total: result.total,
+    },
+  };
+}
+
+export async function getVolunteerApplicationById(
+  applicationId: string
+): Promise<ApiResponse<YPFVolunteerApplicationDetail>> {
+  const application =
+    await applicationsService.getVolunteerApplicationById(applicationId);
+
+  if (!application) {
+    throw new ApiError("Application not found", 404);
+  }
+
+  return {
+    success: true,
+    message: "Volunteer application fetched successfully",
+    data: application,
+  };
+}
+
+export async function createVolunteerApplication(
+  data: z.infer<typeof PostVolunteerApplicationBody>
+): Promise<ApiResponse<{ id: string; trackingNumber: string }>> {
+  const existingUser = await dbClient.db.query.Constituents.findFirst({
+    where: or(
+      eq(schema.Constituents.email, data.applicantData.email),
+      eq(schema.Constituents.phone, data.applicantData.phone),
+      data.applicantData.whatsapp
+        ? eq(schema.Constituents.whatsapp, data.applicantData.whatsapp)
+        : undefined
+    ),
+    columns: { id: true, email: true, phone: true, whatsapp: true },
+  });
+
+  const application = await applicationsService.createVolunteerApplication({
+    ...data,
+    constituent: {
+      ...data.applicantData,
+    },
+  });
+
+  return {
+    success: true,
+    message: "Volunteer application submitted successfully",
+    data: {
+      id: application.id,
+      trackingNumber: application.trackingNumber,
+    },
   };
 }

@@ -1,4 +1,7 @@
-import { MembershipApplicationStatus } from "@/shared/utils";
+import {
+  MembershipApplicationStatus,
+  YPFVolunteerApplicationStatus,
+} from "@/shared/utils";
 
 export type YPFMembershipApplication = {
   id: string;
@@ -65,5 +68,43 @@ export type YPFMembershipApplicationDetail = {
   nationalIdDocument?: {
     id: string;
     url: string;
+  };
+};
+
+export type YPFVolunteerApplication = {
+  id: string;
+  trackingNumber: string;
+  status: YPFVolunteerApplicationStatus;
+  createdAt: Date;
+  applicant: {
+    id: string;
+    fullName: string;
+    email?: string;
+    phone?: string;
+    occupation?: string;
+    skills?: string[];
+  };
+};
+
+export type YPFVolunteerApplicationDetail = {
+  id: string;
+  trackingNumber: string;
+  status: YPFVolunteerApplicationStatus;
+  reason?: string;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  applicant: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email?: string;
+    phone?: string;
+    whatsapp?: string;
+    occupation?: string;
+    country?: string;
+    region?: string;
+    city?: string;
+    skills?: string[];
   };
 };

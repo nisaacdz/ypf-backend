@@ -31,8 +31,14 @@ export const MembershipApplicationStatusEnum = core.enum("application_status", [
   "DRAFT",
   "PENDING",
   "REJECTED",
+  "REJECTED",
   "ACCEPTED",
 ]);
+
+export const VolunteerApplicationStatusEnum = core.enum(
+  "volunteer_application_status",
+  ["PENDING", "ACCEPTED", "DECLINED"]
+);
 
 // === TABLES ===
 
@@ -142,6 +148,28 @@ export const MembershipApplications = core.table("membership_applications", {
 
   referralSource: text("referral_source"),
   // referralOther: text("referral_other"),
+
+  trackingNumber: text("tracking_number")
+    .default(sql`generate_public_id('', 12)`)
+    .notNull()
+    .unique(),
+
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const VolunteerApplications = core.table("volunteer_applications", {
+  id: uuid().defaultRandom().primaryKey(),
+  constituentId: uuid("constituent_id")
+    .notNull()
+    .references(() => Constituents.id, { onDelete: "cascade" }),
+  status: VolunteerApplicationStatusEnum().notNull().default("PENDING"),
+  reason: text("reason"), // Motivation/Reason for applying
+  notes: text(), // Internal admin notes
 
   trackingNumber: text("tracking_number")
     .default(sql`generate_public_id('', 12)`)
