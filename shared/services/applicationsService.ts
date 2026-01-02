@@ -7,6 +7,8 @@ import { Paginated } from "@/shared/dtos";
 import {
   YPFMembershipApplication,
   YPFMembershipApplicationDetail,
+  YPFVolunteerApplication,
+  YPFVolunteerApplicationDetail,
 } from "@/features/api/v1/applications/dtos";
 import { MembershipApplicationStatus, NationalIdType } from "@/shared/utils";
 import {
@@ -17,8 +19,27 @@ import {
   sendMembershipApplicationAcknowledgementEmail,
   sendMembershipApplicationAcceptanceEmail,
 } from "@/shared/utils/email";
-import { GetMembershipApplicationsQuerySchema } from "@/features/api/v1/applications/schemas";
+import {
+  GetMembershipApplicationsQuerySchema,
+  GetVolunteerApplicationsQuerySchema,
+} from "@/features/api/v1/applications/schemas";
 import z from "zod";
+
+type CreateVolunteerApplication = {
+  constituent: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    whatsapp?: string;
+    country?: string;
+    region?: string;
+    city?: string;
+    occupation?: string;
+    skills?: string[];
+  };
+  reason: string;
+};
 
 type CreateMembershipApplication = {
   constituent: {
@@ -406,4 +427,191 @@ export async function getMembershipApplicationStats() {
     .groupBy(schema.MembershipApplications.status);
 
   return stats;
+}
+
+// Volunteer Application Service Methods
+
+export async function createVolunteerApplication(
+  data: CreateVolunteerApplication
+) {
+  const { constituent: constituentData, ...remApplicationData } = data;
+  const result = await dbClient.db.transaction(async (tx) => {
+    // Check if constituent exists
+    let constituentId: string;
+    const [existingConstituent] = await tx
+      .select({ id: schema.Constituents.id })
+      .from(schema.Constituents)
+      .where(eq(schema.Constituents.email, constituentData.email))
+      .limit(1);
+
+    if (existingConstituent) {
+      constituentId = existingConstituent.id;
+      // Optionally update constituent fields if needed, but for now we assume they might just be applying
+      // We could update them here if we wanted to be more aggressive
+    } else {
+      const [newConstituent] = await tx
+        .insert(schema.Constituents)
+        .values({
+          ...constituentData,
+          // Generate publicId automatically by DB default
+        })
+        .returning({
+          id: schema.Constituents.id,
+        });
+      constituentId = newConstituent.id;
+    }
+
+    const applicationData = {
+      ...remApplicationData,
+      constituentId,
+    };
+
+    const [newApplication] = await tx
+      .insert(schema.VolunteerApplications)
+      .values(applicationData)
+      .returning({
+        id: schema.VolunteerApplications.id,
+        trackingNumber: schema.VolunteerApplications.trackingNumber,
+      });
+
+    return newApplication;
+  });
+
+  return result;
+}
+
+export async function getVolunteerApplications(
+  query: z.infer<typeof GetVolunteerApplicationsQuerySchema>
+): Promise<Paginated<YPFVolunteerApplication>> {
+  const { page, pageSize, status, search } = query;
+  const offset = (page - 1) * pageSize;
+
+  const conditions = [];
+  if (status) conditions.push(eq(schema.VolunteerApplications.status, status));
+
+  const baseQuery = dbClient.db
+    .select({
+      id: schema.VolunteerApplications.id,
+      trackingNumber: schema.VolunteerApplications.trackingNumber,
+      status: schema.VolunteerApplications.status,
+      createdAt: schema.VolunteerApplications.createdAt,
+      constituent: {
+        id: schema.Constituents.id,
+        firstName: schema.Constituents.firstName,
+        lastName: schema.Constituents.lastName,
+        email: schema.Constituents.email,
+        phone: schema.Constituents.phone,
+        occupation: schema.Constituents.occupation,
+        skills: schema.Constituents.skills,
+      },
+    })
+    .from(schema.VolunteerApplications)
+    .innerJoin(
+      schema.Constituents,
+      eq(schema.VolunteerApplications.constituentId, schema.Constituents.id)
+    );
+
+  if (search) {
+    conditions.push(
+      or(
+        ilike(schema.Constituents.email, `%${search}%`),
+        ilike(schema.Constituents.firstName, `%${search}%`),
+        ilike(schema.Constituents.lastName, `%${search}%`)
+      )
+    );
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [items, totalResult] = await Promise.all([
+    baseQuery
+      .where(whereClause)
+      .limit(pageSize)
+      .offset(offset)
+      .orderBy(desc(schema.VolunteerApplications.createdAt)),
+    dbClient.db
+      .select({ count: count() })
+      .from(schema.VolunteerApplications)
+      .where(whereClause),
+  ]);
+
+  return {
+    items: items.map((it) => ({
+      id: it.id,
+      trackingNumber: it.trackingNumber,
+      status: it.status,
+      createdAt: it.createdAt,
+      applicant: {
+        id: it.constituent.id,
+        fullName: `${it.constituent.firstName} ${it.constituent.lastName}`,
+        email: it.constituent.email ?? undefined,
+        phone: it.constituent.phone ?? undefined,
+        occupation: it.constituent.occupation ?? undefined,
+        skills: it.constituent.skills ?? undefined,
+      },
+    })),
+    total: Number(totalResult[0]?.count || 0),
+    page,
+    pageSize,
+  };
+}
+
+export async function getVolunteerApplicationById(
+  id: string
+): Promise<YPFVolunteerApplicationDetail | null> {
+  const [application] = await dbClient.db
+    .select({
+      id: schema.VolunteerApplications.id,
+      trackingNumber: schema.VolunteerApplications.trackingNumber,
+      status: schema.VolunteerApplications.status,
+      reason: schema.VolunteerApplications.reason,
+      notes: schema.VolunteerApplications.notes,
+      createdAt: schema.VolunteerApplications.createdAt,
+      updatedAt: schema.VolunteerApplications.updatedAt,
+      constituent: {
+        id: schema.Constituents.id,
+        firstName: schema.Constituents.firstName,
+        lastName: schema.Constituents.lastName,
+        email: schema.Constituents.email,
+        phone: schema.Constituents.phone,
+        whatsapp: schema.Constituents.whatsapp,
+        occupation: schema.Constituents.occupation,
+        country: schema.Constituents.country,
+        region: schema.Constituents.region,
+        city: schema.Constituents.city,
+        skills: schema.Constituents.skills,
+      },
+    })
+    .from(schema.VolunteerApplications)
+    .innerJoin(
+      schema.Constituents,
+      eq(schema.VolunteerApplications.constituentId, schema.Constituents.id)
+    )
+    .where(eq(schema.VolunteerApplications.id, id))
+    .limit(1);
+
+  if (!application) return null;
+
+  return {
+    id: application.id,
+    trackingNumber: application.trackingNumber,
+    status: application.status,
+    reason: application.reason ?? undefined,
+    notes: application.notes ?? undefined,
+    createdAt: application.createdAt,
+    updatedAt: application.updatedAt,
+    applicant: {
+      id: application.constituent.id,
+      firstName: application.constituent.firstName,
+      lastName: application.constituent.lastName,
+      email: application.constituent.email ?? undefined,
+      phone: application.constituent.phone ?? undefined,
+      whatsapp: application.constituent.whatsapp ?? undefined,
+      occupation: application.constituent.occupation ?? undefined,
+      country: application.constituent.country ?? undefined,
+      region: application.constituent.region ?? undefined,
+      city: application.constituent.city ?? undefined,
+      skills: application.constituent.skills ?? undefined,
+    },
+  };
 }
