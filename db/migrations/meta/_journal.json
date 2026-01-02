@@ -8,6 +8,13 @@
       "when": 1767362907615,
       "tag": "0000_lethal_nekra",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1767372249956,
+      "tag": "0001_third_magdalene",
+      "breakpoints": true
     }
   ]
 }
