@@ -29,6 +29,61 @@ const eventsRouter = Router();
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     Event:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         name:
+ *           type: string
+ *         location:
+ *           type: string
+ *         scheduledStart:
+ *           type: string
+ *           format: date-time
+ *         scheduledEnd:
+ *           type: string
+ *           format: date-time
+ *         objective:
+ *           type: string
+ *         status:
+ *           type: string
+ *           enum: [UPCOMING, ONGOING, COMPLETED, CANCELLED]
+ *         projectId:
+ *           type: string
+ *           format: uuid
+ *         featuredMedia:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *               caption:
+ *                 type: string
+ *               medium:
+ *                 $ref: '#/components/schemas/Medium'
+ *     Medium:
+ *       type: object
+ *       properties:
+ *         url:
+ *           type: string
+ *         type:
+ *           type: string
+ *         dimensions:
+ *           type: object
+ *           properties:
+ *             width:
+ *               type: number
+ *             height:
+ *               type: number
+ *         size:
+ *           type: number
+ *         uploadedAt:
+ *           type: string
+ *           format: date-time
+ *
  * /api/v1/events:
  *   get:
  *     summary: Get list of events
@@ -68,13 +123,13 @@ const eventsRouter = Router();
  *                     items:
  *                       type: array
  *                       items:
- *                         type: object
- *                     page:
- *                       type: integer
- *                     pageSize:
- *                       type: integer
- *                     total:
- *                       type: integer
+ *                         $ref: '#/components/schemas/Event'
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         page: { type: integer }
+ *                         pageSize: { type: integer }
+ *                         total: { type: integer }
  *       400:
  *         description: Invalid query parameters
  *         content:
@@ -94,7 +149,7 @@ eventsRouter.get(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -157,7 +212,7 @@ eventsRouter.post(
   "/",
   authenticate,
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT))
   ),
   validateBody(CreateEventSchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -167,7 +222,7 @@ eventsRouter.post(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -224,7 +279,7 @@ eventsRouter.post(
   validateParams(z.object({ id: z.uuid("Invalid Request") })),
   authenticate,
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT))
   ),
   filesUpload.mediaUpload.single("file"),
   validateFile(UploadEventFileSchema),
@@ -241,7 +296,7 @@ eventsRouter.post(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -293,8 +348,15 @@ eventsRouter.post(
  *                       type: array
  *                       items:
  *                         type: object
+ *                         properties:
+ *                           caption: { type: string }
+ *                           medium: { $ref: '#/components/schemas/Medium' }
  *                     pagination:
  *                       type: object
+ *                       properties:
+ *                         page: { type: integer }
+ *                         pageSize: { type: integer }
+ *                         total: { type: integer }
  *       400:
  *         description: Invalid request parameters
  *         content:
@@ -312,13 +374,13 @@ eventsRouter.get(
     try {
       const response = await eventsHandler.getEventMedia(
         req.Params.id,
-        req.Query,
+        req.Query
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -346,38 +408,7 @@ eventsRouter.get(
  *                 success:
  *                   type: boolean
  *                 data:
- *                   type: object
- *                   properties:
- *                     id:
- *                       type: string
- *                       format: uuid
- *                     name:
- *                       type: string
- *                     scheduledStart:
- *                       type: string
- *                       format: date-time
- *                     scheduledEnd:
- *                       type: string
- *                       format: date-time
- *                     location:
- *                       type: string
- *                     objective:
- *                       type: string
- *                     status:
- *                       type: string
- *                       enum: [UPCOMING, ONGOING, COMPLETED, CANCELLED]
- *                     project:
- *                       type: object
- *                       properties:
- *                         id:
- *                           type: string
- *                           format: uuid
- *                         title:
- *                           type: string
- *                     featuredMedia:
- *                       type: array
- *                       items:
- *                         type: object
+ *                   $ref: '#/components/schemas/Event'
  *       404:
  *         description: Event not found
  *         content:
@@ -397,7 +428,7 @@ eventsRouter.get(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -461,7 +492,7 @@ eventsRouter.put(
   validateParams(z.object({ id: z.uuid("Invalid Request") })),
   authenticate,
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT))
   ),
   validateBody(UpdateEventSchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -471,7 +502,7 @@ eventsRouter.put(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -523,20 +554,20 @@ eventsRouter.patch(
   validateParams(z.object({ id: z.uuid() })),
   authenticate,
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT))
   ),
   validateBody(UpdateEventMediumSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await eventsHandler.updateEventMedium(
         req.Params.id,
-        req.Body,
+        req.Body
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 export default eventsRouter;

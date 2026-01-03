@@ -19,6 +19,121 @@ const constituentsRouter = Router();
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     Constituent:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         profilePhotoUrl:
+ *           type: string
+ *         fullName:
+ *           type: string
+ *         isActive:
+ *           type: boolean
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         profiles:
+ *           type: array
+ *           items:
+ *             type: string
+ *         roles:
+ *           type: array
+ *           items:
+ *             type: string
+ *     ConstituentDetail:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         firstName:
+ *           type: string
+ *         lastName:
+ *           type: string
+ *         preferredName:
+ *           type: string
+ *         profilePhoto:
+ *           $ref: '#/components/schemas/Medium'
+ *         profiles:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               startedAt:
+ *                 type: string
+ *                 format: date-time
+ *               endedAt:
+ *                 type: string
+ *                 format: date-time
+ *         roles:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *               profile:
+ *                 type: string
+ *               title:
+ *                 type: string
+ *               startedAt:
+ *                 type: string
+ *                 format: date-time
+ *               endedAt:
+ *                 type: string
+ *                 format: date-time
+ *         committees:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: string
+ *                 format: uuid
+ *               name:
+ *                 type: string
+ *               featuredPhotoUrl:
+ *                 type: string
+ *               chapterName:
+ *                 type: string
+ *         chapters:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: string
+ *                 format: uuid
+ *               name:
+ *                 type: string
+ *               country:
+ *                 type: string
+ *               featuredPhotoUrl:
+ *                 type: string
+ *     Medium:
+ *       type: object
+ *       properties:
+ *         url:
+ *           type: string
+ *         type:
+ *           type: string
+ *         dimensions:
+ *           type: object
+ *           properties:
+ *             width:
+ *               type: number
+ *             height:
+ *               type: number
+ *         size:
+ *           type: number
+ *         uploadedAt:
+ *           type: string
+ *           format: date-time
+ *
  * /api/v1/constituents:
  *   get:
  *     summary: Get list of constituents
@@ -47,6 +162,29 @@ const constituentsRouter = Router();
  *     responses:
  *       200:
  *         description: Success
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     items:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Constituent'
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         page:
+ *                           type: integer
+ *                         pageSize:
+ *                           type: integer
+ *                         total:
+ *                           type: integer
  *       403:
  *         description: Forbidden
  */
@@ -54,7 +192,7 @@ constituentsRouter.get(
   "/",
   authenticate,
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER)),
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER))
   ),
   validateQuery(GetConstituentsQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -64,7 +202,7 @@ constituentsRouter.get(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -133,13 +271,13 @@ constituentsRouter.post(
       const dashboardUrl = `${variables.app.dashboardUrl}/auth/onboarding`;
       const response = await constituentsHandler.onboardConstituent(
         req.Body,
-        dashboardUrl,
+        dashboardUrl
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -168,13 +306,13 @@ constituentsRouter.get(
   "/:constituentId",
   authenticate,
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER)),
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER))
   ),
   validateParams(z.object({ constituentId: z.uuid("Invalid constituent ID") })),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await constituentsHandler.getConstituent(
-        req.Params.constituentId,
+        req.Params.constituentId
       );
       if (!response.data) {
         res
@@ -186,7 +324,7 @@ constituentsRouter.get(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 export default constituentsRouter;

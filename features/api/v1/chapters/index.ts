@@ -26,6 +26,79 @@ const chaptersRouter = Router();
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     Chapter:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         name:
+ *           type: string
+ *         country:
+ *           type: string
+ *         featuredPhotoUrl:
+ *           type: string
+ *         memberCount:
+ *           type: integer
+ *         foundingDate:
+ *           type: string
+ *           format: date-time
+ *     ChapterDetail:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         name:
+ *           type: string
+ *         country:
+ *           type: string
+ *         description:
+ *           type: string
+ *         foundingDate:
+ *           type: string
+ *           format: date-time
+ *         featuredMedia:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *               caption:
+ *                 type: string
+ *               medium:
+ *                 $ref: '#/components/schemas/Medium'
+ *         isActive:
+ *           type: boolean
+ *         parentChapter:
+ *           type: object
+ *           properties:
+ *             id:
+ *               type: string
+ *               format: uuid
+ *             name:
+ *               type: string
+ *     Medium:
+ *       type: object
+ *       properties:
+ *         url:
+ *           type: string
+ *         type:
+ *           type: string
+ *         dimensions:
+ *           type: object
+ *           properties:
+ *             width:
+ *               type: number
+ *             height:
+ *               type: number
+ *         size:
+ *           type: number
+ *         uploadedAt:
+ *           type: string
+ *           format: date-time
+ *
  * /api/v1/chapters:
  *   get:
  *     summary: Get list of chapters
@@ -67,9 +140,19 @@ const chaptersRouter = Router();
  *                     items:
  *                       type: array
  *                       items:
- *                         type: object
+ *                         $ref: '#/components/schemas/Chapter'
  *                     pagination:
  *                       type: object
+ *                       properties:
+ *                         page: { type: integer }
+ *                         pageSize: { type: integer }
+ *                         total: { type: integer }
+ *       400:
+ *         description: Invalid query parameters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  *       400:
  *         description: Invalid query parameters
  *         content:
@@ -92,7 +175,7 @@ chaptersRouter.get(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -122,7 +205,7 @@ chaptersRouter.get(
  *                 success:
  *                   type: boolean
  *                 data:
- *                   type: object
+ *                   $ref: '#/components/schemas/ChapterDetail'
  *       400:
  *         description: Invalid chapter ID
  *         content:
@@ -148,7 +231,7 @@ chaptersRouter.get(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -223,20 +306,20 @@ chaptersRouter.get(
   authorize(
     anyOf(
       Visitors.hasProfile("ADMIN"),
-      Visitors.hasID((req) => req.Params.constituentId),
-    ),
+      Visitors.hasID((req) => req.Params.constituentId)
+    )
   ),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await chaptersHandler.getChaptersByConstituentId(
         req.Params.constituentId,
-        req.Query,
+        req.Query
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -304,21 +387,21 @@ chaptersRouter.patch(
   authorize(
     anyOf(
       Visitors.hasRole(ADMIN.SUPER),
-      Visitors.hasRole((req) => MEMBER.chapterLead(req.Params.id)),
-    ),
+      Visitors.hasRole((req) => MEMBER.chapterLead(req.Params.id))
+    )
   ),
   validateBody(UpdateChapterSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await chaptersHandler.updateChapter(
         req.Params.id,
-        req.Body,
+        req.Body
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -392,13 +475,13 @@ chaptersRouter.get(
     try {
       const response = await chaptersHandler.getLeadership(
         req.Params.id,
-        req.Query,
+        req.Query
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -452,13 +535,13 @@ chaptersRouter.post(
     try {
       const response = await chaptersHandler.enrollToChapter(
         req.Params.id,
-        req.Body,
+        req.Body
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -509,13 +592,13 @@ chaptersRouter.patch(
     try {
       const response = await chaptersHandler.unenrollFromChapter(
         req.Params.id,
-        req.Body,
+        req.Body
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 export default chaptersRouter;

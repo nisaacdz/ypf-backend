@@ -27,6 +27,123 @@ const membersRouter = Router();
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     Member:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         publicId:
+ *           type: string
+ *         profilePhotoUrl:
+ *           type: string
+ *         fullName:
+ *           type: string
+ *         startedAt:
+ *           type: string
+ *           format: date-time
+ *         title:
+ *           type: string
+ *     MemberDetail:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         publicId:
+ *           type: string
+ *         firstName:
+ *           type: string
+ *         lastName:
+ *           type: string
+ *         salutation:
+ *           type: string
+ *         profilePhoto:
+ *           $ref: '#/components/schemas/Medium'
+ *         contactInfo:
+ *           type: object
+ *           properties:
+ *             phone:
+ *               type: string
+ *             whatsapp:
+ *               type: string
+ *             email:
+ *               type: string
+ *         titles:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               scope:
+ *                 type: object
+ *                 properties:
+ *                   type:
+ *                     type: string
+ *                     enum: ['chapter', 'committee']
+ *                   name:
+ *                     type: string
+ *                   id:
+ *                     type: string
+ *               _level:
+ *                 type: number
+ *               startedAt:
+ *                 type: string
+ *                 format: date-time
+ *               endedAt:
+ *                 type: string
+ *                 format: date-time
+ *         startedAt:
+ *           type: string
+ *           format: date-time
+ *         endedAt:
+ *           type: string
+ *           format: date-time
+ *     MemberRole:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         title:
+ *           type: string
+ *         alias:
+ *           type: string
+ *         _level:
+ *           type: number
+ *         scope:
+ *           type: object
+ *           properties:
+ *             type:
+ *               type: string
+ *               enum: ['chapter', 'committee']
+ *             name:
+ *               type: string
+ *             id:
+ *               type: string
+ *     Medium:
+ *       type: object
+ *       properties:
+ *         url:
+ *           type: string
+ *         type:
+ *           type: string
+ *         dimensions:
+ *           type: object
+ *           properties:
+ *             width:
+ *               type: number
+ *             height:
+ *               type: number
+ *         size:
+ *           type: number
+ *         uploadedAt:
+ *           type: string
+ *           format: date-time
+ *
  * /api/v1/members:
  *   get:
  *     summary: Get list of members
@@ -80,9 +197,16 @@ const membersRouter = Router();
  *                     members:
  *                       type: array
  *                       items:
- *                         type: object
+ *                         $ref: '#/components/schemas/Member'
  *                     pagination:
  *                       type: object
+ *                       properties:
+ *                         page:
+ *                           type: integer
+ *                         pageSize:
+ *                           type: integer
+ *                         total:
+ *                           type: integer
  *       400:
  *         description: Invalid query parameters
  *         content:
@@ -106,7 +230,7 @@ membersRouter.get(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -136,28 +260,7 @@ membersRouter.get(
  *                 success:
  *                   type: boolean
  *                 data:
- *                   type: object
- *                   properties:
- *                     id:
- *                       type: string
- *                       format: uuid
- *                     firstName:
- *                       type: string
- *                     lastName:
- *                       type: string
- *                     salutation:
- *                       type: string
- *                     profilePhoto:
- *                       type: object
- *                     titles:
- *                       type: array
- *                       items:
- *                         type: object
- *                     joinedAt:
- *                       type: string
- *                       format: date-time
- *                     isActive:
- *                       type: boolean
+ *                   $ref: '#/components/schemas/MemberDetail'
  *       400:
  *         description: Invalid member ID
  *         content:
@@ -183,7 +286,7 @@ membersRouter.get(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -229,7 +332,7 @@ membersRouter.post(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -274,7 +377,7 @@ membersRouter.patch(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -308,6 +411,26 @@ membersRouter.patch(
  *     responses:
  *       200:
  *         description: Roles retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     items:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/MemberRole'
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         page: { type: integer }
+ *                         pageSize: { type: integer }
+ *                         total: { type: integer }
  *       401:
  *         description: Unauthorized
  *       403:
@@ -317,7 +440,7 @@ membersRouter.get(
   "/roles",
   authenticate,
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER)),
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER))
   ),
   validateQuery(GetRolesQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -327,7 +450,7 @@ membersRouter.get(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -356,6 +479,26 @@ membersRouter.get(
  *     responses:
  *       200:
  *         description: Leadership retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     items:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Member'
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         page: { type: integer }
+ *                         pageSize: { type: integer }
+ *                         total: { type: integer }
  *       401:
  *         description: Unauthorized
  *       403:
@@ -365,7 +508,7 @@ membersRouter.get(
   "/leadership",
   authenticate,
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER)),
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER))
   ),
   validateQuery(GetLeadershipQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -375,7 +518,7 @@ membersRouter.get(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -432,7 +575,7 @@ membersRouter.post(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -483,13 +626,13 @@ membersRouter.patch(
     try {
       const response = await membersHandler.unenrollRole(
         req.Params.id,
-        req.Body,
+        req.Body
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 export default membersRouter;

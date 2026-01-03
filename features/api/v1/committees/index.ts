@@ -25,6 +25,76 @@ const committeesRouter = Router();
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     Committee:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         name:
+ *           type: string
+ *         description:
+ *           type: string
+ *         featuredPhotoUrl:
+ *           type: string
+ *         chapterName:
+ *           type: string
+ *         memberCount:
+ *           type: integer
+ *     CommitteeDetail:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         name:
+ *           type: string
+ *         description:
+ *           type: string
+ *         featuredMedia:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *               caption:
+ *                 type: string
+ *               medium:
+ *                 $ref: '#/components/schemas/Medium'
+ *         chapter:
+ *           type: object
+ *           properties:
+ *             id:
+ *               type: string
+ *               format: uuid
+ *             name:
+ *               type: string
+ *         isActive:
+ *           type: boolean
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *     Medium:
+ *       type: object
+ *       properties:
+ *         url:
+ *           type: string
+ *         type:
+ *           type: string
+ *         dimensions:
+ *           type: object
+ *           properties:
+ *             width:
+ *               type: number
+ *             height:
+ *               type: number
+ *         size:
+ *           type: number
+ *         uploadedAt:
+ *           type: string
+ *           format: date-time
+ *
  * /api/v1/committees:
  *   get:
  *     summary: Get list of committees
@@ -72,9 +142,19 @@ const committeesRouter = Router();
  *                     items:
  *                       type: array
  *                       items:
- *                         type: object
+ *                         $ref: '#/components/schemas/Committee'
  *                     pagination:
  *                       type: object
+ *                       properties:
+ *                         page: { type: integer }
+ *                         pageSize: { type: integer }
+ *                         total: { type: integer }
+ *       400:
+ *         description: Invalid query parameters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  *       400:
  *         description: Invalid query parameters
  *         content:
@@ -97,7 +177,7 @@ committeesRouter.get(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -172,20 +252,20 @@ committeesRouter.get(
   authorize(
     anyOf(
       Visitors.hasProfile("ADMIN"),
-      Visitors.hasID((req) => req.Params.constituentId),
-    ),
+      Visitors.hasID((req) => req.Params.constituentId)
+    )
   ),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await committeesHandler.getCommitteesByConstituentId(
         req.Params.constituentId,
-        req.Query,
+        req.Query
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -215,7 +295,7 @@ committeesRouter.get(
  *                 success:
  *                   type: boolean
  *                 data:
- *                   type: object
+ *                   $ref: '#/components/schemas/CommitteeDetail'
  *       400:
  *         description: Invalid committee ID
  *         content:
@@ -241,7 +321,7 @@ committeesRouter.get(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -289,9 +369,13 @@ committeesRouter.get(
  *                     items:
  *                       type: array
  *                       items:
- *                         type: object
+ *                         $ref: '#/components/schemas/Member'
  *                     pagination:
  *                       type: object
+ *                       properties:
+ *                         page: { type: integer }
+ *                         pageSize: { type: integer }
+ *                         total: { type: integer }
  *       400:
  *         description: Invalid committee ID or query parameters
  *         content:
@@ -315,13 +399,13 @@ committeesRouter.get(
     try {
       const response = await committeesHandler.getLeadership(
         req.Params.id,
-        req.Query,
+        req.Query
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -375,13 +459,13 @@ committeesRouter.post(
     try {
       const response = await committeesHandler.enrollToCommittee(
         req.Params.id,
-        req.Body,
+        req.Body
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -432,13 +516,13 @@ committeesRouter.patch(
     try {
       const response = await committeesHandler.unenrollFromCommittee(
         req.Params.id,
-        req.Body,
+        req.Body
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 export default committeesRouter;
