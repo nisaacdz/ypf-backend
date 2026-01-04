@@ -378,12 +378,15 @@ export async function getMembershipApplicationById(
 export async function updateMembershipApplicationStatus(
   id: string,
   newStatus: MembershipApplicationStatus,
-  adminId: string
+  adminId: string,
+  declinedReason?: string
 ) {
   const [updated] = await dbClient.db
     .update(schema.MembershipApplications)
     .set({
       status: newStatus,
+      declinedReason: newStatus === "REJECTED" ? declinedReason : null,
+      approvedAt: newStatus === "ACCEPTED" ? new Date() : null,
     })
     .where(eq(schema.MembershipApplications.id, id))
     .returning();

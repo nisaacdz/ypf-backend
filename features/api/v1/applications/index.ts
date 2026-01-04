@@ -120,6 +120,58 @@ applicationsRouter.get(
 
 /**
  * @swagger
+ * /api/v1/applications/membership/{id}/status:
+ *   patch:
+ *     summary: Update membership application status
+ *     tags: [Applications]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UpdateMembershipApplicationStatus'
+ *     responses:
+ *       200:
+ *         description: Status updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponseYPFMembershipApplicationDetail'
+ */
+applicationsRouter.patch(
+  "/membership/:id/status",
+  authenticate,
+  authorize((user) =>
+    ["SUPER_ADMIN", "MANAGEMENT_BOARD"].some((role) =>
+      user.roles.includes(role as any)
+    )
+  ),
+  validateBody(UpdateMembershipApplicationStatusSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const response =
+        await applicationsHandler.updateMembershipApplicationStatus({
+          applicationId: id,
+          body: req.Body,
+          adminId: req.User?.id!,
+        });
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * @swagger
  * /api/v1/applications/membership/{id}:
  *   get:
  *     summary: Get application details

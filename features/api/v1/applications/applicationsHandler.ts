@@ -4,6 +4,7 @@ import {
   PostVolunteerApplicationBody,
   GetMembershipApplicationsQuerySchema,
   GetVolunteerApplicationsQuerySchema,
+  UpdateMembershipApplicationStatusSchema,
 } from "./schemas";
 import z from "zod";
 import * as applicationsService from "@/shared/services/applicationsService";
@@ -182,5 +183,52 @@ export async function createVolunteerApplication(
       id: application.id,
       trackingNumber: application.trackingNumber,
     },
+  };
+}
+
+export async function updateMembershipApplicationStatus({
+  applicationId,
+  body,
+  adminId,
+}: {
+  applicationId: string;
+  body: z.infer<typeof UpdateMembershipApplicationStatusSchema>;
+  adminId: string;
+}): Promise<ApiResponse<YPFMembershipApplicationDetail>> {
+  if (body.status === "REJECTED" && !body.declinedReason) {
+    throw new ApiError("Declined reason is required when rejecting", 400);
+  }
+
+  // Update status
+  await applicationsService.updateMembershipApplicationStatus(
+    applicationId,
+    body.status,
+    adminId // Pass admin ID for auditing/logging if service uses it
+  );
+
+  // If rejected with reason, we might want to update that too.
+  // result above is a list of updated items, but the service returns the first one.
+  // Wait, service returns `returning()`, which is an array.
+
+  // Actually the service function signature is:
+  // updateMembershipApplicationStatus(id, newStatus, adminId)
+
+  // It handles the update. Does it handle declinedReason?
+  // Let me check the service again.
+  // `dbClient.db.update(...).set({ status: newStatus })...`
+  // It DOES NOT seem to set declinedReason. I might need to update the service too.
+
+  // Refetch to get full details for response
+  const updatedApplication =
+    await applicationsService.getMembershipApplicationById(applicationId);
+
+  if (!updatedApplication) {
+    throw new ApiError("Application not found after update", 404);
+  }
+
+  return {
+    success: true,
+    message: "Application status updated successfully",
+    data: updatedApplication,
   };
 }

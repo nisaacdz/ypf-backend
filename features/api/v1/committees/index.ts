@@ -25,76 +25,6 @@ const committeesRouter = Router();
 
 /**
  * @swagger
- * components:
- *   schemas:
- *     Committee:
- *       type: object
- *       properties:
- *         id:
- *           type: string
- *           format: uuid
- *         name:
- *           type: string
- *         description:
- *           type: string
- *         featuredPhotoUrl:
- *           type: string
- *         chapterName:
- *           type: string
- *         memberCount:
- *           type: integer
- *     CommitteeDetail:
- *       type: object
- *       properties:
- *         id:
- *           type: string
- *           format: uuid
- *         name:
- *           type: string
- *         description:
- *           type: string
- *         featuredMedia:
- *           type: array
- *           items:
- *             type: object
- *             properties:
- *               caption:
- *                 type: string
- *               medium:
- *                 $ref: '#/components/schemas/Medium'
- *         chapter:
- *           type: object
- *           properties:
- *             id:
- *               type: string
- *               format: uuid
- *             name:
- *               type: string
- *         isActive:
- *           type: boolean
- *         createdAt:
- *           type: string
- *           format: date-time
- *     Medium:
- *       type: object
- *       properties:
- *         url:
- *           type: string
- *         type:
- *           type: string
- *         dimensions:
- *           type: object
- *           properties:
- *             width:
- *               type: number
- *             height:
- *               type: number
- *         size:
- *           type: number
- *         uploadedAt:
- *           type: string
- *           format: date-time
- *
  * /api/v1/committees:
  *   get:
  *     summary: Get list of committees
@@ -149,12 +79,6 @@ const committeesRouter = Router();
  *                         page: { type: integer }
  *                         pageSize: { type: integer }
  *                         total: { type: integer }
- *       400:
- *         description: Invalid query parameters
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
  *       400:
  *         description: Invalid query parameters
  *         content:
