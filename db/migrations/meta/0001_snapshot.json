@@ -3351,7 +3351,7 @@
     "core.application_status": {
       "name": "application_status",
       "schema": "core",
-      "values": ["DRAFT", "PENDING", "REJECTED", "REJECTED", "ACCEPTED"]
+      "values": ["DRAFT", "PENDING", "REJECTED", "ACCEPTED"]
     },
     "core.national_id_type": {
       "name": "national_id_type",

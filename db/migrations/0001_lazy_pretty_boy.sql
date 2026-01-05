@@ -12,7 +12,7 @@ CREATE TYPE "core"."admin_roles" AS ENUM('SUPER_ADMIN', 'REGULAR_ADMIN');--> sta
 CREATE TYPE "core"."document_type" AS ENUM('PDF', 'DOC', 'SPREADSHEET', 'PRESENTATION', 'IMAGE', 'OTHER');--> statement-breakpoint
 CREATE TYPE "core"."gender" AS ENUM('MALE', 'FEMALE', 'OTHER');--> statement-breakpoint
 CREATE TYPE "core"."media_type" AS ENUM('PICTURE', 'VIDEO');--> statement-breakpoint
-CREATE TYPE "core"."application_status" AS ENUM('DRAFT', 'PENDING', 'REJECTED', 'REJECTED', 'ACCEPTED');--> statement-breakpoint
+CREATE TYPE "core"."application_status" AS ENUM('DRAFT', 'PENDING', 'REJECTED', 'ACCEPTED');--> statement-breakpoint
 CREATE TYPE "core"."national_id_type" AS ENUM('ECOWASIDCARD');--> statement-breakpoint
 CREATE TYPE "core"."volunteer_application_status" AS ENUM('PENDING', 'ACCEPTED', 'DECLINED');--> statement-breakpoint
 CREATE TYPE "activities"."attendance_status" AS ENUM('INVITED', 'ACCEPTED', 'DECLINED', 'ATTENDED');--> statement-breakpoint
