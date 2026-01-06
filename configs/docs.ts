@@ -65,13 +65,15 @@ const swaggerOptions: swaggerJsdoc.Options = {
     openapi: "3.0.0",
     info: {
       title: "YPF Backend API",
-      version: "1.0.0",
-      description: "API documentation for YPF Backend services",
+      version: variables.app.version,
+      description: "API documentation for YPF Backend",
     },
     servers: [
       {
         url: `http://${variables.app.host}:${variables.app.port}`,
-        description: "Development server",
+        description: variables.app.isProduction
+          ? "Production server"
+          : "Development server",
       },
     ],
     components: {
@@ -114,8 +116,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
       { name: "Constituents", description: "Constituent management endpoints" },
     ],
   },
-  // Keep scanning TypeScript files for backwards compatibility during migration
-  apis: ["./features/api/v1/**/*.ts"],
+  apis: [],
 };
 
 export const swaggerSpec = swaggerJsdoc(swaggerOptions);
