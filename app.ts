@@ -3,6 +3,7 @@ import emailer from "@/configs/emailer";
 import dbClient from "./configs/db";
 import logger from "@/configs/logger";
 import server from "@/configs/server";
+import redisClient from "./configs/redis";
 
 async function shutdown() {
   logger.info("Shutting down server...");
@@ -23,7 +24,11 @@ async function shutdown() {
 
 (async () => {
   try {
-    await Promise.all([emailer.initialize(), dbClient.initialize()]);
+    await Promise.all([
+      emailer.initialize(),
+      dbClient.initialize(),
+      redisClient.initialize(),
+    ]);
 
     for (const signal of ["SIGINT", "SIGTERM"] as const) {
       process.on(signal, shutdown);
