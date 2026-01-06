@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { Router } from "express";
+import redisClient from "@/configs/redis";
+import { redisCacheEarlyReturn } from "@/shared/middlewares/redisCache";
 import {
   authenticateLax,
   authenticate,
@@ -22,6 +24,7 @@ import {
 } from "./schemas";
 import { Visitors, ADMIN, MEMBER, anyOf } from "@/configs/authorizer";
 import z from "zod";
+import logger from "@/configs/logger";
 
 const membersRouter = Router();
 
@@ -279,9 +282,14 @@ membersRouter.get(
   authenticateLax,
   authorize(Visitors.hasProfile("MEMBER", "ADMIN")),
   validateParams(z.object({ constituentId: z.uuid("Member not found ID") })),
+  redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await membersHandler.getMember(req.Params.constituentId);
+      redisClient.setCache(req.CacheKey, response, 60 * 5)
+        .catch((err) => {
+          logger.error(err, "Failed to set cache for roles");
+        });
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -443,9 +451,16 @@ membersRouter.get(
     anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER))
   ),
   validateQuery(GetRolesQuerySchema),
+  redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await membersHandler.getRoles(req.Query);
+
+      redisClient.setCache(req.CacheKey, response, 60 * 60)
+        .catch((err) => {
+          logger.error(err, "Failed to set cache for roles");
+        });
+
       res.status(200).json(response);
     } catch (error) {
       next(error);
