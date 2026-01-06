@@ -160,7 +160,7 @@ projectsRouter.get(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -221,7 +221,7 @@ projectsRouter.post(
   "/",
   authenticate,
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT))
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
   ),
   validateBody(CreateProjectSchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -231,7 +231,7 @@ projectsRouter.post(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -285,7 +285,7 @@ projectsRouter.get(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -353,20 +353,20 @@ projectsRouter.put(
   validateParams(z.object({ id: z.uuid("Invalid Request") })),
   authenticate,
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT))
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
   ),
   validateBody(UpdateProjectSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await projectsHandler.updateProject(
         req.Params.id,
-        req.Body
+        req.Body,
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -444,13 +444,13 @@ projectsRouter.get(
     try {
       const response = await projectsHandler.getProjectMedia(
         req.Params.id,
-        req.Query
+        req.Query,
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -507,7 +507,7 @@ projectsRouter.post(
   validateParams(z.object({ id: z.uuid("Invalid Request") })),
   authenticate,
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT))
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
   ),
   filesUpload.mediaUpload.single("file"),
   validateFile(UploadProjectFileSchema),
@@ -524,7 +524,7 @@ projectsRouter.post(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -580,20 +580,20 @@ projectsRouter.patch(
   validateParams(z.object({ id: z.uuid() })),
   authenticate,
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT))
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
   ),
   validateBody(UpdateProjectMediumSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await projectsHandler.updateProjectMedium(
         req.Params.id,
-        req.Body
+        req.Body,
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -657,19 +657,19 @@ projectsRouter.get(
     z.object({
       page: z.coerce.number().min(1).default(1).optional(),
       pageSize: z.coerce.number().min(1).max(100).default(10).optional(),
-    })
+    }),
   ),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await projectsHandler.getProjectEvents(
         req.Params.id,
-        req.Query
+        req.Query,
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 export default projectsRouter;

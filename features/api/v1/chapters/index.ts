@@ -96,7 +96,7 @@ chaptersRouter.get(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -152,7 +152,7 @@ chaptersRouter.get(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -227,20 +227,20 @@ chaptersRouter.get(
   authorize(
     anyOf(
       Visitors.hasProfile("ADMIN"),
-      Visitors.hasID((req) => req.Params.constituentId)
-    )
+      Visitors.hasID((req) => req.Params.constituentId),
+    ),
   ),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await chaptersHandler.getChaptersByConstituentId(
         req.Params.constituentId,
-        req.Query
+        req.Query,
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -308,21 +308,21 @@ chaptersRouter.patch(
   authorize(
     anyOf(
       Visitors.hasRole(ADMIN.SUPER),
-      Visitors.hasRole((req) => MEMBER.chapterLead(req.Params.id))
-    )
+      Visitors.hasRole((req) => MEMBER.chapterLead(req.Params.id)),
+    ),
   ),
   validateBody(UpdateChapterSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await chaptersHandler.updateChapter(
         req.Params.id,
-        req.Body
+        req.Body,
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -396,13 +396,13 @@ chaptersRouter.get(
     try {
       const response = await chaptersHandler.getLeadership(
         req.Params.id,
-        req.Query
+        req.Query,
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -456,13 +456,13 @@ chaptersRouter.post(
     try {
       const response = await chaptersHandler.enrollToChapter(
         req.Params.id,
-        req.Body
+        req.Body,
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -513,13 +513,13 @@ chaptersRouter.patch(
     try {
       const response = await chaptersHandler.unenrollFromChapter(
         req.Params.id,
-        req.Body
+        req.Body,
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 export default chaptersRouter;

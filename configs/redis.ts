@@ -43,7 +43,7 @@ class RedisCient {
   async setCache<T extends object>(
     key: string,
     data: T,
-    ttlSeconds: number = 300
+    ttlSeconds: number = 300,
   ): Promise<void> {
     if (!this._redis) return;
 

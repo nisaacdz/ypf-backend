@@ -35,7 +35,7 @@ const cleanupFiles = async (req: Request) => {
         } catch (error) {
           logger.warn(error, `Failed to cleanup temp file: ${path}`);
         }
-      })
+      }),
     );
   }
 };
@@ -44,7 +44,7 @@ export const errorHandler = (
   err: any,
   req: Request,
   res: Response,
-  _next: NextFunction
+  _next: NextFunction,
 ) => {
   if (!!req.file || !!req.files) {
     cleanupFiles(req).catch((cleanupErr) => {

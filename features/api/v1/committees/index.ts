@@ -101,7 +101,7 @@ committeesRouter.get(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -176,20 +176,20 @@ committeesRouter.get(
   authorize(
     anyOf(
       Visitors.hasProfile("ADMIN"),
-      Visitors.hasID((req) => req.Params.constituentId)
-    )
+      Visitors.hasID((req) => req.Params.constituentId),
+    ),
   ),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await committeesHandler.getCommitteesByConstituentId(
         req.Params.constituentId,
-        req.Query
+        req.Query,
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -245,7 +245,7 @@ committeesRouter.get(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -323,13 +323,13 @@ committeesRouter.get(
     try {
       const response = await committeesHandler.getLeadership(
         req.Params.id,
-        req.Query
+        req.Query,
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -383,13 +383,13 @@ committeesRouter.post(
     try {
       const response = await committeesHandler.enrollToCommittee(
         req.Params.id,
-        req.Body
+        req.Body,
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -440,13 +440,13 @@ committeesRouter.patch(
     try {
       const response = await committeesHandler.unenrollFromCommittee(
         req.Params.id,
-        req.Body
+        req.Body,
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 export default committeesRouter;

@@ -233,7 +233,7 @@ membersRouter.get(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -286,15 +286,14 @@ membersRouter.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await membersHandler.getMember(req.Params.constituentId);
-      redisClient.setCache(req.CacheKey, response, 60 * 5)
-        .catch((err) => {
-          logger.error(err, "Failed to set cache for roles");
-        });
+      redisClient.setCache(req.CacheKey, response, 60 * 5).catch((err) => {
+        logger.error(err, "Failed to set cache for roles");
+      });
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -340,7 +339,7 @@ membersRouter.post(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -385,7 +384,7 @@ membersRouter.patch(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -448,7 +447,7 @@ membersRouter.get(
   "/roles",
   authenticate,
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER))
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER)),
   ),
   validateQuery(GetRolesQuerySchema),
   redisCacheEarlyReturn,
@@ -456,16 +455,15 @@ membersRouter.get(
     try {
       const response = await membersHandler.getRoles(req.Query);
 
-      redisClient.setCache(req.CacheKey, response, 60 * 60)
-        .catch((err) => {
-          logger.error(err, "Failed to set cache for roles");
-        });
+      redisClient.setCache(req.CacheKey, response, 60 * 60).catch((err) => {
+        logger.error(err, "Failed to set cache for roles");
+      });
 
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -523,7 +521,7 @@ membersRouter.get(
   "/leadership",
   authenticate,
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER))
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.LEADER)),
   ),
   validateQuery(GetLeadershipQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -533,7 +531,7 @@ membersRouter.get(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -590,7 +588,7 @@ membersRouter.post(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -641,13 +639,13 @@ membersRouter.patch(
     try {
       const response = await membersHandler.unenrollRole(
         req.Params.id,
-        req.Body
+        req.Body,
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 export default membersRouter;

@@ -36,12 +36,12 @@ export async function loginWithUsernameAndPassword({
 
   const authenticatedUser = await authService.loginWithUsernameAndPassword(
     username,
-    password
+    password,
   );
 
   // Fetch detailed constituent info
   const constituentDetail = await constituentsService.getDetailedConstituent(
-    authenticatedUser.constituentId
+    authenticatedUser.constituentId,
   );
 
   if (!constituentDetail) throw new ApiError("Something went wrong"); // unexpected!
@@ -54,7 +54,7 @@ export async function loginWithUsernameAndPassword({
   const accessToken = encodeData(authenticatedUser, { expiresIn: "30m" });
   const refreshToken = encodeData(
     { username: authenticatedUser.email },
-    { expiresIn: "3d" }
+    { expiresIn: "3d" },
   );
 
   return {
@@ -133,7 +133,7 @@ export async function resetPassword({
   const authenticatedUser = await authService.loginWithUsername(email);
 
   const constituentDetail = await constituentsService.getDetailedConstituent(
-    authenticatedUser.constituentId
+    authenticatedUser.constituentId,
   );
 
   if (!constituentDetail) throw new ApiError("Something went wrong"); // unexpected!
@@ -146,7 +146,7 @@ export async function resetPassword({
   const accessToken = encodeData(authenticatedUser, { expiresIn: "30m" });
   const refreshToken = encodeData(
     { username: authenticatedUser.email },
-    { expiresIn: "3d" }
+    { expiresIn: "3d" },
   );
 
   return {

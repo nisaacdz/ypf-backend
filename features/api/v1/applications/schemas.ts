@@ -120,7 +120,7 @@ export const PostMembershipApplicationBody = FlatApplicationInput.transform(
       },
       ...rest,
     };
-  }
+  },
 );
 
 export const UpdateMembershipApplicationStatusSchema = z
@@ -131,7 +131,7 @@ export const UpdateMembershipApplicationStatusSchema = z
     z.object({
       status: "REJECTED" as const,
       declinedReason: z.string().optional(),
-    })
+    }),
   );
 
 export const GetMembershipApplicationsQuerySchema = z.object({

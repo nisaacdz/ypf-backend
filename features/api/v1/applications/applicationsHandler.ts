@@ -24,7 +24,7 @@ import { eq, or } from "drizzle-orm";
 import { MembershipApplicationStatus } from "@/shared/utils";
 
 export async function getMembershipApplications(
-  query: z.infer<typeof GetMembershipApplicationsQuerySchema>
+  query: z.infer<typeof GetMembershipApplicationsQuerySchema>,
 ): Promise<ApiResponse<Paginated<YPFMembershipApplication>>> {
   const result = await applicationsService.getMembershipApplications(query);
 
@@ -41,7 +41,7 @@ export async function getMembershipApplications(
 }
 
 export async function getMembershipApplicationById(
-  applicationId: string
+  applicationId: string,
 ): Promise<ApiResponse<YPFMembershipApplicationDetail>> {
   const application =
     await applicationsService.getMembershipApplicationById(applicationId);
@@ -74,7 +74,7 @@ export async function createMembershipApplication({
       eq(schema.Constituents.phone, data.applicantData.phone),
       data.applicantData.whatsapp
         ? eq(schema.Constituents.whatsapp, data.applicantData.whatsapp)
-        : undefined
+        : undefined,
     ),
     columns: { id: true, email: true, phone: true, whatsapp: true },
   });
@@ -123,7 +123,7 @@ export async function createMembershipApplication({
 }
 
 export async function getVolunteerApplications(
-  query: z.infer<typeof GetVolunteerApplicationsQuerySchema>
+  query: z.infer<typeof GetVolunteerApplicationsQuerySchema>,
 ): Promise<ApiResponse<Paginated<YPFVolunteerApplication>>> {
   const result = await applicationsService.getVolunteerApplications(query);
 
@@ -140,7 +140,7 @@ export async function getVolunteerApplications(
 }
 
 export async function getVolunteerApplicationById(
-  applicationId: string
+  applicationId: string,
 ): Promise<ApiResponse<YPFVolunteerApplicationDetail>> {
   const application =
     await applicationsService.getVolunteerApplicationById(applicationId);
@@ -157,7 +157,7 @@ export async function getVolunteerApplicationById(
 }
 
 export async function createVolunteerApplication(
-  data: z.infer<typeof PostVolunteerApplicationBody>
+  data: z.infer<typeof PostVolunteerApplicationBody>,
 ): Promise<ApiResponse<{ id: string; trackingNumber: string }>> {
   const existingUser = await dbClient.db.query.Constituents.findFirst({
     where: or(
@@ -165,7 +165,7 @@ export async function createVolunteerApplication(
       eq(schema.Constituents.phone, data.applicantData.phone),
       data.applicantData.whatsapp
         ? eq(schema.Constituents.whatsapp, data.applicantData.whatsapp)
-        : undefined
+        : undefined,
     ),
     columns: { id: true, email: true, phone: true, whatsapp: true },
   });
@@ -205,7 +205,7 @@ export async function updateMembershipApplicationStatus({
     applicationId,
     status,
     adminId,
-    declinedReason
+    declinedReason,
   );
 
   return {

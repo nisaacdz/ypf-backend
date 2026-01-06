@@ -149,7 +149,7 @@ eventsRouter.get(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -212,7 +212,7 @@ eventsRouter.post(
   "/",
   authenticate,
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT))
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
   ),
   validateBody(CreateEventSchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -222,7 +222,7 @@ eventsRouter.post(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -279,7 +279,7 @@ eventsRouter.post(
   validateParams(z.object({ id: z.uuid("Invalid Request") })),
   authenticate,
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT))
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
   ),
   filesUpload.mediaUpload.single("file"),
   validateFile(UploadEventFileSchema),
@@ -296,7 +296,7 @@ eventsRouter.post(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -374,13 +374,13 @@ eventsRouter.get(
     try {
       const response = await eventsHandler.getEventMedia(
         req.Params.id,
-        req.Query
+        req.Query,
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -428,7 +428,7 @@ eventsRouter.get(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -492,7 +492,7 @@ eventsRouter.put(
   validateParams(z.object({ id: z.uuid("Invalid Request") })),
   authenticate,
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT))
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
   ),
   validateBody(UpdateEventSchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -502,7 +502,7 @@ eventsRouter.put(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -554,20 +554,20 @@ eventsRouter.patch(
   validateParams(z.object({ id: z.uuid() })),
   authenticate,
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT))
+    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
   ),
   validateBody(UpdateEventMediumSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await eventsHandler.updateEventMedium(
         req.Params.id,
-        req.Body
+        req.Body,
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 export default eventsRouter;

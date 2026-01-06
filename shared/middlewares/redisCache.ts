@@ -15,7 +15,7 @@ import logger from "@/configs/logger";
 export async function redisCacheEarlyReturn(
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) {
   const baseUrl = req.path;
   const queryParams = req.Query || {};
@@ -27,7 +27,7 @@ export async function redisCacheEarlyReturn(
   req.CacheKey = queryString ? `${baseUrl}?${queryString}` : baseUrl;
   try {
     const cachedData = (await redisClient.getCache(
-      req.CacheKey
+      req.CacheKey,
     )) as ApiResponse<any>;
 
     if (cachedData) {

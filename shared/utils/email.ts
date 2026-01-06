@@ -84,7 +84,7 @@ export const sendEmail = async (
   subject: string,
   html: string,
   text?: string,
-  isBcc: boolean = false
+  isBcc: boolean = false,
 ): Promise<void> => {
   if (variables.app.environment === "test") {
     return;
@@ -108,14 +108,14 @@ export const sendEmail = async (
   try {
     const info = await emailer.transporter.sendMail(mailOptions);
     logger.info(
-      `Email sent to ${Array.isArray(to) ? to.length : 1} recipient(s). Message ID: ${info.messageId}`
+      `Email sent to ${Array.isArray(to) ? to.length : 1} recipient(s). Message ID: ${info.messageId}`,
     );
   } catch (error) {
     logger.error(error, `Error sending email:`);
     throw new Error(
       `Failed to send email: ${
         error instanceof Error ? error.message : String(error)
-      }`
+      }`,
     );
   }
 };
@@ -128,7 +128,7 @@ export const sendEmail = async (
 export async function sendAnnouncementEmail(
   recipients: string[],
   title: string,
-  markdownContent: string
+  markdownContent: string,
 ): Promise<void> {
   if (!recipients.length) return;
 
@@ -140,7 +140,7 @@ export async function sendAnnouncementEmail(
     `
     <h1 style="margin-top: 0;">${title}</h1>
     ${htmlContent}
-    `
+    `,
   );
 
   await sendEmail(recipients, title, htmlBody, undefined, true);
@@ -153,7 +153,7 @@ export async function sendAnnouncementEmail(
  */
 export async function sendWelcomeEmail(
   to: string,
-  name: string
+  name: string,
 ): Promise<void> {
   const subject = "Welcome to YPF Africa!";
 
@@ -478,7 +478,7 @@ export async function sendOrderPlacementEmail(params: {
   const itemsList = params.order.items
     .map(
       (item) =>
-        `<li style="margin: 5px 0; color: ${colors.foreground};">${item.quantity}x ${item.name} - <span style="font-weight: 600;">${params.order.currency} ${item.price}</span></li>`
+        `<li style="margin: 5px 0; color: ${colors.foreground};">${item.quantity}x ${item.name} - <span style="font-weight: 600;">${params.order.currency} ${item.price}</span></li>`,
     )
     .join("");
 
@@ -508,7 +508,7 @@ export async function sendOrderPlacementEmail(params: {
   const itemsText = params.order.items
     .map(
       (item) =>
-        `  ${item.quantity}x ${item.name} - ${params.order.currency} ${item.price}`
+        `  ${item.quantity}x ${item.name} - ${params.order.currency} ${item.price}`,
     )
     .join("\n");
 

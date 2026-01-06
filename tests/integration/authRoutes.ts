@@ -64,7 +64,7 @@ describe("Authentication API", () => {
 
       const accessTokenCookie = cookies.find((c) => c.includes("access_token"));
       const refreshTokenCookie = cookies.find((c) =>
-        c.includes("refresh_token")
+        c.includes("refresh_token"),
       );
 
       expect(accessTokenCookie).toBeDefined();
@@ -368,7 +368,7 @@ describe("Authentication API", () => {
       // Should have both access_token and refresh_token clear directives
       const accessTokenCookie = cookies.find((c) => c.includes("access_token"));
       const refreshTokenCookie = cookies.find((c) =>
-        c.includes("refresh_token")
+        c.includes("refresh_token"),
       );
 
       expect(accessTokenCookie).toBeDefined();
@@ -483,7 +483,7 @@ describe("Authentication API", () => {
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.message).toContain(
-        "Onboarding verification code sent"
+        "Onboarding verification code sent",
       );
 
       // Verify OTP was created
@@ -522,7 +522,7 @@ describe("Authentication API", () => {
       expect(response.status).toBe(409);
       expect(response.body.success).toBe(false);
       expect(response.body.message).toContain(
-        "User already has an authentication method set"
+        "User already has an authentication method set",
       );
     });
   });

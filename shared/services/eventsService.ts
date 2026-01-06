@@ -360,9 +360,12 @@ export async function fetchEventById(
         ? featuredDocuments.map((d) => ({
             title: d.title,
             document: {
-              url: mediaUtils.generateSignedDocumentPreviewUrl(d.document.externalId, {
-                expireSeconds: 60 * 60 * 24,
-              }),
+              url: mediaUtils.generateSignedDocumentPreviewUrl(
+                d.document.externalId,
+                {
+                  expireSeconds: 60 * 60 * 24,
+                },
+              ),
               type: d.document.type,
               size: d.document.size,
               uploadedAt: d.document.uploadedAt,

@@ -178,7 +178,7 @@ authRouter.post(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -240,7 +240,7 @@ authRouter.post(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -423,7 +423,7 @@ authRouter.post(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -606,7 +606,7 @@ authRouter.post(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 export default authRouter;

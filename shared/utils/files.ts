@@ -24,7 +24,7 @@ export type DocumentsMeta = {
 };
 
 export async function storeMediumFile(
-  file: Express.Multer.File
+  file: Express.Multer.File,
 ): Promise<MediaMeta> {
   const isVideo = file.mimetype.startsWith("video/");
   const fileExtension =
@@ -33,7 +33,7 @@ export async function storeMediumFile(
   const blobName = `${file.mimetype.split("/")[0]}/${fileName}`;
 
   const containerClient = blobServiceClient.getContainerClient(
-    containerNames.media
+    containerNames.media,
   );
   const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
@@ -82,7 +82,7 @@ export async function storeMediumFile(
 
 // Assumption, this file must be an allowed document (size and mimetype)
 export async function storeDocumentFile(
-  file: Express.Multer.File
+  file: Express.Multer.File,
 ): Promise<DocumentsMeta> {
   const fileExtension =
     path.extname(file.originalname) || `.${file.mimetype.split("/")[1]}`;
@@ -90,7 +90,7 @@ export async function storeDocumentFile(
   const blobName = `${file.mimetype.split("/")[0]}/${fileName}`;
 
   const containerClient = blobServiceClient.getContainerClient(
-    containerNames.docs
+    containerNames.docs,
   );
   const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
@@ -126,7 +126,7 @@ export async function storeDocumentFile(
 export async function deleteMediumFile(externalId: string): Promise<boolean> {
   try {
     const containerClient = blobServiceClient.getContainerClient(
-      containerNames.media
+      containerNames.media,
     );
     const blockBlobClient = containerClient.getBlockBlobClient(externalId);
     await blockBlobClient.delete();
@@ -135,7 +135,7 @@ export async function deleteMediumFile(externalId: string): Promise<boolean> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (error && (error as any).statusCode === 404) {
       logger.warn(
-        `Blob not found during deletion, treating as success: ${externalId}`
+        `Blob not found during deletion, treating as success: ${externalId}`,
       );
       return true;
     }
@@ -147,7 +147,7 @@ export async function deleteMediumFile(externalId: string): Promise<boolean> {
 export async function deleteDocumentFile(externalId: string): Promise<boolean> {
   try {
     const containerClient = blobServiceClient.getContainerClient(
-      containerNames.docs
+      containerNames.docs,
     );
     const blockBlobClient = containerClient.getBlockBlobClient(externalId);
     await blockBlobClient.delete();
@@ -156,7 +156,7 @@ export async function deleteDocumentFile(externalId: string): Promise<boolean> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (error && (error as any).statusCode === 404) {
       logger.warn(
-        `Blob not found during deletion, treating as success: ${externalId}`
+        `Blob not found during deletion, treating as success: ${externalId}`,
       );
       return true;
     }
@@ -172,7 +172,7 @@ export async function deleteDocumentFile(externalId: string): Promise<boolean> {
  */
 export function generateVideoThumbnailUrl(
   externalId: string,
-  second: number = 5
+  second: number = 5,
 ): string {
   return imagekit.url({
     path: externalId,
@@ -190,7 +190,7 @@ export function generateVideoThumbnailUrl(
 
 export function generatePublicMediaUrl(
   externalId: string,
-  options: { resolution?: number } = {}
+  options: { resolution?: number } = {},
 ): string {
   const transformations = [];
   if (options.resolution) {
@@ -205,7 +205,7 @@ export function generatePublicMediaUrl(
 
 export function generateSignedMediaUrl(
   externalId: string,
-  options: { resolution?: number; expireSeconds: number }
+  options: { resolution?: number; expireSeconds: number },
 ): string {
   const transformations = [];
   if (options.resolution) {
@@ -222,7 +222,7 @@ export function generateSignedMediaUrl(
 
 export function generateSignedDocumentPreviewUrl(
   externalId: string,
-  options: { expireSeconds: number }
+  options: { expireSeconds: number },
 ): string {
   return imagekit.url({
     path: externalId,
@@ -233,10 +233,10 @@ export function generateSignedDocumentPreviewUrl(
 
 export async function generateSignedDocumentDownloadUrl(
   externalId: string,
-  options: { expireSeconds: number }
+  options: { expireSeconds: number },
 ) {
   const containerClient = blobServiceClient.getContainerClient(
-    containerNames.docs + externalId
+    containerNames.docs + externalId,
   );
   const blobClient = containerClient.getBlobClient(externalId);
   let result = await blobClient.generateSasUrl({

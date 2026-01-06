@@ -109,13 +109,13 @@ applicationsRouter.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await applicationsHandler.getMembershipApplications(
-        req.Query
+        req.Query,
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -163,7 +163,7 @@ applicationsRouter.patch(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -284,13 +284,13 @@ applicationsRouter.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await applicationsHandler.getMembershipApplicationById(
-        req.Params.id
+        req.Params.id,
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -431,7 +431,7 @@ applicationsRouter.post(
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -523,13 +523,13 @@ applicationsRouter.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await applicationsHandler.getVolunteerApplications(
-        req.Query
+        req.Query,
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -617,13 +617,13 @@ applicationsRouter.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await applicationsHandler.getVolunteerApplicationById(
-        req.Params.id
+        req.Params.id,
       );
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -698,13 +698,13 @@ applicationsRouter.post(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await applicationsHandler.createVolunteerApplication(
-        req.Body
+        req.Body,
       );
       res.status(201).json(response);
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 export default applicationsRouter;
