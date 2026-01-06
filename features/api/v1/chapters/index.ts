@@ -24,7 +24,6 @@ import z from "zod";
 
 const chaptersRouter = Router();
 
-
 chaptersRouter.get(
   "/",
   authorize(Visitors.ALL),
@@ -38,7 +37,6 @@ chaptersRouter.get(
     }
   },
 );
-
 
 chaptersRouter.get(
   "/:id",
@@ -54,7 +52,6 @@ chaptersRouter.get(
     }
   },
 );
-
 
 chaptersRouter.get(
   "/constituents/:constituentId",
@@ -80,7 +77,6 @@ chaptersRouter.get(
   },
 );
 
-
 chaptersRouter.patch(
   "/:id",
   authenticate,
@@ -105,7 +101,6 @@ chaptersRouter.patch(
   },
 );
 
-
 chaptersRouter.get(
   "/:id/leadership",
   authenticateLax,
@@ -125,7 +120,6 @@ chaptersRouter.get(
   },
 );
 
-
 chaptersRouter.post(
   "/:id/enroll",
   authenticate,
@@ -144,7 +138,6 @@ chaptersRouter.post(
     }
   },
 );
-
 
 chaptersRouter.patch(
   "/:id/unenroll",

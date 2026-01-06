@@ -20,12 +20,9 @@ import z from "zod";
 
 const shopRouter = Router();
 
-
-
 // ========================
 // PUBLIC PRODUCT ROUTES
 // ========================
-
 
 shopRouter.get(
   "/products",
@@ -39,7 +36,6 @@ shopRouter.get(
     }
   },
 );
-
 
 shopRouter.get(
   "/products/:id",
@@ -58,7 +54,6 @@ shopRouter.get(
 // ORDER ROUTES
 // ========================
 
-
 shopRouter.post(
   "/orders/validate",
   validateBody(ValidateOrderItemsSchema),
@@ -72,7 +67,6 @@ shopRouter.post(
   },
 );
 
-
 shopRouter.post(
   "/orders/guest/initiate",
   validateBody(InitiateGuestOrderSchema),
@@ -85,7 +79,6 @@ shopRouter.post(
     }
   },
 );
-
 
 shopRouter.post(
   "/orders/guest/complete",
@@ -104,7 +97,6 @@ shopRouter.post(
 // AUTHENTICATED ORDER ROUTES
 // ========================
 
-
 shopRouter.post(
   "/orders",
   authenticate,
@@ -118,7 +110,6 @@ shopRouter.post(
     }
   },
 );
-
 
 shopRouter.get(
   "/orders",
@@ -137,7 +128,6 @@ shopRouter.get(
 // ADMIN PRODUCT MANAGEMENT ROUTES
 // ========================
 
-
 shopRouter.post(
   "/products",
   authenticate,
@@ -152,7 +142,6 @@ shopRouter.post(
     }
   },
 );
-
 
 shopRouter.put(
   "/products/:id",
@@ -169,7 +158,6 @@ shopRouter.put(
     }
   },
 );
-
 
 shopRouter.delete(
   "/products/:id",

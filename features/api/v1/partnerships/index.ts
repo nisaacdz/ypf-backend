@@ -19,7 +19,6 @@ import z from "zod";
 
 const partnershipsRouter = Router();
 
-
 partnershipsRouter.get(
   "/",
   authenticate,
@@ -35,7 +34,6 @@ partnershipsRouter.get(
   },
 );
 
-
 partnershipsRouter.get(
   "/:id",
   authenticate,
@@ -50,7 +48,6 @@ partnershipsRouter.get(
     }
   },
 );
-
 
 partnershipsRouter.post(
   "/",
@@ -72,7 +69,6 @@ partnershipsRouter.post(
   },
 );
 
-
 partnershipsRouter.patch(
   "/:id",
   authenticate,
@@ -91,7 +87,6 @@ partnershipsRouter.patch(
     }
   },
 );
-
 
 partnershipsRouter.delete(
   "/:id",

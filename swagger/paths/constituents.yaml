@@ -39,7 +39,7 @@
                     items:
                       type: array
                       items:
-                        $ref: '#/components/schemas/Constituent'
+                        $ref: "#/components/schemas/Constituent"
                     pagination:
                       type: object
                       properties:
@@ -54,13 +54,13 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
+              $ref: "#/components/schemas/Error"
       403:
         description: Forbidden
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
+              $ref: "#/components/schemas/Error"
 
 /api/v1/constituents/onboard:
   post:
@@ -113,13 +113,13 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
+              $ref: "#/components/schemas/Error"
       403:
         description: Forbidden - requires SUPER_ADMIN role
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
+              $ref: "#/components/schemas/Error"
 
 /api/v1/constituents/{constituentId}:
   get:
@@ -146,22 +146,22 @@
                 success:
                   type: boolean
                 data:
-                  $ref: '#/components/schemas/ConstituentDetail'
+                  $ref: "#/components/schemas/ConstituentDetail"
       401:
         description: Unauthorized
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
+              $ref: "#/components/schemas/Error"
       403:
         description: Forbidden
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
+              $ref: "#/components/schemas/Error"
       404:
         description: Not Found
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
+              $ref: "#/components/schemas/Error"

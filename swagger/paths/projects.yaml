@@ -49,7 +49,7 @@
                     projects:
                       type: array
                       items:
-                        $ref: '#/components/schemas/Project'
+                        $ref: "#/components/schemas/Project"
                     pagination:
                       type: object
                       properties:
@@ -61,7 +61,7 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
+              $ref: "#/components/schemas/Error"
 
   post:
     summary: Create a new project
@@ -108,7 +108,7 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
+              $ref: "#/components/schemas/Error"
       401:
         description: Unauthorized - authentication required
       403:
@@ -137,19 +137,19 @@
                 success:
                   type: boolean
                 data:
-                  $ref: '#/components/schemas/Project'
+                  $ref: "#/components/schemas/Project"
       400:
         description: Invalid project ID
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
+              $ref: "#/components/schemas/Error"
       404:
         description: Project not found
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
+              $ref: "#/components/schemas/Error"
 
   put:
     summary: Update project details
@@ -196,7 +196,7 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
+              $ref: "#/components/schemas/Error"
       401:
         description: Unauthorized - authentication required
       403:
@@ -206,7 +206,7 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
+              $ref: "#/components/schemas/Error"
 
 /api/v1/projects/{id}/media:
   get:
@@ -257,7 +257,7 @@
                         type: object
                         properties:
                           caption: { type: string }
-                          medium: { $ref: '#/components/schemas/Medium' }
+                          medium: { $ref: "#/components/schemas/Medium" }
                     pagination:
                       type: object
                       properties:
@@ -269,7 +269,7 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
+              $ref: "#/components/schemas/Error"
 
   post:
     summary: Upload media file for a project
@@ -311,7 +311,7 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
+              $ref: "#/components/schemas/Error"
       401:
         description: Unauthorized
       403:
@@ -350,7 +350,7 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
+              $ref: "#/components/schemas/Error"
       401:
         description: Unauthorized - authentication required
       403:
@@ -360,7 +360,7 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
+              $ref: "#/components/schemas/Error"
 
 /api/v1/projects/{id}/events:
   get:
@@ -404,7 +404,7 @@
                     items:
                       type: array
                       items:
-                        $ref: '#/components/schemas/Event'
+                        $ref: "#/components/schemas/Event"
                     page:
                       type: integer
                     pageSize:

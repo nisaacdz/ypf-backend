@@ -28,7 +28,6 @@ import logger from "@/configs/logger";
 
 const membersRouter = Router();
 
-
 membersRouter.get(
   "/",
   authenticateLax,
@@ -47,7 +46,6 @@ membersRouter.get(
     }
   },
 );
-
 
 membersRouter.get(
   "/:constituentId",
@@ -68,7 +66,6 @@ membersRouter.get(
   },
 );
 
-
 membersRouter.post(
   "/enroll",
   authenticate,
@@ -84,7 +81,6 @@ membersRouter.post(
   },
 );
 
-
 membersRouter.patch(
   "/unenroll",
   authenticate,
@@ -99,7 +95,6 @@ membersRouter.patch(
     }
   },
 );
-
 
 membersRouter.get(
   "/roles",
@@ -124,7 +119,6 @@ membersRouter.get(
   },
 );
 
-
 membersRouter.get(
   "/leadership",
   authenticate,
@@ -146,7 +140,6 @@ membersRouter.get(
   },
 );
 
-
 membersRouter.post(
   "/roles/:id/enroll",
   authenticate,
@@ -162,7 +155,6 @@ membersRouter.post(
     }
   },
 );
-
 
 membersRouter.patch(
   "/roles/:id/unenroll",

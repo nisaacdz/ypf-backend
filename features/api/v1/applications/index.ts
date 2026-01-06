@@ -25,7 +25,6 @@ import logger from "@/configs/logger";
 
 const applicationsRouter = Router();
 
-
 applicationsRouter.get(
   "/membership",
   authenticate,
@@ -46,7 +45,6 @@ applicationsRouter.get(
     }
   },
 );
-
 
 applicationsRouter.patch(
   "/membership/:id/status",
@@ -69,7 +67,6 @@ applicationsRouter.patch(
   },
 );
 
-
 applicationsRouter.get(
   "/membership/:id",
   validateParams(z.object({ id: z.uuid("Invalid Request") })),
@@ -90,7 +87,6 @@ applicationsRouter.get(
     }
   },
 );
-
 
 applicationsRouter.post(
   "/membership",
@@ -118,7 +114,6 @@ applicationsRouter.post(
   },
 );
 
-
 applicationsRouter.get(
   "/volunteer",
   authenticate,
@@ -140,7 +135,6 @@ applicationsRouter.get(
   },
 );
 
-
 applicationsRouter.get(
   "/volunteer/:id",
   validateParams(z.object({ id: z.uuid("Invalid Request") })),
@@ -161,7 +155,6 @@ applicationsRouter.get(
     }
   },
 );
-
 
 applicationsRouter.post(
   "/volunteer",

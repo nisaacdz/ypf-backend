@@ -12,7 +12,6 @@ import { authenticateLax } from "@/shared/middlewares/auth";
 
 const authRouter = Router();
 
-
 authRouter.post(
   "/login",
   validateBody(UsernameAndPasswordSchema),
@@ -48,7 +47,6 @@ authRouter.post(
   },
 );
 
-
 authRouter.post(
   "/forgot-password",
   validateBody(ForgotPasswordSchema),
@@ -61,7 +59,6 @@ authRouter.post(
     }
   },
 );
-
 
 authRouter.post(
   "/reset-password",
@@ -97,7 +94,6 @@ authRouter.post(
     }
   },
 );
-
 
 authRouter.post("/logout", async (req: Request, res: Response) => {
   const { response } = await authHandler.logout();
@@ -145,14 +141,12 @@ authRouter.post("/logout", async (req: Request, res: Response) => {
 //   },
 // );
 
-
 authRouter.get("/me", authenticateLax, async (req: Request, res: Response) => {
   res.status(200).json({
     success: true,
     data: req.User ?? null,
   });
 });
-
 
 authRouter.post(
   "/onboard",

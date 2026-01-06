@@ -23,7 +23,6 @@ import z from "zod";
 
 const committeesRouter = Router();
 
-
 committeesRouter.get(
   "/",
   authorize(Visitors.ALL),
@@ -37,7 +36,6 @@ committeesRouter.get(
     }
   },
 );
-
 
 committeesRouter.get(
   "/constituents/:constituentId",
@@ -63,7 +61,6 @@ committeesRouter.get(
   },
 );
 
-
 committeesRouter.get(
   "/:id",
   authenticateLax,
@@ -78,7 +75,6 @@ committeesRouter.get(
     }
   },
 );
-
 
 committeesRouter.get(
   "/:id/leadership",
@@ -99,7 +95,6 @@ committeesRouter.get(
   },
 );
 
-
 committeesRouter.post(
   "/:id/enroll",
   authenticate,
@@ -118,7 +113,6 @@ committeesRouter.post(
     }
   },
 );
-
 
 committeesRouter.patch(
   "/:id/unenroll",

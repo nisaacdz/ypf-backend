@@ -37,7 +37,7 @@
                     items:
                       type: array
                       items:
-                        $ref: '#/components/schemas/Event'
+                        $ref: "#/components/schemas/Event"
                     pagination:
                       type: object
                       properties:
@@ -49,7 +49,7 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
+              $ref: "#/components/schemas/Error"
 
   post:
     summary: Create a new event
@@ -98,7 +98,7 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
+              $ref: "#/components/schemas/Error"
       401:
         description: Unauthorized - authentication required
       403:
@@ -127,13 +127,13 @@
                 success:
                   type: boolean
                 data:
-                  $ref: '#/components/schemas/Event'
+                  $ref: "#/components/schemas/Event"
       404:
         description: Event not found
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
+              $ref: "#/components/schemas/Error"
 
   put:
     summary: Update event details
@@ -180,7 +180,7 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
+              $ref: "#/components/schemas/Error"
       401:
         description: Unauthorized - authentication required
       403:
@@ -237,7 +237,7 @@
                         type: object
                         properties:
                           caption: { type: string }
-                          medium: { $ref: '#/components/schemas/Medium' }
+                          medium: { $ref: "#/components/schemas/Medium" }
                     pagination:
                       type: object
                       properties:
@@ -249,7 +249,7 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
+              $ref: "#/components/schemas/Error"
 
   post:
     summary: Upload media file for an event
@@ -291,7 +291,7 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
+              $ref: "#/components/schemas/Error"
       401:
         description: Unauthorized
       403:
@@ -331,7 +331,7 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
+              $ref: "#/components/schemas/Error"
       401:
         description: Unauthorized - authentication required
       403:
