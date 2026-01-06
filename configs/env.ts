@@ -30,10 +30,7 @@ const envSchema = z
     AZURE_STORAGE_CONNECTION_STRING: z
       .string()
       .min(1, "AZURE_STORAGE_CONNECTION_STRING is required"),
-    AZURE_REDIS_URL: z
-      .string()
-      .min(1, "AZURE_REDIS_URL is required")
-      .optional(),
+    REDIS_URL: z.string().min(1, "REDIS_URL is required").optional(),
     IMAGEKIT_URL_ENDPOINT: z.url("A valid IMAGEKIT_URL_ENDPOINT is required"),
     IMAGEKIT_PUBLIC_KEY: z.string().min(1, "IMAGEKIT_PUBLIC_KEY is required"),
     IMAGEKIT_PRIVATE_KEY: z.string().min(1, "IMAGEKIT_PRIVATE_KEY is required"),
@@ -77,7 +74,9 @@ const envSchema = z
     services: {
       azure: {
         storageConnectionString: env.AZURE_STORAGE_CONNECTION_STRING,
-        redisUrl: env.AZURE_REDIS_URL,
+      },
+      redis: {
+        url: env.REDIS_URL,
       },
       imagekit: {
         urlEndpoint: env.IMAGEKIT_URL_ENDPOINT,
