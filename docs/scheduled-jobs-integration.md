@@ -70,6 +70,7 @@ The `publishAnnouncement` function in `shared/services/announcementService.ts` i
 ```
 
 **Issues:**
+
 - If a constituent belongs to multiple chapters/committees, they could receive duplicate announcements
 - No retry mechanism if email sending fails
 - Heavy database operations block the main thread
@@ -78,6 +79,7 @@ The `publishAnnouncement` function in `shared/services/announcementService.ts` i
 #### 2. Email Reliability
 
 Current email sending patterns (in `shared/utils/email.ts`):
+
 - Direct `await` in request handlers (blocks response)
 - No retry logic for transient failures
 - No rate limiting to prevent overwhelming SMTP server
@@ -86,6 +88,7 @@ Current email sending patterns (in `shared/utils/email.ts`):
 #### 3. Lack of Scheduled Tasks
 
 No mechanism for:
+
 - Periodic cleanup tasks
 - Reminder emails (e.g., "Complete your profile")
 - Report generation
@@ -99,6 +102,7 @@ No mechanism for:
 ### Functional Requirements
 
 #### FR1: Announcement Broadcasting
+
 - **FR1.1**: Resolve target audience based on `TargetingFilter` criteria
 - **FR1.2**: Create `ConstituentAnnouncements` entries (inbox system)
 - **FR1.3**: Send emails to deduplicated recipient list
@@ -106,18 +110,21 @@ No mechanism for:
 - **FR1.5**: Support scheduled announcements (publishedAt in future)
 
 #### FR2: Email Queue Management
+
 - **FR2.1**: Queue all transactional emails (welcome, OTP, acknowledgments)
 - **FR2.2**: Support batching for bulk emails (announcements)
 - **FR2.3**: Rate limiting to respect SMTP provider limits
 - **FR2.4**: Priority levels (urgent OTP vs. informational newsletter)
 
 #### FR3: Recurring Jobs
+
 - **FR3.1**: Daily cleanup of expired announcements
 - **FR3.2**: Weekly digest emails
 - **FR3.3**: Monthly report generation
 - **FR3.4**: Periodic data consistency checks
 
 #### FR4: Job Management
+
 - **FR4.1**: View job status and history
 - **FR4.2**: Retry failed jobs manually
 - **FR4.3**: Cancel scheduled jobs
@@ -126,29 +133,34 @@ No mechanism for:
 ### Non-Functional Requirements
 
 #### NFR1: Performance
+
 - **NFR1.1**: Announcement broadcasting should not block API response
 - **NFR1.2**: Support 10,000+ recipients per announcement
 - **NFR1.3**: Email throughput: 100+ emails/minute
 - **NFR1.4**: Job processing latency < 5 seconds for high priority jobs
 
 #### NFR2: Reliability
+
 - **NFR2.1**: At-least-once delivery guarantee
 - **NFR2.2**: Automatic retry with exponential backoff
 - **NFR2.3**: Dead letter queue for permanently failed jobs
 - **NFR2.4**: Job state persistence survives application restarts
 
 #### NFR3: Scalability
+
 - **NFR3.1**: Horizontal scaling via multiple worker processes
 - **NFR3.2**: Handle 1000+ concurrent jobs
 - **NFR3.3**: Job queue should not become bottleneck
 
 #### NFR4: Maintainability
+
 - **NFR4.1**: Minimal external dependencies
 - **NFR4.2**: Compatible with existing PostgreSQL infrastructure
 - **NFR4.3**: Clear separation of concerns
 - **NFR4.4**: Easy to test job handlers
 
 #### NFR5: Observability
+
 - **NFR5.1**: Job execution metrics (success rate, duration)
 - **NFR5.2**: Error logging with context
 - **NFR5.3**: Queue depth monitoring
@@ -213,6 +225,7 @@ No mechanism for:
    - Less common in enterprise stacks
 
 #### Use Cases Best For
+
 - Medium-scale job processing (100-1000 jobs/min)
 - Applications already using PostgreSQL
 - Teams wanting infrastructure simplicity
@@ -221,26 +234,26 @@ No mechanism for:
 #### Sample Code
 
 ```typescript
-import PgBoss from 'pg-boss';
+import PgBoss from "pg-boss";
 
 const boss = new PgBoss({
   connectionString: variables.database.url,
   retryLimit: 3,
   retryDelay: 60,
   retryBackoff: true,
-  expireInHours: 24
+  expireInHours: 24,
 });
 
 await boss.start();
 
 // Send job
-await boss.send('send-announcement-emails', {
-  announcementId: 'uuid',
-  recipientIds: ['uuid1', 'uuid2']
+await boss.send("send-announcement-emails", {
+  announcementId: "uuid",
+  recipientIds: ["uuid1", "uuid2"],
 });
 
 // Handle job
-await boss.work('send-announcement-emails', async (job) => {
+await boss.work("send-announcement-emails", async (job) => {
   const { announcementId, recipientIds } = job.data;
   await sendAnnouncementEmails(announcementId, recipientIds);
 });
@@ -310,6 +323,7 @@ await boss.work('send-announcement-emails', async (job) => {
    - Higher infrastructure complexity
 
 #### Use Cases Best For
+
 - High-throughput systems (>5k jobs/min)
 - Real-time job processing requirements
 - Teams already invested in Redis infrastructure
@@ -318,30 +332,38 @@ await boss.work('send-announcement-emails', async (job) => {
 #### Sample Code
 
 ```typescript
-import { Queue, Worker } from 'bullmq';
+import { Queue, Worker } from "bullmq";
 
 const connection = {
   host: variables.services.redis.url,
-  port: 6379
+  port: 6379,
 };
 
-const queue = new Queue('emails', { connection });
+const queue = new Queue("emails", { connection });
 
 // Send job
-await queue.add('send-announcement', {
-  announcementId: 'uuid',
-  recipientIds: ['uuid1', 'uuid2']
-}, {
-  priority: 1,
-  attempts: 3,
-  backoff: { type: 'exponential', delay: 5000 }
-});
+await queue.add(
+  "send-announcement",
+  {
+    announcementId: "uuid",
+    recipientIds: ["uuid1", "uuid2"],
+  },
+  {
+    priority: 1,
+    attempts: 3,
+    backoff: { type: "exponential", delay: 5000 },
+  },
+);
 
 // Handle job
-const worker = new Worker('emails', async (job) => {
-  const { announcementId, recipientIds } = job.data;
-  await sendAnnouncementEmails(announcementId, recipientIds);
-}, { connection });
+const worker = new Worker(
+  "emails",
+  async (job) => {
+    const { announcementId, recipientIds } = job.data;
+    await sendAnnouncementEmails(announcementId, recipientIds);
+  },
+  { connection },
+);
 ```
 
 ---
@@ -349,11 +371,13 @@ const worker = new Worker('emails', async (job) => {
 ### Option 3: node-cron + Custom Implementation
 
 #### Pros ✅
+
 - Minimal dependencies (just `node-cron`)
 - Full control over scheduling logic
 - Easy to understand and debug
 
 #### Cons ❌
+
 - **No job persistence**: Jobs lost on restart
 - **No distributed execution**: Can't scale horizontally
 - **No retry logic**: Must implement manually
@@ -367,10 +391,12 @@ const worker = new Worker('emails', async (job) => {
 ### Option 4: Agenda (MongoDB-based)
 
 #### Pros ✅
+
 - MongoDB-native job queue
 - Simple API similar to pg-boss
 
 #### Cons ❌
+
 - Requires MongoDB (not in current stack)
 - Adding another database just for jobs is overkill
 - Less active than Bull/pg-boss
@@ -381,20 +407,20 @@ const worker = new Worker('emails', async (job) => {
 
 ### Comparison Matrix
 
-| Feature                  | pg-boss       | BullMQ        | node-cron   |
-| ------------------------ | ------------- | ------------- | ----------- |
-| **Infrastructure**       | PostgreSQL    | Redis         | In-memory   |
-| **Persistence**          | ✅ Automatic   | ✅ Automatic   | ❌ None      |
-| **Throughput**           | 1k jobs/min   | 10k+ jobs/min | N/A         |
-| **Priority Queues**      | ✅             | ✅             | ❌           |
-| **Scheduled Jobs**       | ✅ (cron)      | ✅ (cron)      | ✅ (cron)    |
-| **Retry Logic**          | ✅             | ✅             | ❌           |
-| **Distributed Workers**  | ✅             | ✅             | ❌           |
-| **Built-in UI**          | ❌             | ✅ (Bull Board) | ❌           |
-| **Horizontal Scaling**   | ✅             | ✅             | ❌           |
-| **Setup Complexity**     | Low           | Medium        | Very Low    |
-| **Operational Cost**     | Low           | Medium-High   | Low         |
-| **YPF Stack Fit**        | ⭐⭐⭐⭐⭐        | ⭐⭐⭐⭐         | ⭐⭐          |
+| Feature                 | pg-boss      | BullMQ          | node-cron |
+| ----------------------- | ------------ | --------------- | --------- |
+| **Infrastructure**      | PostgreSQL   | Redis           | In-memory |
+| **Persistence**         | ✅ Automatic | ✅ Automatic    | ❌ None   |
+| **Throughput**          | 1k jobs/min  | 10k+ jobs/min   | N/A       |
+| **Priority Queues**     | ✅           | ✅              | ❌        |
+| **Scheduled Jobs**      | ✅ (cron)    | ✅ (cron)       | ✅ (cron) |
+| **Retry Logic**         | ✅           | ✅              | ❌        |
+| **Distributed Workers** | ✅           | ✅              | ❌        |
+| **Built-in UI**         | ❌           | ✅ (Bull Board) | ❌        |
+| **Horizontal Scaling**  | ✅           | ✅              | ❌        |
+| **Setup Complexity**    | Low          | Medium          | Very Low  |
+| **Operational Cost**    | Low          | Medium-High     | Low       |
+| **YPF Stack Fit**       | ⭐⭐⭐⭐⭐   | ⭐⭐⭐⭐        | ⭐⭐      |
 
 ---
 
@@ -436,6 +462,7 @@ const worker = new Worker('emails', async (job) => {
 #### When to Reconsider
 
 Switch to **BullMQ** if:
+
 - Job throughput exceeds 2k/minute consistently
 - Real-time job processing (<100ms latency) is critical
 - Redis infrastructure is already robust and managed
@@ -444,21 +471,25 @@ Switch to **BullMQ** if:
 ### Implementation Phases
 
 **Phase 1: Foundation** (Week 1)
+
 - Install and configure pg-boss
 - Create job worker infrastructure
 - Implement email queue
 
 **Phase 2: Announcement Broadcasting** (Week 2)
+
 - Implement announcement job handlers
 - Add deduplication logic
 - Create job monitoring endpoints
 
 **Phase 3: Scheduled Tasks** (Week 3)
+
 - Add recurring jobs (cleanup, digests)
 - Implement retry policies
 - Create admin UI for job management
 
 **Phase 4: Optimization** (Week 4)
+
 - Performance tuning
 - Add comprehensive monitoring
 - Load testing and capacity planning
@@ -514,8 +545,8 @@ Switch to **BullMQ** if:
 #### 1. Job Dispatcher (`configs/jobs/dispatcher.ts`)
 
 ```typescript
-import PgBoss from 'pg-boss';
-import variables from '@/configs/env';
+import PgBoss from "pg-boss";
+import variables from "@/configs/env";
 
 class JobDispatcher {
   private boss: PgBoss | null = null;
@@ -523,7 +554,7 @@ class JobDispatcher {
   async initialize() {
     this.boss = new PgBoss({
       connectionString: variables.database.url,
-      schema: 'jobs',  // Separate schema for jobs
+      schema: "jobs", // Separate schema for jobs
       retryLimit: 3,
       retryDelay: 60,
       retryBackoff: true,
@@ -533,12 +564,12 @@ class JobDispatcher {
     });
 
     await this.boss.start();
-    logger.info('Job dispatcher initialized');
+    logger.info("Job dispatcher initialized");
   }
 
   get client() {
     if (!this.boss) {
-      throw new Error('Job dispatcher not initialized');
+      throw new Error("Job dispatcher not initialized");
     }
     return this.boss;
   }
@@ -553,31 +584,31 @@ export default jobDispatcher;
 ```typescript
 export const JobNames = {
   // Email Jobs
-  SEND_EMAIL: 'send-email',
-  SEND_BULK_EMAIL: 'send-bulk-email',
-  
+  SEND_EMAIL: "send-email",
+  SEND_BULK_EMAIL: "send-bulk-email",
+
   // Announcement Jobs
-  PUBLISH_ANNOUNCEMENT: 'publish-announcement',
-  RESOLVE_ANNOUNCEMENT_AUDIENCE: 'resolve-announcement-audience',
-  SEND_ANNOUNCEMENT_EMAILS: 'send-announcement-emails',
-  
+  PUBLISH_ANNOUNCEMENT: "publish-announcement",
+  RESOLVE_ANNOUNCEMENT_AUDIENCE: "resolve-announcement-audience",
+  SEND_ANNOUNCEMENT_EMAILS: "send-announcement-emails",
+
   // Cleanup Jobs
-  CLEANUP_EXPIRED_ANNOUNCEMENTS: 'cleanup-expired-announcements',
-  CLEANUP_OLD_JOBS: 'cleanup-old-jobs',
-  
+  CLEANUP_EXPIRED_ANNOUNCEMENTS: "cleanup-expired-announcements",
+  CLEANUP_OLD_JOBS: "cleanup-old-jobs",
+
   // Periodic Jobs
-  SEND_WEEKLY_DIGEST: 'send-weekly-digest',
-  GENERATE_MONTHLY_REPORT: 'generate-monthly-report',
+  SEND_WEEKLY_DIGEST: "send-weekly-digest",
+  GENERATE_MONTHLY_REPORT: "generate-monthly-report",
 } as const;
 
-export type JobName = typeof JobNames[keyof typeof JobNames];
+export type JobName = (typeof JobNames)[keyof typeof JobNames];
 
 export interface EmailJobData {
   to: string | string[];
   subject: string;
   html: string;
   text?: string;
-  priority?: 'high' | 'normal' | 'low';
+  priority?: "high" | "normal" | "low";
 }
 
 export interface AnnouncementJobData {
@@ -593,12 +624,12 @@ export interface SendAnnouncementEmailsJobData {
 #### 3. Job Workers (`configs/jobs/workers.ts`)
 
 ```typescript
-import jobDispatcher from './dispatcher';
-import { JobNames } from '@/shared/jobs/definitions';
-import { emailWorker } from '@/shared/jobs/workers/emailWorker';
-import { announcementWorker } from '@/shared/jobs/workers/announcementWorker';
-import { cleanupWorker } from '@/shared/jobs/workers/cleanupWorker';
-import logger from '@/configs/logger';
+import jobDispatcher from "./dispatcher";
+import { JobNames } from "@/shared/jobs/definitions";
+import { emailWorker } from "@/shared/jobs/workers/emailWorker";
+import { announcementWorker } from "@/shared/jobs/workers/announcementWorker";
+import { cleanupWorker } from "@/shared/jobs/workers/cleanupWorker";
+import logger from "@/configs/logger";
 
 export async function startWorkers() {
   const boss = jobDispatcher.client;
@@ -607,57 +638,57 @@ export async function startWorkers() {
   await boss.work(
     JobNames.SEND_EMAIL,
     { teamSize: 5, teamConcurrency: 2 },
-    emailWorker.sendEmail
+    emailWorker.sendEmail,
   );
 
   await boss.work(
     JobNames.SEND_BULK_EMAIL,
     { teamSize: 3, teamConcurrency: 1 },
-    emailWorker.sendBulkEmail
+    emailWorker.sendBulkEmail,
   );
 
   // Register Announcement Workers
   await boss.work(
     JobNames.PUBLISH_ANNOUNCEMENT,
     { teamSize: 2, teamConcurrency: 1 },
-    announcementWorker.publishAnnouncement
+    announcementWorker.publishAnnouncement,
   );
 
   await boss.work(
     JobNames.RESOLVE_ANNOUNCEMENT_AUDIENCE,
     { teamSize: 3, teamConcurrency: 1 },
-    announcementWorker.resolveAudience
+    announcementWorker.resolveAudience,
   );
 
   await boss.work(
     JobNames.SEND_ANNOUNCEMENT_EMAILS,
     { teamSize: 5, teamConcurrency: 2 },
-    announcementWorker.sendEmails
+    announcementWorker.sendEmails,
   );
 
   // Register Cleanup Workers
   await boss.work(
     JobNames.CLEANUP_EXPIRED_ANNOUNCEMENTS,
     { teamSize: 1, teamConcurrency: 1 },
-    cleanupWorker.cleanupExpiredAnnouncements
+    cleanupWorker.cleanupExpiredAnnouncements,
   );
 
   // Schedule recurring jobs
   await boss.schedule(
     JobNames.CLEANUP_EXPIRED_ANNOUNCEMENTS,
-    '0 2 * * *', // Daily at 2 AM
+    "0 2 * * *", // Daily at 2 AM
     {},
-    { tz: 'Africa/Accra' }
+    { tz: "Africa/Accra" },
   );
 
   await boss.schedule(
     JobNames.SEND_WEEKLY_DIGEST,
-    '0 9 * * MON', // Mondays at 9 AM
+    "0 9 * * MON", // Mondays at 9 AM
     {},
-    { tz: 'Africa/Accra' }
+    { tz: "Africa/Accra" },
   );
 
-  logger.info('All job workers started and scheduled');
+  logger.info("All job workers started and scheduled");
 }
 ```
 
@@ -666,19 +697,21 @@ export async function startWorkers() {
 **Email Worker** (`shared/jobs/workers/emailWorker.ts`):
 
 ```typescript
-import { sendEmail } from '@/shared/utils/email';
-import logger from '@/configs/logger';
-import type { EmailJobData } from '../definitions';
+import { sendEmail } from "@/shared/utils/email";
+import logger from "@/configs/logger";
+import type { EmailJobData } from "../definitions";
 
 export const emailWorker = {
   async sendEmail(job: { data: EmailJobData }) {
     const { to, subject, html, text } = job.data;
-    
+
     try {
       await sendEmail(to, subject, html, text);
-      logger.info(`Email sent successfully to ${Array.isArray(to) ? to.length : 1} recipient(s)`);
+      logger.info(
+        `Email sent successfully to ${Array.isArray(to) ? to.length : 1} recipient(s)`,
+      );
     } catch (error) {
-      logger.error(error, 'Failed to send email');
+      logger.error(error, "Failed to send email");
       throw error; // Trigger retry
     }
   },
@@ -686,9 +719,9 @@ export const emailWorker = {
   async sendBulkEmail(job: { data: EmailJobData }) {
     // Use BCC for bulk emails
     const { to, subject, html, text } = job.data;
-    
+
     if (!Array.isArray(to) || to.length === 0) {
-      throw new Error('Bulk email requires array of recipients');
+      throw new Error("Bulk email requires array of recipients");
     }
 
     // Batch emails in groups of 100 to avoid SMTP limits
@@ -696,29 +729,31 @@ export const emailWorker = {
     for (let i = 0; i < to.length; i += batchSize) {
       const batch = to.slice(i, i + batchSize);
       await sendEmail(batch, subject, html, text, true); // BCC mode
-      
+
       // Small delay between batches to respect rate limits
       if (i + batchSize < to.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
 
-    logger.info(`Bulk email sent to ${to.length} recipients in ${Math.ceil(to.length / batchSize)} batches`);
-  }
+    logger.info(
+      `Bulk email sent to ${to.length} recipients in ${Math.ceil(to.length / batchSize)} batches`,
+    );
+  },
 };
 ```
 
 **Announcement Worker** (`shared/jobs/workers/announcementWorker.ts`):
 
 ```typescript
-import dbClient from '@/configs/db';
-import schema from '@/db/schema';
-import { resolveAudience } from '@/shared/services/targetResolver';
-import { eq, and, inArray } from 'drizzle-orm';
-import logger from '@/configs/logger';
-import jobDispatcher from '@/configs/jobs/dispatcher';
-import { JobNames } from '../definitions';
-import type { AnnouncementJobData } from '../definitions';
+import dbClient from "@/configs/db";
+import schema from "@/db/schema";
+import { resolveAudience } from "@/shared/services/targetResolver";
+import { eq, and, inArray } from "drizzle-orm";
+import logger from "@/configs/logger";
+import jobDispatcher from "@/configs/jobs/dispatcher";
+import { JobNames } from "../definitions";
+import type { AnnouncementJobData } from "../definitions";
 
 export const announcementWorker = {
   /**
@@ -740,10 +775,12 @@ export const announcementWorker = {
     // 2. Resolve audience (this job spawns a sub-job)
     const audienceJobId = await jobDispatcher.client.send(
       JobNames.RESOLVE_ANNOUNCEMENT_AUDIENCE,
-      { announcementId }
+      { announcementId },
     );
 
-    logger.info(`Spawned audience resolution job ${audienceJobId} for announcement ${announcementId}`);
+    logger.info(
+      `Spawned audience resolution job ${audienceJobId} for announcement ${announcementId}`,
+    );
 
     // Note: The audience resolution job will spawn the email sending job
     // This creates a job chain: publish → resolve → send emails
@@ -771,7 +808,9 @@ export const announcementWorker = {
       return;
     }
 
-    logger.info(`Resolved ${constituentIds.length} constituents for announcement ${announcementId}`);
+    logger.info(
+      `Resolved ${constituentIds.length} constituents for announcement ${announcementId}`,
+    );
 
     // 2. Create ConstituentAnnouncements (inbox entries)
     // Use chunking to avoid overwhelming database
@@ -792,7 +831,9 @@ export const announcementWorker = {
         .execute();
     }
 
-    logger.info(`Created inbox entries for ${constituentIds.length} constituents`);
+    logger.info(
+      `Created inbox entries for ${constituentIds.length} constituents`,
+    );
 
     // 3. Fetch unique email addresses for these constituents
     const constituents = await dbClient.db
@@ -817,13 +858,13 @@ export const announcementWorker = {
       },
       {
         priority: 1, // High priority
-      }
+      },
     );
 
     // 5. Update announcement status
     await dbClient.db
       .update(schema.Announcements)
-      .set({ status: 'PUBLISHED', publishedAt: new Date() })
+      .set({ status: "PUBLISHED", publishedAt: new Date() })
       .where(eq(schema.Announcements.id, announcementId));
 
     logger.info(`Announcement ${announcementId} published successfully`);
@@ -844,33 +885,34 @@ export const announcementWorker = {
     }
 
     // Send via bulk email job
-    await jobDispatcher.client.send(
-      JobNames.SEND_BULK_EMAIL,
-      {
-        to: recipientEmails,
-        subject: announcement.title,
-        html: announcement.content,
-      }
-    );
+    await jobDispatcher.client.send(JobNames.SEND_BULK_EMAIL, {
+      to: recipientEmails,
+      subject: announcement.title,
+      html: announcement.content,
+    });
 
     // Mark emails as sent for all constituents
     await dbClient.db
       .update(schema.ConstituentAnnouncements)
       .set({ emailSent: true })
-      .where(eq(schema.ConstituentAnnouncements.announcementId, announcementId));
+      .where(
+        eq(schema.ConstituentAnnouncements.announcementId, announcementId),
+      );
 
-    logger.info(`Sent announcement emails for ${announcementId} to ${recipientEmails.length} recipients`);
-  }
+    logger.info(
+      `Sent announcement emails for ${announcementId} to ${recipientEmails.length} recipients`,
+    );
+  },
 };
 ```
 
 **Cleanup Worker** (`shared/jobs/workers/cleanupWorker.ts`):
 
 ```typescript
-import dbClient from '@/configs/db';
-import schema from '@/db/schema';
-import { lt, and, eq } from 'drizzle-orm';
-import logger from '@/configs/logger';
+import dbClient from "@/configs/db";
+import schema from "@/db/schema";
+import { lt, and, eq } from "drizzle-orm";
+import logger from "@/configs/logger";
 
 export const cleanupWorker = {
   /**
@@ -883,12 +925,12 @@ export const cleanupWorker = {
     // Archive expired announcements
     const result = await dbClient.db
       .update(schema.Announcements)
-      .set({ status: 'ARCHIVED' })
+      .set({ status: "ARCHIVED" })
       .where(
         and(
-          eq(schema.Announcements.status, 'PUBLISHED'),
-          lt(schema.Announcements.expiresAt, now)
-        )
+          eq(schema.Announcements.status, "PUBLISHED"),
+          lt(schema.Announcements.expiresAt, now),
+        ),
       )
       .returning({ id: schema.Announcements.id });
 
@@ -902,8 +944,8 @@ export const cleanupWorker = {
   async cleanupOldJobs() {
     // pg-boss handles this automatically with `deleteAfterDays` config
     // This is placeholder for any custom cleanup logic
-    logger.info('Job cleanup completed');
-  }
+    logger.info("Job cleanup completed");
+  },
 };
 ```
 
@@ -998,17 +1040,17 @@ CREATE INDEX job_singleton_key ON jobs.job (singleton_key) WHERE state < 'expire
 #### 1. Update `app.ts` to Initialize Jobs
 
 ```typescript
-import jobDispatcher from '@/configs/jobs/dispatcher';
-import { startWorkers } from '@/configs/jobs/workers';
+import jobDispatcher from "@/configs/jobs/dispatcher";
+import { startWorkers } from "@/configs/jobs/workers";
 
 async function shutdown() {
-  logger.info('Shutting down server...');
+  logger.info("Shutting down server...");
 
   try {
     await jobDispatcher.client.stop();
-    logger.info('Job dispatcher stopped.');
+    logger.info("Job dispatcher stopped.");
   } catch (error) {
-    logger.error(error, 'Error stopping job dispatcher');
+    logger.error(error, "Error stopping job dispatcher");
   }
 
   // ... existing shutdown code
@@ -1028,7 +1070,7 @@ async function shutdown() {
 
     // ... existing server startup code
   } catch (error) {
-    logger.error(error, 'Failed to initialize server');
+    logger.error(error, "Failed to initialize server");
     process.exit(1);
   }
 })();
@@ -1037,8 +1079,8 @@ async function shutdown() {
 #### 2. Update `announcementService.ts`
 
 ```typescript
-import jobDispatcher from '@/configs/jobs/dispatcher';
-import { JobNames } from '@/shared/jobs/definitions';
+import jobDispatcher from "@/configs/jobs/dispatcher";
+import { JobNames } from "@/shared/jobs/definitions";
 
 export async function publishAnnouncement(announcementId: string) {
   // Simply queue the job
@@ -1049,7 +1091,7 @@ export async function publishAnnouncement(announcementId: string) {
       priority: 1,
       retryLimit: 2,
       retryDelay: 300, // 5 minutes
-    }
+    },
   );
 
   logger.info(`Queued announcement ${announcementId} for publishing`);
@@ -1062,8 +1104,8 @@ export async function publishAnnouncement(announcementId: string) {
 
 ```typescript
 // features/api/v1/jobs/jobsHandler.ts
-import jobDispatcher from '@/configs/jobs/dispatcher';
-import { Request, Response } from 'express';
+import jobDispatcher from "@/configs/jobs/dispatcher";
+import { Request, Response } from "express";
 
 export async function getJobs(req: Request, res: Response) {
   const { state, name, limit = 50 } = req.query;
@@ -1071,7 +1113,7 @@ export async function getJobs(req: Request, res: Response) {
   const jobs = await jobDispatcher.client.fetch(
     name as string,
     limit as number,
-    { state: state as string }
+    { state: state as string },
   );
 
   res.json({
@@ -1087,7 +1129,7 @@ export async function retryJob(req: Request, res: Response) {
 
   res.json({
     success: true,
-    message: 'Job retried successfully',
+    message: "Job retried successfully",
   });
 }
 
@@ -1098,7 +1140,7 @@ export async function cancelJob(req: Request, res: Response) {
 
   res.json({
     success: true,
-    message: 'Job cancelled successfully',
+    message: "Job cancelled successfully",
   });
 }
 ```
@@ -1115,7 +1157,9 @@ export async function cancelJob(req: Request, res: Response) {
 
 ```typescript
 // Optimized query with indexes
-export async function resolveAudience(filters: TargetingFilter): Promise<string[]> {
+export async function resolveAudience(
+  filters: TargetingFilter,
+): Promise<string[]> {
   // Use a single query with JOINs instead of subqueries
   // Add indexes on foreign keys:
   // - chapter_memberships(member_id, chapter_id)
@@ -1137,20 +1181,20 @@ export async function resolveAudience(filters: TargetingFilter): Promise<string[
 
 ```sql
 -- Optimize audience resolution queries
-CREATE INDEX IF NOT EXISTS idx_chapter_memberships_member_chapter 
+CREATE INDEX IF NOT EXISTS idx_chapter_memberships_member_chapter
   ON core.chapter_memberships(member_id, chapter_id);
 
-CREATE INDEX IF NOT EXISTS idx_committee_memberships_member_committee 
+CREATE INDEX IF NOT EXISTS idx_committee_memberships_member_committee
   ON core.committee_memberships(member_id, committee_id);
 
-CREATE INDEX IF NOT EXISTS idx_member_titles_assignments_member_title 
+CREATE INDEX IF NOT EXISTS idx_member_titles_assignments_member_title
   ON core.member_titles_assignments(member_id, title_id);
 
-CREATE INDEX IF NOT EXISTS idx_members_constituent_ended 
+CREATE INDEX IF NOT EXISTS idx_members_constituent_ended
   ON core.members(constituent_id, ended_at);
 
 -- Optimize job queue queries
-CREATE INDEX IF NOT EXISTS idx_announcements_status_expires 
+CREATE INDEX IF NOT EXISTS idx_announcements_status_expires
   ON activities.announcements(status, expires_at);
 ```
 
@@ -1161,7 +1205,7 @@ CREATE INDEX IF NOT EXISTS idx_announcements_status_expires
 async function sendAnnouncementEmails(recipients: string[], chunkSize = 100) {
   for (let i = 0; i < recipients.length; i += chunkSize) {
     const chunk = recipients.slice(i, i + chunkSize);
-    
+
     await jobDispatcher.client.send(JobNames.SEND_BULK_EMAIL, {
       to: chunk,
       // ... email data
@@ -1174,10 +1218,10 @@ async function sendAnnouncementEmails(recipients: string[], chunkSize = 100) {
 
 ```typescript
 enum JobPriority {
-  CRITICAL = 1,  // OTP emails, password resets
-  HIGH = 2,      // Transactional emails (donations, orders)
-  NORMAL = 5,    // Announcements
-  LOW = 10,      // Digests, reports
+  CRITICAL = 1, // OTP emails, password resets
+  HIGH = 2, // Transactional emails (donations, orders)
+  NORMAL = 5, // Announcements
+  LOW = 10, // Digests, reports
 }
 
 await jobDispatcher.client.send(jobName, data, {
@@ -1190,8 +1234,8 @@ await jobDispatcher.client.send(jobName, data, {
 ```typescript
 // Respect SMTP provider limits (e.g., 100 emails/minute)
 const emailWorkerConfig = {
-  teamSize: 5,           // 5 parallel workers
-  teamConcurrency: 2,    // Each worker handles 2 jobs concurrently
+  teamSize: 5, // 5 parallel workers
+  teamConcurrency: 2, // Each worker handles 2 jobs concurrently
   newJobCheckInterval: 1000, // Check for new jobs every second
 };
 
@@ -1205,7 +1249,7 @@ const emailWorkerConfig = {
 // Use shared connection pool for jobs
 const boss = new PgBoss({
   connectionString: variables.database.url,
-  max: 10,  // Share connections with main app pool
+  max: 10, // Share connections with main app pool
   // pg-boss creates its own pool, ensure total pools don't exceed DB limits
 });
 ```
@@ -1219,14 +1263,14 @@ const boss = new PgBoss({
 ```typescript
 // Never store sensitive data in job payloads
 // ❌ BAD
-await jobDispatcher.client.send('send-email', {
-  password: 'user-password', // Never!
-  creditCard: '1234-5678-9012-3456', // Never!
+await jobDispatcher.client.send("send-email", {
+  password: "user-password", // Never!
+  creditCard: "1234-5678-9012-3456", // Never!
 });
 
 // ✅ GOOD
-await jobDispatcher.client.send('send-email', {
-  userId: 'uuid', // Reference, fetch sensitive data in worker
+await jobDispatcher.client.send("send-email", {
+  userId: "uuid", // Reference, fetch sensitive data in worker
 });
 ```
 
@@ -1234,13 +1278,14 @@ await jobDispatcher.client.send('send-email', {
 
 ```typescript
 // Ensure only authorized users can trigger jobs
-router.post('/announcements/:id/publish',
+router.post(
+  "/announcements/:id/publish",
   authenticate,
-  authorize(Visitors.hasProfile('ADMIN')),
+  authorize(Visitors.hasProfile("ADMIN")),
   async (req, res) => {
     await publishAnnouncement(req.params.id);
     res.json({ success: true });
-  }
+  },
 );
 ```
 
@@ -1283,11 +1328,11 @@ router.post('/announcements/:id/publish', jobCreationLimiter, ...);
 
 ```typescript
 // Expose metrics endpoint for monitoring
-router.get('/admin/jobs/metrics', async (req, res) => {
+router.get("/admin/jobs/metrics", async (req, res) => {
   const metrics = {
-    queued: await boss.getQueueSize('send-email'),
-    failed: await boss.getQueueSize('send-email', 'failed'),
-    completed: await boss.getQueueSize('send-email', 'completed'),
+    queued: await boss.getQueueSize("send-email"),
+    failed: await boss.getQueueSize("send-email", "failed"),
+    completed: await boss.getQueueSize("send-email", "completed"),
   };
 
   res.json({ success: true, data: metrics });
@@ -1298,15 +1343,15 @@ router.get('/admin/jobs/metrics', async (req, res) => {
 
 ```typescript
 // Monitor job lifecycle events
-boss.on('error', (error) => {
-  logger.error(error, 'Job queue error');
+boss.on("error", (error) => {
+  logger.error(error, "Job queue error");
 });
 
-boss.on('maintenance', () => {
-  logger.debug('Job queue maintenance started');
+boss.on("maintenance", () => {
+  logger.debug("Job queue maintenance started");
 });
 
-boss.on('monitor-states', (states) => {
+boss.on("monitor-states", (states) => {
   logger.info(`Job states: ${JSON.stringify(states)}`);
 });
 ```
@@ -1316,14 +1361,14 @@ boss.on('monitor-states', (states) => {
 ```typescript
 // Structured logging for jobs
 logger.info({
-  event: 'job-started',
+  event: "job-started",
   jobId: job.id,
   jobName: job.name,
   timestamp: new Date().toISOString(),
 });
 
 logger.error({
-  event: 'job-failed',
+  event: "job-failed",
   jobId: job.id,
   jobName: job.name,
   error: error.message,
@@ -1337,8 +1382,8 @@ logger.error({
 ```typescript
 // Alert when jobs hit dead letter queue
 async function monitorDeadLetterQueue() {
-  const failedJobs = await boss.fetch('*', 100, { state: 'failed' });
-  
+  const failedJobs = await boss.fetch("*", 100, { state: "failed" });
+
   if (failedJobs.length > 10) {
     logger.warn(`High number of failed jobs: ${failedJobs.length}`);
     // Send alert to team (email, Slack, PagerDuty)
@@ -1346,7 +1391,7 @@ async function monitorDeadLetterQueue() {
 }
 
 // Run every 10 minutes
-await boss.schedule('monitor-dead-letter', '*/10 * * * *', {});
+await boss.schedule("monitor-dead-letter", "*/10 * * * *", {});
 ```
 
 ---
@@ -1357,42 +1402,44 @@ await boss.schedule('monitor-dead-letter', '*/10 * * * *', {});
 
 ```typescript
 // tests/unit/jobs/emailWorker.test.ts
-import { describe, it, expect, vi } from 'vitest';
-import { emailWorker } from '@/shared/jobs/workers/emailWorker';
-import * as emailUtils from '@/shared/utils/email';
+import { describe, it, expect, vi } from "vitest";
+import { emailWorker } from "@/shared/jobs/workers/emailWorker";
+import * as emailUtils from "@/shared/utils/email";
 
-describe('emailWorker', () => {
-  it('should send email successfully', async () => {
-    const sendEmailSpy = vi.spyOn(emailUtils, 'sendEmail').mockResolvedValue();
+describe("emailWorker", () => {
+  it("should send email successfully", async () => {
+    const sendEmailSpy = vi.spyOn(emailUtils, "sendEmail").mockResolvedValue();
 
     await emailWorker.sendEmail({
       data: {
-        to: 'test@example.com',
-        subject: 'Test',
-        html: '<p>Test</p>',
+        to: "test@example.com",
+        subject: "Test",
+        html: "<p>Test</p>",
       },
     });
 
     expect(sendEmailSpy).toHaveBeenCalledWith(
-      'test@example.com',
-      'Test',
-      '<p>Test</p>',
-      undefined
+      "test@example.com",
+      "Test",
+      "<p>Test</p>",
+      undefined,
     );
   });
 
-  it('should retry on failure', async () => {
-    vi.spyOn(emailUtils, 'sendEmail').mockRejectedValue(new Error('SMTP error'));
+  it("should retry on failure", async () => {
+    vi.spyOn(emailUtils, "sendEmail").mockRejectedValue(
+      new Error("SMTP error"),
+    );
 
     await expect(
       emailWorker.sendEmail({
         data: {
-          to: 'test@example.com',
-          subject: 'Test',
-          html: '<p>Test</p>',
+          to: "test@example.com",
+          subject: "Test",
+          html: "<p>Test</p>",
         },
-      })
-    ).rejects.toThrow('SMTP error');
+      }),
+    ).rejects.toThrow("SMTP error");
   });
 });
 ```
@@ -1401,11 +1448,11 @@ describe('emailWorker', () => {
 
 ```typescript
 // tests/integration/jobs.test.ts
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import jobDispatcher from '@/configs/jobs/dispatcher';
-import { JobNames } from '@/shared/jobs/definitions';
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import jobDispatcher from "@/configs/jobs/dispatcher";
+import { JobNames } from "@/shared/jobs/definitions";
 
-describe('Job Queue Integration', () => {
+describe("Job Queue Integration", () => {
   beforeAll(async () => {
     await jobDispatcher.initialize();
   });
@@ -1414,11 +1461,11 @@ describe('Job Queue Integration', () => {
     await jobDispatcher.client.stop();
   });
 
-  it('should queue and process email job', async () => {
+  it("should queue and process email job", async () => {
     const jobId = await jobDispatcher.client.send(JobNames.SEND_EMAIL, {
-      to: 'test@example.com',
-      subject: 'Test',
-      html: '<p>Test</p>',
+      to: "test@example.com",
+      subject: "Test",
+      html: "<p>Test</p>",
     });
 
     expect(jobId).toBeDefined();
@@ -1434,7 +1481,7 @@ describe('Job Queue Integration', () => {
 
 ```typescript
 // tests/load/jobQueue.load.ts
-import jobDispatcher from '@/configs/jobs/dispatcher';
+import jobDispatcher from "@/configs/jobs/dispatcher";
 
 async function loadTest() {
   const jobCount = 1000;
@@ -1443,9 +1490,7 @@ async function loadTest() {
   // Queue 1000 jobs
   const promises = [];
   for (let i = 0; i < jobCount; i++) {
-    promises.push(
-      jobDispatcher.client.send('test-job', { index: i })
-    );
+    promises.push(jobDispatcher.client.send("test-job", { index: i }));
   }
 
   await Promise.all(promises);
@@ -1454,7 +1499,9 @@ async function loadTest() {
   const duration = endTime - startTime;
 
   console.log(`Queued ${jobCount} jobs in ${duration}ms`);
-  console.log(`Throughput: ${(jobCount / duration * 1000).toFixed(2)} jobs/sec`);
+  console.log(
+    `Throughput: ${((jobCount / duration) * 1000).toFixed(2)} jobs/sec`,
+  );
 }
 ```
 
@@ -1492,13 +1539,13 @@ node dist/app.js
 
 ```typescript
 // workers.js - Dedicated worker process
-import jobDispatcher from './configs/jobs/dispatcher';
-import { startWorkers } from './configs/jobs/workers';
+import jobDispatcher from "./configs/jobs/dispatcher";
+import { startWorkers } from "./configs/jobs/workers";
 
 (async () => {
   await jobDispatcher.initialize();
   await startWorkers();
-  console.log('Worker process started');
+  console.log("Worker process started");
 })();
 ```
 
@@ -1527,7 +1574,7 @@ CMD ["node", "dist/app.js"]
 
 ```yaml
 # docker-compose.yml
-version: '3.8'
+version: "3.8"
 services:
   api:
     build: .
@@ -1567,6 +1614,7 @@ volumes:
 ### Phase 1: Setup Infrastructure (Week 1)
 
 **Tasks:**
+
 1. Install pg-boss: `npm install pg-boss @types/pg-boss`
 2. Create job configuration files
 3. Implement basic email worker
@@ -1574,6 +1622,7 @@ volumes:
 5. Create database migrations for indexes
 
 **Deliverables:**
+
 - Job dispatcher configured
 - Email jobs working
 - Tests passing
@@ -1581,6 +1630,7 @@ volumes:
 ### Phase 2: Announcement Broadcasting (Week 2)
 
 **Tasks:**
+
 1. Implement announcement worker
 2. Update `announcementService.ts` to use jobs
 3. Add deduplication logic
@@ -1588,6 +1638,7 @@ volumes:
 5. Update API documentation
 
 **Deliverables:**
+
 - Announcements broadcast via jobs
 - Duplicate prevention working
 - Admin can monitor job status
@@ -1595,6 +1646,7 @@ volumes:
 ### Phase 3: Additional Features (Week 3)
 
 **Tasks:**
+
 1. Implement cleanup workers
 2. Add scheduled tasks (cron jobs)
 3. Create admin UI for job management
@@ -1602,6 +1654,7 @@ volumes:
 5. Performance testing
 
 **Deliverables:**
+
 - Recurring jobs running
 - Admin dashboard functional
 - Performance benchmarks met
@@ -1609,6 +1662,7 @@ volumes:
 ### Phase 4: Production Hardening (Week 4)
 
 **Tasks:**
+
 1. Load testing
 2. Error handling improvements
 3. Monitoring and alerting
@@ -1616,6 +1670,7 @@ volumes:
 5. Team training
 
 **Deliverables:**
+
 - Production-ready system
 - Complete documentation
 - Team onboarded
@@ -1627,6 +1682,7 @@ volumes:
 ### 1. Custom Job Dashboard
 
 Build a React admin panel to visualize job queue:
+
 - Real-time job status
 - Retry/cancel controls
 - Metrics charts (success rate, duration)
@@ -1635,19 +1691,21 @@ Build a React admin panel to visualize job queue:
 ### 2. Job Dependencies
 
 Implement job chains and flows:
+
 ```typescript
-await boss.sendWithFlow('workflow-1', [
-  { name: 'step-1', data: {} },
-  { name: 'step-2', data: {}, after: ['step-1'] },
-  { name: 'step-3', data: {}, after: ['step-2'] },
+await boss.sendWithFlow("workflow-1", [
+  { name: "step-1", data: {} },
+  { name: "step-2", data: {}, after: ["step-1"] },
+  { name: "step-3", data: {}, after: ["step-2"] },
 ]);
 ```
 
 ### 3. Webhook Integration
 
 Trigger jobs via webhooks:
+
 ```typescript
-router.post('/webhooks/trigger-job', async (req, res) => {
+router.post("/webhooks/trigger-job", async (req, res) => {
   const { jobName, data } = req.body;
   await jobDispatcher.client.send(jobName, data);
   res.json({ success: true });
@@ -1657,6 +1715,7 @@ router.post('/webhooks/trigger-job', async (req, res) => {
 ### 4. Advanced Scheduling
 
 Implement complex scheduling patterns:
+
 - Run on specific dates (e.g., birthdays)
 - Time zone-aware scheduling
 - Conditional job execution
@@ -1664,8 +1723,9 @@ Implement complex scheduling patterns:
 ### 5. Multi-tenancy Support
 
 If YPF scales to multiple organizations:
+
 ```typescript
-await boss.send('send-email', data, {
+await boss.send("send-email", data, {
   singletonKey: `org-${orgId}-email-${userId}`,
   singletonSeconds: 60,
 });
@@ -1674,6 +1734,7 @@ await boss.send('send-email', data, {
 ### 6. Migration to BullMQ
 
 If performance becomes a concern:
+
 1. Implement adapter pattern for job queue
 2. Create BullMQ implementation
 3. Switch via configuration flag
@@ -1685,16 +1746,19 @@ If performance becomes a concern:
 ## References & Resources
 
 ### Documentation
+
 - **pg-boss**: https://github.com/timgit/pg-boss
 - **BullMQ**: https://docs.bullmq.io/
 - **PostgreSQL Performance**: https://wiki.postgresql.org/wiki/Performance_Optimization
 
 ### Best Practices
+
 - **Job Queue Patterns**: https://www.rabbitmq.com/patterns.html
 - **At-Least-Once Delivery**: https://kafka.apache.org/documentation/#semantics
 - **Idempotency in Distributed Systems**: https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/
 
 ### YPF Backend Docs
+
 - [Financial Transactions](./financial-transactions.md)
 - [Authorization Strategy](./authorization-strategy.md)
 - [Announcement Creation](./announcement-creation.md)
