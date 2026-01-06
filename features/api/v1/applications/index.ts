@@ -19,6 +19,9 @@ import {
   GetVolunteerApplicationsQuerySchema,
   UploadRegistrationFileSchema,
 } from "./schemas";
+import { redisCacheEarlyReturn } from "@/shared/middlewares/redisCache";
+import redisClient from "@/configs/redis";
+import logger from "@/configs/logger";
 
 const applicationsRouter = Router();
 
@@ -106,11 +109,15 @@ applicationsRouter.get(
   authenticate,
   authorize(Visitors.hasProfile("ADMIN")),
   validateQuery(GetMembershipApplicationsQuerySchema),
+  redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await applicationsHandler.getMembershipApplications(
         req.Query,
       );
+      redisClient.setCache(req.CacheKey, response, 60 * 5).catch((err) => {
+        logger.error(err, `Failed to set cache for ${req.CacheKey}`);
+      });
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -281,11 +288,15 @@ applicationsRouter.get(
   validateParams(z.object({ id: z.uuid("Invalid Request") })),
   authenticate,
   authorize(Visitors.hasProfile("ADMIN")),
+  redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await applicationsHandler.getMembershipApplicationById(
         req.Params.id,
       );
+      redisClient.setCache(req.CacheKey, response, 60 * 5).catch((err) => {
+        logger.error(err, `Failed to set cache for ${req.CacheKey}`);
+      });
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -520,11 +531,15 @@ applicationsRouter.get(
   authenticate,
   authorize(Visitors.hasProfile("ADMIN")),
   validateQuery(GetVolunteerApplicationsQuerySchema),
+  redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await applicationsHandler.getVolunteerApplications(
         req.Query,
       );
+      redisClient.setCache(req.CacheKey, response, 60 * 5).catch((err) => {
+        logger.error(err, `Failed to set cache for ${req.CacheKey}`);
+      });
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -614,11 +629,15 @@ applicationsRouter.get(
   validateParams(z.object({ id: z.uuid("Invalid Request") })),
   authenticate,
   authorize(Visitors.hasProfile("ADMIN")),
+  redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await applicationsHandler.getVolunteerApplicationById(
         req.Params.id,
       );
+      redisClient.setCache(req.CacheKey, response, 60 * 5).catch((err) => {
+        logger.error(err, `Failed to set cache for ${req.CacheKey}`);
+      });
       res.status(200).json(response);
     } catch (error) {
       next(error);
