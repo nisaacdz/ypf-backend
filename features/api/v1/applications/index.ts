@@ -148,11 +148,7 @@ applicationsRouter.get(
 applicationsRouter.patch(
   "/membership/:id/status",
   authenticate,
-  authorize((user) =>
-    ["SUPER_ADMIN", "MANAGEMENT_BOARD"].some((role) =>
-      user.roles.includes(role as any)
-    )
-  ),
+  authorize(Visitors.hasProfile("ADMIN")),
   validateBody(UpdateMembershipApplicationStatusSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {

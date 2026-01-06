@@ -176,6 +176,10 @@ export async function getMembershipApplications(
     dbClient.db
       .select({ count: count() })
       .from(schema.MembershipApplications)
+      .innerJoin(
+        schema.Constituents,
+        eq(schema.MembershipApplications.constituentId, schema.Constituents.id)
+      )
       .where(whereClause),
   ]);
 

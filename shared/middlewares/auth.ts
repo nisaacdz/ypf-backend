@@ -192,7 +192,7 @@ export const authenticateLax = async (
 export const authorize = (guard: GuardFunction) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const hasAccess = await guard(req.User!);
+      const hasAccess = await guard(req);
 
       if (hasAccess) {
         return next();
