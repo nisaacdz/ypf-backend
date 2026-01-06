@@ -23,7 +23,8 @@ function loadYamlFiles(directory: string): any[] {
 
     if (stat.isFile() && entry.endsWith(".yaml")) {
       const content = fs.readFileSync(fullPath, "utf8");
-      const parsed = yaml.load(content);
+      // Use safeLoad to prevent arbitrary code execution from malicious YAML
+      const parsed = yaml.load(content, { schema: yaml.CORE_SCHEMA });
       files.push(parsed);
     }
   }
