@@ -490,7 +490,7 @@ tags:
                 message:
                   type: string
                 data:
-                  type: "null"
+                  type: null
       400:
         description: Validation error
       401:
@@ -527,7 +527,7 @@ tags:
                 message:
                   type: string
                 data:
-                  type: "null"
+                  type: null
       401:
         description: Not authenticated
       403:
