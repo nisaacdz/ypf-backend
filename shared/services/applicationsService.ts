@@ -1,4 +1,4 @@
-import { eq, desc, count, and, ilike, or } from "drizzle-orm";
+import { aliasedTable, eq, desc, count, and, ilike, or } from "drizzle-orm";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import logger from "@/configs/logger";
@@ -217,6 +217,9 @@ export async function getMembershipApplications(
 export async function getMembershipApplicationById(
   id: string,
 ): Promise<YPFMembershipApplicationDetail | null> {
+  // 1. Create an alias for the second join
+  const NationalIdDocs = aliasedTable(schema.Documents, "national_id_docs");
+
   const [application] = await dbClient.db
     .select({
       id: schema.MembershipApplications.id,
@@ -259,13 +262,15 @@ export async function getMembershipApplicationById(
         id: schema.Committees.id,
         name: schema.Committees.name,
       },
+      // 2. This selects from the standard join (CV)
       cvDocument: {
         id: schema.Documents.id,
         externalId: schema.Documents.externalId,
       },
+      // 3. This selects from the ALIASED join (National ID)
       nationalIdDocument: {
-        id: schema.Documents.id,
-        externalId: schema.Documents.externalId,
+        id: NationalIdDocs.id,
+        externalId: NationalIdDocs.externalId,
       },
     })
     .from(schema.MembershipApplications)
@@ -284,9 +289,16 @@ export async function getMembershipApplicationById(
         schema.Committees.id,
       ),
     )
+    // Join 1: For CV (standard schema.Documents)
     .leftJoin(
       schema.Documents,
       eq(schema.MembershipApplications.cvDocumentId, schema.Documents.id),
+    )
+    // Join 2: For National ID (using the alias)
+    // Note: referencing Constituents.nationalIdDocumentId
+    .leftJoin(
+      NationalIdDocs,
+      eq(schema.Constituents.nationalIdDocumentId, NationalIdDocs.id),
     )
     .leftJoin(
       schema.Media,
@@ -349,7 +361,7 @@ export async function getMembershipApplicationById(
     cvDocument: application.cvDocument
       ? {
           id: application.cvDocument.id,
-          url: generateSignedDocumentPreviewUrl(
+          url: await generateSignedDocumentPreviewUrl(
             application.cvDocument.externalId,
             {
               expireSeconds: 60 * 60,
@@ -366,7 +378,7 @@ export async function getMembershipApplicationById(
     nationalIdDocument: application.nationalIdDocument
       ? {
           id: application.nationalIdDocument.id,
-          url: generateSignedDocumentPreviewUrl(
+          url: await generateSignedDocumentPreviewUrl(
             application.nationalIdDocument.externalId,
             {
               expireSeconds: 60 * 60,
