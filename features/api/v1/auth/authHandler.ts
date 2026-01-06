@@ -36,12 +36,12 @@ export async function loginWithUsernameAndPassword({
 
   const authenticatedUser = await authService.loginWithUsernameAndPassword(
     username,
-    password,
+    password
   );
 
   // Fetch detailed constituent info
   const constituentDetail = await constituentsService.getDetailedConstituent(
-    authenticatedUser.constituentId,
+    authenticatedUser.constituentId
   );
 
   if (!constituentDetail) throw new ApiError("Something went wrong"); // unexpected!
@@ -54,7 +54,7 @@ export async function loginWithUsernameAndPassword({
   const accessToken = encodeData(authenticatedUser, { expiresIn: "30m" });
   const refreshToken = encodeData(
     { username: authenticatedUser.email },
-    { expiresIn: "3d" },
+    { expiresIn: "3d" }
   );
 
   return {
@@ -111,25 +111,52 @@ export async function onboard({
 }
 
 /**
- * Resets the user's password using a valid OTP.
+ * Resets the user's password using a valid OTP and logs them in.
  *
  * @param email - The user's email address
  * @param otp - The OTP code received via email
  * @param password - The new password
- * @returns Success response indicating password was reset
+ * @returns Authentication response with tokens and user data
  * @throws ApiError if OTP is invalid, expired, or used
  */
 export async function resetPassword({
   email,
   otp,
   password,
-}: z.infer<typeof ResetPasswordSchema>): Promise<ApiResponse<null>> {
+}: z.infer<typeof ResetPasswordSchema>): Promise<{
+  response: ApiResponse<AuthData>;
+  accessToken: string;
+  refreshToken: string;
+}> {
   await authService.resetPassword(email, otp, password);
 
+  const authenticatedUser = await authService.loginWithUsername(email);
+
+  const constituentDetail = await constituentsService.getDetailedConstituent(
+    authenticatedUser.constituentId
+  );
+
+  if (!constituentDetail) throw new ApiError("Something went wrong"); // unexpected!
+
+  const authData: AuthData = {
+    ...constituentDetail,
+    auth: authenticatedUser,
+  };
+
+  const accessToken = encodeData(authenticatedUser, { expiresIn: "30m" });
+  const refreshToken = encodeData(
+    { username: authenticatedUser.email },
+    { expiresIn: "3d" }
+  );
+
   return {
-    success: true,
-    data: null,
-    message: "Password reset successful",
+    response: {
+      success: true,
+      data: authData,
+      message: "Login successful",
+    },
+    accessToken,
+    refreshToken,
   };
 }
 

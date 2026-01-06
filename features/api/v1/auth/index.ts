@@ -58,10 +58,71 @@ const authRouter = Router();
  *                 data:
  *                   type: object
  *                   properties:
- *                     user:
+ *                     id:
+ *                       type: string
+ *                       format: uuid
+ *                     firstName:
+ *                       type: string
+ *                     lastName:
+ *                       type: string
+ *                     preferredName:
+ *                       type: string
+ *                     profilePhoto:
+ *                       type: object
+ *                     profiles:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           name:
+ *                             type: string
+ *                             enum: [ADMIN, MEMBER, VOLUNTEER, AUDITOR]
+ *                           startedAt:
+ *                             type: string
+ *                             format: date-time
+ *                           endedAt:
+ *                             type: string
+ *                             format: date-time
+ *                     roles:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           profile:
+ *                             type: string
+ *                           title:
+ *                             type: string
+ *                           startedAt:
+ *                             type: string
+ *                             format: date-time
+ *                           endedAt:
+ *                             type: string
+ *                             format: date-time
+ *                     committees:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                     chapters:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                     auth:
  *                       type: object
  *                       properties:
  *                         id:
+ *                           type: string
+ *                           format: uuid
+ *                         constituentId:
  *                           type: string
  *                           format: uuid
  *                         email:
@@ -69,6 +130,10 @@ const authRouter = Router();
  *                           format: email
  *                         fullName:
  *                           type: string
+ *                         roles:
+ *                           type: array
+ *                           items:
+ *                             type: string
  *                         profiles:
  *                           type: array
  *                           items:
@@ -113,7 +178,7 @@ authRouter.post(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -175,7 +240,7 @@ authRouter.post(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -212,7 +277,12 @@ authRouter.post(
  *                 description: New password for the account
  *     responses:
  *       200:
- *         description: Password reset successful
+ *         description: Password reset successful and user logged in
+ *         headers:
+ *           Set-Cookie:
+ *             schema:
+ *               type: string
+ *               example: access_token=...; refresh_token=...
  *         content:
  *           application/json:
  *             schema:
@@ -223,9 +293,91 @@ authRouter.post(
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: Password reset successful
+ *                   example: Login successful
  *                 data:
- *                   type: null
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       format: uuid
+ *                     firstName:
+ *                       type: string
+ *                     lastName:
+ *                       type: string
+ *                     preferredName:
+ *                       type: string
+ *                     profilePhoto:
+ *                       type: object
+ *                     profiles:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           name:
+ *                             type: string
+ *                             enum: [ADMIN, MEMBER, VOLUNTEER, AUDITOR]
+ *                           startedAt:
+ *                             type: string
+ *                             format: date-time
+ *                           endedAt:
+ *                             type: string
+ *                             format: date-time
+ *                     roles:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           profile:
+ *                             type: string
+ *                           title:
+ *                             type: string
+ *                           startedAt:
+ *                             type: string
+ *                             format: date-time
+ *                           endedAt:
+ *                             type: string
+ *                             format: date-time
+ *                     committees:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                     chapters:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                     auth:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                           format: uuid
+ *                         constituentId:
+ *                           type: string
+ *                           format: uuid
+ *                         email:
+ *                           type: string
+ *                           format: email
+ *                         fullName:
+ *                           type: string
+ *                         roles:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *                         profiles:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *                             enum: [ADMIN, MEMBER, VOLUNTEER, AUDITOR]
  *       400:
  *         description: Invalid OTP, OTP expired, or OTP already used
  *         content:
@@ -244,12 +396,34 @@ authRouter.post(
   validateBody(ResetPasswordSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const response = await authHandler.resetPassword(req.Body);
+      const { response, accessToken, refreshToken } =
+        await authHandler.resetPassword(req.Body);
+
+      // Set access_token cookie with 30-minute expiry
+      res.cookie("access_token", accessToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "none",
+        maxAge: 3 * 24 * 60 * 60 * 1000, // actual token expires earlier
+        path: "/",
+        partitioned: true,
+      });
+
+      // Set refresh_token cookie with 3-day expiry
+      res.cookie("refresh_token", refreshToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "none",
+        maxAge: 3 * 24 * 60 * 60 * 1000, // 3 days
+        path: "/",
+        partitioned: true,
+      });
+
       res.status(200).json(response);
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 /**
@@ -432,7 +606,7 @@ authRouter.post(
     } catch (error) {
       next(error);
     }
-  },
+  }
 );
 
 export default authRouter;
