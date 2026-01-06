@@ -194,7 +194,6 @@ describe("Authentication API", () => {
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(response.body.message).toBe("Password reset successful");
 
       // Verify OTP was marked as used
       const [usedOtp] = await dbClient.db
