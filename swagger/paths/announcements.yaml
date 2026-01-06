@@ -1,0 +1,106 @@
+/api/v1/announcements:
+  post:
+    summary: Create a new announcement
+    tags: [Announcements]
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - title
+              - content
+              - targetCriteria
+            properties:
+              title:
+                type: string
+                minLength: 1
+                maxLength: 255
+                description: The title of the announcement
+              content:
+                type: string
+                minLength: 1
+                description: The content of the announcement (Markdown/HTML)
+              status:
+                type: string
+                enum: [DRAFT, PUBLISHED]
+                default: DRAFT
+              sendAt:
+                type: string
+                format: date-time
+                description: Scheduled time to send the announcement
+              targetCriteria:
+                type: object
+                required:
+                  - status
+                description: Flat targeting filter. Top-level fields are AND combined; arrays within fields are OR combined.
+                properties:
+                  chapterIds:
+                    type: array
+                    items:
+                      type: string
+                      format: uuid
+                    description: Filter by Chapter membership (OR)
+                  committeeIds:
+                    type: array
+                    items:
+                      type: string
+                      format: uuid
+                    description: Filter by Committee membership (OR)
+                  roles:
+                    type: array
+                    items:
+                      type: string
+                    description: Filter by specific roles/titles (e.g. PRESIDENT) (OR)
+                  constituentTypes:
+                    type: array
+                    items:
+                      type: string
+                      enum: [MEMBER, VOLUNTEER, ADMIN]
+                    description: Filter by constituent type (OR)
+                  status:
+                    type: string
+                    enum: [ACTIVE, PAST, ALL]
+                    default: ACTIVE
+                    description: Filter by active status in the selected roles/types
+    responses:
+      201:
+        description: Announcement created successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    title:
+                      type: string
+                    status:
+                      type: string
+      400:
+        description: Invalid input data
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
+      401:
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
+      403:
+        description: Forbidden - Insufficient permissions
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'

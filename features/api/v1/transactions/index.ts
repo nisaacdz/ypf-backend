@@ -5,42 +5,6 @@ import z from "zod";
 
 const transactionsRouter = Router();
 
-/**
- * @swagger
- * /api/v1/transactions/{reference}/verify:
- *   post:
- *     summary: Verify a transaction by its external reference
- *     tags: [Transactions]
- *     parameters:
- *       - in: path
- *         name: reference
- *         required: true
- *         schema:
- *           type: string
- *         description: Transaction external reference (e.g., Paystack reference)
- *     responses:
- *       200:
- *         description: Transaction verified successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 message:
- *                   type: string
- *                 data:
- *                   type: object
- *                   properties:
- *                     status:
- *                       type: string
- *                       enum: [PENDING, COMPLETED, FAILED, REFUNDED]
- *       404:
- *         description: Transaction not found
- *       500:
- *         description: Server error
- */
 transactionsRouter.post(
   "/:reference/verify",
   validateParams(
