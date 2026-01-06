@@ -87,11 +87,17 @@ const swaggerOptions: swaggerJsdoc.Options = {
     },
     paths: loadPaths(),
     tags: [
-      { name: "Dashboard", description: "Admin dashboard statistics and activity" },
+      {
+        name: "Dashboard",
+        description: "Admin dashboard statistics and activity",
+      },
       { name: "Events", description: "Event management endpoints" },
       { name: "Projects", description: "Project management endpoints" },
       { name: "Applications", description: "Application management endpoints" },
-      { name: "Authentication", description: "Authentication and authorization" },
+      {
+        name: "Authentication",
+        description: "Authentication and authorization",
+      },
       { name: "Members", description: "Member management endpoints" },
       { name: "Donations", description: "Donation management endpoints" },
       { name: "Users", description: "User management endpoints" },
@@ -100,7 +106,10 @@ const swaggerOptions: swaggerJsdoc.Options = {
       { name: "Partnerships", description: "Partnership management endpoints" },
       { name: "Shop", description: "Shop product management endpoints" },
       { name: "Dues", description: "Member dues management endpoints" },
-      { name: "Announcements", description: "Announcement management endpoints" },
+      {
+        name: "Announcements",
+        description: "Announcement management endpoints",
+      },
       { name: "Transactions", description: "Financial transaction endpoints" },
       { name: "Constituents", description: "Constituent management endpoints" },
     ],

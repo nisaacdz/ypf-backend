@@ -65,8 +65,66 @@ tags:
                       type: integer
                     pageSize:
                       type: integer
-                    total:
-                      type: integer
+      400:
+        description: Invalid query parameters
+  post:
+    summary: Create a new product (Admin only)
+    tags: [Shop]
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - name
+              - sku
+              - price
+              - stockQuantity
+            properties:
+              name:
+                type: string
+                minLength: 3
+                maxLength: 255
+              sku:
+                type: string
+                minLength: 3
+                maxLength: 50
+              description:
+                type: string
+              price:
+                type: string
+                description: Price in decimal format (e.g., "49.99")
+              stockQuantity:
+                type: integer
+                minimum: 0
+              isActive:
+                type: boolean
+                default: true
+    responses:
+      201:
+        description: Product created successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                message:
+                  type: string
+                data:
+                  type: string
+                  format: uuid
+                  description: The created product ID
+      400:
+        description: Validation error
+      401:
+        description: Not authenticated
+      403:
+        description: Forbidden - Admin access required
 
 /api/v1/shop/products/{id}:
   get:
@@ -117,6 +175,98 @@ tags:
                     createdAt:
                       type: string
                       format: date-time
+      404:
+        description: Product not found
+  put:
+    summary: Update a product (Admin only)
+    tags: [Shop]
+    security:
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Product ID
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+                minLength: 3
+                maxLength: 255
+              sku:
+                type: string
+                minLength: 3
+                maxLength: 50
+              description:
+                type: string
+              price:
+                type: string
+              stockQuantity:
+                type: integer
+                minimum: 0
+              isActive:
+                type: boolean
+    responses:
+      200:
+        description: Product updated successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                message:
+                  type: string
+                data:
+                  type: null
+      400:
+        description: Validation error
+      401:
+        description: Not authenticated
+      403:
+        description: Forbidden - Admin access required
+      404:
+        description: Product not found
+  delete:
+    summary: Delete a product (Admin only)
+    tags: [Shop]
+    security:
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Product ID
+    responses:
+      200:
+        description: Product deleted successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                message:
+                  type: string
+                data:
+                  type: null
+      401:
+        description: Not authenticated
+      403:
+        description: Forbidden - Admin access required
       404:
         description: Product not found
 
@@ -338,8 +488,6 @@ tags:
         description: Not authenticated
       500:
         description: Server error
-
-/api/v1/shop/orders:
   get:
     summary: Get user's order history
     tags: [Shop]
@@ -378,159 +526,3 @@ tags:
         description: Not authenticated
       500:
         description: Server error
-
-/api/v1/shop/products:
-  post:
-    summary: Create a new product (Admin only)
-    tags: [Shop]
-    security:
-      - cookieAuth: []
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-              - name
-              - sku
-              - price
-              - stockQuantity
-            properties:
-              name:
-                type: string
-                minLength: 3
-                maxLength: 255
-              sku:
-                type: string
-                minLength: 3
-                maxLength: 50
-              description:
-                type: string
-              price:
-                type: string
-                description: Price in decimal format (e.g., "49.99")
-              stockQuantity:
-                type: integer
-                minimum: 0
-              isActive:
-                type: boolean
-                default: true
-    responses:
-      201:
-        description: Product created successfully
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                success:
-                  type: boolean
-                message:
-                  type: string
-                data:
-                  type: string
-                  format: uuid
-                  description: The created product ID
-      400:
-        description: Validation error
-      401:
-        description: Not authenticated
-      403:
-        description: Forbidden - Admin access required
-
-/api/v1/shop/products/{id}:
-  put:
-    summary: Update a product (Admin only)
-    tags: [Shop]
-    security:
-      - cookieAuth: []
-    parameters:
-      - in: path
-        name: id
-        required: true
-        schema:
-          type: string
-          format: uuid
-        description: Product ID
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              name:
-                type: string
-                minLength: 3
-                maxLength: 255
-              sku:
-                type: string
-                minLength: 3
-                maxLength: 50
-              description:
-                type: string
-              price:
-                type: string
-              stockQuantity:
-                type: integer
-                minimum: 0
-              isActive:
-                type: boolean
-    responses:
-      200:
-        description: Product updated successfully
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                success:
-                  type: boolean
-                message:
-                  type: string
-                data:
-                  type: null
-      400:
-        description: Validation error
-      401:
-        description: Not authenticated
-      403:
-        description: Forbidden - Admin access required
-      404:
-        description: Product not found
-
-/api/v1/shop/products/{id}:
-  delete:
-    summary: Delete a product (Admin only)
-    tags: [Shop]
-    security:
-      - cookieAuth: []
-    parameters:
-      - in: path
-        name: id
-        required: true
-        schema:
-          type: string
-          format: uuid
-        description: Product ID
-    responses:
-      200:
-        description: Product deleted successfully
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                success:
-                  type: boolean
-                message:
-                  type: string
-                data:
-                  type: null
-      401:
-        description: Not authenticated
-      403:
-        description: Forbidden - Admin access required
-      404:
-        description: Product not found

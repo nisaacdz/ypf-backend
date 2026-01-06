@@ -221,13 +221,12 @@ export function generateSignedMediaUrl(
   });
 }
 
-
 export async function generateSignedDocumentPreviewUrl(
   externalId: string,
-  options: { expireSeconds: number }
+  options: { expireSeconds: number },
 ) {
   const containerClient = blobServiceClient.getContainerClient(
-    containerNames.docs
+    containerNames.docs,
   );
   const blobClient = containerClient.getBlobClient(externalId);
 
@@ -244,10 +243,10 @@ export async function generateSignedDocumentPreviewUrl(
 
 export async function generateSignedDocumentDownloadUrl(
   externalId: string,
-  options: { expireSeconds: number }
+  options: { expireSeconds: number },
 ) {
   const containerClient = blobServiceClient.getContainerClient(
-    containerNames.docs
+    containerNames.docs,
   );
   const blobClient = containerClient.getBlobClient(externalId);
 

@@ -31,6 +31,7 @@ swagger/
 Each feature's endpoints are documented in a separate YAML file:
 
 **Example: `swagger/paths/dashboard.yaml`**
+
 ```yaml
 /api/v1/dashboard/stats:
   get:
@@ -81,6 +82,7 @@ Event:
 ### 3. Automatic Loading
 
 The configuration in `configs/docs.ts` automatically:
+
 - Loads all YAML files from `swagger/components/` and `swagger/paths/`
 - Merges them into the OpenAPI specification
 - Generates the final Swagger documentation
@@ -94,6 +96,7 @@ The configuration in `configs/docs.ts` automatically:
    - Use the path as the key (e.g., `/api/v1/members`)
 
 2. **Define the endpoint**:
+
    ```yaml
    /api/v1/feature/endpoint:
      get:
@@ -106,12 +109,13 @@ The configuration in `configs/docs.ts` automatically:
 3. **Reference schemas** when needed:
    ```yaml
    schema:
-     $ref: '#/components/schemas/Event'
+     $ref: "#/components/schemas/Event"
    ```
 
 ### For a New Schema
 
 Add it to `swagger/components/schemas.yaml`:
+
 ```yaml
 MyNewSchema:
   type: object
@@ -125,6 +129,7 @@ MyNewSchema:
 To migrate an existing route from JSDoc to YAML:
 
 ### Before (in route file):
+
 ```typescript
 /**
  * @swagger
@@ -138,6 +143,7 @@ router.get("/", handler);
 ```
 
 ### After:
+
 1. **Remove** the `@swagger` comment from the route file
 2. **Create** `swagger/paths/resource.yaml` with:
    ```yaml
@@ -157,6 +163,7 @@ npm run script test-swagger
 ```
 
 This verifies:
+
 - ✅ OpenAPI version is defined
 - ✅ API info (title, version) is present
 - ✅ Component schemas are loaded
@@ -166,6 +173,7 @@ This verifies:
 ## Viewing Documentation
 
 Start the development server and visit:
+
 ```
 http://localhost:8000/docs
 ```
@@ -175,17 +183,20 @@ The Swagger UI will display all documentation from both YAML files and any remai
 ## Benefits
 
 ### Reduced Route File Sizes
+
 - Dashboard: 137 → 36 lines (73% reduction)
 - Events: 573 → 169 lines (71% reduction)
 - Projects: 675 → 187 lines (72% reduction)
 
 ### Improved Developer Experience
+
 - Easier to find and update documentation
 - No more scrolling through massive route files
 - YAML syntax is cleaner and more readable than JSDoc
 - Better separation of concerns
 
 ### Backwards Compatibility
+
 The system still supports JSDoc `@swagger` comments in TypeScript files, allowing for gradual migration.
 
 ## Best Practices

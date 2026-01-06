@@ -78,7 +78,7 @@ Event:
           caption:
             type: string
           medium:
-            $ref: '#/components/schemas/Medium'
+            $ref: "#/components/schemas/Medium"
 
 Project:
   type: object
@@ -112,7 +112,7 @@ Project:
           caption:
             type: string
           medium:
-            $ref: '#/components/schemas/Medium'
+            $ref: "#/components/schemas/Medium"
 
 ShopProduct:
   type: object
@@ -166,7 +166,7 @@ ConstituentDetail:
     preferredName:
       type: string
     profilePhoto:
-      $ref: '#/components/schemas/Medium'
+      $ref: "#/components/schemas/Medium"
     profiles:
       type: array
       items:

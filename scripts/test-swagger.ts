@@ -50,9 +50,11 @@ if (!spec.paths) {
 const pathCount = Object.keys(spec.paths).length;
 console.log(`✅ Paths loaded: ${pathCount} paths`);
 console.log("   Sample paths:");
-Object.keys(spec.paths).slice(0, 5).forEach((path) => {
-  console.log(`   - ${path}`);
-});
+Object.keys(spec.paths)
+  .slice(0, 5)
+  .forEach((path) => {
+    console.log(`   - ${path}`);
+  });
 
 // Check tags
 if (!spec.tags) {
