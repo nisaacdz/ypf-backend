@@ -128,3 +128,98 @@ ShopProduct:
       type: number
     stock:
       type: integer
+
+Constituent:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    profilePhotoUrl:
+      type: string
+    fullName:
+      type: string
+    isActive:
+      type: boolean
+    createdAt:
+      type: string
+      format: date-time
+    profiles:
+      type: array
+      items:
+        type: string
+    roles:
+      type: array
+      items:
+        type: string
+
+ConstituentDetail:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    firstName:
+      type: string
+    lastName:
+      type: string
+    preferredName:
+      type: string
+    profilePhoto:
+      $ref: '#/components/schemas/Medium'
+    profiles:
+      type: array
+      items:
+        type: object
+        properties:
+          name:
+            type: string
+          startedAt:
+            type: string
+            format: date-time
+          endedAt:
+            type: string
+            format: date-time
+    roles:
+      type: array
+      items:
+        type: object
+        properties:
+          profile:
+            type: string
+          title:
+            type: string
+          startedAt:
+            type: string
+            format: date-time
+          endedAt:
+            type: string
+            format: date-time
+    committees:
+      type: array
+      items:
+        type: object
+        properties:
+          id:
+            type: string
+            format: uuid
+          name:
+            type: string
+          featuredPhotoUrl:
+            type: string
+          chapterName:
+            type: string
+    chapters:
+      type: array
+      items:
+        type: object
+        properties:
+          id:
+            type: string
+            format: uuid
+          name:
+            type: string
+          country:
+            type: string
+          featuredPhotoUrl:
+            type: string

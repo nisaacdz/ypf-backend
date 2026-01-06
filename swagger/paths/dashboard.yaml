@@ -67,22 +67,22 @@
                     projects:
                       type: array
                       items:
-                        $ref: '#/components/schemas/Project'
+                        $ref: "#/components/schemas/Project"
                       description: Recent community projects
                     welfareProjects:
                       type: array
                       items:
-                        $ref: '#/components/schemas/Project'
+                        $ref: "#/components/schemas/Project"
                       description: Recent welfare cases
                     workshopEvents:
                       type: array
                       items:
-                        $ref: '#/components/schemas/Event'
+                        $ref: "#/components/schemas/Event"
                       description: Recent workshop events
                     shopProducts:
                       type: array
                       items:
-                        $ref: '#/components/schemas/ShopProduct'
+                        $ref: "#/components/schemas/ShopProduct"
                       description: Recent shop products
       401:
         description: Not authenticated
