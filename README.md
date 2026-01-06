@@ -43,6 +43,7 @@ To keep our codebase consistent and easy to navigate, we follow these rules:
 ## 📚 Documentation
 
 - **Swagger UI**: Served at `/docs` endpoint when the server is running.
+- **API Documentation**: See [`swagger/README.md`](swagger/README.md) for details on the YAML-based Swagger documentation structure.
 - **Implementation Guides**: Check the `docs/` folder for detailed implementation patterns (Transactions, Authorization, etc.).
 
 ---
@@ -56,6 +57,7 @@ To keep our codebase consistent and easy to navigate, we follow these rules:
 - `features/` – API routes and feature-specific logic.
 - `shared/` – Reusable code (services, middlewares, types, utils).
 - `scripts/` – Standalone utility scripts.
+- `swagger/` – OpenAPI/Swagger documentation (YAML files).
 - `tests/` – Unit and integration tests.
 
 ---
