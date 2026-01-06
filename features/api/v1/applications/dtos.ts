@@ -64,10 +64,12 @@ export type YPFMembershipApplicationDetail = {
   cvDocument?: {
     id: string;
     url: string;
+    downloadUrl: string;
   };
   nationalIdDocument?: {
     id: string;
     url: string;
+    downloadUrl: string;
   };
 };
 

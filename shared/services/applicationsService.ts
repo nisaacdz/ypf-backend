@@ -12,7 +12,8 @@ import {
 } from "@/features/api/v1/applications/dtos";
 import { MembershipApplicationStatus, NationalIdType } from "@/shared/utils";
 import {
-  generateSignedDocumentUrl,
+  generateSignedDocumentDownloadUrl,
+  generateSignedDocumentPreviewUrl,
   generateSignedMediaUrl,
 } from "@/shared/utils/files";
 import {
@@ -262,6 +263,10 @@ export async function getMembershipApplicationById(
         id: schema.Documents.id,
         externalId: schema.Documents.externalId,
       },
+      nationalIdDocument: {
+        id: schema.Documents.id,
+        externalId: schema.Documents.externalId,
+      },
     })
     .from(schema.MembershipApplications)
     .innerJoin(
@@ -291,23 +296,6 @@ export async function getMembershipApplicationById(
     .limit(1);
 
   if (!application) return null;
-
-  let nationalIdDocument: { id: string; externalId: string } | undefined =
-    undefined;
-
-  if (application.constituent.nationalIdDocumentId) {
-    const [doc] = await dbClient.db
-      .select({
-        id: schema.Documents.id,
-        externalId: schema.Documents.externalId,
-      })
-      .from(schema.Documents)
-      .where(
-        eq(schema.Documents.id, application.constituent.nationalIdDocumentId)
-      )
-      .limit(1);
-    nationalIdDocument = doc;
-  }
 
   const detail: YPFMembershipApplicationDetail = {
     id: application.id,
@@ -361,17 +349,35 @@ export async function getMembershipApplicationById(
     cvDocument: application.cvDocument
       ? {
           id: application.cvDocument.id,
-          url: generateSignedDocumentUrl(application.cvDocument.externalId, {
-            expireSeconds: 60 * 60,
-          }),
+          url: generateSignedDocumentPreviewUrl(
+            application.cvDocument.externalId,
+            {
+              expireSeconds: 60 * 60,
+            }
+          ),
+          downloadUrl: await generateSignedDocumentDownloadUrl(
+            application.cvDocument.externalId,
+            {
+              expireSeconds: 60 * 60,
+            }
+          ),
         }
       : undefined,
-    nationalIdDocument: nationalIdDocument
+    nationalIdDocument: application.nationalIdDocument
       ? {
-          id: nationalIdDocument.id,
-          url: generateSignedDocumentUrl(nationalIdDocument.externalId, {
-            expireSeconds: 60 * 60,
-          }),
+          id: application.nationalIdDocument.id,
+          url: generateSignedDocumentPreviewUrl(
+            application.nationalIdDocument.externalId,
+            {
+              expireSeconds: 60 * 60,
+            }
+          ),
+          downloadUrl: await generateSignedDocumentDownloadUrl(
+            application.nationalIdDocument.externalId,
+            {
+              expireSeconds: 60 * 60,
+            }
+          ),
         }
       : undefined,
   };
