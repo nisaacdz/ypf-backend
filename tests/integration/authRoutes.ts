@@ -451,7 +451,7 @@ describe("Authentication API", () => {
   describe("POST /api/v1/auth/onboard", () => {
     it("should send OTP email for existing user with no auth methods", async () => {
       // Create a user with no auth methods (password is null by default in schema if not set,
-      // but generateTestUser might set it, so we need to explicitely create one without)
+      // but generateTestUser might set it, so we need to explicitly create one without)
 
       const email = "noauth@example.com";
 
