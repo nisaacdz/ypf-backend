@@ -1,20 +1,30 @@
-import { Medium } from "@/shared/dtos";
+import { MediumType } from "@/shared/utils";
 
 export type YPFMember = {
   id: string; // constituent ID
+  publicId: string;
   profilePhotoUrl?: string;
   fullName: string;
-  isActive: boolean;
-  joinedAt?: Date;
+  startedAt?: Date; // active Membership.startedAt
   title?: string; // name of most significant title
 };
 
 export type YPFMemberDetail = {
-  id: string; // constituent ID
+  id: string; // constituents.id
+  publicId: string; // Constituents.publicId
   firstName: string;
   lastName: string;
   salutation?: string;
-  profilePhoto?: Omit<Medium, "uploadedBy">; // excludes uploadedBy
+  profilePhoto?: {
+    url: string;
+    type: MediumType;
+    dimensions: {
+      width: number;
+      height: number;
+    };
+    size: number;
+    uploadedAt: Date;
+  };
   contactInfo: {
     phone?: string;
     whatsapp?: string;
@@ -27,8 +37,8 @@ export type YPFMemberDetail = {
     startedAt: Date;
     endedAt?: Date;
   }[]; // current titles
-  joinedAt: Date;
-  isActive: boolean;
+  startedAt?: Date;
+  endedAt?: Date;
 };
 
 export type MemberRole = {

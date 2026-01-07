@@ -9,5 +9,6 @@ declare module "http" {
     Params: any;
     File: any;
     Files: any;
+    CacheKey: string;
   }
 }

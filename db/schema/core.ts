@@ -27,12 +27,17 @@ export const DocumentTypeEnum = core.enum("document_type", [
 export const NationalIdTypeEnum = core.enum("national_id_type", [
   "ECOWASIDCARD",
 ]);
-export const ApplicationStatusEnum = core.enum("application_status", [
+export const MembershipApplicationStatusEnum = core.enum("application_status", [
   "DRAFT",
   "PENDING",
   "REJECTED",
   "ACCEPTED",
 ]);
+
+export const VolunteerApplicationStatusEnum = core.enum(
+  "volunteer_application_status",
+  ["PENDING", "ACCEPTED", "DECLINED"],
+);
 
 // === TABLES ===
 
@@ -68,6 +73,10 @@ export const Documents = core.table("documents", {
 
 export const Constituents = core.table("constituents", {
   id: uuid().defaultRandom().primaryKey(),
+  publicId: text("public_id")
+    .default(sql`generate_public_id('YPFC-', 12)`)
+    .unique()
+    .notNull(),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   preferredName: text("preferred_name"),
@@ -98,12 +107,10 @@ export const Constituents = core.table("constituents", {
     () => Documents.id,
   ),
 
-  // passportPhotoId: uuid("passport_photo_id").references(() => Media.id), = profilePhotoId
   // missionPillars: text("mission_pillars").array(),
 
   emergencyContactName: text("emergency_contact_name"),
   emergencyContactPhone: text("emergency_contact_phone"),
-  // emergencyContactRelationship: text("emergency_contact_relationship"),
   skills: text("skills").array(),
   previousVolunteerExperience: text("previous_volunteer_experience"),
 
@@ -115,12 +122,12 @@ export const Constituents = core.table("constituents", {
     .notNull(),
 });
 
-export const Applications = core.table("applications", {
+export const MembershipApplications = core.table("membership_applications", {
   id: uuid().defaultRandom().primaryKey(),
   constituentId: uuid("constituent_id")
     .notNull()
     .references(() => Constituents.id, { onDelete: "cascade" }),
-  status: text("status").notNull().default("pending"),
+  status: MembershipApplicationStatusEnum().notNull().default("PENDING"),
   declinedReason: text("declined_reason"),
   approvedBy: uuid("approved_by").references(() => Admins.id),
   approvedAt: timestamp("approved_at", { withTimezone: true }),
@@ -134,13 +141,39 @@ export const Applications = core.table("applications", {
   preferredCommitteeId: uuid("preferred_committee_id").references(
     () => Committees.id,
   ),
-  preferredProfile: text("preferred_profile").default("Member"),
 
   // Document Refs
   cvDocumentId: uuid("cv_document_id").references(() => Documents.id),
 
   referralSource: text("referral_source"),
   // referralOther: text("referral_other"),
+
+  trackingNumber: text("tracking_number")
+    .default(sql`generate_public_id('', 12)`)
+    .notNull()
+    .unique(),
+
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const VolunteerApplications = core.table("volunteer_applications", {
+  id: uuid().defaultRandom().primaryKey(),
+  constituentId: uuid("constituent_id")
+    .notNull()
+    .references(() => Constituents.id, { onDelete: "cascade" }),
+  status: VolunteerApplicationStatusEnum().notNull().default("PENDING"),
+  reason: text("reason"), // Motivation/Reason for applying
+  notes: text(), // Internal admin notes
+
+  trackingNumber: text("tracking_number")
+    .default(sql`generate_public_id('', 12)`)
+    .notNull()
+    .unique(),
 
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()

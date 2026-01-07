@@ -46,7 +46,7 @@ export const UploadProjectFileSchema = z
     {
       message: "Image size cannot exceed 50MB.",
       path: ["size"],
-    }
+    },
   )
   .refine(
     (data) => {
@@ -58,7 +58,7 @@ export const UploadProjectFileSchema = z
     {
       message: "Video size cannot exceed 250MB.",
       path: ["size"],
-    }
+    },
   );
 
 export const UploadProjectMediumOptionsSchema = z.object({

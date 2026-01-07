@@ -1,17 +1,30 @@
-export type YPFApplication = {
+import {
+  MembershipApplicationStatus,
+  YPFVolunteerApplicationStatus,
+} from "@/shared/utils";
+
+export type YPFMembershipApplication = {
   id: string;
-  status: string;
+  status: MembershipApplicationStatus;
   createdAt: Date;
+  trackingNumber: string;
   applicant: {
     id: string;
     fullName: string;
     email?: string;
+    phone?: string;
+    profilePhotoUrl?: string;
+    occupation?: string;
+    skills?: string[];
   };
+  preferredChapterName?: string;
+  preferredCommitteeName?: string;
 };
 
-export type YPFApplicationDetail = {
+export type YPFMembershipApplicationDetail = {
   id: string;
-  status: string;
+  status: MembershipApplicationStatus;
+  trackingNumber: string;
   commitmentStatement?: string;
   referralSource?: string;
   declinedReason?: string;
@@ -31,6 +44,14 @@ export type YPFApplicationDetail = {
     campus?: string;
     skills?: string[];
     previousVolunteerExperience?: string;
+    profilePhoto?: {
+      url: string;
+      dimensions: {
+        width: number;
+        height: number;
+      };
+      size: number;
+    };
   };
   preferredChapter?: {
     id: string;
@@ -42,6 +63,50 @@ export type YPFApplicationDetail = {
   };
   cvDocument?: {
     id: string;
-    externalId: string;
+    url: string;
+    downloadUrl: string;
+  };
+  nationalIdDocument?: {
+    id: string;
+    url: string;
+    downloadUrl: string;
+  };
+};
+
+export type YPFVolunteerApplication = {
+  id: string;
+  trackingNumber: string;
+  status: YPFVolunteerApplicationStatus;
+  createdAt: Date;
+  applicant: {
+    id: string;
+    fullName: string;
+    email?: string;
+    phone?: string;
+    occupation?: string;
+    skills?: string[];
+  };
+};
+
+export type YPFVolunteerApplicationDetail = {
+  id: string;
+  trackingNumber: string;
+  status: YPFVolunteerApplicationStatus;
+  reason?: string;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  applicant: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email?: string;
+    phone?: string;
+    whatsapp?: string;
+    occupation?: string;
+    country?: string;
+    region?: string;
+    city?: string;
+    skills?: string[];
   };
 };

@@ -17,39 +17,6 @@ import variables from "@/configs/env";
 
 const constituentsRouter = Router();
 
-/**
- * @swagger
- * /api/v1/constituents:
- *   get:
- *     summary: Get list of constituents
- *     description: Retrieve a paginated list of constituents. Accessible by ADMINs and MEMBER leaders.
- *     tags: [Constituents]
- *     security:
- *       - cookieAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           minimum: 1
- *           default: 1
- *       - in: query
- *         name: pageSize
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 100
- *           default: 20
- *       - in: query
- *         name: search
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Success
- *       403:
- *         description: Forbidden
- */
 constituentsRouter.get(
   "/",
   authenticate,
@@ -67,62 +34,6 @@ constituentsRouter.get(
   },
 );
 
-/**
- * @swagger
- * /api/v1/constituents/onboard:
- *   post:
- *     summary: Onboard constituents to the platform
- *     description: Creates User accounts for constituents and sends invitation emails. Only accessible by SUPER_ADMIN.
- *     tags: [Constituents]
- *     security:
- *       - cookieAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - ids
- *             properties:
- *               ids:
- *                 type: array
- *                 items:
- *                   type: string
- *                   format: uuid
- *                 minItems: 1
- *                 description: Array of constituent IDs to onboard
- *     responses:
- *       200:
- *         description: Onboarding results
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 data:
- *                   type: object
- *                   properties:
- *                     successful:
- *                       type: integer
- *                     failed:
- *                       type: integer
- *                     errors:
- *                       type: array
- *                       items:
- *                         type: object
- *                         properties:
- *                           constituentId:
- *                             type: string
- *                           error:
- *                             type: string
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden - requires SUPER_ADMIN role
- */
 constituentsRouter.post(
   "/onboard",
   authenticate,
@@ -142,28 +53,6 @@ constituentsRouter.post(
   },
 );
 
-/**
- * @swagger
- * /api/v1/constituents/{constituentId}:
- *   get:
- *     summary: Get constituent details
- *     description: Retrieve detailed information for a specific constituent.
- *     tags: [Constituents]
- *     security:
- *       - cookieAuth: []
- *     parameters:
- *       - in: path
- *         name: constituentId
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *     responses:
- *       200:
- *         description: Success
- *       404:
- *         description: Not Found
- */
 constituentsRouter.get(
   "/:constituentId",
   authenticate,

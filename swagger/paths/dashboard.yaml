@@ -1,0 +1,90 @@
+/api/v1/dashboard/stats:
+  get:
+    summary: Get dashboard statistics
+    tags: [Dashboard]
+    security:
+      - cookieAuth: []
+    responses:
+      200:
+        description: Dashboard statistics retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: Dashboard stats fetched successfully
+                data:
+                  type: object
+                  properties:
+                    membersCount:
+                      type: integer
+                      description: Total active members count
+                    donationsCount:
+                      type: integer
+                      description: Total completed donations count
+                    eventsCount:
+                      type: integer
+                      description: Total events count
+                    projectsCount:
+                      type: integer
+                      description: Total projects count
+                    welfareProjectsCount:
+                      type: integer
+                      description: Total welfare projects count
+      401:
+        description: Not authenticated
+      403:
+        description: Forbidden - Admin access required
+
+/api/v1/dashboard/activity:
+  get:
+    summary: Get recent activity for dashboard
+    tags: [Dashboard]
+    security:
+      - cookieAuth: []
+    responses:
+      200:
+        description: Recent activity retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: Recent activity fetched successfully
+                data:
+                  type: object
+                  properties:
+                    projects:
+                      type: array
+                      items:
+                        $ref: "#/components/schemas/Project"
+                      description: Recent community projects
+                    welfareProjects:
+                      type: array
+                      items:
+                        $ref: "#/components/schemas/Project"
+                      description: Recent welfare cases
+                    workshopEvents:
+                      type: array
+                      items:
+                        $ref: "#/components/schemas/Event"
+                      description: Recent workshop events
+                    shopProducts:
+                      type: array
+                      items:
+                        $ref: "#/components/schemas/ShopProduct"
+                      description: Recent shop products
+      401:
+        description: Not authenticated
+      403:
+        description: Forbidden - Admin access required

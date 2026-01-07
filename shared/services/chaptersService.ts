@@ -64,7 +64,12 @@ export async function getChapters(
     })
     .from(schema.ChapterMedia)
     .innerJoin(schema.Media, eq(schema.ChapterMedia.mediumId, schema.Media.id))
-    .where(eq(schema.ChapterMedia.isFeatured, true))
+    .where(
+      and(
+        eq(schema.ChapterMedia.isFeatured, true),
+        eq(schema.Media.type, "PICTURE"),
+      ),
+    )
     .as("featured_photos");
 
   // --- DYNAMIC FILTERS ---
@@ -293,7 +298,12 @@ export async function getChaptersByConstituentId(
     })
     .from(schema.ChapterMedia)
     .innerJoin(schema.Media, eq(schema.ChapterMedia.mediumId, schema.Media.id))
-    .where(eq(schema.ChapterMedia.isFeatured, true))
+    .where(
+      and(
+        eq(schema.ChapterMedia.isFeatured, true),
+        eq(schema.Media.type, "PICTURE"),
+      ),
+    )
     .as("featured_photos");
 
   // --- BASE QUERY ---
@@ -375,12 +385,13 @@ export async function getChapterLeadership(
   const baseQuery = dbClient.db
     .select({
       id: schema.Constituents.id,
+      publicId: schema.Constituents.publicId,
       firstName: schema.Constituents.firstName,
       lastName: schema.Constituents.lastName,
       preferredName: schema.Constituents.preferredName,
       profilePhotoExternalId: schema.Media.externalId,
       title: schema.MemberTitles.title,
-      joinedAt: schema.Members.startedAt,
+      startedAt: schema.Members.startedAt,
     })
     .from(schema.MemberTitlesAssignments)
     .innerJoin(
@@ -421,14 +432,14 @@ export async function getChapterLeadership(
 
   const items: YPFMember[] = users.map((u) => ({
     id: u.id,
+    publicId: u.publicId,
     fullName: u.preferredName ?? `${u.firstName} ${u.lastName}`,
     profilePhotoUrl: u.profilePhotoExternalId
       ? mediaUtils.generatePublicMediaUrl(u.profilePhotoExternalId, {
           resolution: 360,
         })
       : undefined,
-    isActive: true, // filtered by query
-    joinedAt: u.joinedAt,
+    startedAt: u.startedAt,
     title: u.title,
   }));
 

@@ -6,7 +6,7 @@ import { sql } from "drizzle-orm";
  * This function is designed to be called by dbClient.db.transaction().
  */
 async function applyManualConstraints(
-  tx: Parameters<Parameters<typeof dbClient.db.transaction>[0]>[0]
+  tx: Parameters<Parameters<typeof dbClient.db.transaction>[0]>[0],
 ) {
   console.log("Starting application of manual constraints...");
 
@@ -16,7 +16,7 @@ async function applyManualConstraints(
 
   // 1. Events Scope: Ensure at most one of projectId, chapterId is set
   console.log(
-    "Applying constraint 'events_scope_check' to 'activities.events'..."
+    "Applying constraint 'events_scope_check' to 'activities.events'...",
   );
   await tx.execute(sql`
     ALTER TABLE activities.events
@@ -86,7 +86,7 @@ async function applyManualConstraints(
 
   for (const t of mediaTables) {
     console.log(
-      `Applying trigger 'check_featured_limit' to '${t.schema}.${t.table}'...`
+      `Applying trigger 'check_featured_limit' to '${t.schema}.${t.table}'...`,
     );
     await tx.execute(
       sql.raw(`
@@ -96,7 +96,7 @@ async function applyManualConstraints(
       BEFORE INSERT OR UPDATE ON ${t.schema}.${t.table}
       FOR EACH ROW
       EXECUTE FUNCTION check_featured_media_limit();
-    `)
+    `),
     );
     console.log(`✅ Applied trigger to '${t.schema}.${t.table}'.`);
   }
@@ -105,7 +105,7 @@ async function applyManualConstraints(
 }
 
 async function applyExclusionConstraints(
-  tx: Parameters<Parameters<typeof dbClient.db.transaction>[0]>[0]
+  tx: Parameters<Parameters<typeof dbClient.db.transaction>[0]>[0],
 ) {
   console.log("Ensuring 'btree_gist' extension exists...");
   await tx.execute(sql`CREATE EXTENSION IF NOT EXISTS btree_gist;`);
@@ -197,7 +197,7 @@ async function applyExclusionConstraints(
     );
   `);
   console.log(
-    "✅ Successfully applied constraint to 'core.chapter_memberships'."
+    "✅ Successfully applied constraint to 'core.chapter_memberships'.",
   );
 
   console.log("Applying constraint to 'core.committee_memberships'...");
@@ -214,7 +214,7 @@ async function applyExclusionConstraints(
     );
   `);
   console.log(
-    "✅ Successfully applied constraint to 'core.committee_memberships'."
+    "✅ Successfully applied constraint to 'core.committee_memberships'.",
   );
 
   console.log("Applying constraint to 'core.member_titles_assignments'...");
@@ -231,7 +231,7 @@ async function applyExclusionConstraints(
     );
   `);
   console.log(
-    "✅ Successfully applied constraint to 'core.member_titles_assignments'."
+    "✅ Successfully applied constraint to 'core.member_titles_assignments'.",
   );
 
   console.log("Applying constraint to 'core.admin_roles_assignments'...");
@@ -248,7 +248,7 @@ async function applyExclusionConstraints(
     );
   `);
   console.log(
-    "✅ Successfully applied constraint to 'core.admin_roles_assignments'."
+    "✅ Successfully applied constraint to 'core.admin_roles_assignments'.",
   );
 }
 

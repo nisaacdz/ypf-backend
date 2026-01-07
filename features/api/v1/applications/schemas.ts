@@ -1,11 +1,11 @@
 import {
-  ApplicationStatusEnum,
+  MembershipApplicationStatusEnum,
+  VolunteerApplicationStatusEnum,
   GenderEnum,
   NationalIdTypeEnum,
 } from "@/db/schema/core";
 import { z } from "zod";
-import { Profiles } from "../../../../shared/types";
-import { AllowedDocumentsMimeTypes } from "../../../../shared/middlewares/multipart";
+import { AllowedDocumentsMimeTypes } from "@/shared/middlewares/multipart";
 
 const ApplicantData = z.object({
   firstName: z.string().min(1),
@@ -64,40 +64,16 @@ const FlatApplicationInput = z.object({
   previousVolunteerExperience: z.string().optional(),
   // Application specific
   commitmentStatement: z.string(),
-  preferredChapterId: z.string().uuid().optional(), // Changed to string().uuid() for simpler multipart handling
-  preferredCommitteeId: z.string().uuid().optional(),
-  preferredProfile: z.enum(Profiles).default("MEMBER"),
+  preferredChapterId: z.uuid().optional(),
+  preferredCommitteeId: z.uuid().optional(),
   willingToServe: z.coerce.boolean().refine((val) => val === true, {
     message: "You must agree to be willing to serve.",
   }),
 });
 
-export const PostApplicationBody = FlatApplicationInput.transform((data) => {
-  const {
-    firstName,
-    lastName,
-    preferredName,
-    email,
-    phone,
-    whatsapp,
-    dateOfBirth,
-    gender,
-    occupation,
-    country,
-    region,
-    city,
-    campus,
-    nationalIdType,
-    emergencyContactName,
-    emergencyContactPhone,
-    skills,
-    linkedinProfile,
-    twitterHandle,
-    ...rest
-  } = data;
-
-  return {
-    applicantData: {
+export const PostMembershipApplicationBody = FlatApplicationInput.transform(
+  (data) => {
+    const {
       firstName,
       lastName,
       preferredName,
@@ -117,27 +93,115 @@ export const PostApplicationBody = FlatApplicationInput.transform((data) => {
       skills,
       linkedinProfile,
       twitterHandle,
-    },
-    ...rest,
-  };
-});
+      ...rest
+    } = data;
 
-export const UpdateApplicationStatusSchema = z
+    return {
+      applicantData: {
+        firstName,
+        lastName,
+        preferredName,
+        email,
+        phone,
+        whatsapp,
+        dateOfBirth,
+        gender,
+        occupation,
+        country,
+        region,
+        city,
+        campus,
+        nationalIdType,
+        emergencyContactName,
+        emergencyContactPhone,
+        skills,
+        linkedinProfile,
+        twitterHandle,
+      },
+      ...rest,
+    };
+  },
+);
+
+export const UpdateMembershipApplicationStatusSchema = z
   .object({
-    status: z.enum(ApplicationStatusEnum.enumValues),
+    status: z.enum(MembershipApplicationStatusEnum.enumValues),
   })
   .or(
     z.object({
       status: "REJECTED" as const,
       declinedReason: z.string().optional(),
-    })
+    }),
   );
 
-export const GetApplicationsQuerySchema = z.object({
+export const GetMembershipApplicationsQuerySchema = z.object({
   page: z.coerce.number().default(1),
   pageSize: z.coerce.number().default(10),
-  status: z.string().optional(),
+  status: z.enum(MembershipApplicationStatusEnum.enumValues).optional(),
   search: z.string().optional(),
+});
+
+// Volunteer Application Schemas
+
+const FlatVolunteerApplicationInput = z.object({
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  email: z.email(),
+  phone: z.string().min(1),
+  whatsapp: z.string().optional(),
+  country: z.string().optional(),
+  region: z.string().optional(),
+  city: z.string().optional(),
+  occupation: z.string().optional(),
+  skills: z.array(z.string()).optional(),
+  reason: z
+    .string()
+    .min(10, "Please provide a reason for volunteering (min 10 chars)."),
+});
+
+export const PostVolunteerApplicationBody =
+  FlatVolunteerApplicationInput.transform((data) => {
+    const {
+      firstName,
+      lastName,
+      email,
+      phone,
+      whatsapp,
+      country,
+      region,
+      city,
+      occupation,
+      skills,
+      ...rest
+    } = data;
+
+    return {
+      applicantData: {
+        firstName,
+        lastName,
+        email,
+        phone,
+        whatsapp,
+        country,
+        region,
+        city,
+        occupation,
+        skills,
+      },
+      ...rest,
+    };
+  });
+
+export const GetVolunteerApplicationsQuerySchema = z.object({
+  page: z.coerce.number().default(1),
+  pageSize: z.coerce.number().default(10),
+  status: z.enum(VolunteerApplicationStatusEnum.enumValues).optional(),
+  search: z.string().optional(),
+});
+
+export const UpdateVolunteerApplicationStatusSchema = z.object({
+  status: z.enum(VolunteerApplicationStatusEnum.enumValues),
+  notes: z.string().optional(),
 });
 
 export const UploadRegistrationFileSchema = z.object({

@@ -5,7 +5,7 @@ import { customAlphabet } from "nanoid";
 
 const generatePublicId = customAlphabet(
   "2346789ABCDEFGHJKLMNPQRTUVWXYZabcdefghijkmnpqrtwxyz",
-  8
+  8,
 );
 
 /**

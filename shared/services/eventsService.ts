@@ -186,6 +186,60 @@ export async function fetchEventMedia(
   return { items, total };
 }
 
+export async function fetchEventDocuments(
+  eventId: string,
+  query: z.infer<typeof GetEventMediaQuerySchema>,
+) {
+  const { page, pageSize } = query;
+
+  const [eventDocuments, total] = await Promise.all([
+    dbClient.db
+      .select({
+        id: schema.EventDocuments.id,
+        title: schema.EventDocuments.title,
+        document: {
+          id: schema.Documents.id,
+          externalId: schema.Documents.externalId,
+          type: schema.Documents.type,
+          size: schema.Documents.size,
+          uploadedAt: schema.Documents.uploadedAt,
+        },
+      })
+      .from(schema.EventDocuments)
+      .innerJoin(
+        schema.Documents,
+        eq(schema.EventDocuments.documentId, schema.Documents.id),
+      )
+      .where(eq(schema.EventDocuments.eventId, eventId))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize),
+    dbClient.db
+      .select({ count: count() })
+      .from(schema.EventDocuments)
+      .where(eq(schema.EventDocuments.eventId, eventId))
+      .then((res) => res[0].count),
+  ]);
+
+  const items = await Promise.all(
+    eventDocuments.map(async (d) => ({
+      ...d,
+      document: {
+        url: await mediaUtils.generateSignedDocumentPreviewUrl(
+          d.document.externalId,
+          {
+            expireSeconds: 60 * 60 * 24,
+          },
+        ),
+        type: d.document.type,
+        size: d.document.size,
+        uploadedAt: d.document.uploadedAt,
+      },
+    })),
+  );
+
+  return { items, total };
+}
+
 export async function fetchEventById(
   eventId: string,
 ): Promise<YPFEventDetail | null> {
@@ -245,6 +299,24 @@ export async function fetchEventById(
       ),
     );
 
+  const featuredDocuments = await dbClient.db
+    .select({
+      title: schema.EventDocuments.title,
+      document: {
+        id: schema.Documents.id,
+        externalId: schema.Documents.externalId,
+        type: schema.Documents.type,
+        size: schema.Documents.size,
+        uploadedAt: schema.Documents.uploadedAt,
+      },
+    })
+    .from(schema.EventDocuments)
+    .innerJoin(
+      schema.Documents,
+      eq(schema.EventDocuments.documentId, schema.Documents.id),
+    )
+    .where(eq(schema.EventDocuments.eventId, eventId));
+
   return {
     id: ypfEvent.id,
     name: ypfEvent.name,
@@ -287,6 +359,25 @@ export async function fetchEventById(
               },
             },
           }))
+        : undefined,
+    featuredDocuments:
+      featuredDocuments.length > 0
+        ? await Promise.all(
+            featuredDocuments.map(async (d) => ({
+              title: d.title,
+              document: {
+                url: await mediaUtils.generateSignedDocumentPreviewUrl(
+                  d.document.externalId,
+                  {
+                    expireSeconds: 60 * 60 * 24,
+                  },
+                ),
+                type: d.document.type,
+                size: d.document.size,
+                uploadedAt: d.document.uploadedAt,
+              },
+            })),
+          )
         : undefined,
   };
 }

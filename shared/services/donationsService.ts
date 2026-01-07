@@ -90,19 +90,18 @@ export async function getDonations(
       donorEmail = d.guestEmail;
     }
 
+    const donor =
+      donorName && donorEmail
+        ? { name: donorName, email: donorEmail }
+        : undefined;
+
     return {
       id: d.id,
       amount: d.amount,
       currency: d.currency,
       status: d.status,
       date: d.date,
-      donor:
-        donorName || donorEmail
-          ? {
-              name: donorName,
-              email: donorEmail,
-            }
-          : undefined,
+      donor,
     };
   });
 
@@ -289,12 +288,16 @@ export async function startPaystackDonation(
     throw apiError;
   }
 
-  const donor = anonymous
+  const data = anonymous
     ? undefined
     : {
         name: guestName ?? user?.fullName,
         email: guestEmail ?? user?.email,
       };
+  const donor =
+    data?.name && data?.email
+      ? { name: data.name, email: data.email }
+      : undefined;
 
   return {
     donation: {

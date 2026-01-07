@@ -1,4 +1,3 @@
-import { Medium } from "@/shared/dtos";
 import { PartnershipType } from "@/shared/utils";
 
 /**

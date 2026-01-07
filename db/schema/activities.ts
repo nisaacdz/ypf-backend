@@ -4,21 +4,14 @@ import {
   uuid,
   text,
   timestamp,
-  varchar,
   jsonb,
   unique,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import { Chapters, Constituents, Documents, Media } from "./core";
 import { TargetingFilter } from "@/shared/types/targeting";
-import { customAlphabet } from "nanoid";
-const generatePublicId = customAlphabet(
-  "2346789ABCDEFGHJKLMNPQRTUVWXYZabcdefghijkmnpqrtwxyz",
-  8,
-);
-export const activities = pgSchema("activities");
 
-// Keep `featured` media less than 10 for each collection.
+export const activities = pgSchema("activities");
 
 export const ProjectStatusEnum = activities.enum("project_status", [
   "UPCOMING",
@@ -54,10 +47,10 @@ export const AttendanceStatusEnum = activities.enum("attendance_status", [
 
 export const Projects = activities.table("projects", {
   id: uuid().defaultRandom().primaryKey(),
-  publicId: varchar("public_id", { length: 8 })
-    .notNull()
+  publicId: text("public_id")
+    .default(sql`generate_public_id('YPFP-', 8)`)
     .unique()
-    .$defaultFn(() => generatePublicId()),
+    .notNull(),
   title: text().notNull(),
   abstract: text(),
   type: ProjectTypeEnum().notNull(),
@@ -224,72 +217,3 @@ export const constituentAnnouncementsRelations = relations(
     }),
   }),
 );
-
-// export const Meetings = communications.table("meetings", {
-//   id: uuid().defaultRandom().primaryKey(),
-//   title: text().notNull(),
-//   agenda: text(),
-//   startTime: timestamp("start_time", { withTimezone: true }).notNull(),
-//   endTime: timestamp("end_time", { withTimezone: true }).notNull(),
-//   locationUrl: text("location_url"),
-//   chapterId: uuid("chapter_id").references(() => Chapters.id, {
-//     onDelete: "cascade",
-//   }),
-//   committeeId: uuid("committee_id").references(() => Committees.id, {
-//     onDelete: "cascade",
-//   }),
-//   createdById: uuid("created_by_id")
-//     .notNull()
-//     .references(() => Constituents.id, { onDelete: "restrict" }),
-//   createdAt: timestamp("created_at", { withTimezone: true })
-//     .defaultNow()
-//     .notNull(),
-// });
-
-// export const MeetingAttendees = communications.table(
-//   "meeting_attendees",
-//   {
-//     id: serial("id").primaryKey(),
-//     meetingId: uuid("meeting_id")
-//       .notNull()
-//       .references(() => Meetings.id, { onDelete: "cascade" }),
-//     constituentId: uuid("constituent_id")
-//       .notNull()
-//       .references(() => Constituents.id, { onDelete: "cascade" }),
-//     status: AttendanceStatusEnum("status").default("INVITED").notNull(),
-//     isRequired: boolean("is_required").default(true).notNull(),
-//   },
-//   (table) => [unique().on(table.meetingId, table.constituentId)],
-// );
-
-// // === RELATIONS ===
-
-// export const meetingsRelations = relations(Meetings, ({ one, many }) => ({
-//   chapter: one(Chapters, {
-//     fields: [Meetings.chapterId],
-//     references: [Chapters.id],
-//   }),
-//   committee: one(Committees, {
-//     fields: [Meetings.committeeId],
-//     references: [Committees.id],
-//   }),
-//   createdBy: one(Constituents, {
-//     fields: [Meetings.createdById],
-//     references: [Constituents.id],
-//   }),
-//   attendees: many(MeetingAttendees),
-// }));
-
-// export const meetingAttendeesRelations = relations(
-//   MeetingAttendees,
-//   ({ one }) => ({
-//     meeting: one(Meetings, {
-//       fields: [MeetingAttendees.meetingId],
-//       references: [Meetings.id],
-//     }),
-//     constituent: one(Constituents, {
-//       fields: [MeetingAttendees.constituentId],
-//       references: [Constituents.id],
-//     }),
-//   }),
-// );

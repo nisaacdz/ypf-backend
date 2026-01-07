@@ -8,6 +8,7 @@ import logger from "@/configs/logger";
 
 import fs from "fs/promises";
 import { AllowedDocumentsMimeTypes } from "../middlewares/multipart";
+import { BlobSASPermissions } from "@azure/storage-blob";
 
 export type MediaMeta = {
   externalId: string;
@@ -218,4 +219,45 @@ export function generateSignedMediaUrl(
     transformation: transformations,
     signed: true,
   });
+}
+
+export async function generateSignedDocumentPreviewUrl(
+  externalId: string,
+  options: { expireSeconds: number },
+) {
+  const containerClient = blobServiceClient.getContainerClient(
+    containerNames.docs,
+  );
+  const blobClient = containerClient.getBlobClient(externalId);
+
+  const permissions = BlobSASPermissions.parse("r");
+  const expiresOn = new Date(Date.now() + 1000 * options.expireSeconds);
+
+  const url = await blobClient.generateSasUrl({
+    permissions,
+    expiresOn,
+  });
+
+  return url;
+}
+
+export async function generateSignedDocumentDownloadUrl(
+  externalId: string,
+  options: { expireSeconds: number },
+) {
+  const containerClient = blobServiceClient.getContainerClient(
+    containerNames.docs,
+  );
+  const blobClient = containerClient.getBlobClient(externalId);
+
+  const permissions = BlobSASPermissions.parse("r");
+  const expiresOn = new Date(Date.now() + 1000 * options.expireSeconds);
+
+  const url = await blobClient.generateSasUrl({
+    permissions,
+    expiresOn,
+    contentDisposition: "attachment",
+  });
+
+  return url;
 }

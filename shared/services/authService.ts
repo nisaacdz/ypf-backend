@@ -1,4 +1,4 @@
-import { eq, or, sql } from "drizzle-orm";
+import { eq, or, sql, isNull, and, gte } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
@@ -196,53 +196,79 @@ export async function resetPassword(
   newPassword: string,
 ): Promise<void> {
   await dbClient.db.transaction(async (tx) => {
-    // Fetch the OTP record for validation
     const [otpRecord] = await tx
-      .select()
-      .from(schema.Otps)
-      .where(eq(schema.Otps.email, email));
+      .update(schema.Otps)
+      .set({ usedAt: sql`now()` })
+      .where(
+        and(
+          eq(schema.Otps.email, email),
+          isNull(schema.Otps.usedAt),
+          gte(schema.Otps.expiresAt, sql`now()`),
+          eq(schema.Otps.code, otp),
+        ),
+      )
+      .returning({ id: schema.Otps.id });
 
-    // Validate OTP exists
     if (!otpRecord) {
       throw new ApiError("Invalid OTP", 400);
     }
 
-    // Validate OTP code matches
-    if (otpRecord.code !== otp) {
-      throw new ApiError("Invalid OTP", 400);
-    }
-
-    // Validate OTP has not been used
-    if (otpRecord.usedAt) {
-      throw new ApiError("OTP has already been used", 400);
-    }
-
-    // Validate OTP has not expired
-    const now = new Date();
-    const expiresAt = new Date(otpRecord.expiresAt);
-    if (now > expiresAt) {
-      throw new ApiError("OTP has expired", 400);
-    }
-
-    // Mark OTP as used
-    await tx
-      .update(schema.Otps)
-      .set({ usedAt: sql`now()` })
-      .where(eq(schema.Otps.id, otpRecord.id));
-
-    // Hash the new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Update user's password
     const result = await tx
       .update(schema.Users)
       .set({ password: hashedPassword })
       .where(eq(schema.Users.email, email))
       .returning({ id: schema.Users.id });
 
-    // Ensure user exists
     if (result.length === 0) {
       throw new ApiError("User not found", 404);
     }
   });
+}
+
+/**
+ * Onboards a user by sending an OTP if they exist but have no auth method set.
+ *
+ * @param email The user's email address.
+ * @returns The generated OTP code.
+ * @throws ApiError if user not found or already has an auth method.
+ */
+export async function onboardUser(email: string): Promise<string> {
+  const [user] = await dbClient.db
+    .select({
+      id: schema.Users.id,
+      password: schema.Users.password,
+      googleId: schema.Users.googleId,
+      appleId: schema.Users.appleId,
+      facebookId: schema.Users.facebookId,
+    })
+    .from(schema.Users)
+    .where(eq(schema.Users.email, email));
+
+  if (!user) {
+    throw new ApiError("User not found", 404);
+  }
+
+  // Check if any auth method is already set
+  if (user.password || user.googleId || user.appleId || user.facebookId) {
+    throw new ApiError("User already has an authentication method set", 409);
+  }
+
+  const otp = randomInt(100000, 1000000).toString();
+
+  // Use transaction to ensure atomicity
+  await dbClient.db.transaction(async (tx) => {
+    // Delete any existing OTPs for this email
+    await tx.delete(schema.Otps).where(eq(schema.Otps.email, email));
+
+    // Insert new OTP that expires in 6 minutes
+    await tx.insert(schema.Otps).values({
+      email,
+      code: otp,
+      expiresAt: sql`now() + interval '6 minutes'`,
+    });
+  });
+
+  return otp;
 }

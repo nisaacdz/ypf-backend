@@ -33,17 +33,7 @@ export async function getMembers(
 
   // --- SUBQUERIES ---
 
-  // 1. Subquery to find the earliest membership start date for each constituent.
-  const firstMembershipSubquery = dbClient.db
-    .select({
-      constituentId: schema.Members.constituentId,
-      joinedAt: min(schema.Members.startedAt).as("joined_at"),
-    })
-    .from(schema.Members)
-    .groupBy(schema.Members.constituentId)
-    .as("first_membership");
-
-  // 2. Subquery to find the most significant (highest priority) active title for each constituent.
+  // 1. Subquery to find the most significant (highest priority) active title for each constituent.
   const topTitleSubquery = dbClient.db
     .select({
       constituentId: schema.Members.constituentId,
@@ -136,34 +126,24 @@ export async function getMembers(
   const baseQuery = dbClient.db
     .select({
       id: schema.Constituents.id,
+      publicId: schema.Constituents.publicId,
       profilePhotoExternalId: schema.Media.externalId,
       fullName:
         sql<string>`concat(${schema.Constituents.firstName}, ' ', ${schema.Constituents.lastName})`.as(
           "full_name",
         ),
-      // Check if any active membership period exists for the constituent
-      isActive: exists(
-        dbClient.db
-          .select()
-          .from(schema.Members)
-          .where(
-            and(
-              eq(schema.Members.constituentId, schema.Constituents.id),
-              lte(schema.Members.startedAt, now),
-              or(
-                isNull(schema.Members.endedAt),
-                gte(schema.Members.endedAt, now),
-              ),
-            ),
-          ),
-      ).as<boolean>("is_active"),
-      joinedAt: firstMembershipSubquery.joinedAt,
+      startedAt: schema.Members.startedAt,
       title: topTitleSubquery.titleName,
     })
     .from(schema.Constituents)
-    .innerJoin(
-      firstMembershipSubquery,
-      eq(schema.Constituents.id, firstMembershipSubquery.constituentId),
+    // Join active membership
+    .leftJoin(
+      schema.Members,
+      and(
+        eq(schema.Constituents.id, schema.Members.constituentId),
+        lte(schema.Members.startedAt, now),
+        or(isNull(schema.Members.endedAt), gte(schema.Members.endedAt, now)),
+      ),
     )
     .leftJoin(
       schema.Media,
@@ -176,7 +156,18 @@ export async function getMembers(
         eq(topTitleSubquery.rn, 1),
       ),
     )
-    .where(and(...whereClauses));
+    .where(
+      and(
+        ...whereClauses,
+        // Ensure they have at least one membership record (past or present)
+        exists(
+          dbClient.db
+            .select()
+            .from(schema.Members)
+            .where(eq(schema.Members.constituentId, schema.Constituents.id)),
+        ),
+      ),
+    );
 
   // --- QUERY EXECUTION ---
   const [totalResult, dbMembers] = await Promise.all([
@@ -189,14 +180,14 @@ export async function getMembers(
   // --- DATA MAPPING ---
   const items: YPFMember[] = dbMembers.map((m) => ({
     id: m.id,
+    publicId: m.publicId,
     fullName: m.fullName,
     profilePhotoUrl: m.profilePhotoExternalId
       ? mediaUtils.generatePublicMediaUrl(m.profilePhotoExternalId, {
           resolution: 360,
         })
       : undefined,
-    isActive: m.isActive,
-    joinedAt: m.joinedAt ?? undefined,
+    startedAt: m.startedAt ?? undefined,
     title: m.title ?? undefined,
   }));
 
@@ -216,6 +207,7 @@ export async function getMemberByConstituentId(
   const [constituent] = await dbClient.db
     .select({
       id: schema.Constituents.id,
+      publicId: schema.Constituents.publicId,
       firstName: schema.Constituents.firstName,
       lastName: schema.Constituents.lastName,
       salutation: schema.Constituents.salutation,
@@ -229,22 +221,8 @@ export async function getMemberByConstituentId(
       profilePhotoSize: schema.Media.size,
       profilePhotoUploadedAt: schema.Media.uploadedAt,
       profilePhotoUploadedBy: schema.Media.uploadedBy,
-      joinedAt: min(schema.Members.startedAt).as("joined_at"),
-      isActive: exists(
-        dbClient.db
-          .select()
-          .from(schema.Members)
-          .where(
-            and(
-              eq(schema.Members.constituentId, schema.Constituents.id),
-              lte(schema.Members.startedAt, now),
-              or(
-                isNull(schema.Members.endedAt),
-                gte(schema.Members.endedAt, now),
-              ),
-            ),
-          ),
-      ).as<boolean>("is_active"),
+      startedAt: schema.Members.startedAt,
+      endedAt: schema.Members.endedAt,
     })
     .from(schema.Constituents)
     .leftJoin(
@@ -253,19 +231,13 @@ export async function getMemberByConstituentId(
     )
     .leftJoin(
       schema.Members,
-      eq(schema.Constituents.id, schema.Members.constituentId),
+      and(
+        eq(schema.Constituents.id, schema.Members.constituentId),
+        lte(schema.Members.startedAt, now),
+        or(isNull(schema.Members.endedAt), gte(schema.Members.endedAt, now)),
+      ),
     )
-    .where(eq(schema.Constituents.id, constituentId))
-    .groupBy(
-      schema.Constituents.id,
-      schema.Media.externalId,
-      schema.Media.type,
-      schema.Media.width,
-      schema.Media.height,
-      schema.Media.size,
-      schema.Media.uploadedAt,
-      schema.Media.uploadedBy,
-    );
+    .where(eq(schema.Constituents.id, constituentId));
 
   if (!constituent) {
     throw new ApiError("Member not found", 404);
@@ -312,6 +284,7 @@ export async function getMemberByConstituentId(
 
   const memberDetail: YPFMemberDetail = {
     id: constituent.id,
+    publicId: constituent.publicId,
     firstName: constituent.firstName,
     lastName: constituent.lastName,
     salutation: constituent.salutation ?? undefined,
@@ -357,8 +330,8 @@ export async function getMemberByConstituentId(
       startedAt: t.startedAt,
       endedAt: t.endedAt ?? undefined,
     })),
-    joinedAt: constituent.joinedAt ?? new Date(),
-    isActive: constituent.isActive,
+    startedAt: constituent.startedAt ?? undefined,
+    endedAt: constituent.endedAt ?? undefined,
   };
 
   return memberDetail;
@@ -502,12 +475,13 @@ export async function getLeadership(query: {
   const baseQuery = dbClient.db
     .select({
       id: schema.Constituents.id,
+      publicId: schema.Constituents.publicId, // Added publicId
       firstName: schema.Constituents.firstName,
       lastName: schema.Constituents.lastName,
       preferredName: schema.Constituents.preferredName,
       profilePhotoExternalId: schema.Media.externalId,
       title: schema.MemberTitles.title,
-      joinedAt: schema.Members.startedAt,
+      startedAt: schema.Members.startedAt, // Renamed joinedAt to startedAt
     })
     .from(schema.MemberTitlesAssignments)
     .innerJoin(
@@ -550,14 +524,14 @@ export async function getLeadership(query: {
 
   const items: YPFMember[] = users.map((u) => ({
     id: u.id,
+    publicId: u.publicId,
     fullName: u.preferredName ?? `${u.firstName} ${u.lastName}`,
     profilePhotoUrl: u.profilePhotoExternalId
       ? mediaUtils.generatePublicMediaUrl(u.profilePhotoExternalId, {
           resolution: 360,
         })
       : undefined,
-    isActive: true,
-    joinedAt: u.joinedAt,
+    startedAt: u.startedAt,
     title: u.title,
   }));
 

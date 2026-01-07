@@ -7,7 +7,7 @@ export type YPFDonation = {
   status: TransactionStatus;
   date: Date;
   donor?: {
-    name?: string;
-    email?: string;
+    name: string;
+    email: string;
   };
 };

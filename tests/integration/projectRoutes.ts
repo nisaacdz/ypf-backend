@@ -168,7 +168,7 @@ describe("Projects API", () => {
 
       // Check if our test project is in the list
       const foundProject = response.body.data.items.find(
-        (p: ProjectListItemResponse) => p.id === testData.projectId
+        (p: ProjectListItemResponse) => p.id === testData.projectId,
       );
       if (foundProject) {
         expect(foundProject.title).toBe(testProject.title);
@@ -202,7 +202,7 @@ describe("Projects API", () => {
       if (response.body.data.items.length > 0) {
         const hasMatchingTitle = response.body.data.items.some(
           (p: ProjectListItemResponse) =>
-            p.title.toLowerCase().includes("test project")
+            p.title.toLowerCase().includes("test project"),
         );
         expect(hasMatchingTitle).toBe(true);
       }
@@ -219,7 +219,7 @@ describe("Projects API", () => {
       // All returned projects should have ONGOING status
       if (response.body.data.items.length > 0) {
         const allInProgress = response.body.data.items.every(
-          (p: ProjectListItemResponse) => p.status === "ONGOING"
+          (p: ProjectListItemResponse) => p.status === "ONGOING",
         );
         expect(allInProgress).toBe(true);
       }

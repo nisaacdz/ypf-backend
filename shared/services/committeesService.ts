@@ -69,7 +69,12 @@ export async function getCommittees(
       schema.Media,
       eq(schema.CommitteeMedia.mediumId, schema.Media.id),
     )
-    .where(eq(schema.CommitteeMedia.isFeatured, true))
+    .where(
+      and(
+        eq(schema.CommitteeMedia.isFeatured, true),
+        eq(schema.Media.type, "PICTURE"),
+      ),
+    )
     .as("featured_photos");
 
   // --- DYNAMIC FILTERS ---
@@ -293,7 +298,12 @@ export async function getCommitteesByConstituentId(
       schema.Media,
       eq(schema.CommitteeMedia.mediumId, schema.Media.id),
     )
-    .where(eq(schema.CommitteeMedia.isFeatured, true))
+    .where(
+      and(
+        eq(schema.CommitteeMedia.isFeatured, true),
+        eq(schema.Media.type, "PICTURE"),
+      ),
+    )
     .as("featured_photos");
 
   // --- BASE QUERY ---
@@ -382,12 +392,13 @@ export async function getCommitteeLeadership(
   const baseQuery = dbClient.db
     .select({
       id: schema.Constituents.id,
+      publicId: schema.Constituents.publicId,
       firstName: schema.Constituents.firstName,
       lastName: schema.Constituents.lastName,
       preferredName: schema.Constituents.preferredName,
       profilePhotoExternalId: schema.Media.externalId,
       title: schema.MemberTitles.title,
-      joinedAt: schema.Members.startedAt,
+      startedAt: schema.Members.startedAt,
     })
     .from(schema.MemberTitlesAssignments)
     .innerJoin(
@@ -428,14 +439,14 @@ export async function getCommitteeLeadership(
 
   const items: YPFMember[] = users.map((u) => ({
     id: u.id,
+    publicId: u.publicId,
     fullName: u.preferredName ?? `${u.firstName} ${u.lastName}`,
     profilePhotoUrl: u.profilePhotoExternalId
       ? mediaUtils.generatePublicMediaUrl(u.profilePhotoExternalId, {
           resolution: 360,
         })
       : undefined,
-    isActive: true, // filtered by query
-    joinedAt: u.joinedAt,
+    startedAt: u.startedAt,
     title: u.title,
   }));
 

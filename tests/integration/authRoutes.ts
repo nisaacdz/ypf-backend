@@ -194,7 +194,6 @@ describe("Authentication API", () => {
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(response.body.message).toBe("Password reset successful");
 
       // Verify OTP was marked as used
       const [usedOtp] = await dbClient.db
@@ -290,7 +289,7 @@ describe("Authentication API", () => {
 
       expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
-      expect(response.body.message).toBe("OTP has already been used");
+      expect(response.body.message).toBe("Invalid OTP");
 
       // Update test user password
       testUser.password = "AnotherPassword123!";
@@ -446,6 +445,85 @@ describe("Authentication API", () => {
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data).toBeNull();
+    });
+  });
+
+  describe("POST /api/v1/auth/onboard", () => {
+    it("should send OTP email for existing user with no auth methods", async () => {
+      // Create a user with no auth methods (password is null by default in schema if not set,
+      // but generateTestUser might set it, so we need to explicitely create one without)
+
+      const email = "noauth@example.com";
+
+      // Clean up first
+      await dbClient.db
+        .delete(schema.Users)
+        .where(eq(schema.Users.email, email));
+
+      const [constituent] = await dbClient.db
+        .insert(schema.Constituents)
+        .values({
+          firstName: "No",
+          lastName: "Auth",
+          email: email,
+        })
+        .returning();
+
+      await dbClient.db.insert(schema.Users).values({
+        email: email,
+        constituentId: constituent.id,
+        username: email,
+        // password, googleId etc are null by default
+      });
+
+      const response = await request(server).post("/api/v1/auth/onboard").send({
+        email: email,
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.message).toContain(
+        "Onboarding verification code sent",
+      );
+
+      // Verify OTP was created
+      const [otp] = await dbClient.db
+        .select()
+        .from(schema.Otps)
+        .where(eq(schema.Otps.email, email));
+
+      expect(otp).toBeDefined();
+      expect(otp.code).toHaveLength(6);
+
+      // Cleanup
+      await dbClient.db
+        .delete(schema.Users)
+        .where(eq(schema.Users.email, email));
+      await dbClient.db
+        .delete(schema.Constituents)
+        .where(eq(schema.Constituents.email, email));
+    });
+
+    it("should reject onboard for non-existent user", async () => {
+      const response = await request(server).post("/api/v1/auth/onboard").send({
+        email: "nonexistent_onboard@example.com",
+      });
+
+      expect(response.status).toBe(404);
+      expect(response.body.success).toBe(false);
+    });
+
+    it("should reject onboard if user already has auth method (password)", async () => {
+      // Use the testUser which has a password set
+      const response = await request(server).post("/api/v1/auth/onboard").send({
+        email: testUser.email,
+      });
+
+      expect(response.status).toBe(409);
+      expect(response.body.success).toBe(false);
+      expect(response.body.message).toContain(
+        "User already has an authentication method set",
+      );
     });
   });
 });

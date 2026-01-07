@@ -3,7 +3,11 @@ import * as constituentsService from "@/shared/services/constituentsService";
 import { encodeData } from "@/shared/utils/jwt";
 import { ApiResponse, ApiError } from "@/shared/types";
 import { sendOtpEmail } from "@/shared/utils/email";
-import { ForgotPasswordSchema, ResetPasswordSchema } from "./schemas";
+import {
+  ForgotPasswordSchema,
+  ResetPasswordSchema,
+  OnboardSchema,
+} from "./schemas";
 import { AuthData } from "./dtos";
 import { z } from "zod";
 
@@ -86,25 +90,73 @@ export async function forgotPassword({
 }
 
 /**
- * Resets the user's password using a valid OTP.
+ * Onboards a user by sending an OTP if they exist but have no auth method set.
+ *
+ * @param email - The user's email address
+ * @returns Success response indicating OTP was sent
+ * @throws ApiError if user not found or has auth method
+ */
+export async function onboard({
+  email,
+}: z.infer<typeof OnboardSchema>): Promise<ApiResponse<null>> {
+  const otp = await authService.onboardUser(email);
+
+  await sendOtpEmail(email, otp);
+
+  return {
+    success: true,
+    data: null,
+    message: "Onboarding verification code sent to your email",
+  };
+}
+
+/**
+ * Resets the user's password using a valid OTP and logs them in.
  *
  * @param email - The user's email address
  * @param otp - The OTP code received via email
  * @param password - The new password
- * @returns Success response indicating password was reset
+ * @returns Authentication response with tokens and user data
  * @throws ApiError if OTP is invalid, expired, or used
  */
 export async function resetPassword({
   email,
   otp,
   password,
-}: z.infer<typeof ResetPasswordSchema>): Promise<ApiResponse<null>> {
+}: z.infer<typeof ResetPasswordSchema>): Promise<{
+  response: ApiResponse<AuthData>;
+  accessToken: string;
+  refreshToken: string;
+}> {
   await authService.resetPassword(email, otp, password);
 
+  const authenticatedUser = await authService.loginWithUsername(email);
+
+  const constituentDetail = await constituentsService.getDetailedConstituent(
+    authenticatedUser.constituentId,
+  );
+
+  if (!constituentDetail) throw new ApiError("Something went wrong"); // unexpected!
+
+  const authData: AuthData = {
+    ...constituentDetail,
+    auth: authenticatedUser,
+  };
+
+  const accessToken = encodeData(authenticatedUser, { expiresIn: "30m" });
+  const refreshToken = encodeData(
+    { username: authenticatedUser.email },
+    { expiresIn: "3d" },
+  );
+
   return {
-    success: true,
-    data: null,
-    message: "Password reset successful",
+    response: {
+      success: true,
+      data: authData,
+      message: "Login successful",
+    },
+    accessToken,
+    refreshToken,
   };
 }
 

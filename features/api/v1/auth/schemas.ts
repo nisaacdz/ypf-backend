@@ -1,6 +1,5 @@
 import variables from "@/configs/env";
 import z from "zod";
-import { Profiles } from "@/shared/types";
 
 export const UsernameAndPasswordSchema = z.object({
   username: z.string({ message: "Username is required." }),
@@ -49,4 +48,8 @@ export const ResetPasswordSchema = z.object({
     .string({ message: "Password is required." })
     .min(4, { message: "Password must be at least 4 characters." })
     .max(55, { message: "Password must not exceed 55 characters." }),
+});
+
+export const OnboardSchema = z.object({
+  email: z.email({ message: "Please enter a valid email address." }),
 });
