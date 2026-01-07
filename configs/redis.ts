@@ -2,7 +2,7 @@ import Redis from "ioredis";
 import variables from "./env";
 import logger from "./logger";
 
-class RedisCient {
+class RedisClient {
   _redis: Redis | undefined = undefined;
 
   async initialize() {
@@ -51,6 +51,6 @@ class RedisCient {
   }
 }
 
-const redisClient = new RedisCient();
+const redisClient = new RedisClient();
 
 export default redisClient;

@@ -170,6 +170,15 @@ export async function createVolunteerApplication(
     columns: { id: true, email: true, phone: true, whatsapp: true },
   });
 
+  if (existingUser) {
+    if (existingUser.email === data.applicantData.email)
+      throw new ApiError("Email already exists", 400);
+    if (existingUser.phone === data.applicantData.phone)
+      throw new ApiError("Phone already exists", 400);
+    if (existingUser.whatsapp === data.applicantData.whatsapp)
+      throw new ApiError("WhatsApp already exists", 400);
+  }
+
   const application = await applicationsService.createVolunteerApplication({
     ...data,
     constituent: {

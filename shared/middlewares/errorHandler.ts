@@ -46,7 +46,7 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction,
 ) => {
-  if (!!req.file || !!req.files) {
+  if (req.file || req.files) {
     cleanupFiles(req).catch((cleanupErr) => {
       logger.error(cleanupErr, "Error during file cleanup in errorHandler");
     });

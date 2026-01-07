@@ -7,7 +7,7 @@ import logger from "@/configs/logger";
  * Middleware to check if response is cached in Redis.
  * Key construction: req.path + "?" + sorted query string.
  *
- * Must be used in conjunction with validateQuery preceeding it in the middleware stack.
+ * Must be used in conjunction with validateQuery preceding it in the middleware stack.
  *
  * If cached, returns the cached response.
  * If not, attaches the constructed key to req.CacheKey and calls next().
