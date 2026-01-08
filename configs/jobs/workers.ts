@@ -10,8 +10,14 @@ export async function startWorkers() {
   const boss = jobDispatcher.client;
 
   // Configure worker batch sizes based on environment
-  const emailBatchSize = Math.max(2, Math.floor(variables.jobs.concurrency * 0.4));
-  const announcementBatchSize = Math.max(2, Math.floor(variables.jobs.concurrency * 0.3));
+  const emailBatchSize = Math.max(
+    2,
+    Math.floor(variables.jobs.concurrency * 0.4),
+  );
+  const announcementBatchSize = Math.max(
+    2,
+    Math.floor(variables.jobs.concurrency * 0.3),
+  );
   const cleanupBatchSize = 1;
 
   logger.info(
