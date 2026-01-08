@@ -51,6 +51,13 @@ const envSchema = z
     LOGO_URL: z.url("A valid LOGO_URL is required"),
     YEAR: z.string().default(new Date().getFullYear().toString()),
     VERSION: z.string().default("0.1.0"),
+
+    // Job Queue Configuration
+    JOB_CONCURRENCY: z.coerce.number().positive().default(5),
+    JOB_RETENTION_DAYS: z.coerce.number().positive().default(7),
+    JOB_RETRY_LIMIT: z.coerce.number().nonnegative().default(3),
+    JOB_RETRY_DELAY: z.coerce.number().positive().default(60),
+    JOB_ARCHIVE_HOURS: z.coerce.number().positive().default(24),
   })
   .transform((env) => ({
     app: {
@@ -92,6 +99,13 @@ const envSchema = z
       paystack: {
         secretHash: env.PAYSTACK_SECRET,
       },
+    },
+    jobs: {
+      concurrency: env.JOB_CONCURRENCY,
+      retentionDays: env.JOB_RETENTION_DAYS,
+      retryLimit: env.JOB_RETRY_LIMIT,
+      retryDelay: env.JOB_RETRY_DELAY,
+      archiveHours: env.JOB_ARCHIVE_HOURS,
     },
   }));
 

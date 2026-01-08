@@ -545,4 +545,32 @@ ALTER TABLE "shop"."order_payments" ADD CONSTRAINT "order_payments_order_id_orde
 ALTER TABLE "shop"."order_payments" ADD CONSTRAINT "order_payments_transaction_id_financial_transactions_id_fk" FOREIGN KEY ("transaction_id") REFERENCES "finance"."financial_transactions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shop"."orders" ADD CONSTRAINT "orders_constituent_id_constituents_id_fk" FOREIGN KEY ("constituent_id") REFERENCES "core"."constituents"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shop"."product_media" ADD CONSTRAINT "product_media_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "shop"."products"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "shop"."product_media" ADD CONSTRAINT "product_media_medium_id_media_id_fk" FOREIGN KEY ("medium_id") REFERENCES "core"."media"("id") ON DELETE cascade ON UPDATE no action;
+ALTER TABLE "shop"."product_media" ADD CONSTRAINT "product_media_medium_id_media_id_fk" FOREIGN KEY ("medium_id") REFERENCES "core"."media"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+
+-- ============================================
+-- pg-boss Job Queue Performance Indexes
+-- ============================================
+-- pg-boss will auto-create its tables in the app schema
+-- We just ensure the app schema exists and has proper permissions
+-- The tables will be created by pg-boss on first initialization
+
+-- Create indexes for announcement audience resolution optimization
+CREATE INDEX IF NOT EXISTS idx_chapter_memberships_member_chapter
+  ON core.chapter_memberships(member_id, chapter_id);
+
+CREATE INDEX IF NOT EXISTS idx_committee_memberships_member_committee
+  ON core.committee_memberships(member_id, committee_id);
+
+CREATE INDEX IF NOT EXISTS idx_member_titles_assignments_member_title
+  ON core.member_titles_assignments(member_id, title_id);
+
+CREATE INDEX IF NOT EXISTS idx_members_constituent_ended
+  ON core.members(constituent_id, ended_at);
+
+-- Optimize job queue queries on announcements
+CREATE INDEX IF NOT EXISTS idx_announcements_status_expires
+  ON activities.announcements(status, expires_at);
+
+-- Index for constituent email lookups (used in announcement emails)
+CREATE INDEX IF NOT EXISTS idx_constituents_email
+  ON core.constituents(email);
