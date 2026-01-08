@@ -3,6 +3,12 @@ import logger from "@/configs/logger";
 import type { EmailJobData, BulkEmailJobData } from "../types/definitions";
 import type { Job } from "pg-boss";
 
+// Delay between batches to respect SMTP rate limits (in milliseconds)
+const BATCH_DELAY_MS = 1000;
+
+// Maximum recipients per batch (adjust based on SMTP provider limits)
+const EMAIL_BATCH_SIZE = 100;
+
 export const emailWorker = {
   /**
    * Sends a single email or email to multiple recipients
@@ -44,22 +50,23 @@ export const emailWorker = {
       const { to, subject, html, text } = job.data;
 
       if (!Array.isArray(to) || to.length === 0) {
-        throw new Error("Bulk email requires non-empty array of recipients");
+        throw new Error(
+          `Bulk email job ${job.id} requires a non-empty array of recipient email addresses in the 'to' field`,
+        );
       }
 
-      const batchSize = 100; // Adjust based on SMTP provider limits
       let sentCount = 0;
 
       try {
-        for (let i = 0; i < to.length; i += batchSize) {
-          const batch = to.slice(i, i + batchSize);
+        for (let i = 0; i < to.length; i += EMAIL_BATCH_SIZE) {
+          const batch = to.slice(i, i + EMAIL_BATCH_SIZE);
 
           await sendEmail(batch, subject, html, text, true); // BCC mode
           sentCount += batch.length;
 
           // Small delay between batches to respect rate limits
-          if (i + batchSize < to.length) {
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+          if (i + EMAIL_BATCH_SIZE < to.length) {
+            await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
           }
         }
 
@@ -67,7 +74,7 @@ export const emailWorker = {
           {
             jobId: job.id,
             totalRecipients: to.length,
-            batches: Math.ceil(to.length / batchSize),
+            batches: Math.ceil(to.length / EMAIL_BATCH_SIZE),
           },
           "Bulk email sent successfully",
         );

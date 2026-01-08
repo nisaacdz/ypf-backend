@@ -13,7 +13,11 @@ class JobDispatcher {
 
     this.boss = new PgBoss({
       connectionString: variables.database.url,
-      schema: "app", // Use app schema, not default pgboss
+      // Use 'app' schema instead of default 'pgboss' schema to keep all
+      // application tables in one schema. The 'app' schema is already created
+      // by our database migrations. pg-boss will auto-create its tables
+      // (job, archive, version, schedule) in this schema on first start.
+      schema: "app",
       retryLimit: variables.jobs.retryLimit,
       retryDelay: variables.jobs.retryDelay,
       retryBackoff: true,
