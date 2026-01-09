@@ -73,24 +73,29 @@ mkdir -p shared/jobs/types
 All complete code is in the full implementation plan. Here's the file list:
 
 ### Core Configuration
+
 - `configs/jobs/dispatcher.ts` - pg-boss client wrapper
 - `configs/jobs/workers.ts` - Worker registration & scheduling
 - `configs/jobs/index.ts` - Public exports
 - `configs/env.ts` - **UPDATE** with job configuration
 
 ### Job Types & Definitions
+
 - `shared/jobs/types/definitions.ts` - Job names, data types, priorities
 
 ### Job Workers
+
 - `shared/jobs/workers/emailWorker.ts` - Email sending jobs
 - `shared/jobs/workers/announcementWorker.ts` - Announcement publishing jobs
 - `shared/jobs/workers/cleanupWorker.ts` - Scheduled cleanup jobs
 
 ### Service Updates
+
 - `shared/services/announcementService.ts` - **UPDATE** to use jobs
 - `app.ts` - **UPDATE** to initialize job system
 
 ### Optional: Job Management API
+
 - `features/api/v1/jobs/index.ts` - Job routes
 - `features/api/v1/jobs/jobHandler.ts` - Job management handlers
 
@@ -128,6 +133,7 @@ Follow this order to avoid blockers:
 ## 🔍 Key Architecture Decisions
 
 ### Why pg-boss?
+
 - ✅ Uses existing PostgreSQL (no Redis needed)
 - ✅ ACID guarantees from PostgreSQL
 - ✅ Fits "PostgreSQL-first" philosophy
@@ -135,13 +141,16 @@ Follow this order to avoid blockers:
 - ✅ Simple operational model
 
 ### Schema Location
+
 All pg-boss tables go in the **`app` schema** (not default `pgboss` schema)
 
 ### Runtime Model
+
 Initially: **Same process** (API + Workers together)
 Later: Can separate into dedicated worker processes
 
 ### Migration Strategy
+
 **Update 0001 migration** (we're pre-production, so no new migration needed)
 
 ---
@@ -178,6 +187,7 @@ Email Sent / DB Updated
 ## 🧪 Testing
 
 ### Manual Test
+
 ```bash
 # Start server
 npm run dev
@@ -201,11 +211,13 @@ psql $DATABASE_URL -c "SELECT * FROM app.job ORDER BY createdon DESC LIMIT 5;"
 ```
 
 ### Unit Tests
+
 ```bash
 npm test tests/unit/jobs/
 ```
 
 ### Integration Tests
+
 ```bash
 npm test tests/integration/jobs.test.ts
 ```
@@ -215,24 +227,26 @@ npm test tests/integration/jobs.test.ts
 ## 🛠️ Useful Commands
 
 ### Check Job Queue Status
+
 ```sql
 -- Queue depth
 SELECT state, COUNT(*) FROM app.job GROUP BY state;
 
 -- Recent jobs
-SELECT id, name, state, createdon 
-FROM app.job 
-ORDER BY createdon DESC 
+SELECT id, name, state, createdon
+FROM app.job
+ORDER BY createdon DESC
 LIMIT 10;
 
 -- Failed jobs
-SELECT id, name, data, output 
-FROM app.job 
-WHERE state = 'failed' 
+SELECT id, name, data, output
+FROM app.job
+WHERE state = 'failed'
 ORDER BY completedon DESC;
 ```
 
 ### Job Management API (if implemented)
+
 ```bash
 # Get job stats
 GET /api/v1/jobs/stats
@@ -252,23 +266,27 @@ POST /api/v1/jobs/{jobId}/cancel
 ## 🚨 Troubleshooting
 
 ### Jobs not processing?
+
 1. Check workers are started: Look for "All job workers started" in logs
 2. Check database connection: `psql $DATABASE_URL`
 3. Check pg-boss tables exist: `\dt app.*` in psql
 4. Check for errors: `SELECT * FROM app.job WHERE state = 'failed';`
 
 ### Emails not sending?
+
 1. Check SMTP configuration in `.env`
 2. Check email job state: `SELECT * FROM app.job WHERE name = 'send-email';`
 3. Check application logs for SMTP errors
 4. Test direct email: Call `sendEmail()` directly from a test script
 
 ### High queue depth?
+
 1. Increase worker concurrency: Update `JOB_CONCURRENCY` in `.env`
 2. Check for slow jobs: Monitor logs for job duration
 3. Consider separating worker process
 
 ### Database connections exhausted?
+
 1. Reduce connection pool sizes in `configs/db.ts` and `configs/jobs/dispatcher.ts`
 2. Ensure total connections < PostgreSQL `max_connections`
 3. Monitor active connections: `SELECT count(*) FROM pg_stat_activity;`
@@ -278,12 +296,14 @@ POST /api/v1/jobs/{jobId}/cancel
 ## 📈 Monitoring
 
 ### What to Monitor
+
 - **Queue Depth:** Alert if > 1000 jobs queued
 - **Failed Jobs:** Alert if > 50 failed jobs
 - **Processing Time:** Alert if avg > 30 seconds
 - **Worker Health:** Alert if no jobs processed in 1 hour
 
 ### How to Monitor
+
 - **Logs:** Structured logging via pino
 - **Database:** Query `app.job` table
 - **API:** Job statistics endpoint (if implemented)
@@ -296,12 +316,14 @@ POST /api/v1/jobs/{jobId}/cancel
 If something goes wrong:
 
 ### Option 1: Disable Workers (Keep API Running)
+
 ```typescript
 // In app.ts, comment out:
 // await startWorkers();
 ```
 
 ### Option 2: Full Rollback
+
 ```bash
 git revert HEAD
 npm install
@@ -310,6 +332,7 @@ pm2 restart ypf-backend
 ```
 
 ### Option 3: Emergency Bypass
+
 Temporarily revert `announcementService.ts` to use synchronous logic (commented code in file)
 
 ---

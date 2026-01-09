@@ -11,20 +11,22 @@
 This architecture plan provides everything needed to integrate scheduled job processing into the YPF Backend **without blockers**:
 
 ### 1. **Complete Implementation Plan** (49KB, 1809 lines)
-   - File: [`pg-boss-implementation-plan.md`](./pg-boss-implementation-plan.md)
-   - Full production-ready code for all components
-   - Step-by-step implementation guide
-   - Database schema changes
-   - Testing strategy
-   - Deployment checklist
-   - Monitoring & rollback strategies
+
+- File: [`pg-boss-implementation-plan.md`](./pg-boss-implementation-plan.md)
+- Full production-ready code for all components
+- Step-by-step implementation guide
+- Database schema changes
+- Testing strategy
+- Deployment checklist
+- Monitoring & rollback strategies
 
 ### 2. **Quick Start Guide** (8.5KB, 348 lines)
-   - File: [`IMPLEMENTATION-SUMMARY.md`](./IMPLEMENTATION-SUMMARY.md)
-   - 5-minute setup overview
-   - File structure and creation order
-   - Troubleshooting guide
-   - Useful commands
+
+- File: [`IMPLEMENTATION-SUMMARY.md`](./IMPLEMENTATION-SUMMARY.md)
+- 5-minute setup overview
+- File structure and creation order
+- Troubleshooting guide
+- Useful commands
 
 ---
 
@@ -63,12 +65,12 @@ This architecture plan provides everything needed to integrate scheduled job pro
 
 **Why pg-boss over BullMQ or other solutions?**
 
-| Factor | pg-boss | BullMQ | Decision |
-|--------|---------|--------|----------|
-| Infrastructure | PostgreSQL (existing) | Redis (new) | ✅ pg-boss |
-| Throughput | 1k jobs/min | 10k+ jobs/min | ✅ pg-boss (sufficient) |
-| Operational Cost | Low | Medium-High | ✅ pg-boss |
-| Codebase Fit | Perfect | Good | ✅ pg-boss |
+| Factor           | pg-boss               | BullMQ        | Decision                |
+| ---------------- | --------------------- | ------------- | ----------------------- |
+| Infrastructure   | PostgreSQL (existing) | Redis (new)   | ✅ pg-boss              |
+| Throughput       | 1k jobs/min           | 10k+ jobs/min | ✅ pg-boss (sufficient) |
+| Operational Cost | Low                   | Medium-High   | ✅ pg-boss              |
+| Codebase Fit     | Perfect               | Good          | ✅ pg-boss              |
 
 ### Key Design Decisions
 
@@ -94,10 +96,12 @@ This architecture plan provides everything needed to integrate scheduled job pro
 ## 📦 What Gets Installed
 
 ### NPM Packages
+
 - `pg-boss@10.1.5` - Job queue library
 - `@types/pg-boss@9.0.6` - TypeScript definitions
 
 ### New Files Created (10 files)
+
 ```
 configs/jobs/
 ├── dispatcher.ts          # pg-boss client wrapper
@@ -118,11 +122,13 @@ features/api/v1/jobs/      # Optional job management API
 ```
 
 ### Modified Files (3 files)
+
 - `configs/env.ts` - Add job configuration
 - `app.ts` - Initialize job system
 - `shared/services/announcementService.ts` - Use job queue
 
 ### Database Changes
+
 - Add 6 indexes for performance optimization (in 0001 migration)
 - pg-boss auto-creates 4 tables in `app` schema
 
@@ -131,23 +137,27 @@ features/api/v1/jobs/      # Optional job management API
 ## 🚀 Implementation Phases
 
 ### Phase 1: Core Infrastructure (1-2 days)
+
 - Install dependencies
 - Create job dispatcher
 - Define job types
 - Update environment configuration
 
 ### Phase 2: Job Workers (1-2 days)
+
 - Implement email worker
 - Implement announcement worker
 - Implement cleanup worker
 - Register workers with dispatcher
 
 ### Phase 3: Integration (1 day)
+
 - Update `app.ts` for initialization
 - Update announcement service to use jobs
 - Test end-to-end flow
 
 ### Phase 4: Testing & Polish (1-2 days)
+
 - Unit tests
 - Integration tests
 - Manual testing
@@ -187,6 +197,7 @@ features/api/v1/jobs/      # Optional job management API
 ```
 
 **Benefits:**
+
 - ✅ API responds immediately (non-blocking)
 - ✅ Emails deduplicated automatically
 - ✅ Retries on failure
@@ -197,17 +208,20 @@ features/api/v1/jobs/      # Optional job management API
 ## 📊 Performance & Scalability
 
 ### Expected Load
+
 - Announcements: ~50 per month
 - Recipients per announcement: ~500 constituents
 - Total email jobs: ~25,000 per month
 - Peak rate: ~100 emails per hour
 
 ### pg-boss Capacity
+
 - Handles: 1,000+ jobs per minute
 - Our need: ~2 jobs per minute (peak)
 - **Headroom:** 500x capacity margin
 
 ### Scalability Path
+
 1. **Current:** Single instance (API + Workers)
 2. **Phase 2:** Increase worker concurrency via env variable
 3. **Phase 3:** Separate worker process (if needed)
@@ -219,16 +233,19 @@ features/api/v1/jobs/      # Optional job management API
 ## 🛡️ Reliability & Error Handling
 
 ### Retry Strategy
+
 - **Email jobs:** 3 retries with exponential backoff
 - **Announcement jobs:** 2 retries with 5-minute delay
 - **Cleanup jobs:** 1 retry with 10-minute delay
 
 ### Dead Letter Queue
+
 - Failed jobs after max retries → `failed` state
 - Retained for 7 days for debugging
 - Admin can manually retry via API or SQL
 
 ### Monitoring
+
 - Queue depth alerts (>1000 queued jobs)
 - Failed job alerts (>50 failed jobs)
 - Processing time alerts (avg >30 seconds)
@@ -239,17 +256,20 @@ features/api/v1/jobs/      # Optional job management API
 ## 💰 Cost & Infrastructure Impact
 
 ### Infrastructure Changes
+
 - **None** - Uses existing PostgreSQL database
 - **No new services** - No Redis, no separate queue service
 - **Same deployment** - No changes to deployment pipeline
 
 ### Database Impact
+
 - **Storage:** Minimal (~100MB for job history)
 - **Connections:** +10 connections from pg-boss pool
 - **CPU/Memory:** Negligible increase
 - **Cost:** $0 additional infrastructure
 
 ### Operational Impact
+
 - **Monitoring:** Same PostgreSQL monitoring
 - **Backups:** Already covered by DB backups
 - **Maintenance:** pg-boss auto-cleanup (7-day retention)
@@ -259,17 +279,20 @@ features/api/v1/jobs/      # Optional job management API
 ## ✅ Pre-Implementation Checklist
 
 ### Technical Prerequisites
+
 - [ ] Node.js 18+ (already have)
 - [ ] PostgreSQL 12+ (already have)
 - [ ] Database backup strategy (already have)
 - [ ] SMTP configuration (already have)
 
 ### Environment Setup
+
 - [ ] Add job configuration to `.env`
 - [ ] Verify database connection limits
 - [ ] Review SMTP sending limits
 
 ### Team Readiness
+
 - [ ] Review implementation plan
 - [ ] Assign developer(s) to implementation
 - [ ] Schedule implementation timeframe
@@ -280,12 +303,14 @@ features/api/v1/jobs/      # Optional job management API
 ## 🚨 Risk Assessment
 
 ### Low Risk
+
 - **Technology:** pg-boss is mature, battle-tested
 - **Infrastructure:** No new services or dependencies
 - **Code:** All code provided, follows codebase conventions
 - **Rollback:** Easy rollback if issues arise
 
 ### Mitigation Strategies
+
 1. **Graceful Degradation:** Can disable workers, keep API running
 2. **Rollback Plan:** Documented emergency rollback procedures
 3. **Testing:** Comprehensive unit and integration tests
@@ -296,16 +321,19 @@ features/api/v1/jobs/      # Optional job management API
 ## 📈 Success Metrics
 
 ### Immediate (Week 1)
+
 - ✅ Announcements publish without blocking API
 - ✅ Emails deduplicated and sent reliably
 - ✅ Zero manual intervention for job processing
 
 ### Short-term (Month 1)
+
 - ✅ 100% announcement delivery success rate
 - ✅ <1% email bounce rate
 - ✅ Automated cleanup tasks running daily
 
 ### Long-term (Quarter 1)
+
 - ✅ Support 1000+ recipients per announcement
 - ✅ Sub-second API response times
 - ✅ Comprehensive job observability
@@ -315,11 +343,13 @@ features/api/v1/jobs/      # Optional job management API
 ## 🎓 Developer Experience
 
 ### Learning Curve
+
 - **Minimal** - Straightforward API: `jobDispatcher.client.send(jobName, data)`
 - **Familiar** - Uses existing PostgreSQL knowledge
 - **Well-documented** - 2000+ lines of documentation and code
 
 ### Code Quality
+
 - ✅ TypeScript types for all job data
 - ✅ Consistent with codebase conventions
 - ✅ Uses `@/` import alias
@@ -327,6 +357,7 @@ features/api/v1/jobs/      # Optional job management API
 - ✅ Error handling with ApiError
 
 ### Maintainability
+
 - ✅ Clear separation of concerns
 - ✅ Testable worker functions
 - ✅ Observable via logs and database queries
@@ -337,12 +368,14 @@ features/api/v1/jobs/      # Optional job management API
 ## 🔄 Next Steps
 
 ### Immediate Actions
+
 1. **Review:** Team reviews this overview and full implementation plan
 2. **Approve:** Stakeholder approval for implementation
 3. **Schedule:** Assign developer and timeframe
 4. **Start:** Begin Phase 1 implementation
 
 ### Implementation Path
+
 1. Follow [`IMPLEMENTATION-SUMMARY.md`](./IMPLEMENTATION-SUMMARY.md) for quick setup
 2. Refer to [`pg-boss-implementation-plan.md`](./pg-boss-implementation-plan.md) for complete code
 3. Create files in order specified in Phase 1-4
@@ -357,10 +390,10 @@ features/api/v1/jobs/      # Optional job management API
 ```
 1. THIS FILE (PG-BOSS-INTEGRATION-OVERVIEW.md)
    └─ Executive summary for stakeholders
-   
+
 2. IMPLEMENTATION-SUMMARY.md
    └─ Quick start guide for developers (5 min read)
-   
+
 3. pg-boss-implementation-plan.md
    └─ Complete implementation guide (30 min read)
       └─ Full code for all components
@@ -378,6 +411,7 @@ features/api/v1/jobs/      # Optional job management API
 This architecture provides a **production-ready, low-risk, high-value** solution for integrating scheduled job processing into the YPF Backend.
 
 ### Key Strengths
+
 - ✅ **Complete:** All code provided, no blockers
 - ✅ **Consistent:** Follows codebase conventions
 - ✅ **Simple:** Uses existing PostgreSQL infrastructure
@@ -386,6 +420,7 @@ This architecture provides a **production-ready, low-risk, high-value** solution
 - ✅ **Recoverable:** Clear rollback and error handling
 
 ### Implementation Confidence
+
 - **High** - All components architected and coded
 - **Low Risk** - Minimal infrastructure changes
 - **Fast** - 4-6 day implementation timeline
@@ -396,6 +431,7 @@ This architecture provides a **production-ready, low-risk, high-value** solution
 ---
 
 **Questions or Feedback?**
+
 - Review full plan: [`pg-boss-implementation-plan.md`](./pg-boss-implementation-plan.md)
 - Quick start: [`IMPLEMENTATION-SUMMARY.md`](./IMPLEMENTATION-SUMMARY.md)
 - Open GitHub issue for questions
