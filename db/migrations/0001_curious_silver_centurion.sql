@@ -8,6 +8,8 @@ CREATE SCHEMA "finance";
 --> statement-breakpoint
 CREATE SCHEMA "shop";
 --> statement-breakpoint
+CREATE SCHEMA "logs";
+--> statement-breakpoint
 CREATE TYPE "core"."admin_roles" AS ENUM('SUPER_ADMIN', 'REGULAR_ADMIN');--> statement-breakpoint
 CREATE TYPE "core"."document_type" AS ENUM('PDF', 'DOC', 'SPREADSHEET', 'PRESENTATION', 'IMAGE', 'OTHER');--> statement-breakpoint
 CREATE TYPE "core"."gender" AS ENUM('MALE', 'FEMALE', 'OTHER');--> statement-breakpoint
@@ -476,6 +478,24 @@ CREATE TABLE "shop"."products" (
 	CONSTRAINT "products_sku_unique" UNIQUE("sku")
 );
 --> statement-breakpoint
+CREATE TABLE "logs"."monthly_reports" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"report_month" timestamp with time zone NOT NULL,
+	"total_donations" numeric(12, 2),
+	"donations_count" integer,
+	"total_dues_payments" numeric(12, 2),
+	"dues_payments_count" integer,
+	"total_order_payments" numeric(12, 2),
+	"order_payments_count" integer,
+	"new_members_count" integer,
+	"new_volunteers_count" integer,
+	"events_count" integer,
+	"projects_count" integer,
+	"announcements_count" integer,
+	"generated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "monthly_reports_report_month_unique" UNIQUE("report_month")
+);
+--> statement-breakpoint
 ALTER TABLE "app"."notifications" ADD CONSTRAINT "notifications_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "app"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "app"."users" ADD CONSTRAINT "users_constituent_id_constituents_id_fk" FOREIGN KEY ("constituent_id") REFERENCES "core"."constituents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."admin_roles_assignments" ADD CONSTRAINT "admin_roles_assignments_admin_id_admins_id_fk" FOREIGN KEY ("admin_id") REFERENCES "core"."admins"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -546,31 +566,9 @@ ALTER TABLE "shop"."order_payments" ADD CONSTRAINT "order_payments_transaction_i
 ALTER TABLE "shop"."orders" ADD CONSTRAINT "orders_constituent_id_constituents_id_fk" FOREIGN KEY ("constituent_id") REFERENCES "core"."constituents"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shop"."product_media" ADD CONSTRAINT "product_media_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "shop"."products"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shop"."product_media" ADD CONSTRAINT "product_media_medium_id_media_id_fk" FOREIGN KEY ("medium_id") REFERENCES "core"."media"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-
--- ============================================
--- pg-boss Job Queue Performance Indexes
--- ============================================
--- pg-boss will auto-create its tables in the app schema
--- We just ensure the app schema exists and has proper permissions
--- The tables will be created by pg-boss on first initialization
-
--- Create indexes for announcement audience resolution optimization
-CREATE INDEX IF NOT EXISTS idx_chapter_memberships_member_chapter
-  ON core.chapter_memberships(member_id, chapter_id);
-
-CREATE INDEX IF NOT EXISTS idx_committee_memberships_member_committee
-  ON core.committee_memberships(member_id, committee_id);
-
-CREATE INDEX IF NOT EXISTS idx_member_titles_assignments_member_title
-  ON core.member_titles_assignments(member_id, title_id);
-
-CREATE INDEX IF NOT EXISTS idx_members_constituent_ended
-  ON core.members(constituent_id, ended_at);
-
--- Optimize job queue queries on announcements
-CREATE INDEX IF NOT EXISTS idx_announcements_status_expires
-  ON activities.announcements(status, expires_at);
-
--- Index for constituent email lookups (used in announcement emails)
-CREATE INDEX IF NOT EXISTS idx_constituents_email
-  ON core.constituents(email);
+CREATE INDEX "idx_chapter_memberships_member_chapter" ON "core"."chapter_memberships" USING btree ("member_id","chapter_id");--> statement-breakpoint
+CREATE INDEX "idx_committee_memberships_member_committee" ON "core"."committee_memberships" USING btree ("member_id","committee_id");--> statement-breakpoint
+CREATE INDEX "idx_constituents_email" ON "core"."constituents" USING btree ("email");--> statement-breakpoint
+CREATE INDEX "idx_member_titles_assignments_member_title" ON "core"."member_titles_assignments" USING btree ("member_id","title_id");--> statement-breakpoint
+CREATE INDEX "idx_members_constituent_ended" ON "core"."members" USING btree ("constituent_id","ended_at");--> statement-breakpoint
+CREATE INDEX "idx_announcements_status_expires" ON "activities"."announcements" USING btree ("status","expires_at");

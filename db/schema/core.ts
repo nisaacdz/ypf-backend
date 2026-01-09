@@ -9,6 +9,7 @@ import {
   integer,
   AnyPgColumn,
   check,
+  index,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 
@@ -71,56 +72,63 @@ export const Documents = core.table("documents", {
     .notNull(),
 });
 
-export const Constituents = core.table("constituents", {
-  id: uuid().defaultRandom().primaryKey(),
-  publicId: text("public_id")
-    .default(sql`generate_public_id('YPFC-', 12)`)
-    .unique()
-    .notNull(),
-  firstName: text("first_name").notNull(),
-  lastName: text("last_name").notNull(),
-  preferredName: text("preferred_name"),
+export const Constituents = core.table(
+  "constituents",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    publicId: text("public_id")
+      .default(sql`generate_public_id('YPFC-', 12)`)
+      .unique()
+      .notNull(),
+    firstName: text("first_name").notNull(),
+    lastName: text("last_name").notNull(),
+    preferredName: text("preferred_name"),
 
-  // Contact Info (Flattened)
-  email: text("email").unique(),
-  phone: text("phone").unique(),
-  whatsapp: text("whatsapp").unique(), // whatsapp number
-  orgEmail: text("org_email").unique(),
+    // Contact Info (Flattened)
+    email: text("email").unique(),
+    phone: text("phone").unique(),
+    whatsapp: text("whatsapp").unique(), // whatsapp number
+    orgEmail: text("org_email").unique(),
 
-  linkedinProfile: text("linkedin_profile"),
-  twitterHandle: text("twitter_handle"),
+    linkedinProfile: text("linkedin_profile"),
+    twitterHandle: text("twitter_handle"),
 
-  // Profile Fields
-  profilePhotoId: uuid("profile_photo_id").references(() => Media.id, {
-    onDelete: "set null",
-  }),
-  salutation: text(),
-  dateOfBirth: date("date_of_birth", { mode: "date" }),
-  gender: GenderEnum(),
-  occupation: text(),
-  country: text("country"),
-  region: text("region"),
-  city: text("city"),
-  campus: text("campus"),
-  nationalIdType: NationalIdTypeEnum("national_id_type"),
-  nationalIdDocumentId: uuid("national_id_document_id").references(
-    () => Documents.id,
-  ),
+    // Profile Fields
+    profilePhotoId: uuid("profile_photo_id").references(() => Media.id, {
+      onDelete: "set null",
+    }),
+    salutation: text(),
+    dateOfBirth: date("date_of_birth", { mode: "date" }),
+    gender: GenderEnum(),
+    occupation: text(),
+    country: text("country"),
+    region: text("region"),
+    city: text("city"),
+    campus: text("campus"),
+    nationalIdType: NationalIdTypeEnum("national_id_type"),
+    nationalIdDocumentId: uuid("national_id_document_id").references(
+      () => Documents.id,
+    ),
 
-  // missionPillars: text("mission_pillars").array(),
+    // missionPillars: text("mission_pillars").array(),
 
-  emergencyContactName: text("emergency_contact_name"),
-  emergencyContactPhone: text("emergency_contact_phone"),
-  skills: text("skills").array(),
-  previousVolunteerExperience: text("previous_volunteer_experience"),
+    emergencyContactName: text("emergency_contact_name"),
+    emergencyContactPhone: text("emergency_contact_phone"),
+    skills: text("skills").array(),
+    previousVolunteerExperience: text("previous_volunteer_experience"),
 
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    // Index for email lookups (used in announcement emails)
+    index("idx_constituents_email").on(table.email),
+  ],
+);
 
 export const MembershipApplications = core.table("membership_applications", {
   id: uuid().defaultRandom().primaryKey(),
@@ -184,14 +192,24 @@ export const VolunteerApplications = core.table("volunteer_applications", {
 });
 
 // ensure non overlapping periods of membership at dbms level
-export const Members = core.table("members", {
-  id: uuid().defaultRandom().primaryKey(),
-  constituentId: uuid("constituent_id")
-    .notNull()
-    .references(() => Constituents.id, { onDelete: "cascade" }),
-  startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
-  endedAt: timestamp("ended_at", { withTimezone: true }),
-});
+export const Members = core.table(
+  "members",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    constituentId: uuid("constituent_id")
+      .notNull()
+      .references(() => Constituents.id, { onDelete: "cascade" }),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+  },
+  (table) => [
+    // Index for constituent membership lookups
+    index("idx_members_constituent_ended").on(
+      table.constituentId,
+      table.endedAt,
+    ),
+  ],
+);
 
 // ensure non overlapping periods of volunteering at dbms level
 export const Volunteers = core.table("volunteers", {
@@ -258,17 +276,27 @@ export const MemberTitles = core.table(
 );
 
 // add constraint at dbms level for non overlapping (memberId, titleId) assignments
-export const MemberTitlesAssignments = core.table("member_titles_assignments", {
-  id: uuid().defaultRandom().primaryKey(),
-  memberId: uuid("member_id")
-    .notNull()
-    .references(() => Members.id, { onDelete: "cascade" }),
-  titleId: uuid("title_id")
-    .notNull()
-    .references(() => MemberTitles.id, { onDelete: "cascade" }),
-  startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
-  endedAt: timestamp("ended_at", { withTimezone: true }),
-});
+export const MemberTitlesAssignments = core.table(
+  "member_titles_assignments",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => Members.id, { onDelete: "cascade" }),
+    titleId: uuid("title_id")
+      .notNull()
+      .references(() => MemberTitles.id, { onDelete: "cascade" }),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+  },
+  (table) => [
+    // Index for member-title assignment lookups
+    index("idx_member_titles_assignments_member_title").on(
+      table.memberId,
+      table.titleId,
+    ),
+  ],
+);
 
 export const AdminRoles = core.enum("admin_roles", [
   "SUPER_ADMIN",
@@ -298,17 +326,27 @@ export const Chapters = core.table("chapters", {
 });
 
 // add constraint at dbms level for non overlapping (memberId, chapterId) assignment duration
-export const ChapterMemberships = core.table("chapter_memberships", {
-  id: uuid().defaultRandom().primaryKey(),
-  memberId: uuid("member_id")
-    .notNull()
-    .references(() => Members.id, { onDelete: "cascade" }),
-  chapterId: uuid("chapter_id")
-    .notNull()
-    .references(() => Chapters.id, { onDelete: "cascade" }),
-  startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
-  endedAt: timestamp("ended_at", { withTimezone: true }),
-});
+export const ChapterMemberships = core.table(
+  "chapter_memberships",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => Members.id, { onDelete: "cascade" }),
+    chapterId: uuid("chapter_id")
+      .notNull()
+      .references(() => Chapters.id, { onDelete: "cascade" }),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+  },
+  (table) => [
+    // Index for member-chapter membership lookups
+    index("idx_chapter_memberships_member_chapter").on(
+      table.memberId,
+      table.chapterId,
+    ),
+  ],
+);
 
 // if the committee.chapter is archived, the committee itself should be considered archived and excluded from lists
 // ensure application level chooses the committee.chapter.archivedAt over committee.archivedAt when both are set
@@ -323,17 +361,27 @@ export const Committees = core.table("committees", {
 });
 
 // add constraint at dbms level for non overlapping (memberId, committeeId) assignments
-export const CommitteeMemberships = core.table("committee_memberships", {
-  id: uuid().defaultRandom().primaryKey(),
-  memberId: uuid("member_id")
-    .notNull()
-    .references(() => Members.id, { onDelete: "cascade" }),
-  committeeId: uuid("committee_id")
-    .notNull()
-    .references(() => Committees.id, { onDelete: "cascade" }),
-  startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
-  endedAt: timestamp("ended_at", { withTimezone: true }),
-});
+export const CommitteeMemberships = core.table(
+  "committee_memberships",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => Members.id, { onDelete: "cascade" }),
+    committeeId: uuid("committee_id")
+      .notNull()
+      .references(() => Committees.id, { onDelete: "cascade" }),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+  },
+  (table) => [
+    // Index for member-committee membership lookups
+    index("idx_committee_memberships_member_committee").on(
+      table.memberId,
+      table.committeeId,
+    ),
+  ],
+);
 
 export const Organizations = core.table("organizations", {
   id: uuid().defaultRandom().primaryKey(),

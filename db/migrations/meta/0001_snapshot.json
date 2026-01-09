@@ -1,5 +1,5 @@
 {
-  "id": "35a07273-99b9-4295-b9b4-767050b59b94",
+  "id": "45984e22-7d06-4da9-a0d8-21ddbb024a97",
   "prevId": "e2714bcb-e5cf-48d0-97c1-b4aa42b99a01",
   "version": "7",
   "dialect": "postgresql",
@@ -497,7 +497,29 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_chapter_memberships_member_chapter": {
+          "name": "idx_chapter_memberships_member_chapter",
+          "columns": [
+            {
+              "expression": "member_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "chapter_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "chapter_memberships_member_id_members_id_fk": {
           "name": "chapter_memberships_member_id_members_id_fk",
@@ -695,7 +717,29 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_committee_memberships_member_committee": {
+          "name": "idx_committee_memberships_member_committee",
+          "columns": [
+            {
+              "expression": "member_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "committee_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "committee_memberships_member_id_members_id_fk": {
           "name": "committee_memberships_member_id_members_id_fk",
@@ -964,7 +1008,23 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_constituents_email": {
+          "name": "idx_constituents_email",
+          "columns": [
+            {
+              "expression": "email",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "constituents_profile_photo_id_media_id_fk": {
           "name": "constituents_profile_photo_id_media_id_fk",
@@ -1342,7 +1402,29 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_member_titles_assignments_member_title": {
+          "name": "idx_member_titles_assignments_member_title",
+          "columns": [
+            {
+              "expression": "member_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "title_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "member_titles_assignments_member_id_members_id_fk": {
           "name": "member_titles_assignments_member_id_members_id_fk",
@@ -1401,7 +1483,29 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_members_constituent_ended": {
+          "name": "idx_members_constituent_ended",
+          "columns": [
+            {
+              "expression": "constituent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "ended_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "members_constituent_id_constituents_id_fk": {
           "name": "members_constituent_id_constituents_id_fk",
@@ -1912,7 +2016,29 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_announcements_status_expires": {
+          "name": "idx_announcements_status_expires",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "announcements_author_id_constituents_id_fk": {
           "name": "announcements_author_id_constituents_id_fk",
@@ -3325,6 +3451,111 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
+    },
+    "logs.monthly_reports": {
+      "name": "monthly_reports",
+      "schema": "logs",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "report_month": {
+          "name": "report_month",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_donations": {
+          "name": "total_donations",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "donations_count": {
+          "name": "donations_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "total_dues_payments": {
+          "name": "total_dues_payments",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dues_payments_count": {
+          "name": "dues_payments_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "total_order_payments": {
+          "name": "total_order_payments",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "order_payments_count": {
+          "name": "order_payments_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "new_members_count": {
+          "name": "new_members_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "new_volunteers_count": {
+          "name": "new_volunteers_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "events_count": {
+          "name": "events_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "projects_count": {
+          "name": "projects_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "announcements_count": {
+          "name": "announcements_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "generated_at": {
+          "name": "generated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "monthly_reports_report_month_unique": {
+          "name": "monthly_reports_report_month_unique",
+          "nullsNotDistinct": false,
+          "columns": ["report_month"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -3425,7 +3656,8 @@
     "core": "core",
     "activities": "activities",
     "finance": "finance",
-    "shop": "shop"
+    "shop": "shop",
+    "logs": "logs"
   },
   "sequences": {},
   "roles": {},
