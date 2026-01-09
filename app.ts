@@ -10,6 +10,12 @@ import { startWorkers } from "@/configs/jobs/workers";
 async function shutdown() {
   logger.info("Shutting down server...");
 
+  // Force exit after 30 seconds if graceful shutdown fails
+  const forceExitTimeout = setTimeout(() => {
+    logger.error("Forced shutdown after timeout");
+    process.exit(1);
+  }, 30000);
+
   try {
     // Shut down job dispatcher first
     await jobDispatcher.shutdown();
@@ -23,15 +29,10 @@ async function shutdown() {
   }
 
   server.close(() => {
+    clearTimeout(forceExitTimeout);
     logger.info("Server closed.");
     process.exit(0);
   });
-
-  // Force exit after 30 seconds if graceful shutdown fails
-  setTimeout(() => {
-    logger.error("Forced shutdown after timeout");
-    process.exit(1);
-  }, 30000);
 }
 
 (async () => {

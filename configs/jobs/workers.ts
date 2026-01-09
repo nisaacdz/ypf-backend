@@ -69,12 +69,6 @@ export async function startWorkers() {
     cleanupWorker.cleanupExpiredAnnouncements,
   );
 
-  await boss.work(
-    JobNames.CLEANUP_OLD_JOBS,
-    { batchSize: cleanupBatchSize },
-    cleanupWorker.cleanupOldJobs,
-  );
-
   // ========== Scheduled Jobs ==========
   // Daily at 2 AM (Ghana time)
   await boss.schedule(
