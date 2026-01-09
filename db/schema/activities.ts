@@ -6,6 +6,7 @@ import {
   timestamp,
   jsonb,
   unique,
+  index,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 import { Chapters, Constituents, Documents, Media } from "./core";
@@ -145,28 +146,35 @@ export const projectsRelations = relations(Projects, ({ one, many }) => ({
   events: many(Events),
 }));
 
-export const Announcements = activities.table("announcements", {
-  id: uuid().defaultRandom().primaryKey(),
-  title: text().notNull(),
-  content: text().notNull(), // Markdown or HTML
+export const Announcements = activities.table(
+  "announcements",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    title: text().notNull(),
+    content: text().notNull(), // Markdown or HTML
 
-  // Targeting Rules (The "Who")
-  targetCriteria: jsonb("target_criteria").$type<TargetingFilter>().notNull(),
+    // Targeting Rules (The "Who")
+    targetCriteria: jsonb("target_criteria").$type<TargetingFilter>().notNull(),
 
-  authorId: uuid("author_id").references(() => Constituents.id),
+    authorId: uuid("author_id").references(() => Constituents.id),
 
-  // Scheduling & Status
-  status: text().default("DRAFT"), // DRAFT, PUBLISHED, ARCHIVED
-  publishedAt: timestamp("published_at", { withTimezone: true }),
-  expiresAt: timestamp("expires_at", { withTimezone: true }),
+    // Scheduling & Status
+    status: text().default("DRAFT"), // DRAFT, PUBLISHED, ARCHIVED
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
 
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    // Index for job queue queries on announcements
+    index("idx_announcements_status_expires").on(table.status, table.expiresAt),
+  ],
+);
 
 export const ConstituentAnnouncements = activities.table(
   "constituent_announcements",
