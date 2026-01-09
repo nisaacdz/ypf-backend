@@ -3,6 +3,7 @@ import { JobNames } from "@/shared/jobs/types/definitions";
 import { emailWorker } from "@/shared/jobs/workers/emailWorker";
 import { announcementWorker } from "@/shared/jobs/workers/announcementWorker";
 import { cleanupWorker } from "@/shared/jobs/workers/cleanupWorker";
+import { reportWorker } from "@/shared/jobs/workers/reportWorker";
 import logger from "@/configs/logger";
 import variables from "@/configs/env";
 
@@ -69,6 +70,13 @@ export async function startWorkers() {
     cleanupWorker.cleanupExpiredAnnouncements,
   );
 
+  // ========== Report Workers ==========
+  await boss.work(
+    JobNames.GENERATE_MONTHLY_REPORT,
+    { batchSize: 1 },
+    reportWorker.generateMonthlyReport,
+  );
+
   // ========== Scheduled Jobs ==========
   // Daily at 2 AM (Ghana time)
   await boss.schedule(
@@ -78,14 +86,13 @@ export async function startWorkers() {
     { tz: "Africa/Accra" },
   );
 
-  // Weekly on Monday at 9 AM (Ghana time)
-  // Placeholder for weekly digest
-  // await boss.schedule(
-  //   JobNames.SEND_WEEKLY_DIGEST,
-  //   "0 9 * * MON",
-  //   {},
-  //   { tz: "Africa/Accra" },
-  // );
+  // Monthly on the 1st at 3 AM (Ghana time)
+  await boss.schedule(
+    JobNames.GENERATE_MONTHLY_REPORT,
+    "0 3 1 * *",
+    {},
+    { tz: "Africa/Accra" },
+  );
 
   logger.info("All job workers started and scheduled");
 }
