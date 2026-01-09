@@ -38,7 +38,7 @@ class JobDispatcher {
     });
 
     this.boss.on("monitor-states", (states) => {
-      logger.debug({ states }, "pg-boss monitor states");
+      //logger.debug({ states }, "pg-boss monitor states");
 
       const failedCount = states.failed || 0;
       const createdCount = states.created || 0;

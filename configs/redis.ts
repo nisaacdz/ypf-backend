@@ -1,6 +1,7 @@
 import Redis from "ioredis";
 import variables from "./env";
 import logger from "./logger";
+import { ApiResponse } from "@/shared/types";
 
 class RedisClient {
   _redis: Redis | undefined = undefined;
@@ -43,11 +44,26 @@ class RedisClient {
   async setCache<T extends object>(
     key: string,
     data: T,
-    ttlSeconds: number = 300,
+    ttlSeconds: number = 300
   ): Promise<void> {
     if (!this._redis) return;
 
     await this._redis.set(key, JSON.stringify(data), "EX", ttlSeconds);
+  }
+
+  async setResponseCache<T extends object>(
+    key: string,
+    data: ApiResponse<T>,
+    ttlSeconds: number = 300
+  ): Promise<void> {
+    if (!this._redis) return;
+
+    await this._redis.set(
+      key,
+      JSON.stringify({ timestamp: new Date(), ...data }),
+      "EX",
+      ttlSeconds
+    );
   }
 }
 
