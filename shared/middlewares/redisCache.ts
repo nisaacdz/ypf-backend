@@ -12,22 +12,24 @@ type RedisApiResponse = ApiResponse<any> & { timestamp?: number };
  *
  * Must be used in conjunction with validateQuery preceding it in the middleware stack.
  *
+ * Guaranteed to set the req.CacheKey property.
+ *
  * If cached, returns the cached response.
- * If not, attaches the constructed key to req.CacheKey and calls next().
+ * If not, calls next().
  */
 export async function redisCacheEarlyReturn(
   req: Request,
   res: Response,
   next: NextFunction,
 ) {
-  const baseUrl = req.path;
+  const fullPath = req.originalUrl.split("?")[0];
   const queryParams = req.Query || {};
 
   const sortedQuery = new URLSearchParams(queryParams);
   sortedQuery.sort();
 
   const queryString = sortedQuery.toString();
-  req.CacheKey = queryString ? `${baseUrl}?${queryString}` : baseUrl;
+  req.CacheKey = queryString ? `${fullPath}?${queryString}` : fullPath;
   try {
     const cachedData = (await redisClient.getCache(
       req.CacheKey,
