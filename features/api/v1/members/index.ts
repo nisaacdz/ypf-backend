@@ -30,14 +30,14 @@ const membersRouter = Router();
 
 membersRouter.get(
   "/",
-  //authenticateLax,
-  //authorize(Visitors.hasProfile("MEMBER", "ADMIN")),
+  authenticateLax,
+  authorize(Visitors.hasProfile("MEMBER", "ADMIN")),
   validateQuery(GetMembersQuerySchema),
   redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await membersHandler.getMembers(req.Query);
-      redisClient.setCache(req.CacheKey, response, 60 * 5).catch((err) => {
+      redisClient.setResponseCache(req.CacheKey, response, 60 * 5).catch((err) => {
         logger.error(err, `Failed to set cache for ${req.CacheKey}`);
       });
       res.status(200).json(response);
@@ -49,14 +49,14 @@ membersRouter.get(
 
 membersRouter.get(
   "/:constituentId",
-  //authenticateLax,
-  //authorize(Visitors.hasProfile("MEMBER", "ADMIN")),
+  authenticateLax,
+  authorize(Visitors.hasProfile("MEMBER", "ADMIN")),
   validateParams(z.object({ constituentId: z.uuid("Member not found ID") })),
   redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await membersHandler.getMember(req.Params.constituentId);
-      redisClient.setCache(req.CacheKey, response, 60 * 5).catch((err) => {
+      redisClient.setResponseCache(req.CacheKey, response, 60 * 5).catch((err) => {
         logger.error(err, `Failed to set cache for ${req.CacheKey}`);
       });
       res.status(200).json(response);
@@ -108,7 +108,7 @@ membersRouter.get(
     try {
       const response = await membersHandler.getRoles(req.Query);
 
-      redisClient.setCache(req.CacheKey, response, 60 * 60).catch((err) => {
+      redisClient.setResponseCache(req.CacheKey, response, 60 * 60).catch((err) => {
         logger.error(err, `Failed to set cache for ${req.CacheKey}`);
       });
 
@@ -130,7 +130,7 @@ membersRouter.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await membersHandler.getLeadership(req.Query);
-      redisClient.setCache(req.CacheKey, response, 60 * 5).catch((err) => {
+      redisClient.setResponseCache(req.CacheKey, response, 60 * 5).catch((err) => {
         logger.error(err, `Failed to set cache for ${req.CacheKey}`);
       });
       res.status(200).json(response);
