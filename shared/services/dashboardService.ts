@@ -24,7 +24,6 @@ export async function getStats(): Promise<Stats> {
       .from(schema.Members)
       .where(
         and(
-          eq(schema.Members.constituentId, schema.Constituents.id),
           lte(schema.Members.startedAt, new Date()),
           or(
             isNull(schema.Members.endedAt),
@@ -56,17 +55,17 @@ export async function getStats(): Promise<Stats> {
   if (latestMonthlyReport) {
     monthlyReport = {
       reportMonth: latestMonthlyReport.reportMonth,
-      totalDonations: latestMonthlyReport.totalDonations,
-      donationsCount: latestMonthlyReport.donationsCount,
-      totalDuesPayments: latestMonthlyReport.totalDuesPayments,
-      duesPaymentsCount: latestMonthlyReport.duesPaymentsCount,
-      totalOrderPayments: latestMonthlyReport.totalOrderPayments,
-      orderPaymentsCount: latestMonthlyReport.orderPaymentsCount,
-      newMembersCount: latestMonthlyReport.newMembersCount,
-      newVolunteersCount: latestMonthlyReport.newVolunteersCount,
-      eventsCount: latestMonthlyReport.eventsCount,
-      projectsCount: latestMonthlyReport.projectsCount,
-      announcementsCount: latestMonthlyReport.announcementsCount,
+      totalDonations: latestMonthlyReport.totalDonations || "0",
+      donationsCount: latestMonthlyReport.donationsCount || 0,
+      totalDuesPayments: latestMonthlyReport.totalDuesPayments || "0",
+      duesPaymentsCount: latestMonthlyReport.duesPaymentsCount || 0,
+      totalOrderPayments: latestMonthlyReport.totalOrderPayments || "0",
+      orderPaymentsCount: latestMonthlyReport.orderPaymentsCount || 0,
+      newMembersCount: latestMonthlyReport.newMembersCount || 0,
+      newVolunteersCount: latestMonthlyReport.newVolunteersCount || 0,
+      eventsCount: latestMonthlyReport.eventsCount || 0,
+      projectsCount: latestMonthlyReport.projectsCount || 0,
+      announcementsCount: latestMonthlyReport.announcementsCount || 0,
       generatedAt: latestMonthlyReport.generatedAt,
     };
   }
@@ -77,7 +76,7 @@ export async function getStats(): Promise<Stats> {
     eventsCount: eventsCount.value,
     projectsCount: projectsCount.value,
     welfareProjectsCount: welfareProjectsCount.value,
-    monthlyReport,
+    monthlyReport: monthlyReport ?? undefined,
   };
 }
 
