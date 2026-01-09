@@ -31,6 +31,12 @@ export async function startWorkers() {
     "Starting job workers",
   );
 
+  //await Promise.all(Object.values(JobNames).map((jobName) => boss.createQueue(jobName)))
+  // It doesn't like deadlocks
+  for (const jobName of Object.values(JobNames)) {
+    await boss.createQueue(jobName);
+  }
+
   // ========== Email Workers ==========
   await boss.work(
     JobNames.SEND_EMAIL,

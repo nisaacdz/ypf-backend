@@ -57,7 +57,7 @@ const envSchema = z
     JOB_RETENTION_DAYS: z.coerce.number().positive().default(7),
     JOB_RETRY_LIMIT: z.coerce.number().nonnegative().default(3),
     JOB_RETRY_DELAY: z.coerce.number().positive().default(60),
-    JOB_ARCHIVE_HOURS: z.coerce.number().positive().default(24),
+    JOB_ARCHIVE_HOURS: z.coerce.number().positive().default(12),
   })
   .transform((env) => ({
     app: {
