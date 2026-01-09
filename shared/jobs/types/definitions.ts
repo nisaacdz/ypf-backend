@@ -13,11 +13,6 @@ export const JobNames = {
 
   // Cleanup Jobs
   CLEANUP_EXPIRED_ANNOUNCEMENTS: "cleanup-expired-announcements",
-  CLEANUP_OLD_JOBS: "cleanup-old-jobs",
-
-  // Periodic Jobs
-  SEND_WEEKLY_DIGEST: "send-weekly-digest",
-  GENERATE_MONTHLY_REPORT: "generate-monthly-report",
 } as const;
 
 export type JobName = (typeof JobNames)[keyof typeof JobNames];
