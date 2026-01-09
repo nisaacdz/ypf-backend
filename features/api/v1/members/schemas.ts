@@ -4,6 +4,8 @@ import { PaginationQuery } from "@/shared/validators";
 export const GetMembersQuerySchema = z.object({
   chapterId: z.uuid({ message: "Invalid chapter ID format." }).optional(),
   committeeId: z.uuid({ message: "Invalid committee ID format." }).optional(),
+  country: z.string().optional(),
+  hasTitle: z.coerce.boolean().optional(),
   ...PaginationQuery.shape,
 });
 

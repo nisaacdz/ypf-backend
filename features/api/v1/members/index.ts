@@ -30,8 +30,8 @@ const membersRouter = Router();
 
 membersRouter.get(
   "/",
-  authenticateLax,
-  authorize(Visitors.hasProfile("MEMBER", "ADMIN")),
+  //authenticateLax,
+  //authorize(Visitors.hasProfile("MEMBER", "ADMIN")),
   validateQuery(GetMembersQuerySchema),
   redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
@@ -49,8 +49,8 @@ membersRouter.get(
 
 membersRouter.get(
   "/:constituentId",
-  authenticateLax,
-  authorize(Visitors.hasProfile("MEMBER", "ADMIN")),
+  //authenticateLax,
+  //authorize(Visitors.hasProfile("MEMBER", "ADMIN")),
   validateParams(z.object({ constituentId: z.uuid("Member not found ID") })),
   redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {

@@ -1,44 +1,82 @@
-import { MediumType } from "@/shared/utils";
-
 export type YPFMember = {
-  id: string; // constituent ID
-  publicId: string;
+  id: string; // Member.id (membership record)
+  constituentId: string; // Constituent.id
+  publicId: string; // Constituent.publicId (e.g., YPFC-XXXX)
   profilePhotoUrl?: string;
-  fullName: string;
-  startedAt?: Date; // active Membership.startedAt
-  title?: string; // name of most significant title
+  fullName: string; // preferredName ?? `${firstName} ${lastName}`
+  title?: string; // most significant active title (e.g., "President")
+  chapter?: {
+    id: string;
+    name: string;
+  };
+  committee?: {
+    id: string;
+    name: string;
+  };
+  country?: string; // for geographic filtering display
+  startedAt?: Date; // membership start date
 };
 
 export type YPFMemberDetail = {
-  id: string; // constituents.id
-  publicId: string; // Constituents.publicId
+  id: string; // Member.id
+  constituentId: string; // Constituent.id
+  publicId: string;
   firstName: string;
   lastName: string;
+  preferredName?: string;
   salutation?: string;
+
   profilePhoto?: {
     url: string;
-    type: MediumType;
-    dimensions: {
-      width: number;
-      height: number;
-    };
-    size: number;
-    uploadedAt: Date;
+    dimensions: { width: number; height: number };
   };
-  contactInfo: {
-    phone?: string;
-    whatsapp?: string;
-    email?: string;
-  };
+
+  // Professional info (safe to share between members)
+  occupation?: string;
+  skills?: string[];
+
+  // Location (safe to share)
+  country?: string;
+  region?: string;
+  city?: string;
+  campus?: string;
+
+  // Contact info (intentionally public)
+  orgEmail?: string;
+  whatsapp?: string;
+
+  // Social links (intentionally public)
+  linkedinProfile?: string;
+  twitterHandle?: string;
+
+  // Organizational affiliation
   titles: {
-    name: string; // eg. president
-    scope?: { type: "chapter" | "committee"; name: string; id: string }; // undefined if global
-    _level: number;
+    id: string; // MemberTitlesAssignment.id
+    name: string;
+    scope?: { type: "chapter" | "committee"; id: string; name: string };
     startedAt: Date;
     endedAt?: Date;
-  }[]; // current titles
-  startedAt?: Date;
-  endedAt?: Date;
+  }[];
+
+  chapters: {
+    id: string;
+    name: string;
+    country: string;
+    startedAt: Date;
+    endedAt?: Date;
+  }[];
+
+  committees: {
+    id: string;
+    name: string;
+    chapterName?: string;
+    startedAt: Date;
+    endedAt?: Date;
+  }[];
+
+  // Membership info
+  startedAt?: Date; // global membership start
+  endedAt?: Date; // if membership ended
 };
 
 export type MemberRole = {

@@ -10,6 +10,9 @@ import {
   validateParams,
   validateBody,
 } from "@/shared/middlewares/validate";
+import { redisCacheEarlyReturn } from "@/shared/middlewares/redisCache";
+import redisClient from "@/configs/redis";
+import logger from "@/configs/logger";
 import * as committeesHandler from "./committeesHandler";
 import {
   GetCommitteesQuerySchema,
@@ -27,9 +30,16 @@ committeesRouter.get(
   "/",
   authorize(Visitors.ALL),
   validateQuery(GetCommitteesQuerySchema),
+  redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await committeesHandler.getCommittees(req.Query);
+      // Cache for 15 minutes (900 seconds)
+      redisClient
+        .setResponseCache(req.CacheKey, response, 15 * 60)
+        .catch((err) => {
+          logger.error(err, `Failed to set cache for ${req.CacheKey}`);
+        });
       res.status(200).json(response);
     } catch (error) {
       next(error);

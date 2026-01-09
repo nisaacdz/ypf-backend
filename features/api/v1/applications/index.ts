@@ -36,9 +36,11 @@ applicationsRouter.get(
       const response = await applicationsHandler.getMembershipApplications(
         req.Query,
       );
-      redisClient.setCache(req.CacheKey, response, 60 * 5).catch((err) => {
-        logger.error(err, `Failed to set cache for ${req.CacheKey}`);
-      });
+      redisClient
+        .setResponseCache(req.CacheKey, response, 60 * 5)
+        .catch((err) => {
+          logger.error(err, `Failed to set cache for ${req.CacheKey}`);
+        });
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -78,9 +80,11 @@ applicationsRouter.get(
       const response = await applicationsHandler.getMembershipApplicationById(
         req.Params.id,
       );
-      redisClient.setCache(req.CacheKey, response, 60 * 5).catch((err) => {
-        logger.error(err, `Failed to set cache for ${req.CacheKey}`);
-      });
+      redisClient
+        .setResponseCache(req.CacheKey, response, 60 * 5)
+        .catch((err) => {
+          logger.error(err, `Failed to set cache for ${req.CacheKey}`);
+        });
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -125,9 +129,11 @@ applicationsRouter.get(
       const response = await applicationsHandler.getVolunteerApplications(
         req.Query,
       );
-      redisClient.setCache(req.CacheKey, response, 60 * 5).catch((err) => {
-        logger.error(err, `Failed to set cache for ${req.CacheKey}`);
-      });
+      redisClient
+        .setResponseCache(req.CacheKey, response, 60 * 5)
+        .catch((err) => {
+          logger.error(err, `Failed to set cache for ${req.CacheKey}`);
+        });
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -146,9 +152,11 @@ applicationsRouter.get(
       const response = await applicationsHandler.getVolunteerApplicationById(
         req.Params.id,
       );
-      redisClient.setCache(req.CacheKey, response, 60 * 5).catch((err) => {
-        logger.error(err, `Failed to set cache for ${req.CacheKey}`);
-      });
+      redisClient
+        .setResponseCache(req.CacheKey, response, 60 * 5)
+        .catch((err) => {
+          logger.error(err, `Failed to set cache for ${req.CacheKey}`);
+        });
       res.status(200).json(response);
     } catch (error) {
       next(error);
