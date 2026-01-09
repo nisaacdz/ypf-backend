@@ -11,17 +11,17 @@ export type Activity = {
 
 export type MonthlyReport = {
   reportMonth: Date;
-  totalDonations: string | null;
-  donationsCount: number | null;
-  totalDuesPayments: string | null;
-  duesPaymentsCount: number | null;
-  totalOrderPayments: string | null;
-  orderPaymentsCount: number | null;
-  newMembersCount: number | null;
-  newVolunteersCount: number | null;
-  eventsCount: number | null;
-  projectsCount: number | null;
-  announcementsCount: number | null;
+  totalDonations: string;
+  donationsCount: number;
+  totalDuesPayments: string;
+  duesPaymentsCount: number;
+  totalOrderPayments: string;
+  orderPaymentsCount: number;
+  newMembersCount: number;
+  newVolunteersCount: number;
+  eventsCount: number;
+  projectsCount: number;
+  announcementsCount: number;
   generatedAt: Date;
 };
 
@@ -31,5 +31,5 @@ export type Stats = {
   eventsCount: number;
   projectsCount: number;
   welfareProjectsCount: number;
-  monthlyReport: MonthlyReport | null;
+  monthlyReport?: MonthlyReport;
 };
