@@ -26,7 +26,7 @@ import * as mediaUtils from "@/shared/utils/files";
 import { ApiError } from "@/shared/types";
 
 export async function getMembers(
-  query: z.infer<typeof GetMembersQuerySchema>
+  query: z.infer<typeof GetMembersQuerySchema>,
 ): Promise<Paginated<YPFMember>> {
   const { page, pageSize, search, chapterId, committeeId, country, hasTitle } =
     query;
@@ -40,17 +40,17 @@ export async function getMembers(
       constituentId: schema.Members.constituentId,
       titleName: schema.MemberTitles.title,
       rn: sql<number>`row_number() OVER (PARTITION BY ${schema.Members.constituentId} ORDER BY ${schema.MemberTitles._level} ASC)`.as(
-        "title_rn"
+        "title_rn",
       ),
     })
     .from(schema.Members)
     .innerJoin(
       schema.MemberTitlesAssignments,
-      eq(schema.Members.id, schema.MemberTitlesAssignments.memberId)
+      eq(schema.Members.id, schema.MemberTitlesAssignments.memberId),
     )
     .innerJoin(
       schema.MemberTitles,
-      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id)
+      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
     )
     // Only consider titles that are currently active
     .where(
@@ -58,9 +58,9 @@ export async function getMembers(
         lte(schema.MemberTitlesAssignments.startedAt, now),
         or(
           isNull(schema.MemberTitlesAssignments.endedAt),
-          gte(schema.MemberTitlesAssignments.endedAt, now)
-        )
-      )
+          gte(schema.MemberTitlesAssignments.endedAt, now),
+        ),
+      ),
     )
     .as("top_title");
 
@@ -71,26 +71,26 @@ export async function getMembers(
       chapterId: schema.Chapters.id,
       chapterName: schema.Chapters.name,
       rn: sql<number>`row_number() OVER (PARTITION BY ${schema.Members.constituentId} ORDER BY ${schema.ChapterMemberships.startedAt} DESC)`.as(
-        "chapter_rn"
+        "chapter_rn",
       ),
     })
     .from(schema.ChapterMemberships)
     .innerJoin(
       schema.Members,
-      eq(schema.ChapterMemberships.memberId, schema.Members.id)
+      eq(schema.ChapterMemberships.memberId, schema.Members.id),
     )
     .innerJoin(
       schema.Chapters,
-      eq(schema.ChapterMemberships.chapterId, schema.Chapters.id)
+      eq(schema.ChapterMemberships.chapterId, schema.Chapters.id),
     )
     .where(
       and(
         lte(schema.ChapterMemberships.startedAt, now),
         or(
           isNull(schema.ChapterMemberships.endedAt),
-          gte(schema.ChapterMemberships.endedAt, now)
-        )
-      )
+          gte(schema.ChapterMemberships.endedAt, now),
+        ),
+      ),
     )
     .as("primary_chapter");
 
@@ -101,26 +101,26 @@ export async function getMembers(
       committeeId: schema.Committees.id,
       committeeName: schema.Committees.name,
       rn: sql<number>`row_number() OVER (PARTITION BY ${schema.Members.constituentId} ORDER BY ${schema.CommitteeMemberships.startedAt} DESC)`.as(
-        "committee_rn"
+        "committee_rn",
       ),
     })
     .from(schema.CommitteeMemberships)
     .innerJoin(
       schema.Members,
-      eq(schema.CommitteeMemberships.memberId, schema.Members.id)
+      eq(schema.CommitteeMemberships.memberId, schema.Members.id),
     )
     .innerJoin(
       schema.Committees,
-      eq(schema.CommitteeMemberships.committeeId, schema.Committees.id)
+      eq(schema.CommitteeMemberships.committeeId, schema.Committees.id),
     )
     .where(
       and(
         lte(schema.CommitteeMemberships.startedAt, now),
         or(
           isNull(schema.CommitteeMemberships.endedAt),
-          gte(schema.CommitteeMemberships.endedAt, now)
-        )
-      )
+          gte(schema.CommitteeMemberships.endedAt, now),
+        ),
+      ),
     )
     .as("primary_committee");
 
@@ -145,7 +145,7 @@ export async function getMembers(
           .from(schema.ChapterMemberships)
           .innerJoin(
             schema.Members,
-            eq(schema.ChapterMemberships.memberId, schema.Members.id)
+            eq(schema.ChapterMemberships.memberId, schema.Members.id),
           )
           .where(
             and(
@@ -154,11 +154,11 @@ export async function getMembers(
               lte(schema.ChapterMemberships.startedAt, now),
               or(
                 isNull(schema.ChapterMemberships.endedAt),
-                gte(schema.ChapterMemberships.endedAt, now)
-              )
-            )
-          )
-      )
+                gte(schema.ChapterMemberships.endedAt, now),
+              ),
+            ),
+          ),
+      ),
     );
   }
 
@@ -170,7 +170,7 @@ export async function getMembers(
           .from(schema.CommitteeMemberships)
           .innerJoin(
             schema.Members,
-            eq(schema.CommitteeMemberships.memberId, schema.Members.id)
+            eq(schema.CommitteeMemberships.memberId, schema.Members.id),
           )
           .where(
             and(
@@ -179,11 +179,11 @@ export async function getMembers(
               lte(schema.CommitteeMemberships.startedAt, now),
               or(
                 isNull(schema.CommitteeMemberships.endedAt),
-                gte(schema.CommitteeMemberships.endedAt, now)
-              )
-            )
-          )
-      )
+                gte(schema.CommitteeMemberships.endedAt, now),
+              ),
+            ),
+          ),
+      ),
     );
   }
 
@@ -196,7 +196,7 @@ export async function getMembers(
           .from(schema.MemberTitlesAssignments)
           .innerJoin(
             schema.Members,
-            eq(schema.MemberTitlesAssignments.memberId, schema.Members.id)
+            eq(schema.MemberTitlesAssignments.memberId, schema.Members.id),
           )
           .where(
             and(
@@ -204,11 +204,11 @@ export async function getMembers(
               lte(schema.MemberTitlesAssignments.startedAt, now),
               or(
                 isNull(schema.MemberTitlesAssignments.endedAt),
-                gte(schema.MemberTitlesAssignments.endedAt, now)
-              )
-            )
-          )
-      )
+                gte(schema.MemberTitlesAssignments.endedAt, now),
+              ),
+            ),
+          ),
+      ),
     );
   }
 
@@ -237,33 +237,33 @@ export async function getMembers(
       and(
         eq(schema.Constituents.id, schema.Members.constituentId),
         lte(schema.Members.startedAt, now),
-        or(isNull(schema.Members.endedAt), gte(schema.Members.endedAt, now))
-      )
+        or(isNull(schema.Members.endedAt), gte(schema.Members.endedAt, now)),
+      ),
     )
     .leftJoin(
       schema.Media,
-      eq(schema.Constituents.profilePhotoId, schema.Media.id)
+      eq(schema.Constituents.profilePhotoId, schema.Media.id),
     )
     .leftJoin(
       topTitleSubquery,
       and(
         eq(schema.Constituents.id, topTitleSubquery.constituentId),
-        eq(topTitleSubquery.rn, 1)
-      )
+        eq(topTitleSubquery.rn, 1),
+      ),
     )
     .leftJoin(
       primaryChapterSubquery,
       and(
         eq(schema.Constituents.id, primaryChapterSubquery.constituentId),
-        eq(primaryChapterSubquery.rn, 1)
-      )
+        eq(primaryChapterSubquery.rn, 1),
+      ),
     )
     .leftJoin(
       primaryCommitteeSubquery,
       and(
         eq(schema.Constituents.id, primaryCommitteeSubquery.constituentId),
-        eq(primaryCommitteeSubquery.rn, 1)
-      )
+        eq(primaryCommitteeSubquery.rn, 1),
+      ),
     )
     .where(and(...whereClauses));
 
@@ -308,7 +308,7 @@ export async function getMembers(
 }
 
 export async function getMemberByConstituentId(
-  constituentId: string
+  constituentId: string,
 ): Promise<YPFMemberDetail> {
   const now = sql`now()`;
 
@@ -341,15 +341,15 @@ export async function getMemberByConstituentId(
     .from(schema.Constituents)
     .leftJoin(
       schema.Media,
-      eq(schema.Constituents.profilePhotoId, schema.Media.id)
+      eq(schema.Constituents.profilePhotoId, schema.Media.id),
     )
     .innerJoin(
       schema.Members,
       and(
         eq(schema.Constituents.id, schema.Members.constituentId),
         lte(schema.Members.startedAt, now),
-        or(isNull(schema.Members.endedAt), gte(schema.Members.endedAt, now))
-      )
+        or(isNull(schema.Members.endedAt), gte(schema.Members.endedAt, now)),
+      ),
     )
     .where(eq(schema.Constituents.id, constituentId));
 
@@ -372,19 +372,19 @@ export async function getMemberByConstituentId(
     .from(schema.MemberTitlesAssignments)
     .innerJoin(
       schema.Members,
-      eq(schema.MemberTitlesAssignments.memberId, schema.Members.id)
+      eq(schema.MemberTitlesAssignments.memberId, schema.Members.id),
     )
     .innerJoin(
       schema.MemberTitles,
-      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id)
+      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
     )
     .leftJoin(
       schema.Chapters,
-      eq(schema.MemberTitles.chapterId, schema.Chapters.id)
+      eq(schema.MemberTitles.chapterId, schema.Chapters.id),
     )
     .leftJoin(
       schema.Committees,
-      eq(schema.MemberTitles.committeeId, schema.Committees.id)
+      eq(schema.MemberTitles.committeeId, schema.Committees.id),
     )
     .where(
       and(
@@ -392,9 +392,9 @@ export async function getMemberByConstituentId(
         lte(schema.MemberTitlesAssignments.startedAt, now),
         or(
           isNull(schema.MemberTitlesAssignments.endedAt),
-          gte(schema.MemberTitlesAssignments.endedAt, now)
-        )
-      )
+          gte(schema.MemberTitlesAssignments.endedAt, now),
+        ),
+      ),
     );
 
   // Fetch chapter memberships
@@ -409,11 +409,11 @@ export async function getMemberByConstituentId(
     .from(schema.ChapterMemberships)
     .innerJoin(
       schema.Members,
-      eq(schema.ChapterMemberships.memberId, schema.Members.id)
+      eq(schema.ChapterMemberships.memberId, schema.Members.id),
     )
     .innerJoin(
       schema.Chapters,
-      eq(schema.ChapterMemberships.chapterId, schema.Chapters.id)
+      eq(schema.ChapterMemberships.chapterId, schema.Chapters.id),
     )
     .where(
       and(
@@ -421,9 +421,9 @@ export async function getMemberByConstituentId(
         lte(schema.ChapterMemberships.startedAt, now),
         or(
           isNull(schema.ChapterMemberships.endedAt),
-          gte(schema.ChapterMemberships.endedAt, now)
-        )
-      )
+          gte(schema.ChapterMemberships.endedAt, now),
+        ),
+      ),
     );
 
   // Fetch committee memberships
@@ -438,15 +438,15 @@ export async function getMemberByConstituentId(
     .from(schema.CommitteeMemberships)
     .innerJoin(
       schema.Members,
-      eq(schema.CommitteeMemberships.memberId, schema.Members.id)
+      eq(schema.CommitteeMemberships.memberId, schema.Members.id),
     )
     .innerJoin(
       schema.Committees,
-      eq(schema.CommitteeMemberships.committeeId, schema.Committees.id)
+      eq(schema.CommitteeMemberships.committeeId, schema.Committees.id),
     )
     .leftJoin(
       schema.Chapters,
-      eq(schema.Committees.chapterId, schema.Chapters.id)
+      eq(schema.Committees.chapterId, schema.Chapters.id),
     )
     .where(
       and(
@@ -454,9 +454,9 @@ export async function getMemberByConstituentId(
         lte(schema.CommitteeMemberships.startedAt, now),
         or(
           isNull(schema.CommitteeMemberships.endedAt),
-          gte(schema.CommitteeMemberships.endedAt, now)
-        )
-      )
+          gte(schema.CommitteeMemberships.endedAt, now),
+        ),
+      ),
     );
 
   const memberDetail: YPFMemberDetail = {
@@ -474,7 +474,7 @@ export async function getMemberByConstituentId(
         ? {
             url: mediaUtils.generatePublicMediaUrl(
               result.profilePhotoExternalId,
-              { resolution: 720 }
+              { resolution: 720 },
             ),
             dimensions: {
               width: result.profilePhotoWidth,
@@ -534,7 +534,7 @@ export async function getMemberByConstituentId(
  */
 export async function enrollGlobal(
   constituentId: string,
-  startedAt?: Date
+  startedAt?: Date,
 ): Promise<string> {
   const [member] = await dbClient.db
     .insert(schema.Members)
@@ -561,8 +561,8 @@ export async function unenrollGlobal(constituentId: string): Promise<void> {
       and(
         eq(schema.Members.constituentId, constituentId),
         isNull(schema.Members.endedAt),
-        lte(schema.Members.startedAt, now)
-      )
+        lte(schema.Members.startedAt, now),
+      ),
     )
     .returning({ id: schema.Members.id });
 
@@ -589,8 +589,8 @@ export async function getRoles(query: {
     whereClauses.push(
       or(
         ilike(schema.MemberTitles.title, `%${search}%`),
-        ilike(schema.MemberTitles.alias, `%${search}%`)
-      )
+        ilike(schema.MemberTitles.alias, `%${search}%`),
+      ),
     );
   }
 
@@ -617,11 +617,11 @@ export async function getRoles(query: {
     .from(schema.MemberTitles)
     .leftJoin(
       schema.Chapters,
-      eq(schema.MemberTitles.chapterId, schema.Chapters.id)
+      eq(schema.MemberTitles.chapterId, schema.Chapters.id),
     )
     .leftJoin(
       schema.Committees,
-      eq(schema.MemberTitles.committeeId, schema.Committees.id)
+      eq(schema.MemberTitles.committeeId, schema.Committees.id),
     )
     .where(and(...whereClauses))
     .orderBy(schema.MemberTitles._level, schema.MemberTitles.title)
@@ -680,19 +680,19 @@ export async function getLeadership(query: {
     .from(schema.MemberTitlesAssignments)
     .innerJoin(
       schema.MemberTitles,
-      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id)
+      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
     )
     .innerJoin(
       schema.Members,
-      eq(schema.MemberTitlesAssignments.memberId, schema.Members.id)
+      eq(schema.MemberTitlesAssignments.memberId, schema.Members.id),
     )
     .innerJoin(
       schema.Constituents,
-      eq(schema.Members.constituentId, schema.Constituents.id)
+      eq(schema.Members.constituentId, schema.Constituents.id),
     )
     .leftJoin(
       schema.Media,
-      eq(schema.Constituents.profilePhotoId, schema.Media.id)
+      eq(schema.Constituents.profilePhotoId, schema.Media.id),
     )
     .where(
       and(
@@ -704,8 +704,8 @@ export async function getLeadership(query: {
         sql`(${schema.MemberTitlesAssignments.endedAt} IS NULL OR ${schema.MemberTitlesAssignments.endedAt} >= now())`,
         // Active membership
         sql`${schema.Members.startedAt} <= now()`,
-        sql`(${schema.Members.endedAt} IS NULL OR ${schema.Members.endedAt} >= now())`
-      )
+        sql`(${schema.Members.endedAt} IS NULL OR ${schema.Members.endedAt} >= now())`,
+      ),
     )
     .orderBy(schema.MemberTitles._level, schema.MemberTitles.title);
 
@@ -746,7 +746,7 @@ export async function getLeadership(query: {
 export async function assignRole(
   constituentId: string,
   titleId: string,
-  startedAt?: Date
+  startedAt?: Date,
 ): Promise<string> {
   const now = new Date();
 
@@ -758,8 +758,8 @@ export async function assignRole(
       and(
         eq(schema.Members.constituentId, constituentId),
         lte(schema.Members.startedAt, now),
-        or(isNull(schema.Members.endedAt), gte(schema.Members.endedAt, now))
-      )
+        or(isNull(schema.Members.endedAt), gte(schema.Members.endedAt, now)),
+      ),
     )
     .limit(1);
 
@@ -784,7 +784,7 @@ export async function assignRole(
  */
 export async function unassignRole(
   constituentId: string,
-  titleId: string
+  titleId: string,
 ): Promise<void> {
   const now = new Date();
 
@@ -796,8 +796,8 @@ export async function unassignRole(
       and(
         eq(schema.Members.constituentId, constituentId),
         lte(schema.Members.startedAt, now),
-        or(isNull(schema.Members.endedAt), gte(schema.Members.endedAt, now))
-      )
+        or(isNull(schema.Members.endedAt), gte(schema.Members.endedAt, now)),
+      ),
     )
     .limit(1);
 
@@ -813,8 +813,8 @@ export async function unassignRole(
         eq(schema.MemberTitlesAssignments.memberId, member.id),
         eq(schema.MemberTitlesAssignments.titleId, titleId),
         isNull(schema.MemberTitlesAssignments.endedAt),
-        lte(schema.MemberTitlesAssignments.startedAt, now)
-      )
+        lte(schema.MemberTitlesAssignments.startedAt, now),
+      ),
     )
     .returning({ id: schema.MemberTitlesAssignments.id });
 

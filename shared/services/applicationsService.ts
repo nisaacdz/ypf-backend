@@ -61,7 +61,7 @@ type CreateMembershipApplication = {
 };
 
 export async function createMembershipApplication(
-  data: CreateMembershipApplication
+  data: CreateMembershipApplication,
 ) {
   const { constituent: constituentData, ...remApplicationData } = data;
   const result = await dbClient.db.transaction(async (tx) => {
@@ -101,7 +101,7 @@ export async function createMembershipApplication(
 }
 
 export async function getMembershipApplications(
-  query: z.infer<typeof GetMembershipApplicationsQuerySchema>
+  query: z.infer<typeof GetMembershipApplicationsQuerySchema>,
 ): Promise<Paginated<YPFMembershipApplication>> {
   const { page, pageSize, status, search } = query;
   const offset = (page - 1) * pageSize;
@@ -137,22 +137,22 @@ export async function getMembershipApplications(
     .from(schema.MembershipApplications)
     .innerJoin(
       schema.Constituents,
-      eq(schema.MembershipApplications.constituentId, schema.Constituents.id)
+      eq(schema.MembershipApplications.constituentId, schema.Constituents.id),
     )
     .leftJoin(
       schema.Media,
-      eq(schema.Constituents.profilePhotoId, schema.Media.id)
+      eq(schema.Constituents.profilePhotoId, schema.Media.id),
     )
     .leftJoin(
       schema.Chapters,
-      eq(schema.MembershipApplications.preferredChapterId, schema.Chapters.id)
+      eq(schema.MembershipApplications.preferredChapterId, schema.Chapters.id),
     )
     .leftJoin(
       schema.Committees,
       eq(
         schema.MembershipApplications.preferredCommitteeId,
-        schema.Committees.id
-      )
+        schema.Committees.id,
+      ),
     );
 
   if (search) {
@@ -160,8 +160,8 @@ export async function getMembershipApplications(
       or(
         ilike(schema.Constituents.email, `%${search}%`),
         ilike(schema.Constituents.firstName, `%${search}%`),
-        ilike(schema.Constituents.lastName, `%${search}%`)
-      )
+        ilike(schema.Constituents.lastName, `%${search}%`),
+      ),
     );
   }
 
@@ -179,7 +179,7 @@ export async function getMembershipApplications(
       .from(schema.MembershipApplications)
       .innerJoin(
         schema.Constituents,
-        eq(schema.MembershipApplications.constituentId, schema.Constituents.id)
+        eq(schema.MembershipApplications.constituentId, schema.Constituents.id),
       )
       .where(whereClause),
   ]);
@@ -215,7 +215,7 @@ export async function getMembershipApplications(
 }
 
 export async function getMembershipApplicationById(
-  id: string
+  id: string,
 ): Promise<YPFMembershipApplicationDetail | null> {
   // 1. Create an alias for the second join
   const NationalIdDocs = aliasedTable(schema.Documents, "national_id_docs");
@@ -276,33 +276,33 @@ export async function getMembershipApplicationById(
     .from(schema.MembershipApplications)
     .innerJoin(
       schema.Constituents,
-      eq(schema.MembershipApplications.constituentId, schema.Constituents.id)
+      eq(schema.MembershipApplications.constituentId, schema.Constituents.id),
     )
     .leftJoin(
       schema.Chapters,
-      eq(schema.MembershipApplications.preferredChapterId, schema.Chapters.id)
+      eq(schema.MembershipApplications.preferredChapterId, schema.Chapters.id),
     )
     .leftJoin(
       schema.Committees,
       eq(
         schema.MembershipApplications.preferredCommitteeId,
-        schema.Committees.id
-      )
+        schema.Committees.id,
+      ),
     )
     // Join 1: For CV (standard schema.Documents)
     .leftJoin(
       schema.Documents,
-      eq(schema.MembershipApplications.cvDocumentId, schema.Documents.id)
+      eq(schema.MembershipApplications.cvDocumentId, schema.Documents.id),
     )
     // Join 2: For National ID (using the alias)
     // Note: referencing Constituents.nationalIdDocumentId
     .leftJoin(
       NationalIdDocs,
-      eq(schema.Constituents.nationalIdDocumentId, NationalIdDocs.id)
+      eq(schema.Constituents.nationalIdDocumentId, NationalIdDocs.id),
     )
     .leftJoin(
       schema.Media,
-      eq(schema.Constituents.profilePhotoId, schema.Media.id)
+      eq(schema.Constituents.profilePhotoId, schema.Media.id),
     )
     .where(eq(schema.MembershipApplications.id, id))
     .limit(1);
@@ -365,13 +365,13 @@ export async function getMembershipApplicationById(
             application.cvDocument.externalId,
             {
               expireSeconds: 60 * 60,
-            }
+            },
           ),
           downloadUrl: await generateSignedDocumentDownloadUrl(
             application.cvDocument.externalId,
             {
               expireSeconds: 60 * 60,
-            }
+            },
           ),
         }
       : undefined,
@@ -382,13 +382,13 @@ export async function getMembershipApplicationById(
             application.nationalIdDocument.externalId,
             {
               expireSeconds: 60 * 60,
-            }
+            },
           ),
           downloadUrl: await generateSignedDocumentDownloadUrl(
             application.nationalIdDocument.externalId,
             {
               expireSeconds: 60 * 60,
-            }
+            },
           ),
         }
       : undefined,
@@ -401,7 +401,7 @@ export async function updateMembershipApplicationStatus(
   id: string,
   newStatus: MembershipApplicationStatus,
   adminId: string,
-  declinedReason?: string
+  declinedReason?: string,
 ) {
   const [updated] = await dbClient.db
     .update(schema.MembershipApplications)
@@ -463,7 +463,7 @@ export async function getMembershipApplicationStats() {
 // Volunteer Application Service Methods
 
 export async function createVolunteerApplication(
-  data: CreateVolunteerApplication
+  data: CreateVolunteerApplication,
 ) {
   const { constituent: constituentData, ...remApplicationData } = data;
   const result = await dbClient.db.transaction(async (tx) => {
@@ -512,7 +512,7 @@ export async function createVolunteerApplication(
 }
 
 export async function getVolunteerApplications(
-  query: z.infer<typeof GetVolunteerApplicationsQuerySchema>
+  query: z.infer<typeof GetVolunteerApplicationsQuerySchema>,
 ): Promise<Paginated<YPFVolunteerApplication>> {
   const { page, pageSize, status, search } = query;
   const offset = (page - 1) * pageSize;
@@ -539,7 +539,7 @@ export async function getVolunteerApplications(
     .from(schema.VolunteerApplications)
     .innerJoin(
       schema.Constituents,
-      eq(schema.VolunteerApplications.constituentId, schema.Constituents.id)
+      eq(schema.VolunteerApplications.constituentId, schema.Constituents.id),
     );
 
   if (search) {
@@ -547,8 +547,8 @@ export async function getVolunteerApplications(
       or(
         ilike(schema.Constituents.email, `%${search}%`),
         ilike(schema.Constituents.firstName, `%${search}%`),
-        ilike(schema.Constituents.lastName, `%${search}%`)
-      )
+        ilike(schema.Constituents.lastName, `%${search}%`),
+      ),
     );
   }
 
@@ -588,7 +588,7 @@ export async function getVolunteerApplications(
 }
 
 export async function getVolunteerApplicationById(
-  id: string
+  id: string,
 ): Promise<YPFVolunteerApplicationDetail | null> {
   const [application] = await dbClient.db
     .select({
@@ -616,7 +616,7 @@ export async function getVolunteerApplicationById(
     .from(schema.VolunteerApplications)
     .innerJoin(
       schema.Constituents,
-      eq(schema.VolunteerApplications.constituentId, schema.Constituents.id)
+      eq(schema.VolunteerApplications.constituentId, schema.Constituents.id),
     )
     .where(eq(schema.VolunteerApplications.id, id))
     .limit(1);

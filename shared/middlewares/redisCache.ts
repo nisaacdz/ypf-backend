@@ -18,7 +18,7 @@ type RedisApiResponse = ApiResponse<any> & { timestamp?: number };
 export async function redisCacheEarlyReturn(
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) {
   const baseUrl = req.path;
   const queryParams = req.Query || {};
@@ -30,14 +30,14 @@ export async function redisCacheEarlyReturn(
   req.CacheKey = queryString ? `${baseUrl}?${queryString}` : baseUrl;
   try {
     const cachedData = (await redisClient.getCache(
-      req.CacheKey
+      req.CacheKey,
     )) as RedisApiResponse;
 
     if (cachedData) {
       const { timestamp, ...response } = cachedData;
       if (!variables.app.isProduction) {
         logger.info(
-          `Cache Hit: Returning data cached at ${timestamp ? new Date(timestamp).toISOString() : "[unset time]"}`
+          `Cache Hit: Returning data cached at ${timestamp ? new Date(timestamp).toISOString() : "[unset time]"}`,
         );
       }
       return res.json(response);
