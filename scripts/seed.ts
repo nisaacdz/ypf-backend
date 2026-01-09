@@ -265,6 +265,10 @@ async function seed(
   console.log("🚀 Seeding Activities...");
 
   // Projects
+  const projectStartOngoing = faker.date.past();
+  const projectStartUpcoming = faker.date.future({ years: 0.5 });
+  const projectStartSummit = faker.date.future({ years: 0.5 });
+
   const projects = await tx
     .insert(schema.Projects)
     .values([
@@ -274,8 +278,8 @@ async function seed(
         description: "Teaching coding to underprivileged children.",
         status: "ONGOING",
         chapterId: chapters[0].id,
-        scheduledStart: faker.date.past(),
-        scheduledEnd: faker.date.future(),
+        scheduledStart: projectStartOngoing,
+        scheduledEnd: faker.date.future({ refDate: projectStartOngoing }),
       },
       {
         type: faker.helpers.arrayElement(ProjectTypeEnum.enumValues),
@@ -283,21 +287,25 @@ async function seed(
         description: "Borehole installation in rural areas.",
         status: "UPCOMING",
         chapterId: chapters[1].id,
-        scheduledStart: faker.date.future(),
-        scheduledEnd: faker.date.future(),
+        scheduledStart: projectStartUpcoming,
+        scheduledEnd: faker.date.future({ refDate: projectStartUpcoming }),
       },
       {
         type: faker.helpers.arrayElement(ProjectTypeEnum.enumValues),
         title: "Annual Leadership Summit",
         description: "Global gathering of all chapters.",
         status: "UPCOMING",
-        scheduledStart: faker.date.future(),
-        scheduledEnd: faker.date.future(),
+        scheduledStart: projectStartSummit,
+        scheduledEnd: faker.date.future({ refDate: projectStartSummit }),
       },
     ])
     .returning();
 
   // Events
+  const eventWorkshopStart = faker.date.recent({ days: 30 });
+  const eventGalaStart = faker.date.future({ years: 0.5 });
+  const eventCleanupStart = faker.date.past({ years: 0.5 });
+
   const events = await tx
     .insert(schema.Events)
     .values([
@@ -306,8 +314,10 @@ async function seed(
         name: "Python Workshop 101",
         type: "WORKSHOP",
         projectId: projects[0].id,
-        scheduledStart: faker.date.recent(),
-        scheduledEnd: faker.date.recent(),
+        scheduledStart: eventWorkshopStart,
+        scheduledEnd: new Date(
+          eventWorkshopStart.getTime() + 4 * 60 * 60 * 1000,
+        ), // 4 hours later
         status: "COMPLETED",
         location: "TechHub Lagos",
       },
@@ -316,8 +326,8 @@ async function seed(
         name: "Charity Gala Night",
         type: "NETWORKING",
         projectId: projects[2].id,
-        scheduledStart: faker.date.future(),
-        scheduledEnd: faker.date.future(),
+        scheduledStart: eventGalaStart,
+        scheduledEnd: new Date(eventGalaStart.getTime() + 6 * 60 * 60 * 1000), // 6 hours later
         status: "UPCOMING",
         location: "Grand Venue Halls",
       },
@@ -326,8 +336,10 @@ async function seed(
         name: "Community Cleanup",
         type: "STREETCARE",
         chapterId: chapters[2].id, // Nairobi
-        scheduledStart: faker.date.past(),
-        scheduledEnd: faker.date.past(),
+        scheduledStart: eventCleanupStart,
+        scheduledEnd: new Date(
+          eventCleanupStart.getTime() + 5 * 60 * 60 * 1000,
+        ), // 5 hours later
         status: "COMPLETED",
         location: "Nairobi Central Park",
       },

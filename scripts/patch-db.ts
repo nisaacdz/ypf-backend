@@ -57,6 +57,9 @@ async function applyManualConstraints(
         ELSIF table_name = 'committee_media' THEN
           parent_col := 'committee_id';
           parent_id := NEW.committee_id;
+        ELSIF table_name = 'product_media' THEN
+          parent_col := 'product_id';
+          parent_id := NEW.product_id;
         ELSE
           RAISE EXCEPTION 'Unknown table for featured media limit: %', table_name;
         END IF;
@@ -79,9 +82,9 @@ async function applyManualConstraints(
   const mediaTables = [
     { schema: "activities", table: "project_media" },
     { schema: "activities", table: "event_media" },
-
     { schema: "core", table: "chapter_media" },
     { schema: "core", table: "committee_media" },
+    { schema: "shop", table: "product_media" },
   ];
 
   for (const t of mediaTables) {
@@ -100,6 +103,63 @@ async function applyManualConstraints(
     );
     console.log(`✅ Applied trigger to '${t.schema}.${t.table}'.`);
   }
+
+  // 4. Dues Period Validation: Ensure period_start < period_end
+  console.log("Applying constraint 'dues_period_valid' to 'finance.dues'...");
+  await tx.execute(sql`
+    ALTER TABLE finance.dues
+    DROP CONSTRAINT IF EXISTS dues_period_valid;
+
+    ALTER TABLE finance.dues
+    ADD CONSTRAINT dues_period_valid
+    CHECK (period_start < period_end);
+  `);
+  console.log("✅ Applied 'dues_period_valid'.");
+
+  // 5. Events Schedule Validation: Ensure scheduled_start < scheduled_end
+  console.log(
+    "Applying constraint 'events_schedule_valid' to 'activities.events'...",
+  );
+  await tx.execute(sql`
+    ALTER TABLE activities.events
+    DROP CONSTRAINT IF EXISTS events_schedule_valid;
+
+    ALTER TABLE activities.events
+    ADD CONSTRAINT events_schedule_valid
+    CHECK (scheduled_start < scheduled_end);
+  `);
+  console.log("✅ Applied 'events_schedule_valid'.");
+
+  // 6. Projects Schedule Validation: Ensure scheduled_start < scheduled_end
+  console.log(
+    "Applying constraint 'projects_schedule_valid' to 'activities.projects'...",
+  );
+  await tx.execute(sql`
+    ALTER TABLE activities.projects
+    DROP CONSTRAINT IF EXISTS projects_schedule_valid;
+
+    ALTER TABLE activities.projects
+    ADD CONSTRAINT projects_schedule_valid
+    CHECK (scheduled_start < scheduled_end);
+  `);
+  console.log("✅ Applied 'projects_schedule_valid'.");
+
+  // 7. MemberTitles Alias Uniqueness: Ensure alias is unique within scope
+  // Uses a unique index with COALESCE to handle NULL chapter_id/committee_id
+  console.log(
+    "Applying unique index 'member_titles_alias_scope_unique' to 'core.member_titles'...",
+  );
+  await tx.execute(sql`
+    DROP INDEX IF EXISTS core.member_titles_alias_scope_unique;
+
+    CREATE UNIQUE INDEX member_titles_alias_scope_unique
+    ON core.member_titles (
+      alias,
+      COALESCE(chapter_id, '00000000-0000-0000-0000-000000000000'::uuid),
+      COALESCE(committee_id, '00000000-0000-0000-0000-000000000000'::uuid)
+    );
+  `);
+  console.log("✅ Applied 'member_titles_alias_scope_unique'.");
 
   console.log("🎉 Successfully applied all manual constraints!");
 }
