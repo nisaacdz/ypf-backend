@@ -44,7 +44,7 @@ class RedisClient {
   async setCache<T extends object>(
     key: string,
     data: T,
-    ttlSeconds: number = 300
+    ttlSeconds: number = 300,
   ): Promise<void> {
     if (!this._redis) return;
 
@@ -54,7 +54,7 @@ class RedisClient {
   async setResponseCache<T extends object>(
     key: string,
     data: ApiResponse<T>,
-    ttlSeconds: number = 300
+    ttlSeconds: number = 300,
   ): Promise<void> {
     if (!this._redis) return;
 
@@ -62,7 +62,7 @@ class RedisClient {
       key,
       JSON.stringify({ timestamp: new Date(), ...data }),
       "EX",
-      ttlSeconds
+      ttlSeconds,
     );
   }
 }

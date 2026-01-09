@@ -86,21 +86,21 @@ npm install --save-dev @types/pg-boss@9.0.6
 
 ### Package Versions & Justification
 
-| Package | Version | Reason |
-|---------|---------|--------|
-| `pg-boss` | 10.1.5 | Latest stable, TypeScript support, active maintenance |
-| `@types/pg-boss` | 9.0.6 | TypeScript definitions |
+| Package          | Version | Reason                                                |
+| ---------------- | ------- | ----------------------------------------------------- |
+| `pg-boss`        | 10.1.5  | Latest stable, TypeScript support, active maintenance |
+| `@types/pg-boss` | 9.0.6   | TypeScript definitions                                |
 
 ### Updated package.json
 
 ```json
 {
   "dependencies": {
-    "pg-boss": "^10.1.5",
+    "pg-boss": "^10.1.5"
     // ... existing dependencies
   },
   "devDependencies": {
-    "@types/pg-boss": "^9.0.6",
+    "@types/pg-boss": "^9.0.6"
     // ... existing devDependencies
   }
 }
@@ -364,7 +364,9 @@ class JobDispatcher {
 
   get client() {
     if (!this.boss) {
-      throw new Error("Job dispatcher not initialized. Call initialize() first.");
+      throw new Error(
+        "Job dispatcher not initialized. Call initialize() first.",
+      );
     }
     return this.boss;
   }
@@ -506,7 +508,7 @@ export const emailWorker = {
     try {
       for (let i = 0; i < to.length; i += batchSize) {
         const batch = to.slice(i, i + batchSize);
-        
+
         await sendEmail(batch, subject, html, text, true); // BCC mode
         sentCount += batch.length;
 
@@ -550,7 +552,10 @@ import { eq, inArray } from "drizzle-orm";
 import logger from "@/configs/logger";
 import jobDispatcher from "@/configs/jobs/dispatcher";
 import { JobNames, JobPriority } from "../types/definitions";
-import type { AnnouncementJobData, SendAnnouncementEmailsJobData } from "../types/definitions";
+import type {
+  AnnouncementJobData,
+  SendAnnouncementEmailsJobData,
+} from "../types/definitions";
 import type { Job } from "pg-boss";
 
 export const announcementWorker = {
@@ -618,22 +623,20 @@ export const announcementWorker = {
       }
 
       // 1. Resolve target audience
-      const constituentIds = await resolveAudience(
-        announcement.targetCriteria,
-      );
+      const constituentIds = await resolveAudience(announcement.targetCriteria);
 
       if (constituentIds.length === 0) {
         logger.info(
           { jobId: job.id, announcementId },
           "No constituents found for announcement",
         );
-        
+
         // Update status even if no recipients
         await dbClient.db
           .update(schema.Announcements)
           .set({ status: "PUBLISHED", publishedAt: new Date() })
           .where(eq(schema.Announcements.id, announcementId));
-        
+
         return;
       }
 
@@ -865,8 +868,14 @@ export async function startWorkers() {
   const boss = jobDispatcher.client;
 
   // Configure worker concurrency based on environment
-  const emailConcurrency = Math.max(2, Math.floor(variables.jobs.concurrency * 0.4));
-  const announcementConcurrency = Math.max(2, Math.floor(variables.jobs.concurrency * 0.3));
+  const emailConcurrency = Math.max(
+    2,
+    Math.floor(variables.jobs.concurrency * 0.4),
+  );
+  const announcementConcurrency = Math.max(
+    2,
+    Math.floor(variables.jobs.concurrency * 0.3),
+  );
   const cleanupConcurrency = 1;
 
   logger.info(
@@ -1169,11 +1178,9 @@ export async function listJobs(req: Request, res: Response) {
   try {
     const { state = "active", limit = 50 } = req.query;
 
-    const jobs = await jobDispatcher.client.fetch(
-      "*",
-      Number(limit),
-      { state: state as string },
-    );
+    const jobs = await jobDispatcher.client.fetch("*", Number(limit), {
+      state: state as string,
+    });
 
     res.json({
       success: true,
@@ -1319,7 +1326,6 @@ Ensure your SMTP provider allows:
   - Gmail: 500 emails/day (free), 2000/day (workspace)
   - SendGrid: Based on plan (100/day free, unlimited paid)
   - AWS SES: Based on sending limits
-  
 - **Batch Sending**: If your provider supports BCC, you're good. Otherwise, adjust the bulk email worker.
 
 ### 5. Monitoring & Alerts
@@ -1495,7 +1501,10 @@ describe("emailWorker", () => {
         .spyOn(emailUtils, "sendEmail")
         .mockResolvedValue();
 
-      const recipients = Array.from({ length: 250 }, (_, i) => `user${i}@example.com`);
+      const recipients = Array.from(
+        { length: 250 },
+        (_, i) => `user${i}@example.com`,
+      );
 
       const job: Job = {
         id: "test-job-id",
@@ -1649,20 +1658,20 @@ describe("Job Queue Integration", () => {
 
 ```sql
 -- Active jobs
-SELECT name, COUNT(*) 
-FROM app.job 
-WHERE state = 'active' 
+SELECT name, COUNT(*)
+FROM app.job
+WHERE state = 'active'
 GROUP BY name;
 
 -- Failed jobs
 SELECT name, COUNT(*), MAX(completedon) as last_failure
-FROM app.job 
-WHERE state = 'failed' 
+FROM app.job
+WHERE state = 'failed'
 GROUP BY name;
 
 -- Queue depth
-SELECT state, COUNT(*) 
-FROM app.job 
+SELECT state, COUNT(*)
+FROM app.job
 GROUP BY state;
 ```
 
@@ -1683,11 +1692,13 @@ GROUP BY state;
 ### Maintenance Tasks
 
 **Monthly:**
+
 - Review and adjust worker concurrency
 - Analyze job performance metrics
 - Update retry strategies if needed
 
 **Quarterly:**
+
 - Review pg-boss version for updates
 - Evaluate need for separate worker processes
 - Assess if BullMQ migration is warranted
@@ -1710,7 +1721,7 @@ This keeps the API running but jobs won't be processed. Announcements can still 
 **Option 2: Full Rollback**
 
 1. Revert code to previous commit
-2. Drop pg-boss tables (optional): 
+2. Drop pg-boss tables (optional):
    ```sql
    DROP TABLE IF EXISTS app.job CASCADE;
    DROP TABLE IF EXISTS app.archive CASCADE;
@@ -1738,12 +1749,12 @@ export async function publishAnnouncement(announcementId: string) {
 ### Job Names
 
 ```typescript
-SEND_EMAIL                      // Single email
-SEND_BULK_EMAIL                 // Bulk emails via BCC
-PUBLISH_ANNOUNCEMENT            // Main announcement job
-RESOLVE_ANNOUNCEMENT_AUDIENCE   // Resolve targets + create inbox
-SEND_ANNOUNCEMENT_EMAILS        // Send emails to recipients
-CLEANUP_EXPIRED_ANNOUNCEMENTS   // Daily cleanup (2 AM)
+SEND_EMAIL; // Single email
+SEND_BULK_EMAIL; // Bulk emails via BCC
+PUBLISH_ANNOUNCEMENT; // Main announcement job
+RESOLVE_ANNOUNCEMENT_AUDIENCE; // Resolve targets + create inbox
+SEND_ANNOUNCEMENT_EMAILS; // Send emails to recipients
+CLEANUP_EXPIRED_ANNOUNCEMENTS; // Daily cleanup (2 AM)
 ```
 
 ### Cron Schedule Examples
@@ -1760,14 +1771,14 @@ CLEANUP_EXPIRED_ANNOUNCEMENTS   // Daily cleanup (2 AM)
 
 ```sql
 -- View all queued jobs
-SELECT id, name, priority, state, createdon 
-FROM app.job 
+SELECT id, name, priority, state, createdon
+FROM app.job
 WHERE state IN ('created', 'active')
 ORDER BY priority, createdon;
 
 -- Count jobs by type
-SELECT name, state, COUNT(*) 
-FROM app.job 
+SELECT name, state, COUNT(*)
+FROM app.job
 GROUP BY name, state;
 
 -- View recent failures
@@ -1778,7 +1789,7 @@ ORDER BY completedon DESC
 LIMIT 10;
 
 -- Cancel all pending jobs of a type
-DELETE FROM app.job 
+DELETE FROM app.job
 WHERE name = 'send-email' AND state = 'created';
 ```
 
@@ -1796,6 +1807,7 @@ This implementation plan provides everything needed to integrate pg-boss into th
 Follow each section in order, and the implementation will be smooth and complete.
 
 **Next Steps:**
+
 1. Review this plan with the team
 2. Set up environment variables
 3. Begin Phase 1 implementation
