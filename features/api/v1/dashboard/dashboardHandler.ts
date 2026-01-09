@@ -1,8 +1,8 @@
 import { ApiResponse } from "@/shared/types";
 import * as dashboardService from "@/shared/services/dashboardService";
-import { Activity, Stats } from "./dtos";
+import { DashboardStats, DashboardActivity } from "./dtos";
 
-export async function getStats(): Promise<ApiResponse<Stats>> {
+export async function getStats(): Promise<ApiResponse<DashboardStats>> {
   const data = await dashboardService.getStats();
 
   return {
@@ -12,7 +12,7 @@ export async function getStats(): Promise<ApiResponse<Stats>> {
   };
 }
 
-export async function getActivity(): Promise<ApiResponse<Activity>> {
+export async function getActivity(): Promise<ApiResponse<DashboardActivity>> {
   const data = await dashboardService.getRecentActivity();
 
   return {

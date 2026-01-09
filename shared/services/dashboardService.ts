@@ -5,14 +5,23 @@ import * as projectsService from "@/shared/services/projectsService";
 import * as eventsService from "@/shared/services/eventsService";
 import * as shopService from "@/shared/services/shopService";
 import {
-  Activity,
-  Stats,
-  MonthlyReport,
+  DashboardStats,
+  DashboardActivity,
 } from "@/features/api/v1/dashboard/dtos";
 
-export async function getStats(): Promise<Stats> {
+export async function getStats(): Promise<DashboardStats> {
+  const now = new Date();
+  const activeCondition = (
+    table: typeof schema.Members | typeof schema.Volunteers,
+  ) =>
+    and(
+      lte(table.startedAt, now),
+      or(isNull(table.endedAt), gte(table.endedAt, now)),
+    );
+
   const [
     [membersCount],
+    [volunteersCount],
     [donationsCount],
     [eventsCount],
     [projectsCount],
@@ -22,15 +31,11 @@ export async function getStats(): Promise<Stats> {
     dbClient.db
       .select({ value: count() })
       .from(schema.Members)
-      .where(
-        and(
-          lte(schema.Members.startedAt, new Date()),
-          or(
-            isNull(schema.Members.endedAt),
-            gte(schema.Members.endedAt, new Date()),
-          ),
-        ),
-      ),
+      .where(activeCondition(schema.Members)),
+    dbClient.db
+      .select({ value: count() })
+      .from(schema.Volunteers)
+      .where(activeCondition(schema.Volunteers)),
     dbClient.db
       .select({ value: count() })
       .from(schema.Donations)
@@ -50,38 +55,44 @@ export async function getStats(): Promise<Stats> {
     }),
   ]);
 
-  // Map the monthly report to the DTO format
-  let monthlyReport: MonthlyReport | null = null;
+  const result: DashboardStats = {
+    counts: {
+      members: membersCount.value,
+      volunteers: volunteersCount.value,
+      donations: donationsCount.value,
+      events: eventsCount.value,
+      projects: projectsCount.value,
+      welfareProjects: welfareProjectsCount.value,
+    },
+  };
+
   if (latestMonthlyReport) {
-    monthlyReport = {
+    result.latestReport = {
       reportMonth: latestMonthlyReport.reportMonth,
-      totalDonations: latestMonthlyReport.totalDonations || "0",
-      donationsCount: latestMonthlyReport.donationsCount || 0,
-      totalDuesPayments: latestMonthlyReport.totalDuesPayments || "0",
-      duesPaymentsCount: latestMonthlyReport.duesPaymentsCount || 0,
-      totalOrderPayments: latestMonthlyReport.totalOrderPayments || "0",
-      orderPaymentsCount: latestMonthlyReport.orderPaymentsCount || 0,
-      newMembersCount: latestMonthlyReport.newMembersCount || 0,
-      newVolunteersCount: latestMonthlyReport.newVolunteersCount || 0,
-      eventsCount: latestMonthlyReport.eventsCount || 0,
-      projectsCount: latestMonthlyReport.projectsCount || 0,
-      announcementsCount: latestMonthlyReport.announcementsCount || 0,
       generatedAt: latestMonthlyReport.generatedAt,
+      financials: {
+        totalDonations: latestMonthlyReport.totalDonations || "0",
+        donationsCount: latestMonthlyReport.donationsCount || 0,
+        totalDuesPayments: latestMonthlyReport.totalDuesPayments || "0",
+        duesPaymentsCount: latestMonthlyReport.duesPaymentsCount || 0,
+        totalOrderPayments: latestMonthlyReport.totalOrderPayments || "0",
+        orderPaymentsCount: latestMonthlyReport.orderPaymentsCount || 0,
+      },
+      activity: {
+        newMembersCount: latestMonthlyReport.newMembersCount || 0,
+        newVolunteersCount: latestMonthlyReport.newVolunteersCount || 0,
+        eventsCount: latestMonthlyReport.eventsCount || 0,
+        projectsCount: latestMonthlyReport.projectsCount || 0,
+        announcementsCount: latestMonthlyReport.announcementsCount || 0,
+      },
     };
   }
 
-  return {
-    membersCount: membersCount.value,
-    donationsCount: donationsCount.value,
-    eventsCount: eventsCount.value,
-    projectsCount: projectsCount.value,
-    welfareProjectsCount: welfareProjectsCount.value,
-    monthlyReport: monthlyReport ?? undefined,
-  };
+  return result;
 }
 
-export async function getRecentActivity(): Promise<Activity> {
-  const [projects, welfareProjects, workshopEvents, shopProducts] =
+export async function getRecentActivity(): Promise<DashboardActivity> {
+  const [communityProjects, welfareProjects, events, shopProducts] =
     await Promise.all([
       projectsService.fetchProjects({
         page: 1,
@@ -96,7 +107,6 @@ export async function getRecentActivity(): Promise<Activity> {
       eventsService.fetchEvents({
         page: 1,
         pageSize: 5,
-        filterType: "WORKSHOP",
       }),
       shopService.fetchShopProducts({
         page: 1,
@@ -105,9 +115,11 @@ export async function getRecentActivity(): Promise<Activity> {
     ]);
 
   return {
-    projects: projects.items,
-    welfareProjects: welfareProjects.items,
-    workshopEvents: workshopEvents.items,
+    projects: {
+      community: communityProjects.items,
+      welfare: welfareProjects.items,
+    },
+    events: events.items,
     shopProducts: shopProducts.items,
   };
 }
