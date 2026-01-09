@@ -11,8 +11,8 @@ const dashboardRouter = Router();
 
 dashboardRouter.get(
   "/stats",
-  //authenticate,
-  //authorize(Visitors.ALL),
+  authenticate,
+  authorize(Visitors.ALL),
   validateQuery(z.object({})),
   redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
@@ -29,8 +29,8 @@ dashboardRouter.get(
 
 dashboardRouter.get(
   "/activity",
-  //authenticate,
-  //authorize(Visitors.ALL),
+  authenticate,
+  authorize(Visitors.ALL),
   validateQuery(z.object({})),
   redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
