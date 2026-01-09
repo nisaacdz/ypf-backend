@@ -8,15 +8,16 @@ import { JobNames } from "@/shared/jobs/types/definitions";
 const validQueueNames = new Set(Object.values(JobNames));
 
 /**
- * Validates and returns a queue name.
- * If the queue is '*' or not specified, returns a default job name for fetching.
- * Otherwise validates that the queue name is one of our defined job names.
+ * Validates and returns a queue name for operations that require a specific queue.
+ * The queue must be explicitly provided and cannot be the wildcard '*'.
+ * Validates that the queue name is one of our defined job names.
  */
 function validateQueueName(queue: string | undefined): string {
   if (!queue || queue === "*") {
-    // Use first job name as a fallback - operations may still fail
-    // if the job ID doesn't belong to this queue
-    return JobNames.SEND_EMAIL;
+    throw new ApiError(
+      `Queue name is required for this operation. Valid options: ${Array.from(validQueueNames).join(", ")}`,
+      400,
+    );
   }
 
   if (!validQueueNames.has(queue as (typeof JobNames)[keyof typeof JobNames])) {

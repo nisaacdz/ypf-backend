@@ -43,22 +43,4 @@ export const cleanupWorker = {
       }
     }
   },
-
-  /**
-   * Cleanup old completed jobs
-   * pg-boss has built-in cleanup, but this is for custom logic
-   * Note: pg-boss 10.x passes an array of jobs to the handler
-   */
-  async cleanupOldJobs(jobs: Job[]) {
-    for (const job of jobs) {
-      try {
-        // pg-boss handles this automatically with `deleteAfterDays` config
-        // This is placeholder for any custom cleanup logic
-        logger.info({ jobId: job.id }, "Job cleanup completed");
-      } catch (error) {
-        logger.error({ jobId: job.id, error }, "Failed to cleanup old jobs");
-        throw error;
-      }
-    }
-  },
 };

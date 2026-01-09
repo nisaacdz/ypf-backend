@@ -1,7 +1,7 @@
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { resolveAudience } from "@/shared/services/targetResolver";
-import { and, eq, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import logger from "@/configs/logger";
 import jobDispatcher from "@/configs/jobs/dispatcher";
 import { JobNames, JobPriority } from "../types/definitions";
@@ -201,6 +201,11 @@ export const announcementWorker = {
   /**
    * Sub-job: Sends announcement emails to recipients
    * Note: pg-boss 10.x passes an array of jobs to the handler
+   *
+   * Important: We only queue the bulk email job here. The emailSent flag
+   * is NOT updated at this stage because emails haven't actually been sent.
+   * To properly track email delivery status, implement delivery confirmation
+   * in the email worker or use email service webhooks.
    */
   async sendEmails(jobs: Job<SendAnnouncementEmailsJobData>[]) {
     for (const job of jobs) {
@@ -228,41 +233,17 @@ export const announcementWorker = {
           },
         );
 
-        // Mark emails as sent only for constituents whose email is in recipientEmails
-        // First, get the constituent IDs for the emails that were sent
-        const constituentsWithEmails = await dbClient.db
-          .select({ id: schema.Constituents.id })
-          .from(schema.Constituents)
-          .where(inArray(schema.Constituents.email, recipientEmails));
-
-        const constituentIds = constituentsWithEmails.map((c) => c.id);
-
-        if (constituentIds.length > 0) {
-          await dbClient.db
-            .update(schema.ConstituentAnnouncements)
-            .set({ emailSent: true })
-            .where(
-              and(
-                eq(
-                  schema.ConstituentAnnouncements.announcementId,
-                  announcementId,
-                ),
-                inArray(
-                  schema.ConstituentAnnouncements.constituentId,
-                  constituentIds,
-                ),
-              ),
-            );
-        }
+        // Note: We do NOT mark emailSent=true here because the emails
+        // have only been queued, not actually sent. The emailSent flag
+        // should only be updated after confirmed delivery.
 
         logger.info(
           {
             jobId: job.id,
             announcementId,
             recipientCount: recipientEmails.length,
-            markedCount: constituentIds.length,
           },
-          "Announcement emails sent",
+          "Announcement emails queued for sending",
         );
       } catch (error) {
         logger.error(
@@ -271,7 +252,7 @@ export const announcementWorker = {
             announcementId,
             error,
           },
-          "Failed to send announcement emails",
+          "Failed to queue announcement emails",
         );
         throw error;
       }
