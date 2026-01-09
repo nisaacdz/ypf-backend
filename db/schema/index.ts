@@ -3,6 +3,7 @@ import * as core from "./core";
 import * as activities from "./activities";
 import * as finance from "./finance";
 import * as shop from "./shop";
+import * as logs from "./logs";
 
 const schema = {
   ...app,
@@ -10,6 +11,7 @@ const schema = {
   ...activities,
   ...finance,
   ...shop,
+  ...logs,
 };
 
 export default schema;

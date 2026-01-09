@@ -3,3 +3,4 @@ export * from "./core";
 export * from "./activities";
 export * from "./finance";
 export * from "./shop";
+export * from "./logs";
