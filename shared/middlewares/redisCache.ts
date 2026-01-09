@@ -2,6 +2,9 @@ import { Request, Response, NextFunction } from "express";
 import redisClient from "@/configs/redis";
 import { ApiResponse } from "../types";
 import logger from "@/configs/logger";
+import variables from "@/configs/env";
+
+type RedisApiResponse = ApiResponse<any> & { timestamp?: number };
 
 /**
  * Middleware to check if response is cached in Redis.
@@ -15,7 +18,7 @@ import logger from "@/configs/logger";
 export async function redisCacheEarlyReturn(
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ) {
   const baseUrl = req.path;
   const queryParams = req.Query || {};
@@ -27,11 +30,21 @@ export async function redisCacheEarlyReturn(
   req.CacheKey = queryString ? `${baseUrl}?${queryString}` : baseUrl;
   try {
     const cachedData = (await redisClient.getCache(
-      req.CacheKey,
-    )) as ApiResponse<any>;
+      req.CacheKey
+    )) as RedisApiResponse;
 
     if (cachedData) {
-      return res.json(cachedData);
+      const { timestamp, ...response } = cachedData;
+      if (!variables.app.isProduction) {
+        logger.info(
+          `Cache Hit: Returning data cached at ${timestamp ? new Date(timestamp).toISOString() : "[unset time]"}`
+        );
+      }
+      return res.json(response);
+    }
+
+    if (!variables.app.isProduction) {
+      logger.info(`Cache Miss: No cached data found for ${req.CacheKey}`);
     }
 
     next();
