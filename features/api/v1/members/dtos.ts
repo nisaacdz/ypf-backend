@@ -13,7 +13,9 @@ export type YPFMember = {
     id: string;
     name: string;
   };
-  country?: string; // for geographic filtering display
+  country?: string;
+  campus?: string;
+
   startedAt?: Date; // membership start date
 };
 
@@ -35,7 +37,7 @@ export type YPFMemberDetail = {
   occupation?: string;
   skills?: string[];
 
-  // Location (safe to share)
+  // Location
   country?: string;
   region?: string;
   city?: string;
@@ -77,6 +79,9 @@ export type YPFMemberDetail = {
   // Membership info
   startedAt?: Date; // global membership start
   endedAt?: Date; // if membership ended
+
+  // Onboarding status (true if no User record exists for this constituent)
+  notOnboarded?: boolean;
 };
 
 export type MemberRole = {
