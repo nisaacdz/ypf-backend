@@ -53,7 +53,7 @@ membersRouter.get(
   "/:constituentId",
   authenticateLax,
   authorize(Visitors.hasProfile("MEMBER", "ADMIN")),
-  validateParams(z.object({ constituentId: z.uuid("Member not found ID") })),
+  validateParams(z.object({ constituentId: z.uuid("Member not found") }), 404),
   redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
     try {

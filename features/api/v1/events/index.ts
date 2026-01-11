@@ -61,8 +61,8 @@ eventsRouter.post(
 
 eventsRouter.post(
   "/:id/media",
-  validateParams(z.object({ id: z.uuid("Invalid Request") })),
   authenticate,
+  validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
   authorize(
     anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
   ),
@@ -86,8 +86,8 @@ eventsRouter.post(
 
 eventsRouter.get(
   "/:id/media",
-  validateParams(z.object({ id: z.uuid("Invalid Request") })),
   authenticateLax,
+  validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
   authorize(Visitors.ALL),
   validateQuery(GetEventMediaQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -105,8 +105,8 @@ eventsRouter.get(
 
 eventsRouter.get(
   "/:id",
-  validateParams(z.object({ id: z.uuid("Invalid Request") })),
   authenticateLax,
+  validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
   authorize(Visitors.ALL),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -120,8 +120,8 @@ eventsRouter.get(
 
 eventsRouter.put(
   "/:id",
-  validateParams(z.object({ id: z.uuid("Invalid Request") })),
   authenticate,
+  validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
   authorize(
     anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
   ),
@@ -138,8 +138,8 @@ eventsRouter.put(
 
 eventsRouter.patch(
   "/media/:id",
-  validateParams(z.object({ id: z.uuid() })),
   authenticate,
+  validateParams(z.object({ id: z.uuid() }), 404),
   authorize(
     anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
   ),

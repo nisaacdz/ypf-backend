@@ -50,20 +50,26 @@ committeesRouter.get(
 committeesRouter.get(
   "/constituents/:constituentId",
   authenticate,
-  validateParams(z.object({ constituentId: z.string() })),
-  validateQuery(GetConstituentCommitteesQuerySchema),
   authorize(
     anyOf(
       Visitors.hasProfile("ADMIN"),
       Visitors.hasID((req) => req.Params.constituentId),
     ),
   ),
+  validateParams(z.object({ constituentId: z.uuid("User not found") }), 404),
+  validateQuery(GetConstituentCommitteesQuerySchema),
+  redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await committeesHandler.getCommitteesByConstituentId(
         req.Params.constituentId,
         req.Query,
       );
+      redisClient
+        .setResponseCache(req.CacheKey, response, 60 * 5)
+        .catch((err) => {
+          logger.error(err, `Failed to set cache for ${req.CacheKey}`);
+        });
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -75,10 +81,16 @@ committeesRouter.get(
   "/:id",
   authenticateLax,
   authorize(Visitors.hasProfile("MEMBER", "ADMIN")),
-  validateParams(z.object({ id: z.uuid("Invalid committee ID") })),
+  validateParams(z.object({ id: z.uuid("Committee not found") }), 404),
+  redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await committeesHandler.getCommittee(req.Params.id);
+      redisClient
+        .setResponseCache(req.CacheKey, response, 60 * 5)
+        .catch((err) => {
+          logger.error(err, `Failed to set cache for ${req.CacheKey}`);
+        });
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -90,14 +102,20 @@ committeesRouter.get(
   "/:id/leadership",
   authenticateLax,
   authorize(Visitors.hasProfile("MEMBER", "ADMIN")),
-  validateParams(z.object({ id: z.uuid("Invalid committee ID") })),
+  validateParams(z.object({ id: z.uuid("Committee not found") }), 404),
   validateQuery(GetCommitteeLeadershipQuerySchema),
+  redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await committeesHandler.getLeadership(
         req.Params.id,
         req.Query,
       );
+      redisClient
+        .setResponseCache(req.CacheKey, response, 60 * 5)
+        .catch((err) => {
+          logger.error(err, `Failed to set cache for ${req.CacheKey}`);
+        });
       res.status(200).json(response);
     } catch (error) {
       next(error);

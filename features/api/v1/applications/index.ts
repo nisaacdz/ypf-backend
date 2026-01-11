@@ -52,6 +52,7 @@ applicationsRouter.patch(
   "/membership/:id/status",
   authenticate,
   authorize(Visitors.hasProfile("ADMIN")),
+  validateParams(z.object({ id: z.uuid("Applicant not found") }), 404),
   validateBody(UpdateMembershipApplicationStatusSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -71,9 +72,9 @@ applicationsRouter.patch(
 
 applicationsRouter.get(
   "/membership/:id",
-  validateParams(z.object({ id: z.uuid("Invalid Request") })),
   authenticate,
   authorize(Visitors.hasProfile("ADMIN")),
+  validateParams(z.object({ id: z.uuid("Applicant not found") }), 404),
   redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -143,9 +144,9 @@ applicationsRouter.get(
 
 applicationsRouter.get(
   "/volunteer/:id",
-  validateParams(z.object({ id: z.uuid("Invalid Request") })),
   authenticate,
   authorize(Visitors.hasProfile("ADMIN")),
+  validateParams(z.object({ id: z.uuid("Applicant not found") }), 404),
   redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
     try {

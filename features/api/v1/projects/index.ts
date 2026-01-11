@@ -60,9 +60,9 @@ projectsRouter.post(
 
 projectsRouter.get(
   "/:id",
-  validateParams(z.object({ id: z.uuid("Invalid Request") })),
   authenticateLax,
   authorize(Visitors.ALL),
+  validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await projectsHandler.getProject(req.Params.id);
@@ -75,8 +75,8 @@ projectsRouter.get(
 
 projectsRouter.put(
   "/:id",
-  validateParams(z.object({ id: z.uuid("Invalid Request") })),
   authenticate,
+  validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
   authorize(
     anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
   ),
@@ -96,9 +96,9 @@ projectsRouter.put(
 
 projectsRouter.get(
   "/:id/media",
-  validateParams(z.object({ id: z.uuid("Invalid Request") })),
   authenticateLax,
   authorize(Visitors.ALL),
+  validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
   validateQuery(GetProjectMediaQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -115,8 +115,8 @@ projectsRouter.get(
 
 projectsRouter.post(
   "/:id/media",
-  validateParams(z.object({ id: z.uuid("Invalid Request") })),
   authenticate,
+  validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
   authorize(
     anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
   ),
@@ -140,8 +140,8 @@ projectsRouter.post(
 
 projectsRouter.patch(
   "/:id/media",
-  validateParams(z.object({ id: z.uuid() })),
   authenticate,
+  validateParams(z.object({ id: z.uuid() }), 404),
   authorize(
     anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
   ),
@@ -161,7 +161,7 @@ projectsRouter.patch(
 
 projectsRouter.get(
   "/:id/events",
-  validateParams(z.object({ id: z.uuid() })),
+  validateParams(z.object({ id: z.uuid() }), 404),
   validateQuery(
     z.object({
       page: z.coerce.number().min(1).default(1).optional(),

@@ -42,7 +42,7 @@ chaptersRouter.get(
   "/:id",
   authenticateLax,
   authorize(Visitors.hasProfile("MEMBER", "ADMIN")),
-  validateParams(z.object({ id: z.uuid("Invalid chapter ID") })),
+  validateParams(z.object({ id: z.uuid("Invalid chapter ID") }), 404),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await chaptersHandler.getChapter(req.Params.id);
@@ -56,12 +56,12 @@ chaptersRouter.get(
 chaptersRouter.get(
   "/constituents/:constituentId",
   authenticate,
-  validateParams(z.object({ constituentId: z.string() })),
+  validateParams(z.object({ constituentId: z.string() }), 404),
   validateQuery(GetConstituentChaptersQuerySchema),
   authorize(
     anyOf(
       Visitors.hasProfile("ADMIN"),
-      Visitors.hasID((req) => req.Params.constituentId),
+      Visitors.hasID((req) => req.params.constituentId),
     ),
   ),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -80,11 +80,11 @@ chaptersRouter.get(
 chaptersRouter.patch(
   "/:id",
   authenticate,
-  validateParams(z.object({ id: z.uuid("Invalid chapter ID") })),
+  validateParams(z.object({ id: z.uuid("Invalid chapter ID") }), 404),
   authorize(
     anyOf(
       Visitors.hasRole(ADMIN.SUPER),
-      Visitors.hasRole((req) => MEMBER.chapterLead(req.Params.id)),
+      Visitors.hasRole((req) => MEMBER.chapterLead(req.params.id)),
     ),
   ),
   validateBody(UpdateChapterSchema),
@@ -104,8 +104,8 @@ chaptersRouter.patch(
 chaptersRouter.get(
   "/:id/leadership",
   authenticateLax,
+  validateParams(z.object({ id: z.uuid("Invalid chapter ID") }), 404),
   authorize(Visitors.hasProfile("MEMBER", "ADMIN")),
-  validateParams(z.object({ id: z.uuid("Invalid chapter ID") })),
   validateQuery(GetChapterLeadershipQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -123,8 +123,8 @@ chaptersRouter.get(
 chaptersRouter.post(
   "/:id/enroll",
   authenticate,
+  validateParams(z.object({ id: z.uuid("Invalid chapter ID") }), 404),
   authorize(Visitors.hasRole(ADMIN.SUPER)),
-  validateParams(z.object({ id: z.uuid("Invalid chapter ID") })),
   validateBody(EnrollChapterSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -142,8 +142,8 @@ chaptersRouter.post(
 chaptersRouter.patch(
   "/:id/unenroll",
   authenticate,
+  validateParams(z.object({ id: z.uuid("Invalid chapter ID") }), 404),
   authorize(Visitors.hasRole(ADMIN.SUPER)),
-  validateParams(z.object({ id: z.uuid("Invalid chapter ID") })),
   validateBody(UnenrollChapterSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {

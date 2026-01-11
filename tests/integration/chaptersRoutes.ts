@@ -198,11 +198,11 @@ describe("Chapters API", () => {
       expect(response.body.message).toBeDefined();
     });
 
-    it("should return 400 for invalid chapter ID format", async () => {
+    it("should return 404 for invalid chapter ID format", async () => {
       const response = await request(server)
         .get("/api/v1/chapters/invalid-uuid")
         .set("Cookie", authTokenCookie)
-        .expect(400);
+        .expect(404);
 
       expect(response.body.success).toBe(false);
       expect(response.body.message).toBeDefined();

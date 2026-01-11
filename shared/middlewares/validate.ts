@@ -33,14 +33,17 @@ export function validateQuery<T>(schema: z.ZodType<T>) {
   };
 }
 
-export function validateParams<T>(schema: z.ZodType<T>) {
+export function validateParams<T>(
+  schema: z.ZodType<T>,
+  statusCode: number = 400,
+) {
   return (req: Request, res: Response, next: NextFunction) => {
     const result = schema.safeParse(req.params);
 
     if (!result.success) {
       const errorMessage =
         result.error.issues[0]?.message ?? "Invalid parameters.";
-      return next(new ApiError(errorMessage, 400));
+      return next(new ApiError(errorMessage, statusCode));
     }
 
     req.Params = result.data;
