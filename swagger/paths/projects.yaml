@@ -317,6 +317,7 @@
       403:
         description: Forbidden
 
+/api/v1/projects/{projectId}/media/{mediumId}:
   patch:
     summary: Update project medium details
     tags: [Projects]
@@ -324,7 +325,14 @@
       - cookieAuth: []
     parameters:
       - in: path
-        name: id
+        name: projectId
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Project ID
+      - in: path
+        name: mediumId
         required: true
         schema:
           type: string

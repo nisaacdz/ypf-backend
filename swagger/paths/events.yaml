@@ -297,7 +297,7 @@
       403:
         description: Forbidden
 
-/api/v1/events/media/{id}:
+/api/v1/events/{eventId}/media/{eventMediumId}:
   patch:
     summary: Update event medium details
     tags: [Events]
@@ -305,7 +305,14 @@
       - cookieAuth: []
     parameters:
       - in: path
-        name: id
+        name: eventId
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Event ID
+      - in: path
+        name: eventMediumId
         required: true
         schema:
           type: string

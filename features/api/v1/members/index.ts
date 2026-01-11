@@ -74,6 +74,9 @@ membersRouter.post(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await membersHandler.enrollMember(req.Body);
+      // Clear member list cache
+      await redisClient.delCache("/api/v1/members");
+      await redisClient.delCache("/api/v1/members/leadership");
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -89,6 +92,8 @@ membersRouter.patch(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await membersHandler.unenrollMember(req.Body);
+      await redisClient.delCache("/api/v1/members");
+      await redisClient.delCache("/api/v1/members/leadership");
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -151,6 +156,8 @@ membersRouter.post(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await membersHandler.enrollRole(req.Params.id, req.Body);
+      await redisClient.delCache(`/api/v1/members/${req.Body.constituentId}`);
+      await redisClient.delCache("/api/v1/members/leadership");
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -170,6 +177,8 @@ membersRouter.patch(
         req.Params.id,
         req.Body,
       );
+      await redisClient.delCache(`/api/v1/members/${req.Body.constituentId}`);
+      await redisClient.delCache("/api/v1/members/leadership");
       res.status(200).json(response);
     } catch (error) {
       next(error);

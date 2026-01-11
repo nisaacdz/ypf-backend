@@ -165,9 +165,9 @@ projectsRouter.post(
 );
 
 projectsRouter.patch(
-  "/:id/media",
+  "/:projectId/media/:mediumId",
   authenticate,
-  validateParams(z.object({ id: z.uuid() }), 404),
+  validateParams(z.object({ projectId: z.uuid(), mediumId: z.uuid() }), 404),
   authorize(
     anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
   ),
@@ -175,12 +175,13 @@ projectsRouter.patch(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await projectsHandler.updateProjectMedium(
-        req.Params.id,
+        req.Params.projectId,
+        req.Params.mediumId,
         req.Body,
       );
 
       // Clear the detail cache
-      await redisClient.delCache(`/api/v1/projects/${req.Params.id}`);
+      await redisClient.delCache(`/api/v1/projects/${req.Params.projectId}`);
 
       res.status(200).json(response);
     } catch (error) {
