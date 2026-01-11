@@ -48,13 +48,13 @@ committeesRouter.get(
 committeesRouter.get(
   "/constituents/:constituentId",
   authenticate,
+  validateParams(z.object({ constituentId: z.uuid("User not found") }), 404),
   authorize(
     anyOf(
       Visitors.hasProfile("ADMIN"),
       Visitors.hasID((req) => req.Params.constituentId),
     ),
   ),
-  validateParams(z.object({ constituentId: z.uuid("User not found") }), 404),
   validateQuery(GetConstituentCommitteesQuerySchema),
   redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {

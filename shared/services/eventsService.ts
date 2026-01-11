@@ -398,13 +398,19 @@ export async function updateEvent(
 }
 
 export async function updateEventMedium(
+  eventId: string,
   eventMediumId: string,
   data: { caption?: string; isFeatured?: boolean },
 ): Promise<void> {
   const [updatedData] = await dbClient.db
     .update(schema.EventMedia)
     .set(data)
-    .where(eq(schema.EventMedia.id, eventMediumId))
+    .where(
+      and(
+        eq(schema.EventMedia.eventId, eventId),
+        eq(schema.EventMedia.id, eventMediumId),
+      ),
+    )
     .returning({ id: schema.EventMedia.id });
 
   if (!updatedData) {
