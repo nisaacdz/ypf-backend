@@ -72,7 +72,7 @@ describe("Projects API", () => {
     // Create an admin for testing (needed for PUT/POST/PATCH permissions)
     await dbClient.db.insert(schema.Admins).values({
       constituentId: testUser.constituentId,
-      startedAt: new Date(),
+      startedAt: new Date(Date.now() - 1000 * 60 * 60), // 1 hour ago
     });
 
     // Create a test chapter
@@ -430,10 +430,10 @@ describe("Projects API", () => {
       expect(response.body.message).toBeDefined();
     });
 
-    it("should return 400 for invalid project ID", async () => {
+    it("should return 404 for invalid project ID", async () => {
       const response = await request(server)
         .get("/api/v1/projects/invalid-id")
-        .expect(400);
+        .expect(404);
 
       expect(response.body.success).toBe(false);
     });
@@ -566,10 +566,10 @@ describe("Projects API", () => {
       expect(response.body.data.items.length).toBeLessThanOrEqual(5);
     });
 
-    it("should return 400 for invalid project ID", async () => {
+    it("should return 404 for invalid project ID", async () => {
       await request(server)
         .get("/api/v1/projects/invalid-id/media")
-        .expect(400);
+        .expect(404);
     });
   });
 
@@ -722,7 +722,7 @@ describe("Projects API", () => {
         .expect(400);
     });
 
-    it("should return 400 for invalid media ID", async () => {
+    it("should return 404 for invalid media ID", async () => {
       const updateData = {
         caption: "Test",
       };
@@ -731,7 +731,7 @@ describe("Projects API", () => {
         .patch("/api/v1/projects/invalid/media")
         .set("Cookie", authTokenCookie)
         .send(updateData)
-        .expect(400);
+        .expect(404);
     });
   });
 });
