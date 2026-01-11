@@ -471,8 +471,8 @@ export async function getMemberByConstituentId(
         or(isNull(schema.Members.endedAt), gte(schema.Members.endedAt, now)),
       ),
     )
-    .limit(1)
-    .where(eq(schema.Constituents.id, constituentId));
+    .where(eq(schema.Constituents.id, constituentId))
+    .limit(1);
 
   if (!basicInfo) {
     throw new ApiError("Member not found", 404);
