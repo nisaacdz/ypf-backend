@@ -24,6 +24,9 @@ import * as eventsHandler from "./eventsHandler";
 import filesUpload from "@/shared/middlewares/multipart";
 import z from "zod";
 import { anyOf, MEMBER, Visitors } from "@/configs/authorizer";
+import { redisCacheEarlyReturn } from "@/shared/middlewares/redisCache";
+import redisClient from "@/configs/redis";
+import logger from "@/configs/logger";
 
 const eventsRouter = Router();
 
@@ -32,9 +35,14 @@ eventsRouter.get(
   authenticateLax,
   authorize(Visitors.ALL),
   validateQuery(GetEventsQuerySchema),
+  redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await eventsHandler.getEvents(req.Query);
+      // Cache for 60 seconds
+      redisClient.setResponseCache(req.CacheKey, response, 60).catch((err) => {
+        logger.error(err, `Failed to set cache for ${req.CacheKey}`);
+      });
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -77,6 +85,10 @@ eventsRouter.post(
         file: req.File,
         options: req.Body,
       });
+
+      // Clear the detail cache
+      await redisClient.delCache(`/api/v1/events/${req.Params.id}`);
+
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -90,12 +102,17 @@ eventsRouter.get(
   validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
   authorize(Visitors.ALL),
   validateQuery(GetEventMediaQuerySchema),
+  redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await eventsHandler.getEventMedia(
         req.Params.id,
         req.Query,
       );
+      // Cache for 60 seconds
+      redisClient.setResponseCache(req.CacheKey, response, 60).catch((err) => {
+        logger.error(err, `Failed to set cache for ${req.CacheKey}`);
+      });
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -108,9 +125,14 @@ eventsRouter.get(
   authenticateLax,
   validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
   authorize(Visitors.ALL),
+  redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await eventsHandler.getEventById(req.Params.id);
+      // Cache for 60 seconds
+      redisClient.setResponseCache(req.CacheKey, response, 60).catch((err) => {
+        logger.error(err, `Failed to set cache for ${req.CacheKey}`);
+      });
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -129,6 +151,10 @@ eventsRouter.put(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await eventsHandler.updateEvent(req.Params.id, req.Body);
+
+      // Clear the detail cache
+      await redisClient.delCache(`/api/v1/events/${req.Params.id}`);
+
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -150,6 +176,10 @@ eventsRouter.patch(
         req.Params.id,
         req.Body,
       );
+
+      // Clear the detail cache
+      await redisClient.delCache(`/api/v1/events/${req.Params.id}`);
+
       res.status(200).json(response);
     } catch (error) {
       next(error);

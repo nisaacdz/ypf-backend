@@ -37,11 +37,9 @@ membersRouter.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await membersHandler.getMembers(req.Query);
-      redisClient
-        .setResponseCache(req.CacheKey, response, 60 * 5)
-        .catch((err) => {
-          logger.error(err, `Failed to set cache for ${req.CacheKey}`);
-        });
+      redisClient.setResponseCache(req.CacheKey, response, 60).catch((err) => {
+        logger.error(err, `Failed to set cache for ${req.CacheKey}`);
+      });
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -58,11 +56,9 @@ membersRouter.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await membersHandler.getMember(req.Params.constituentId);
-      redisClient
-        .setResponseCache(req.CacheKey, response, 60 * 5)
-        .catch((err) => {
-          logger.error(err, `Failed to set cache for ${req.CacheKey}`);
-        });
+      redisClient.setResponseCache(req.CacheKey, response, 60).catch((err) => {
+        logger.error(err, `Failed to set cache for ${req.CacheKey}`);
+      });
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -136,11 +132,9 @@ membersRouter.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await membersHandler.getLeadership(req.Query);
-      redisClient
-        .setResponseCache(req.CacheKey, response, 60 * 5)
-        .catch((err) => {
-          logger.error(err, `Failed to set cache for ${req.CacheKey}`);
-        });
+      redisClient.setResponseCache(req.CacheKey, response, 60).catch((err) => {
+        logger.error(err, `Failed to set cache for ${req.CacheKey}`);
+      });
       res.status(200).json(response);
     } catch (error) {
       next(error);
