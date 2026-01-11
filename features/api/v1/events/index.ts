@@ -163,9 +163,9 @@ eventsRouter.put(
 );
 
 eventsRouter.patch(
-  "/media/:id",
+  "/:eventId/media/:eventMediumId",
   authenticate,
-  validateParams(z.object({ id: z.uuid() }), 404),
+  validateParams(z.object({ eventId: z.uuid(), eventMediumId: z.uuid() }), 404),
   authorize(
     anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
   ),
@@ -173,12 +173,13 @@ eventsRouter.patch(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await eventsHandler.updateEventMedium(
-        req.Params.id,
+        req.Params.eventId,
+        req.Params.eventMediumId,
         req.Body,
       );
 
       // Clear the detail cache
-      await redisClient.delCache(`/api/v1/events/${req.Params.id}`);
+      await redisClient.delCache(`/api/v1/events/${req.Params.eventId}`);
 
       res.status(200).json(response);
     } catch (error) {

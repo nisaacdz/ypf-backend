@@ -123,10 +123,11 @@ export async function updateEvent(
 }
 
 export async function updateEventMedium(
+  eventId: string,
   eventMediumId: string,
   data: z.infer<typeof UpdateEventMediumSchema>,
 ): Promise<ApiResponse<null>> {
-  await eventsService.updateEventMedium(eventMediumId, data);
+  await eventsService.updateEventMedium(eventId, eventMediumId, data);
 
   return {
     success: true,

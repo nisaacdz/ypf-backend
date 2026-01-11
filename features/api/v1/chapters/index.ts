@@ -74,7 +74,7 @@ chaptersRouter.get(
   authorize(
     anyOf(
       Visitors.hasProfile("ADMIN"),
-      Visitors.hasID((req) => req.params.constituentId),
+      Visitors.hasID((req) => req.Params.constituentId),
     ),
   ),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -97,7 +97,7 @@ chaptersRouter.patch(
   authorize(
     anyOf(
       Visitors.hasRole(ADMIN.SUPER),
-      Visitors.hasRole((req) => MEMBER.chapterLead(req.params.id)),
+      Visitors.hasRole((req) => MEMBER.chapterLead(req.Params.id)),
     ),
   ),
   validateBody(UpdateChapterSchema),
