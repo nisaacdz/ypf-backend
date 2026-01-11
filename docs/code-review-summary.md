@@ -16,7 +16,7 @@ The YPF Backend is a **well-architected, professionally implemented system** wit
 - 🔌 **API Endpoints:** 63+
 - 🗃️ **Database Schemas:** 6 (app, core, activities, finance, shop, logs)
 - ⚠️ **Critical Issues:** 0
-- 🟠 **High Priority Issues:** 5
+- 🟠 **High Priority Issues:** 5 → 3 ✅ (2 fixed)
 - 🟡 **Medium Priority Issues:** 7
 
 ---
@@ -24,6 +24,7 @@ The YPF Backend is a **well-architected, professionally implemented system** wit
 ## Top 5 Priority Issues
 
 ### 🔴 1. Stock Concurrency Race Condition (HIGH)
+
 **File:** `shopService.ts`  
 **Impact:** Inventory overselling possible with concurrent orders  
 **Fix Time:** 1 day  
@@ -31,37 +32,37 @@ The YPF Backend is a **well-architected, professionally implemented system** wit
 
 ```typescript
 // Add row-level locking
-await tx.select()
+await tx
+  .select()
   .from(schema.Products)
   .where(eq(schema.Products.id, productId))
   .for("update");
 ```
 
-### 🔴 2. No Rate Limiting on Auth Endpoints (HIGH)
+### ✅ ~~2. No Rate Limiting on Auth Endpoints~~ (FIXED)
+
 **Files:** `features/api/v1/auth/index.ts`  
-**Impact:** Brute force attacks possible on `/login`, `/forgot-password`  
-**Fix Time:** 4 hours  
-**Solution:** Add express-rate-limit middleware
+**Status:** ✅ Fixed on 2026-01-11  
+**Solution:** Added `authRateLimiter` (5 attempts per 15 minutes) to `/login` and `/forgot-password`
 
 ### 🔴 3. No Token Revocation (HIGH)
+
 **File:** `shared/middlewares/auth.ts`  
 **Impact:** Compromised tokens cannot be invalidated  
 **Fix Time:** 1 week  
 **Solution:** Implement session-based authentication (see Section 4.3 of full report)
 
-### 🔴 4. Missing Database Indexes (HIGH)
-**Impact:** Query performance degradation at scale  
-**Fix Time:** 2 hours  
-**Solution:** Add indexes on foreign keys and frequently queried columns
+### ✅ ~~4. Missing Database Indexes~~ (FIXED)
 
-```sql
-CREATE INDEX idx_donations_constituent ON finance.donations(constituent_id);
-CREATE INDEX idx_orders_constituent ON shop.orders(constituent_id);
-CREATE INDEX idx_order_items_order ON shop.order_items(order_id);
--- See Appendix B in full report for complete list
-```
+**Status:** ✅ Fixed on 2026-01-11  
+**Solution:** Added indexes to Drizzle schema and generated migration `0002_lame_caretaker.sql`
+
+- `donations_constituent_id_idx`, `donations_project_id_idx`, `donations_event_id_idx`
+- `orders_constituent_id_idx`
+- `order_items_order_id_idx`, `order_items_product_id_idx`
 
 ### 🔴 5. Incomplete pg-boss Integration (HIGH)
+
 **File:** `announcementService.ts`  
 **Impact:** Announcement publishing system non-functional  
 **Fix Time:** 2 days  
@@ -83,6 +84,7 @@ CREATE INDEX idx_order_items_order ON shop.order_items(order_id);
 ## Quick Fixes (< 1 Day Each)
 
 ### Add Rate Limiting
+
 ```typescript
 // configs/rateLimiting.ts
 import rateLimit from "express-rate-limit";
@@ -98,6 +100,7 @@ authRouter.post("/login", authRateLimiter, ...);
 ```
 
 ### Add Missing Indexes
+
 ```bash
 # Run migration
 npm run script migrate
@@ -105,15 +108,17 @@ npm run script migrate
 ```
 
 ### Fix Stock Race Condition
+
 ```typescript
 // In shopService.ts createAuthenticatedOrder()
 const result = await dbClient.db.transaction(async (tx) => {
   // Lock products before validation
-  const products = await tx.select()
+  const products = await tx
+    .select()
     .from(schema.Products)
     .where(inArray(schema.Products.id, productIds))
     .for("update");
-  
+
   // Validate with locked data
   // ... rest of transaction
 });
@@ -127,6 +132,7 @@ const result = await dbClient.db.transaction(async (tx) => {
 **Proposed:** Single-token sliding session
 
 **Benefits:**
+
 - ✅ 40% less code complexity
 - ✅ Token revocation support
 - ✅ Session management dashboard
@@ -139,6 +145,7 @@ const result = await dbClient.db.transaction(async (tx) => {
 ## Security Assessment
 
 ### Passed ✅
+
 - SQL injection protection (Drizzle ORM)
 - Password hashing (bcrypt)
 - Payment security (webhook signatures)
@@ -146,6 +153,7 @@ const result = await dbClient.db.transaction(async (tx) => {
 - httpOnly secure cookies
 
 ### Failed ❌
+
 - Rate limiting on auth endpoints
 - Token revocation mechanism
 - Password complexity requirements
@@ -156,11 +164,13 @@ const result = await dbClient.db.transaction(async (tx) => {
 ## Performance Optimizations
 
 ### Quick Wins
+
 1. **Add indexes** (2 hours) → 40-60% query speedup
 2. **Fix count queries** (4 hours) → 50% reduction in DB roundtrips
 3. **Cache invalidation** (1 day) → Eliminate stale data
 
 ### Long-term
+
 1. **Materialized views** for complex member queries
 2. **Connection pooling** tuning
 3. **Query optimization** with window functions
@@ -170,16 +180,19 @@ const result = await dbClient.db.transaction(async (tx) => {
 ## Next Steps
 
 ### Week 1 (Critical)
+
 - [ ] Fix stock concurrency race condition
 - [ ] Add rate limiting to auth endpoints
 - [ ] Add missing database indexes
 
 ### Month 1 (High Priority)
+
 - [ ] Implement password complexity requirements
 - [ ] Add account lockout mechanism
 - [ ] Complete pg-boss integration
 
 ### Quarter 1 (Strategic)
+
 - [ ] Implement single-token sliding session strategy
 - [ ] Refactor large service files (membersService, shopService)
 - [ ] Create materialized views for complex queries
@@ -188,15 +201,15 @@ const result = await dbClient.db.transaction(async (tx) => {
 
 ## Code Quality Metrics
 
-| Metric | Score | Grade |
-|--------|-------|-------|
-| Architecture & Design | 95/100 | A |
-| Security | 85/100 | B+ |
-| Performance | 82/100 | B |
-| Code Quality | 90/100 | A- |
-| Maintainability | 87/100 | B+ |
-| Documentation | 95/100 | A |
-| **Overall** | **87/100** | **B+** |
+| Metric                | Score      | Grade  |
+| --------------------- | ---------- | ------ |
+| Architecture & Design | 95/100     | A      |
+| Security              | 85/100     | B+     |
+| Performance           | 82/100     | B      |
+| Code Quality          | 90/100     | A-     |
+| Maintainability       | 87/100     | B+     |
+| Documentation         | 95/100     | A      |
+| **Overall**           | **87/100** | **B+** |
 
 ---
 
@@ -213,6 +226,7 @@ const result = await dbClient.db.transaction(async (tx) => {
 ## Files Reviewed
 
 ### Services (20 files, 7,649 lines)
+
 - ✅ authService.ts (274 lines)
 - ✅ usersService.ts (292 lines)
 - ✅ membersService.ts (852 lines) - **Needs refactoring**
@@ -235,11 +249,13 @@ const result = await dbClient.db.transaction(async (tx) => {
 - ✅ targetResolver.ts
 
 ### API Endpoints (63+ files)
+
 - ✅ All v1 API routes analyzed
 - ✅ Middleware stacks reviewed
 - ✅ Authorization patterns verified
 
 ### Database Schema
+
 - ✅ All 6 schemas analyzed
 - ✅ Class table inheritance reviewed
 - ✅ Temporal modeling verified

@@ -7,6 +7,7 @@ import {
   integer,
   boolean,
   jsonb,
+  index,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { Constituents, Media } from "./core";
@@ -52,18 +53,22 @@ export const ProductMedia = shop.table("product_media", {
     .notNull(),
 });
 
-export const Orders = shop.table("orders", {
-  id: uuid().defaultRandom().primaryKey(),
-  constituentId: uuid("constituent_id")
-    .notNull()
-    .references(() => Constituents.id, { onDelete: "restrict" }),
-  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
-  status: orderStatus().default("PENDING").notNull(),
-  deliveryAddress: jsonb("delivery_address"), // nullable, this ain't amazon
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+export const Orders = shop.table(
+  "orders",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    constituentId: uuid("constituent_id")
+      .notNull()
+      .references(() => Constituents.id, { onDelete: "restrict" }),
+    totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
+    status: orderStatus().default("PENDING").notNull(),
+    deliveryAddress: jsonb("delivery_address"), // nullable, this ain't amazon
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [index("orders_constituent_id_idx").on(table.constituentId)],
+);
 
 export const OrderPayments = shop.table("order_payments", {
   id: uuid().defaultRandom().primaryKey(),
@@ -75,20 +80,27 @@ export const OrderPayments = shop.table("order_payments", {
     .references(() => FinancialTransactions.id, { onDelete: "cascade" }),
 });
 
-export const OrderItems = shop.table("order_items", {
-  id: uuid().defaultRandom().primaryKey(),
-  orderId: uuid("order_id")
-    .notNull()
-    .references(() => Orders.id, { onDelete: "cascade" }),
-  productId: uuid("product_id")
-    .notNull()
-    .references(() => Products.id, { onDelete: "restrict" }),
-  quantity: integer().notNull(),
-  priceAtPurchase: decimal("price_at_purchase", {
-    precision: 10,
-    scale: 2,
-  }).notNull(),
-});
+export const OrderItems = shop.table(
+  "order_items",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => Orders.id, { onDelete: "cascade" }),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => Products.id, { onDelete: "restrict" }),
+    quantity: integer().notNull(),
+    priceAtPurchase: decimal("price_at_purchase", {
+      precision: 10,
+      scale: 2,
+    }).notNull(),
+  },
+  (table) => [
+    index("order_items_order_id_idx").on(table.orderId),
+    index("order_items_product_id_idx").on(table.productId),
+  ],
+);
 
 // === RELATIONS ===
 

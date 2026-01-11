@@ -9,11 +9,16 @@ import {
   OnboardSchema,
 } from "./schemas";
 import { authenticateLax } from "@/shared/middlewares/auth";
+import { rateLimit } from "@/shared/middlewares/rateLimit";
 
 const authRouter = Router();
 
+// Rate limiter for sensitive auth endpoints (5 attempts per 15 minutes)
+const authRateLimiter = rateLimit({ windowMs: 15 * 60 * 1000, maxRequests: 5 });
+
 authRouter.post(
   "/login",
+  authRateLimiter,
   validateBody(UsernameAndPasswordSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -49,6 +54,7 @@ authRouter.post(
 
 authRouter.post(
   "/forgot-password",
+  authRateLimiter,
   validateBody(ForgotPasswordSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {

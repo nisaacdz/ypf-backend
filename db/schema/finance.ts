@@ -6,6 +6,7 @@ import {
   timestamp,
   text,
   date,
+  index,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import {
@@ -63,24 +64,32 @@ export const FinancialTransactions = finance.table("financial_transactions", {
 });
 
 // Null constituentId means anonymous donation
-export const Donations = finance.table("donations", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  transactionId: uuid("transaction_id")
-    .notNull()
-    .unique()
-    .references(() => FinancialTransactions.id, { onDelete: "restrict" }),
-  constituentId: uuid("constituent_id").references(() => Constituents.id, {
-    onDelete: "restrict",
-  }),
-  projectId: uuid("project_id").references(() => Projects.id, {
-    onDelete: "set null",
-  }),
-  eventId: uuid("event_id").references(() => Events.id, {
-    onDelete: "set null",
-  }),
-  guestName: text("guest_name"),
-  guestEmail: text("guest_email"),
-});
+export const Donations = finance.table(
+  "donations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    transactionId: uuid("transaction_id")
+      .notNull()
+      .unique()
+      .references(() => FinancialTransactions.id, { onDelete: "restrict" }),
+    constituentId: uuid("constituent_id").references(() => Constituents.id, {
+      onDelete: "restrict",
+    }),
+    projectId: uuid("project_id").references(() => Projects.id, {
+      onDelete: "set null",
+    }),
+    eventId: uuid("event_id").references(() => Events.id, {
+      onDelete: "set null",
+    }),
+    guestName: text("guest_name"),
+    guestEmail: text("guest_email"),
+  },
+  (table) => [
+    index("donations_constituent_id_idx").on(table.constituentId),
+    index("donations_project_id_idx").on(table.projectId),
+    index("donations_event_id_idx").on(table.eventId),
+  ],
+);
 
 export const Dues = finance.table("dues", {
   id: uuid("id").defaultRandom().primaryKey(),
