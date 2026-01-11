@@ -36,11 +36,9 @@ applicationsRouter.get(
       const response = await applicationsHandler.getMembershipApplications(
         req.Query,
       );
-      redisClient
-        .setResponseCache(req.CacheKey, response, 60 * 5)
-        .catch((err) => {
-          logger.error(err, `Failed to set cache for ${req.CacheKey}`);
-        });
+      redisClient.setResponseCache(req.CacheKey, response, 60).catch((err) => {
+        logger.error(err, `Failed to set cache for ${req.CacheKey}`);
+      });
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -63,6 +61,10 @@ applicationsRouter.patch(
           body: req.Body,
           adminId: req.User?.id!,
         });
+
+      // Clear the detail cache
+      await redisClient.delCache(`/api/v1/applications/membership/${id}`);
+
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -130,11 +132,9 @@ applicationsRouter.get(
       const response = await applicationsHandler.getVolunteerApplications(
         req.Query,
       );
-      redisClient
-        .setResponseCache(req.CacheKey, response, 60 * 5)
-        .catch((err) => {
-          logger.error(err, `Failed to set cache for ${req.CacheKey}`);
-        });
+      redisClient.setResponseCache(req.CacheKey, response, 60).catch((err) => {
+        logger.error(err, `Failed to set cache for ${req.CacheKey}`);
+      });
       res.status(200).json(response);
     } catch (error) {
       next(error);

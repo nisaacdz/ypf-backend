@@ -24,6 +24,9 @@ import * as projectsHandler from "./projectsHandler";
 import { Visitors, MEMBER, anyOf } from "@/configs/authorizer";
 import z from "zod";
 import filesUpload from "@/shared/middlewares/multipart";
+import { redisCacheEarlyReturn } from "@/shared/middlewares/redisCache";
+import redisClient from "@/configs/redis";
+import logger from "@/configs/logger";
 
 const projectsRouter = Router();
 
@@ -31,9 +34,14 @@ projectsRouter.get(
   "/",
   authorize(Visitors.ALL),
   validateQuery(GetProjectsQuerySchema),
+  redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await projectsHandler.getProjects(req.Query);
+      // Cache for 60 seconds
+      redisClient.setResponseCache(req.CacheKey, response, 60).catch((err) => {
+        logger.error(err, `Failed to set cache for ${req.CacheKey}`);
+      });
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -63,9 +71,14 @@ projectsRouter.get(
   authenticateLax,
   authorize(Visitors.ALL),
   validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
+  redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await projectsHandler.getProject(req.Params.id);
+      // Cache for 60 seconds
+      redisClient.setResponseCache(req.CacheKey, response, 60).catch((err) => {
+        logger.error(err, `Failed to set cache for ${req.CacheKey}`);
+      });
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -87,6 +100,10 @@ projectsRouter.put(
         req.Params.id,
         req.Body,
       );
+
+      // Clear the detail cache
+      await redisClient.delCache(`/api/v1/projects/${req.Params.id}`);
+
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -100,12 +117,17 @@ projectsRouter.get(
   authorize(Visitors.ALL),
   validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
   validateQuery(GetProjectMediaQuerySchema),
+  redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await projectsHandler.getProjectMedia(
         req.Params.id,
         req.Query,
       );
+      // Cache for 60 seconds
+      redisClient.setResponseCache(req.CacheKey, response, 60).catch((err) => {
+        logger.error(err, `Failed to set cache for ${req.CacheKey}`);
+      });
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -131,6 +153,10 @@ projectsRouter.post(
         file: req.File,
         options: req.Body,
       });
+
+      // Clear the detail cache
+      await redisClient.delCache(`/api/v1/projects/${req.Params.id}`);
+
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -152,6 +178,10 @@ projectsRouter.patch(
         req.Params.id,
         req.Body,
       );
+
+      // Clear the detail cache
+      await redisClient.delCache(`/api/v1/projects/${req.Params.id}`);
+
       res.status(200).json(response);
     } catch (error) {
       next(error);

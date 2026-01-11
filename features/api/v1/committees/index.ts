@@ -34,12 +34,10 @@ committeesRouter.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await committeesHandler.getCommittees(req.Query);
-      // Cache for 15 minutes (900 seconds)
-      redisClient
-        .setResponseCache(req.CacheKey, response, 15 * 60)
-        .catch((err) => {
-          logger.error(err, `Failed to set cache for ${req.CacheKey}`);
-        });
+      // Cache for 60 seconds
+      redisClient.setResponseCache(req.CacheKey, response, 60).catch((err) => {
+        logger.error(err, `Failed to set cache for ${req.CacheKey}`);
+      });
       res.status(200).json(response);
     } catch (error) {
       next(error);

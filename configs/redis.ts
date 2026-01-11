@@ -65,6 +65,15 @@ class RedisClient {
       ttlSeconds,
     );
   }
+
+  async delCache(key: string): Promise<void> {
+    if (!this._redis) return;
+    try {
+      await this._redis.del(key);
+    } catch (error) {
+      logger.error(error, `Error deleting cache for key ${key}`);
+    }
+  }
 }
 
 const redisClient = new RedisClient();

@@ -11,6 +11,9 @@ import {
   validateParams,
 } from "@/shared/middlewares/validate";
 import * as chaptersHandler from "./chaptersHandler";
+import { redisCacheEarlyReturn } from "@/shared/middlewares/redisCache";
+import redisClient from "@/configs/redis";
+import logger from "@/configs/logger";
 import {
   GetChaptersQuerySchema,
   UpdateChapterSchema,
@@ -28,9 +31,14 @@ chaptersRouter.get(
   "/",
   authorize(Visitors.ALL),
   validateQuery(GetChaptersQuerySchema),
+  redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await chaptersHandler.getChapters(req.Query);
+      // Cache for 60 seconds
+      redisClient.setResponseCache(req.CacheKey, response, 60).catch((err) => {
+        logger.error(err, `Failed to set cache for ${req.CacheKey}`);
+      });
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -43,9 +51,14 @@ chaptersRouter.get(
   authenticateLax,
   authorize(Visitors.hasProfile("MEMBER", "ADMIN")),
   validateParams(z.object({ id: z.uuid("Invalid chapter ID") }), 404),
+  redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await chaptersHandler.getChapter(req.Params.id);
+      // Cache for 60 seconds
+      redisClient.setResponseCache(req.CacheKey, response, 60).catch((err) => {
+        logger.error(err, `Failed to set cache for ${req.CacheKey}`);
+      });
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -94,6 +107,10 @@ chaptersRouter.patch(
         req.Params.id,
         req.Body,
       );
+
+      // Clear the detail cache
+      await redisClient.delCache(`/api/v1/chapters/${req.Params.id}`);
+
       res.status(200).json(response);
     } catch (error) {
       next(error);
