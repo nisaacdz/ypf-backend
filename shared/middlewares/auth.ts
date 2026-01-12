@@ -1,10 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { ApiError } from "../types";
 import { decodeData, encodeData } from "../utils/jwt";
-import {
-  AuthenticatedUserSchema,
-  RefreshTokenPayloadSchema,
-} from "../validators";
+import { AuthenticatedUserSchema } from "../validators";
 import type { GuardFunction } from "@/configs/authorizer";
 import * as authService from "../services/authService";
 
@@ -18,7 +15,6 @@ export async function authenticate(
   }
 
   const accessToken = req.cookies.access_token;
-  const refreshToken = req.cookies.refresh_token;
 
   if (!accessToken) {
     return next(
@@ -36,48 +32,23 @@ export async function authenticate(
   }
 
   if ("valid" in accessTokenDecodeResult) {
-    req.User = accessTokenDecodeResult.valid;
-    return next();
-  } else {
-    const { exp } = accessTokenDecodeResult.expired;
+    const { exp, ...user } = accessTokenDecodeResult.valid;
     const now = Math.floor(Date.now() / 1000);
+    const tokenAge = now - (exp - 3 * 24 * 60 * 60); // Calculate when token was issued
+    const tokenLifetime = 3 * 24 * 60 * 60; // 3 days in seconds
 
-    if (exp + 3 * 24 * 60 * 60 < now) {
-      return next(new ApiError("Invalid token. Please log in again.", 401));
-    }
+    // Implement sliding window: refresh if token is more than 50% through its lifetime
+    if (tokenAge > tokenLifetime / 2) {
+      try {
+        const authenticatedUser = await authService.loginWithUsername(
+          user.email,
+        );
 
-    const refreshTokenDecodeResult = decodeData(
-      refreshToken,
-      RefreshTokenPayloadSchema,
-    );
-
-    if (!refreshTokenDecodeResult || "expired" in refreshTokenDecodeResult) {
-      return next(new ApiError("Invalid token. Please log in again.", 401));
-    }
-
-    const { username, exp: refreshExp } = refreshTokenDecodeResult.valid;
-
-    try {
-      const authenticatedUser = await authService.loginWithUsername(username);
-
-      // Regenerate access_token
-      const newAccessToken = encodeData(authenticatedUser, {
-        expiresIn: "30m",
-      });
-      res.cookie("access_token", newAccessToken, {
-        httpOnly: true,
-        secure: true,
-        sameSite: "none",
-        maxAge: 3 * 24 * 60 * 60 * 1000, // token expires earlier
-        path: "/",
-        partitioned: true,
-      });
-
-      // Check if refresh_token is within 1 day of expiry
-      if (refreshExp - now <= 24 * 60 * 60) {
-        // Refresh the refresh_token (extend to 3 days)
-        const newRefreshToken = encodeData({ username }, { expiresIn: "3d" });
-        res.cookie("refresh_token", newRefreshToken, {
+        // Issue new token with 3-day expiry
+        const newAccessToken = encodeData(authenticatedUser, {
+          expiresIn: "3d",
+        });
+        res.cookie("access_token", newAccessToken, {
           httpOnly: true,
           secure: true,
           sameSite: "none",
@@ -85,12 +56,20 @@ export async function authenticate(
           path: "/",
           partitioned: true,
         });
+
+        req.User = authenticatedUser;
+      } catch {
+        // If refresh fails, continue with existing valid token
+        req.User = user;
       }
-      req.User = authenticatedUser;
-      return next();
-    } catch {
-      return next(new ApiError("Invalid token. Please log in again.", 401));
+    } else {
+      req.User = user;
     }
+
+    return next();
+  } else {
+    // Token is expired
+    return next(new ApiError("Invalid token. Please log in again.", 401));
   }
 }
 
@@ -105,7 +84,6 @@ export const authenticateLax = async (
     }
 
     const accessToken = req.cookies.access_token;
-    const refreshToken = req.cookies.refresh_token;
 
     if (!accessToken) {
       return next(); // Lax mode: no token → continue without user
@@ -121,67 +99,43 @@ export const authenticateLax = async (
     }
 
     if ("valid" in accessTokenDecodeResult) {
-      req.User = accessTokenDecodeResult.valid;
-      return next();
-    }
+      const { exp, ...user } = accessTokenDecodeResult.valid;
+      const now = Math.floor(Date.now() / 1000);
+      const tokenAge = now - (exp - 3 * 24 * 60 * 60); // Calculate when token was issued
+      const tokenLifetime = 3 * 24 * 60 * 60; // 3 days in seconds
 
-    // access token is expired shape
-    const { exp } = accessTokenDecodeResult.expired;
-    const now = Math.floor(Date.now() / 1000);
+      // Implement sliding window: refresh if token is more than 50% through its lifetime
+      if (tokenAge > tokenLifetime / 2) {
+        try {
+          const authenticatedUser = await authService.loginWithUsername(
+            user.email,
+          );
 
-    // If expired by more than 3 days, treat as invalid and continue without user
-    const threeDaysInSeconds = 3 * 24 * 60 * 60;
-    if (exp + threeDaysInSeconds < now) {
-      return next();
-    }
+          // Issue new token with 3-day expiry
+          const newAccessToken = encodeData(authenticatedUser, {
+            expiresIn: "3d",
+          });
+          res.cookie("access_token", newAccessToken, {
+            httpOnly: true,
+            secure: true,
+            sameSite: "none",
+            maxAge: 3 * 24 * 60 * 60 * 1000,
+            path: "/",
+            partitioned: true,
+          });
 
-    // Otherwise, try to refresh using refresh_token
-    if (!refreshToken) {
-      return next();
-    }
-
-    const refreshTokenDecodeResult = decodeData(
-      refreshToken,
-      RefreshTokenPayloadSchema,
-    );
-
-    if (!refreshTokenDecodeResult || "expired" in refreshTokenDecodeResult) {
-      return next();
-    }
-
-    const { username, exp: refreshExp } = refreshTokenDecodeResult.valid;
-
-    try {
-      const authenticatedUser = await authService.loginWithUsername(username);
-
-      // Regenerate access_token
-      const newAccessToken = encodeData(authenticatedUser, {
-        expiresIn: "30m",
-      });
-      res.cookie("access_token", newAccessToken, {
-        httpOnly: true,
-        secure: true,
-        sameSite: "none",
-        maxAge: 3 * 24 * 60 * 60 * 1000, // token expires earlier
-        path: "/",
-        partitioned: true,
-      });
-
-      if (refreshExp - now <= 24 * 60 * 60) {
-        const newRefreshToken = encodeData({ username }, { expiresIn: "3d" });
-        res.cookie("refresh_token", newRefreshToken, {
-          httpOnly: true,
-          secure: true,
-          sameSite: "none",
-          maxAge: 3 * 24 * 60 * 60 * 1000, // 3 days
-          path: "/",
-          partitioned: true,
-        });
+          req.User = authenticatedUser;
+        } catch {
+          // If refresh fails, continue with existing valid token
+          req.User = user;
+        }
+      } else {
+        req.User = user;
       }
 
-      req.User = authenticatedUser;
       return next();
-    } catch {
+    } else {
+      // Token is expired, continue without user in lax mode
       return next();
     }
   } catch {

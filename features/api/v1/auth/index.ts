@@ -22,25 +22,15 @@ authRouter.post(
   validateBody(UsernameAndPasswordSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { response, accessToken, refreshToken } =
+      const { response, accessToken } =
         await authHandler.loginWithUsernameAndPassword(req.Body);
 
-      // Set access_token cookie with 30-minute expiry
+      // Set access_token cookie with 3-day expiry
       res.cookie("access_token", accessToken, {
         httpOnly: true,
         secure: true,
         sameSite: "none",
-        maxAge: 3 * 24 * 60 * 60 * 1000, // actual token expires earlier
-        path: "/",
-        partitioned: true,
-      });
-
-      // Set refresh_token cookie with 3-day expiry
-      res.cookie("refresh_token", refreshToken, {
-        httpOnly: true,
-        secure: true,
-        sameSite: "none",
-        maxAge: 3 * 24 * 60 * 60 * 1000, // 3 days
+        maxAge: 3 * 24 * 60 * 60 * 1000,
         path: "/",
         partitioned: true,
       });
@@ -71,25 +61,16 @@ authRouter.post(
   validateBody(ResetPasswordSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { response, accessToken, refreshToken } =
-        await authHandler.resetPassword(req.Body);
+      const { response, accessToken } = await authHandler.resetPassword(
+        req.Body,
+      );
 
-      // Set access_token cookie with 30-minute expiry
+      // Set access_token cookie with 3-day expiry
       res.cookie("access_token", accessToken, {
         httpOnly: true,
         secure: true,
         sameSite: "none",
-        maxAge: 3 * 24 * 60 * 60 * 1000, // actual token expires earlier
-        path: "/",
-        partitioned: true,
-      });
-
-      // Set refresh_token cookie with 3-day expiry
-      res.cookie("refresh_token", refreshToken, {
-        httpOnly: true,
-        secure: true,
-        sameSite: "none",
-        maxAge: 3 * 24 * 60 * 60 * 1000, // 3 days
+        maxAge: 3 * 24 * 60 * 60 * 1000,
         path: "/",
         partitioned: true,
       });
@@ -106,14 +87,6 @@ authRouter.post("/logout", async (req: Request, res: Response) => {
 
   // Clear access_token cookie
   res.clearCookie("access_token", {
-    httpOnly: true,
-    secure: true,
-    sameSite: "none",
-    path: "/",
-  });
-
-  // Clear refresh_token cookie
-  res.clearCookie("refresh_token", {
     httpOnly: true,
     secure: true,
     sameSite: "none",

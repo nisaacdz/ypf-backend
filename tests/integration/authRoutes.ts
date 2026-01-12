@@ -55,27 +55,18 @@ describe("Authentication API", () => {
 
       expect(response.headers["set-cookie"]).toBeDefined();
 
-      // Should have both access_token and refresh_token cookies
+      // Should have access_token cookie
       const setCookieHeader = response.headers["set-cookie"];
       const cookies = Array.isArray(setCookieHeader)
         ? setCookieHeader
         : [setCookieHeader];
-      expect(cookies.length).toBeGreaterThanOrEqual(2);
 
       const accessTokenCookie = cookies.find((c) => c.includes("access_token"));
-      const refreshTokenCookie = cookies.find((c) =>
-        c.includes("refresh_token"),
-      );
 
       expect(accessTokenCookie).toBeDefined();
       expect(accessTokenCookie).toMatch(/access_token=.+/);
       expect(accessTokenCookie).toMatch(/HttpOnly/);
       expect(accessTokenCookie).toMatch(/Path=\//);
-
-      expect(refreshTokenCookie).toBeDefined();
-      expect(refreshTokenCookie).toMatch(/refresh_token=.+/);
-      expect(refreshTokenCookie).toMatch(/HttpOnly/);
-      expect(refreshTokenCookie).toMatch(/Path=\//);
 
       expect(response.body).not.toHaveProperty("token");
       expect(response.body.success).toBe(true);
@@ -365,21 +356,13 @@ describe("Authentication API", () => {
         ? setCookieHeader
         : [setCookieHeader];
 
-      // Should have both access_token and refresh_token clear directives
+      // Should have access_token clear directive
       const accessTokenCookie = cookies.find((c) => c.includes("access_token"));
-      const refreshTokenCookie = cookies.find((c) =>
-        c.includes("refresh_token"),
-      );
 
       expect(accessTokenCookie).toBeDefined();
       expect(accessTokenCookie).toMatch(/access_token=/);
       expect(accessTokenCookie).toMatch(/HttpOnly/);
       expect(accessTokenCookie).toMatch(/Path=\//);
-
-      expect(refreshTokenCookie).toBeDefined();
-      expect(refreshTokenCookie).toMatch(/refresh_token=/);
-      expect(refreshTokenCookie).toMatch(/HttpOnly/);
-      expect(refreshTokenCookie).toMatch(/Path=\//);
     });
 
     it("should logout successfully even without existing cookies", async () => {
@@ -407,12 +390,8 @@ describe("Authentication API", () => {
         : [setCookieHeader];
 
       const accessToken = cookies.find((c) => c.includes("access_token"));
-      const refreshToken = cookies.find((c) => c.includes("refresh_token"));
 
-      const authCookie = [accessToken, refreshToken]
-        .filter(Boolean)
-        .map((c) => c?.split(";")[0])
-        .join("; ");
+      const authCookie = accessToken?.split(";")[0] || "";
 
       // Call /auth/me with cookies
       const response = await request(server)
