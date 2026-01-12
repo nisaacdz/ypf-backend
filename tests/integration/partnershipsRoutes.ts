@@ -111,14 +111,8 @@ describe("Partnerships API", () => {
     const memberAccessToken = memberCookies.find((c) =>
       c.includes("access_token"),
     );
-    const memberRefreshToken = memberCookies.find((c) =>
-      c.includes("refresh_token"),
-    );
 
-    memberAuthTokenCookie = [memberAccessToken, memberRefreshToken]
-      .filter(Boolean)
-      .map((c) => c?.split(";")[0])
-      .join("; ");
+    memberAuthTokenCookie = memberAccessToken?.split(";")[0] || "";
 
     // Login as admin to get auth token
     const adminLoginResponse = await request(server)
@@ -136,14 +130,8 @@ describe("Partnerships API", () => {
     const adminAccessToken = adminCookies.find((c) =>
       c.includes("access_token"),
     );
-    const adminRefreshToken = adminCookies.find((c) =>
-      c.includes("refresh_token"),
-    );
 
-    adminAuthTokenCookie = [adminAccessToken, adminRefreshToken]
-      .filter(Boolean)
-      .map((c) => c?.split(";")[0])
-      .join("; ");
+    adminAuthTokenCookie = adminAccessToken?.split(";")[0] || "";
   });
 
   afterAll(async () => {
