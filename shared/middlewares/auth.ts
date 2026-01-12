@@ -32,10 +32,10 @@ export async function authenticate(
   }
 
   if ("valid" in accessTokenDecodeResult) {
-    const { exp, ...user } = accessTokenDecodeResult.valid;
+    const { exp, iat, ...user } = accessTokenDecodeResult.valid;
     const now = Math.floor(Date.now() / 1000);
-    const tokenAge = now - (exp - 3 * 24 * 60 * 60); // Calculate when token was issued
-    const tokenLifetime = 3 * 24 * 60 * 60; // 3 days in seconds
+    const tokenLifetime = exp - iat; // Actual token lifetime
+    const tokenAge = now - iat; // How long since token was issued
 
     // Implement sliding window: refresh if token is more than 50% through its lifetime
     if (tokenAge > tokenLifetime / 2) {
@@ -99,10 +99,10 @@ export const authenticateLax = async (
     }
 
     if ("valid" in accessTokenDecodeResult) {
-      const { exp, ...user } = accessTokenDecodeResult.valid;
+      const { exp, iat, ...user } = accessTokenDecodeResult.valid;
       const now = Math.floor(Date.now() / 1000);
-      const tokenAge = now - (exp - 3 * 24 * 60 * 60); // Calculate when token was issued
-      const tokenLifetime = 3 * 24 * 60 * 60; // 3 days in seconds
+      const tokenLifetime = exp - iat; // Actual token lifetime
+      const tokenAge = now - iat; // How long since token was issued
 
       // Implement sliding window: refresh if token is more than 50% through its lifetime
       if (tokenAge > tokenLifetime / 2) {
