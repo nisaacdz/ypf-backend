@@ -113,12 +113,8 @@ describe("Projects API", () => {
       : [setCookieHeader];
 
     const accessToken = cookies.find((c) => c.includes("access_token"));
-    const refreshToken = cookies.find((c) => c.includes("refresh_token"));
 
-    authTokenCookie = [accessToken, refreshToken]
-      .filter(Boolean)
-      .map((c) => c?.split(";")[0])
-      .join("; ");
+    authTokenCookie = accessToken?.split(";")[0] || "";
   });
 
   afterAll(async () => {
