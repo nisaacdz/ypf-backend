@@ -34,11 +34,11 @@ export async function authenticate(
   if ("valid" in accessTokenDecodeResult) {
     const { exp, iat, ...user } = accessTokenDecodeResult.valid;
     const now = Math.floor(Date.now() / 1000);
-    const tokenLifetime = exp - iat; // Actual token lifetime
     const tokenAge = now - iat; // How long since token was issued
+    const refreshThreshold = 30 * 60; // 30 minutes in seconds
 
-    // Implement sliding window: refresh if token is more than 50% through its lifetime
-    if (tokenAge > tokenLifetime / 2) {
+    // Implement sliding window: refresh if token is older than 30 minutes
+    if (tokenAge > refreshThreshold) {
       try {
         const authenticatedUser = await authService.loginWithUsername(
           user.email,
@@ -101,11 +101,11 @@ export const authenticateLax = async (
     if ("valid" in accessTokenDecodeResult) {
       const { exp, iat, ...user } = accessTokenDecodeResult.valid;
       const now = Math.floor(Date.now() / 1000);
-      const tokenLifetime = exp - iat; // Actual token lifetime
       const tokenAge = now - iat; // How long since token was issued
+      const refreshThreshold = 30 * 60; // 30 minutes in seconds
 
-      // Implement sliding window: refresh if token is more than 50% through its lifetime
-      if (tokenAge > tokenLifetime / 2) {
+      // Implement sliding window: refresh if token is older than 30 minutes
+      if (tokenAge > refreshThreshold) {
         try {
           const authenticatedUser = await authService.loginWithUsername(
             user.email,
