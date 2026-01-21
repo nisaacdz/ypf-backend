@@ -113,12 +113,8 @@ describe("Projects API", () => {
       : [setCookieHeader];
 
     const accessToken = cookies.find((c) => c.includes("access_token"));
-    const refreshToken = cookies.find((c) => c.includes("refresh_token"));
 
-    authTokenCookie = [accessToken, refreshToken]
-      .filter(Boolean)
-      .map((c) => c?.split(";")[0])
-      .join("; ");
+    authTokenCookie = accessToken?.split(";")[0] || "";
   });
 
   afterAll(async () => {
@@ -573,9 +569,9 @@ describe("Projects API", () => {
     });
   });
 
-  describe("PATCH /api/v1/projects/:id/media", () => {
-    // Note: The route is /projects/:projectMediaId/media (not /projects/media/:projectMediaId like events)
-    // The :id parameter refers to the project media ID (number), not the project ID (UUID)
+  describe("PATCH /api/v1/projects/:projectId/media/:mediumId", () => {
+    // Note: The route requires both projectId (UUID) and mediumId (UUID)
+    let testMediumId: string;
     beforeAll(async () => {
       // Create a test medium in the Media table
       const [newMedium] = await dbClient.db
@@ -602,6 +598,7 @@ describe("Projects API", () => {
         .returning();
 
       testData.projectMediaId = projectMedia.id;
+      testMediumId = newMedium.id;
     });
 
     afterAll(async () => {
@@ -620,7 +617,7 @@ describe("Projects API", () => {
       };
 
       const response = await request(server)
-        .patch(`/api/v1/projects/${testData.projectMediaId}/media`)
+        .patch(`/api/v1/projects/${testData.projectId}/media/${testMediumId}`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
         .expect(200);
@@ -643,7 +640,7 @@ describe("Projects API", () => {
       };
 
       const response = await request(server)
-        .patch(`/api/v1/projects/${testData.projectMediaId}/media`)
+        .patch(`/api/v1/projects/${testData.projectId}/media/${testMediumId}`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
         .expect(200);
@@ -666,7 +663,7 @@ describe("Projects API", () => {
       };
 
       const response = await request(server)
-        .patch(`/api/v1/projects/${testData.projectMediaId}/media`)
+        .patch(`/api/v1/projects/${testData.projectId}/media/${testMediumId}`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
         .expect(200);
@@ -689,7 +686,7 @@ describe("Projects API", () => {
       };
 
       await request(server)
-        .patch(`/api/v1/projects/${testData.projectMediaId}/media`)
+        .patch(`/api/v1/projects/${testData.projectId}/media/${testMediumId}`)
         .send(updateData)
         .expect(401);
     });
@@ -716,7 +713,7 @@ describe("Projects API", () => {
       };
 
       await request(server)
-        .patch(`/api/v1/projects/${testData.projectMediaId}/media`)
+        .patch(`/api/v1/projects/${testData.projectId}/media/${testMediumId}`)
         .set("Cookie", authTokenCookie)
         .send(updateData)
         .expect(400);

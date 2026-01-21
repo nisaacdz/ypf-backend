@@ -1,5 +1,5 @@
 {
-  "id": "45984e22-7d06-4da9-a0d8-21ddbb024a97",
+  "id": "945a3311-90d0-4303-890f-7c88b8498e2b",
   "prevId": "e2714bcb-e5cf-48d0-97c1-b4aa42b99a01",
   "version": "7",
   "dialect": "postgresql",
@@ -2633,7 +2633,53 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "donations_constituent_id_idx": {
+          "name": "donations_constituent_id_idx",
+          "columns": [
+            {
+              "expression": "constituent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "donations_project_id_idx": {
+          "name": "donations_project_id_idx",
+          "columns": [
+            {
+              "expression": "project_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "donations_event_id_idx": {
+          "name": "donations_event_id_idx",
+          "columns": [
+            {
+              "expression": "event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "donations_transaction_id_financial_transactions_id_fk": {
           "name": "donations_transaction_id_financial_transactions_id_fk",
@@ -3155,7 +3201,38 @@
           "notNull": true
         }
       },
-      "indexes": {},
+      "indexes": {
+        "order_items_order_id_idx": {
+          "name": "order_items_order_id_idx",
+          "columns": [
+            {
+              "expression": "order_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "order_items_product_id_idx": {
+          "name": "order_items_product_id_idx",
+          "columns": [
+            {
+              "expression": "product_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "order_items_order_id_orders_id_fk": {
           "name": "order_items_order_id_orders_id_fk",
@@ -3282,7 +3359,23 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "orders_constituent_id_idx": {
+          "name": "orders_constituent_id_idx",
+          "columns": [
+            {
+              "expression": "constituent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "orders_constituent_id_constituents_id_fk": {
           "name": "orders_constituent_id_constituents_id_fk",

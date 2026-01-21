@@ -28,7 +28,6 @@ export async function loginWithUsernameAndPassword({
 }): Promise<{
   response: ApiResponse<AuthData>;
   accessToken: string;
-  refreshToken: string;
 }> {
   if (!username || !password) {
     throw new ApiError("Username and password are required", 400);
@@ -51,11 +50,7 @@ export async function loginWithUsernameAndPassword({
     auth: authenticatedUser,
   };
 
-  const accessToken = encodeData(authenticatedUser, { expiresIn: "30m" });
-  const refreshToken = encodeData(
-    { username: authenticatedUser.email },
-    { expiresIn: "3d" },
-  );
+  const accessToken = encodeData(authenticatedUser, { expiresIn: "3d" });
 
   return {
     response: {
@@ -64,7 +59,6 @@ export async function loginWithUsernameAndPassword({
       message: "Login successful",
     },
     accessToken,
-    refreshToken,
   };
 }
 
@@ -126,7 +120,6 @@ export async function resetPassword({
 }: z.infer<typeof ResetPasswordSchema>): Promise<{
   response: ApiResponse<AuthData>;
   accessToken: string;
-  refreshToken: string;
 }> {
   await authService.resetPassword(email, otp, password);
 
@@ -143,11 +136,7 @@ export async function resetPassword({
     auth: authenticatedUser,
   };
 
-  const accessToken = encodeData(authenticatedUser, { expiresIn: "30m" });
-  const refreshToken = encodeData(
-    { username: authenticatedUser.email },
-    { expiresIn: "3d" },
-  );
+  const accessToken = encodeData(authenticatedUser, { expiresIn: "3d" });
 
   return {
     response: {
@@ -156,7 +145,6 @@ export async function resetPassword({
       message: "Login successful",
     },
     accessToken,
-    refreshToken,
   };
 }
 

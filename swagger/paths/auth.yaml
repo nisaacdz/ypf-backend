@@ -27,7 +27,7 @@
           Set-Cookie:
             schema:
               type: string
-              example: access_token=...; refresh_token=...
+              example: access_token=...
         content:
           application/json:
             schema:
@@ -214,7 +214,7 @@
           Set-Cookie:
             schema:
               type: string
-              example: access_token=...; refresh_token=...
+              example: access_token=...
         content:
           application/json:
             schema:

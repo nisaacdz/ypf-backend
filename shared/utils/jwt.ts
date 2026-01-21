@@ -15,7 +15,7 @@ export function encodeData<T extends object>(
 }
 
 export type DecodeResult<T> =
-  | { valid: T & { exp: number } }
+  | { valid: T & { exp: number; iat: number } }
   | { expired: { exp: number } }
   | null;
 
@@ -39,6 +39,12 @@ export function decodeData<T extends object>(
       return null;
     }
 
+    const iat = decodedPayload.iat;
+    if (typeof iat !== "number") {
+      logger.error({ iat }, "JWT issued-at is not a valid number:");
+      return null;
+    }
+
     const validationResult = schema.safeParse(decodedPayload);
     if (!validationResult.success) {
       logger.error(
@@ -55,7 +61,7 @@ export function decodeData<T extends object>(
       return { expired: { exp } };
     }
 
-    return { valid: { ...(payloadData as T), exp } };
+    return { valid: { ...(payloadData as T), exp, iat } };
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {
       logger.debug(

@@ -298,13 +298,19 @@ export async function updateProject(
 }
 
 export async function updateProjectMedium(
-  projectMediumId: string,
+  projectId: string,
+  mediumId: string,
   data: { caption?: string; isFeatured?: boolean },
 ): Promise<void> {
   const [updatedData] = await dbClient.db
     .update(ProjectMedia)
     .set(data)
-    .where(eq(ProjectMedia.id, projectMediumId))
+    .where(
+      and(
+        eq(ProjectMedia.projectId, projectId),
+        eq(ProjectMedia.mediumId, mediumId),
+      ),
+    )
     .returning({ id: ProjectMedia.id });
 
   if (!updatedData) {

@@ -118,10 +118,11 @@ export async function updateProject(
 }
 
 export async function updateProjectMedium(
-  projectMediumId: string,
+  projectId: string,
+  mediumId: string,
   updates: z.infer<typeof UpdateProjectMediumSchema>,
 ): Promise<ApiResponse<null>> {
-  await projectsService.updateProjectMedium(projectMediumId, updates);
+  await projectsService.updateProjectMedium(projectId, mediumId, updates);
 
   return {
     success: true,
