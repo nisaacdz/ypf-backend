@@ -12,15 +12,8 @@
     {
       "idx": 1,
       "version": "7",
-      "when": 1767967602830,
-      "tag": "0001_curious_silver_centurion",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1768103508533,
-      "tag": "0002_lame_caretaker",
+      "when": 1769019022649,
+      "tag": "0001_third_banshee",
       "breakpoints": true
     }
   ]

@@ -571,4 +571,10 @@ CREATE INDEX "idx_committee_memberships_member_committee" ON "core"."committee_m
 CREATE INDEX "idx_constituents_email" ON "core"."constituents" USING btree ("email");--> statement-breakpoint
 CREATE INDEX "idx_member_titles_assignments_member_title" ON "core"."member_titles_assignments" USING btree ("member_id","title_id");--> statement-breakpoint
 CREATE INDEX "idx_members_constituent_ended" ON "core"."members" USING btree ("constituent_id","ended_at");--> statement-breakpoint
-CREATE INDEX "idx_announcements_status_expires" ON "activities"."announcements" USING btree ("status","expires_at");
+CREATE INDEX "idx_announcements_status_expires" ON "activities"."announcements" USING btree ("status","expires_at");--> statement-breakpoint
+CREATE INDEX "donations_constituent_id_idx" ON "finance"."donations" USING btree ("constituent_id");--> statement-breakpoint
+CREATE INDEX "donations_project_id_idx" ON "finance"."donations" USING btree ("project_id");--> statement-breakpoint
+CREATE INDEX "donations_event_id_idx" ON "finance"."donations" USING btree ("event_id");--> statement-breakpoint
+CREATE INDEX "order_items_order_id_idx" ON "shop"."order_items" USING btree ("order_id");--> statement-breakpoint
+CREATE INDEX "order_items_product_id_idx" ON "shop"."order_items" USING btree ("product_id");--> statement-breakpoint
+CREATE INDEX "orders_constituent_id_idx" ON "shop"."orders" USING btree ("constituent_id");
