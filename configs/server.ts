@@ -8,7 +8,7 @@ import cookieParser from "cookie-parser";
 import swaggerUi from "swagger-ui-express";
 import { errorHandler } from "@/shared/middlewares/errorHandler";
 import variables from "@/configs/env";
-import { filter } from "@/shared/middlewares";
+// import { filter } from "@/shared/middlewares";
 import apiRouter from "@/features/api/v1";
 import { swaggerSpec } from "@/configs/docs";
 import { rateLimit } from "@/shared/middlewares/rateLimit";
@@ -30,9 +30,9 @@ app.use(
   }),
 );
 
-app.use((req, res, next) => {
-  filter(req, next);
-});
+// app.use((req, res, next) => {
+//   filter(req, next);
+// });
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(cookieParser());
