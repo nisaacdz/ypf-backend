@@ -1,6 +1,6 @@
 {
-  "id": "d256561d-c08c-4baf-be9a-89dc5c37764f",
-  "prevId": "a896de0b-17f5-405d-8142-a5df9da2eb6f",
+  "id": "82de77d6-f1cb-49f1-a168-e7c9cabeb9e7",
+  "prevId": "d256561d-c08c-4baf-be9a-89dc5c37764f",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -653,7 +653,8 @@
           "name": "founding_date",
           "type": "date",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "default": "now()"
         },
         "archived_at": {
           "name": "archived_at",

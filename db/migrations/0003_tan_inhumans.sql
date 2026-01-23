@@ -1,0 +1,1 @@
+ALTER TABLE "core"."chapters" ALTER COLUMN "founding_date" SET DEFAULT now();
