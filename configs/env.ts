@@ -97,7 +97,7 @@ const envSchema = z
         sender: env.EMAILER,
       },
       paystack: {
-        secretHash: env.PAYSTACK_SECRET,
+        secretKey: env.PAYSTACK_SECRET,
       },
     },
     jobs: {

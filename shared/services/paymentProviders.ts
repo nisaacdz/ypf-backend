@@ -54,7 +54,7 @@ export class PaystackProvider implements IPaymentProvider {
   private secretKey: string;
 
   constructor() {
-    this.secretKey = variables.services.paystack.secretHash;
+    this.secretKey = variables.services.paystack.secretKey;
   }
 
   async verifyTransaction(reference: string): Promise<VerifyTransactionResult> {

@@ -298,7 +298,7 @@ export async function initiateDuesPayment(
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${variables.services.paystack.secretHash}`,
+          Authorization: `Bearer ${variables.services.paystack.secretKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
