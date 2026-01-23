@@ -464,23 +464,20 @@ export const constituentsRelations = relations(
   }),
 );
 
-export const applicationsRelations = relations(
-  Applications,
-  ({ one, many }) => ({
-    constituent: one(Constituents, {
-      fields: [Applications.constituentId],
-      references: [Constituents.id],
-    }),
-    membershipApplication: one(MembershipApplications, {
-      fields: [Applications.id],
-      references: [MembershipApplications.applicationId],
-    }),
-    volunteerApplication: one(VolunteerApplications, {
-      fields: [Applications.id],
-      references: [VolunteerApplications.applicationId],
-    }),
+export const applicationsRelations = relations(Applications, ({ one }) => ({
+  constituent: one(Constituents, {
+    fields: [Applications.constituentId],
+    references: [Constituents.id],
   }),
-);
+  membershipApplication: one(MembershipApplications, {
+    fields: [Applications.id],
+    references: [MembershipApplications.applicationId],
+  }),
+  volunteerApplication: one(VolunteerApplications, {
+    fields: [Applications.id],
+    references: [VolunteerApplications.applicationId],
+  }),
+}));
 
 export const membershipApplicationsRelations = relations(
   MembershipApplications,

@@ -1,6 +1,6 @@
 import { Client } from "pg";
 
-async function reset_db() {
+async function resetDb() {
   if (!process.argv.includes("--confirm")) {
     console.error(
       "❌ You must explicitly pass --confirm to reset the database.",
@@ -9,12 +9,13 @@ async function reset_db() {
   }
 
   const client = new Client({
-    connectionString: process.env.PROD_DATABASE_URL,
+    connectionString: process.env.DATABASE_URL,
   });
 
-  await client.connect();
+  try {
+    await client.connect();
 
-  await client.query(`
+    await client.query(`
 DO $$
 DECLARE s text;
 BEGIN
@@ -32,8 +33,12 @@ BEGIN
   EXECUTE 'CREATE SCHEMA IF NOT EXISTS public';
 END $$;
 `);
-
-  await client.end();
+  } catch (error) {
+    console.error("Error resetting database:", error);
+    throw error;
+  } finally {
+    await client.end();
+  }
 }
 
-reset_db();
+resetDb();
