@@ -1,5 +1,5 @@
 {
-  "id": "945a3311-90d0-4303-890f-7c88b8498e2b",
+  "id": "a896de0b-17f5-405d-8142-a5df9da2eb6f",
   "prevId": "e2714bcb-e5cf-48d0-97c1-b4aa42b99a01",
   "version": "7",
   "dialect": "postgresql",
@@ -342,6 +342,78 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "core.applications": {
+      "name": "applications",
+      "schema": "core",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tracking_number": {
+          "name": "tracking_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "generate_alphanumeric_combination(8)"
+        },
+        "constituent_id": {
+          "name": "constituent_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "application_status",
+          "typeSchema": "core",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PENDING'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "applications_constituent_id_constituents_id_fk": {
+          "name": "applications_constituent_id_constituents_id_fk",
+          "tableFrom": "applications",
+          "tableTo": "constituents",
+          "schemaTo": "core",
+          "columnsFrom": ["constituent_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "applications_tracking_number_unique": {
+          "name": "applications_tracking_number_unique",
+          "nullsNotDistinct": false,
+          "columns": ["tracking_number"]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -842,10 +914,10 @@
         },
         "public_id": {
           "name": "public_id",
-          "type": "text",
+          "type": "citext",
           "primaryKey": false,
           "notNull": true,
-          "default": "generate_public_id('YPFC-', 12)"
+          "default": "'YPF-' || EXTRACT(YEAR FROM CURRENT_DATE)::text || '-' || generate_alphanumeric_combination(6)"
         },
         "first_name": {
           "name": "first_name",
@@ -1535,19 +1607,11 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "constituent_id": {
-          "name": "constituent_id",
+        "application_id": {
+          "name": "application_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "application_status",
-          "typeSchema": "core",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'PENDING'"
         },
         "declined_reason": {
           "name": "declined_reason",
@@ -1596,37 +1660,16 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
-        },
-        "tracking_number": {
-          "name": "tracking_number",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "generate_public_id('', 12)"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
         }
       },
       "indexes": {},
       "foreignKeys": {
-        "membership_applications_constituent_id_constituents_id_fk": {
-          "name": "membership_applications_constituent_id_constituents_id_fk",
+        "membership_applications_application_id_applications_id_fk": {
+          "name": "membership_applications_application_id_applications_id_fk",
           "tableFrom": "membership_applications",
-          "tableTo": "constituents",
+          "tableTo": "applications",
           "schemaTo": "core",
-          "columnsFrom": ["constituent_id"],
+          "columnsFrom": ["application_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -1674,10 +1717,10 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "membership_applications_tracking_number_unique": {
-          "name": "membership_applications_tracking_number_unique",
+        "membership_applications_application_id_unique": {
+          "name": "membership_applications_application_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["tracking_number"]
+          "columns": ["application_id"]
         }
       },
       "policies": {},
@@ -1825,19 +1868,11 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "constituent_id": {
-          "name": "constituent_id",
+        "application_id": {
+          "name": "application_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "volunteer_application_status",
-          "typeSchema": "core",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'PENDING'"
         },
         "reason": {
           "name": "reason",
@@ -1850,37 +1885,16 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
-        },
-        "tracking_number": {
-          "name": "tracking_number",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "generate_public_id('', 12)"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
         }
       },
       "indexes": {},
       "foreignKeys": {
-        "volunteer_applications_constituent_id_constituents_id_fk": {
-          "name": "volunteer_applications_constituent_id_constituents_id_fk",
+        "volunteer_applications_application_id_applications_id_fk": {
+          "name": "volunteer_applications_application_id_applications_id_fk",
           "tableFrom": "volunteer_applications",
-          "tableTo": "constituents",
+          "tableTo": "applications",
           "schemaTo": "core",
-          "columnsFrom": ["constituent_id"],
+          "columnsFrom": ["application_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -1888,10 +1902,10 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "volunteer_applications_tracking_number_unique": {
-          "name": "volunteer_applications_tracking_number_unique",
+        "volunteer_applications_application_id_unique": {
+          "name": "volunteer_applications_application_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["tracking_number"]
+          "columns": ["application_id"]
         }
       },
       "policies": {},
@@ -2500,7 +2514,7 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "default": "generate_public_id('YPFP-', 8)"
+          "default": "'YPFP-' || generate_alphanumeric_combination(8)"
         },
         "title": {
           "name": "title",
@@ -3657,6 +3671,11 @@
       "schema": "core",
       "values": ["SUPER_ADMIN", "REGULAR_ADMIN"]
     },
+    "core.application_status": {
+      "name": "application_status",
+      "schema": "core",
+      "values": ["DRAFT", "PENDING", "REJECTED", "ACCEPTED"]
+    },
     "core.document_type": {
       "name": "document_type",
       "schema": "core",
@@ -3672,20 +3691,10 @@
       "schema": "core",
       "values": ["PICTURE", "VIDEO"]
     },
-    "core.application_status": {
-      "name": "application_status",
-      "schema": "core",
-      "values": ["DRAFT", "PENDING", "REJECTED", "ACCEPTED"]
-    },
     "core.national_id_type": {
       "name": "national_id_type",
       "schema": "core",
       "values": ["ECOWASIDCARD"]
-    },
-    "core.volunteer_application_status": {
-      "name": "volunteer_application_status",
-      "schema": "core",
-      "values": ["PENDING", "ACCEPTED", "DECLINED"]
     },
     "activities.attendance_status": {
       "name": "attendance_status",

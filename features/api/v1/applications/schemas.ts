@@ -1,6 +1,5 @@
 import {
-  MembershipApplicationStatusEnum,
-  VolunteerApplicationStatusEnum,
+  ApplicationStatusEnum,
   GenderEnum,
   NationalIdTypeEnum,
 } from "@/db/schema/core";
@@ -125,7 +124,7 @@ export const PostMembershipApplicationBody = FlatApplicationInput.transform(
 
 export const UpdateMembershipApplicationStatusSchema = z
   .object({
-    status: z.enum(MembershipApplicationStatusEnum.enumValues),
+    status: z.enum(ApplicationStatusEnum.enumValues),
   })
   .or(
     z.object({
@@ -137,7 +136,7 @@ export const UpdateMembershipApplicationStatusSchema = z
 export const GetMembershipApplicationsQuerySchema = z.object({
   page: z.coerce.number().default(1),
   pageSize: z.coerce.number().default(10),
-  status: z.enum(MembershipApplicationStatusEnum.enumValues).optional(),
+  status: z.enum(ApplicationStatusEnum.enumValues).optional(),
   search: z.string().optional(),
 });
 
@@ -195,12 +194,12 @@ export const PostVolunteerApplicationBody =
 export const GetVolunteerApplicationsQuerySchema = z.object({
   page: z.coerce.number().default(1),
   pageSize: z.coerce.number().default(10),
-  status: z.enum(VolunteerApplicationStatusEnum.enumValues).optional(),
+  status: z.enum(ApplicationStatusEnum.enumValues).optional(),
   search: z.string().optional(),
 });
 
 export const UpdateVolunteerApplicationStatusSchema = z.object({
-  status: z.enum(VolunteerApplicationStatusEnum.enumValues),
+  status: z.enum(ApplicationStatusEnum.enumValues),
   notes: z.string().optional(),
 });
 

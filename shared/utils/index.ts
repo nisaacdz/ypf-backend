@@ -1,10 +1,9 @@
 import {
-  MembershipApplicationStatusEnum,
+  ApplicationStatusEnum,
   DocumentTypeEnum,
   MediumTypeEnum,
   NationalIdTypeEnum,
   GenderEnum,
-  VolunteerApplicationStatusEnum,
 } from "@/db/schema/core";
 
 import {
@@ -36,10 +35,10 @@ export const paymentMethodMap: Record<string, PaymentMethod> = {
 };
 
 export type NationalIdType = (typeof NationalIdTypeEnum.enumValues)[number];
-export type MembershipApplicationStatus =
-  (typeof MembershipApplicationStatusEnum.enumValues)[number];
-export type YPFVolunteerApplicationStatus =
-  (typeof VolunteerApplicationStatusEnum.enumValues)[number];
+export type ApplicationStatus =
+  (typeof ApplicationStatusEnum.enumValues)[number];
+// Alias for backward compatibility
+export type MembershipApplicationStatus = ApplicationStatus;
 export type DocumentType = (typeof DocumentTypeEnum.enumValues)[number];
 export type MediumType = (typeof MediumTypeEnum.enumValues)[number];
 export type EventStatus = (typeof EventStatusEnum.enumValues)[number];

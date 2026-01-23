@@ -1,11 +1,8 @@
-import {
-  MembershipApplicationStatus,
-  YPFVolunteerApplicationStatus,
-} from "@/shared/utils";
+import { ApplicationStatus } from "@/shared/utils";
 
 export type YPFMembershipApplication = {
   id: string;
-  status: MembershipApplicationStatus;
+  status: ApplicationStatus;
   createdAt: Date;
   trackingNumber: string;
   applicant: {
@@ -23,7 +20,7 @@ export type YPFMembershipApplication = {
 
 export type YPFMembershipApplicationDetail = {
   id: string;
-  status: MembershipApplicationStatus;
+  status: ApplicationStatus;
   trackingNumber: string;
   commitmentStatement?: string;
   referralSource?: string;
@@ -76,7 +73,7 @@ export type YPFMembershipApplicationDetail = {
 export type YPFVolunteerApplication = {
   id: string;
   trackingNumber: string;
-  status: YPFVolunteerApplicationStatus;
+  status: ApplicationStatus;
   createdAt: Date;
   applicant: {
     id: string;
@@ -91,7 +88,7 @@ export type YPFVolunteerApplication = {
 export type YPFVolunteerApplicationDetail = {
   id: string;
   trackingNumber: string;
-  status: YPFVolunteerApplicationStatus;
+  status: ApplicationStatus;
   reason?: string;
   notes?: string;
   createdAt: Date;

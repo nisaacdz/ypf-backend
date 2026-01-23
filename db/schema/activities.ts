@@ -49,7 +49,7 @@ export const AttendanceStatusEnum = activities.enum("attendance_status", [
 export const Projects = activities.table("projects", {
   id: uuid().defaultRandom().primaryKey(),
   publicId: text("public_id")
-    .default(sql`generate_public_id('YPFP-', 8)`)
+    .default(sql`'YPFP-' || generate_alphanumeric_combination(8)`)
     .unique()
     .notNull(),
   title: text().notNull(),

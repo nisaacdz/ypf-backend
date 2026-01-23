@@ -1,7 +1,8 @@
--- Custom SQL migration file, put your code below! --
-CREATE OR REPLACE FUNCTION generate_public_id(prefix text, len int)
+CREATE EXTENSION IF NOT EXISTS citext;
+
+CREATE OR REPLACE FUNCTION generate_alphanumeric_combination(len int)
 RETURNS text AS $$
-SELECT prefix || string_agg(
+SELECT string_agg(
     substr(
         'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 
         floor(random() * 36 + 1)::integer, 
