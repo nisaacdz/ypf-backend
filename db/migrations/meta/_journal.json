@@ -15,6 +15,20 @@
       "when": 1769019022649,
       "tag": "0001_third_banshee",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1769133200000,
+      "tag": "0002_neat_gumdul",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1769133212829,
+      "tag": "0003_massive_ludug",
+      "breakpoints": true
     }
   ]
 }

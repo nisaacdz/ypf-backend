@@ -10,8 +10,16 @@ import {
   AnyPgColumn,
   check,
   index,
+  customType,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
+
+// Custom CITEXT type for case-insensitive text
+export const citext = customType<{ data: string }>({
+  dataType() {
+    return "citext";
+  },
+});
 
 export const core = pgSchema("core");
 
@@ -28,17 +36,12 @@ export const DocumentTypeEnum = core.enum("document_type", [
 export const NationalIdTypeEnum = core.enum("national_id_type", [
   "ECOWASIDCARD",
 ]);
-export const MembershipApplicationStatusEnum = core.enum("application_status", [
+export const ApplicationStatusEnum = core.enum("application_status", [
   "DRAFT",
   "PENDING",
   "REJECTED",
   "ACCEPTED",
 ]);
-
-export const VolunteerApplicationStatusEnum = core.enum(
-  "volunteer_application_status",
-  ["PENDING", "ACCEPTED", "DECLINED"],
-);
 
 // === TABLES ===
 
@@ -76,8 +79,10 @@ export const Constituents = core.table(
   "constituents",
   {
     id: uuid().defaultRandom().primaryKey(),
-    publicId: text("public_id")
-      .default(sql`generate_public_id('YPFC-', 12)`)
+    publicId: citext("public_id")
+      .default(
+        sql`'YPF-' || EXTRACT(YEAR FROM CURRENT_DATE)::text || '-' || generate_alphanumeric_combination(6)`,
+      )
       .unique()
       .notNull(),
     firstName: text("first_name").notNull(),
@@ -130,18 +135,36 @@ export const Constituents = core.table(
   ],
 );
 
-export const MembershipApplications = core.table("membership_applications", {
+// Base Applications table - shared by all application types
+export const Applications = core.table("applications", {
   id: uuid().defaultRandom().primaryKey(),
+  trackingNumber: text("tracking_number")
+    .default(sql`generate_alphanumeric_combination(8)`)
+    .notNull()
+    .unique(),
   constituentId: uuid("constituent_id")
     .notNull()
     .references(() => Constituents.id, { onDelete: "cascade" }),
-  status: MembershipApplicationStatusEnum().notNull().default("PENDING"),
+  status: ApplicationStatusEnum().notNull().default("PENDING"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const MembershipApplications = core.table("membership_applications", {
+  id: uuid().defaultRandom().primaryKey(),
+  applicationId: uuid("application_id")
+    .notNull()
+    .unique()
+    .references(() => Applications.id, { onDelete: "cascade" }),
   declinedReason: text("declined_reason"),
   approvedBy: uuid("approved_by").references(() => Admins.id),
   approvedAt: timestamp("approved_at", { withTimezone: true }),
 
   // Application specific preferences
-  // willingToServe: text("willing_to_serve"), I mean, this will implicitly be yes or true
   commitmentStatement: text("commitment_statement"),
   preferredChapterId: uuid("preferred_chapter_id").references(
     () => Chapters.id,
@@ -154,41 +177,16 @@ export const MembershipApplications = core.table("membership_applications", {
   cvDocumentId: uuid("cv_document_id").references(() => Documents.id),
 
   referralSource: text("referral_source"),
-  // referralOther: text("referral_other"),
-
-  trackingNumber: text("tracking_number")
-    .default(sql`generate_public_id('', 12)`)
-    .notNull()
-    .unique(),
-
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
 });
 
 export const VolunteerApplications = core.table("volunteer_applications", {
   id: uuid().defaultRandom().primaryKey(),
-  constituentId: uuid("constituent_id")
+  applicationId: uuid("application_id")
     .notNull()
-    .references(() => Constituents.id, { onDelete: "cascade" }),
-  status: VolunteerApplicationStatusEnum().notNull().default("PENDING"),
+    .unique()
+    .references(() => Applications.id, { onDelete: "cascade" }),
   reason: text("reason"), // Motivation/Reason for applying
   notes: text(), // Internal admin notes
-
-  trackingNumber: text("tracking_number")
-    .default(sql`generate_public_id('', 12)`)
-    .notNull()
-    .unique(),
-
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
 });
 
 // ensure non overlapping periods of membership at dbms level
@@ -454,12 +452,69 @@ export const constituentsRelations = relations(
     auditorPeriods: many(Auditors),
     adminPeriods: many(Admins),
 
+    // Applications
+    applications: many(Applications),
+
     // Standard relations for other entities
     profilePhoto: one(Media, {
       fields: [Constituents.profilePhotoId],
       references: [Media.id],
     }),
     organizationContacts: many(OrganizationContacts),
+  }),
+);
+
+export const applicationsRelations = relations(
+  Applications,
+  ({ one, many }) => ({
+    constituent: one(Constituents, {
+      fields: [Applications.constituentId],
+      references: [Constituents.id],
+    }),
+    membershipApplication: one(MembershipApplications, {
+      fields: [Applications.id],
+      references: [MembershipApplications.applicationId],
+    }),
+    volunteerApplication: one(VolunteerApplications, {
+      fields: [Applications.id],
+      references: [VolunteerApplications.applicationId],
+    }),
+  }),
+);
+
+export const membershipApplicationsRelations = relations(
+  MembershipApplications,
+  ({ one }) => ({
+    application: one(Applications, {
+      fields: [MembershipApplications.applicationId],
+      references: [Applications.id],
+    }),
+    approver: one(Admins, {
+      fields: [MembershipApplications.approvedBy],
+      references: [Admins.id],
+    }),
+    preferredChapter: one(Chapters, {
+      fields: [MembershipApplications.preferredChapterId],
+      references: [Chapters.id],
+    }),
+    preferredCommittee: one(Committees, {
+      fields: [MembershipApplications.preferredCommitteeId],
+      references: [Committees.id],
+    }),
+    cvDocument: one(Documents, {
+      fields: [MembershipApplications.cvDocumentId],
+      references: [Documents.id],
+    }),
+  }),
+);
+
+export const volunteerApplicationsRelations = relations(
+  VolunteerApplications,
+  ({ one }) => ({
+    application: one(Applications, {
+      fields: [VolunteerApplications.applicationId],
+      references: [Applications.id],
+    }),
   }),
 );
 
