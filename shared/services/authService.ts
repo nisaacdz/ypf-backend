@@ -230,8 +230,8 @@ export async function resetPassword(
 /**
  * Onboards a user by sending an OTP if they exist but have no auth method set.
  *
- * @param email The user's email address.
- * @returns The generated OTP code.
+ * @param publicId The constituent's public ID (e.g., 'YPF-2024-ABC123').
+ * @returns An object containing the generated OTP code and the user's email address.
  * @throws ApiError if user not found or already has an auth method.
  */
 export async function onboardUser(
