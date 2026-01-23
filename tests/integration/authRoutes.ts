@@ -485,10 +485,19 @@ describe("Authentication API", () => {
 
     it("should reject onboard for non-existent user", async () => {
       const response = await request(server).post("/api/v1/auth/onboard").send({
-        user: "nonexistent_public_id",
+        user: "YPF-2022-IU4C27",
       });
 
       expect(response.status).toBe(404);
+      expect(response.body.success).toBe(false);
+    });
+
+    it("should reject onboard with malformed user id", async () => {
+      const response = await request(server).post("/api/v1/auth/onboard").send({
+        user: "skdksdksdj232",
+      });
+
+      expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
     });
 
