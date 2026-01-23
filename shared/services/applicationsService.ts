@@ -10,7 +10,7 @@ import {
   YPFVolunteerApplication,
   YPFVolunteerApplicationDetail,
 } from "@/features/api/v1/applications/dtos";
-import { MembershipApplicationStatus, NationalIdType } from "@/shared/utils";
+import { ApplicationStatus, NationalIdType } from "@/shared/utils";
 import {
   generateSignedDocumentDownloadUrl,
   generateSignedDocumentPreviewUrl,
@@ -72,20 +72,35 @@ export async function createMembershipApplication(
         id: schema.Constituents.id,
       });
 
-    const applicationData = {
-      ...remApplicationData,
-      constituentId: newConstituent.id,
-    };
-
-    const [newApplication] = await tx
-      .insert(schema.MembershipApplications)
-      .values(applicationData)
+    // Create base application record
+    const [baseApplication] = await tx
+      .insert(schema.Applications)
+      .values({
+        constituentId: newConstituent.id,
+      })
       .returning({
-        id: schema.MembershipApplications.id,
-        trackingNumber: schema.MembershipApplications.trackingNumber,
+        id: schema.Applications.id,
+        trackingNumber: schema.Applications.trackingNumber,
       });
 
-    return newApplication;
+    // Create membership-specific application record
+    const [membershipApplication] = await tx
+      .insert(schema.MembershipApplications)
+      .values({
+        applicationId: baseApplication.id,
+        commitmentStatement: remApplicationData.commitmentStatement,
+        preferredChapterId: remApplicationData.preferredChapterId,
+        preferredCommitteeId: remApplicationData.preferredCommitteeId,
+        cvDocumentId: remApplicationData.cvDocumentId,
+      })
+      .returning({
+        id: schema.MembershipApplications.id,
+      });
+
+    return {
+      id: membershipApplication.id,
+      trackingNumber: baseApplication.trackingNumber,
+    };
   });
 
   // Send acknowledgement email (fire and forget)
@@ -107,14 +122,14 @@ export async function getMembershipApplications(
   const offset = (page - 1) * pageSize;
 
   const conditions = [];
-  if (status) conditions.push(eq(schema.MembershipApplications.status, status));
+  if (status) conditions.push(eq(schema.Applications.status, status));
 
   const baseQuery = dbClient.db
     .select({
       id: schema.MembershipApplications.id,
-      trackingNumber: schema.MembershipApplications.trackingNumber,
-      status: schema.MembershipApplications.status,
-      createdAt: schema.MembershipApplications.createdAt,
+      trackingNumber: schema.Applications.trackingNumber,
+      status: schema.Applications.status,
+      createdAt: schema.Applications.createdAt,
       constituent: {
         id: schema.Constituents.id,
         firstName: schema.Constituents.firstName,
@@ -136,8 +151,12 @@ export async function getMembershipApplications(
     })
     .from(schema.MembershipApplications)
     .innerJoin(
+      schema.Applications,
+      eq(schema.MembershipApplications.applicationId, schema.Applications.id),
+    )
+    .innerJoin(
       schema.Constituents,
-      eq(schema.MembershipApplications.constituentId, schema.Constituents.id),
+      eq(schema.Applications.constituentId, schema.Constituents.id),
     )
     .leftJoin(
       schema.Media,
@@ -173,13 +192,17 @@ export async function getMembershipApplications(
       .where(whereClause)
       .limit(pageSize)
       .offset(offset)
-      .orderBy(desc(schema.MembershipApplications.createdAt)),
+      .orderBy(desc(schema.Applications.createdAt)),
     dbClient.db
       .select({ count: count() })
       .from(schema.MembershipApplications)
       .innerJoin(
+        schema.Applications,
+        eq(schema.MembershipApplications.applicationId, schema.Applications.id),
+      )
+      .innerJoin(
         schema.Constituents,
-        eq(schema.MembershipApplications.constituentId, schema.Constituents.id),
+        eq(schema.Applications.constituentId, schema.Constituents.id),
       )
       .where(whereClause),
   ]);
@@ -223,13 +246,13 @@ export async function getMembershipApplicationById(
   const [application] = await dbClient.db
     .select({
       id: schema.MembershipApplications.id,
-      trackingNumber: schema.MembershipApplications.trackingNumber,
-      status: schema.MembershipApplications.status,
+      trackingNumber: schema.Applications.trackingNumber,
+      status: schema.Applications.status,
       commitmentStatement: schema.MembershipApplications.commitmentStatement,
       referralSource: schema.MembershipApplications.referralSource,
       declinedReason: schema.MembershipApplications.declinedReason,
-      createdAt: schema.MembershipApplications.createdAt,
-      updatedAt: schema.MembershipApplications.updatedAt,
+      createdAt: schema.Applications.createdAt,
+      updatedAt: schema.Applications.updatedAt,
       approvedAt: schema.MembershipApplications.approvedAt,
       constituent: {
         id: schema.Constituents.id,
@@ -275,8 +298,12 @@ export async function getMembershipApplicationById(
     })
     .from(schema.MembershipApplications)
     .innerJoin(
+      schema.Applications,
+      eq(schema.MembershipApplications.applicationId, schema.Applications.id),
+    )
+    .innerJoin(
       schema.Constituents,
-      eq(schema.MembershipApplications.constituentId, schema.Constituents.id),
+      eq(schema.Applications.constituentId, schema.Constituents.id),
     )
     .leftJoin(
       schema.Chapters,
@@ -399,27 +426,49 @@ export async function getMembershipApplicationById(
 
 export async function updateMembershipApplicationStatus(
   id: string,
-  newStatus: MembershipApplicationStatus,
+  newStatus: ApplicationStatus,
   adminId: string,
   declinedReason?: string,
 ) {
-  const [updated] = await dbClient.db
-    .update(schema.MembershipApplications)
+  // First get the applicationId from MembershipApplications
+  const [membershipApp] = await dbClient.db
+    .select({
+      applicationId: schema.MembershipApplications.applicationId,
+    })
+    .from(schema.MembershipApplications)
+    .where(eq(schema.MembershipApplications.id, id))
+    .limit(1);
+
+  if (!membershipApp) throw new ApiError("Application not found", 404);
+
+  // Update base application status
+  const [updatedBase] = await dbClient.db
+    .update(schema.Applications)
     .set({
       status: newStatus,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.Applications.id, membershipApp.applicationId))
+    .returning({
+      constituentId: schema.Applications.constituentId,
+      trackingNumber: schema.Applications.trackingNumber,
+    });
+
+  // Update membership-specific fields
+  await dbClient.db
+    .update(schema.MembershipApplications)
+    .set({
       declinedReason: newStatus === "REJECTED" ? declinedReason : null,
       approvedAt: newStatus === "ACCEPTED" ? new Date() : null,
+      approvedBy: newStatus === "ACCEPTED" ? adminId : null,
     })
-    .where(eq(schema.MembershipApplications.id, id))
-    .returning();
-
-  if (!updated) throw new ApiError("Application not found", 404);
+    .where(eq(schema.MembershipApplications.id, id));
 
   // If accepted, create membership and send email
   if (newStatus === "ACCEPTED") {
     // Create membership record for the constituent
     await dbClient.db.insert(schema.Members).values({
-      constituentId: updated.constituentId,
+      constituentId: updatedBase.constituentId,
       startedAt: new Date(),
     });
 
@@ -431,31 +480,35 @@ export async function updateMembershipApplicationStatus(
         email: schema.Constituents.email,
       })
       .from(schema.Constituents)
-      .where(eq(schema.Constituents.id, updated.constituentId))
+      .where(eq(schema.Constituents.id, updatedBase.constituentId))
       .limit(1);
 
     if (constituent && constituent.email) {
       sendMembershipApplicationAcceptanceEmail({
         email: constituent.email,
         name: `${constituent.firstName} ${constituent.lastName}`,
-        trackingNumber: updated.trackingNumber,
+        trackingNumber: updatedBase.trackingNumber,
       }).catch((err) => {
         logger.error("Failed to send acceptance email", err);
       });
     }
   }
 
-  return updated;
+  return { id, status: newStatus };
 }
 
 export async function getMembershipApplicationStats() {
   const stats = await dbClient.db
     .select({
-      status: schema.MembershipApplications.status,
+      status: schema.Applications.status,
       count: count(),
     })
     .from(schema.MembershipApplications)
-    .groupBy(schema.MembershipApplications.status);
+    .innerJoin(
+      schema.Applications,
+      eq(schema.MembershipApplications.applicationId, schema.Applications.id),
+    )
+    .groupBy(schema.Applications.status);
 
   return stats;
 }
@@ -477,14 +530,11 @@ export async function createVolunteerApplication(
 
     if (existingConstituent) {
       constituentId = existingConstituent.id;
-      // Optionally update constituent fields if needed, but for now we assume they might just be applying
-      // We could update them here if we wanted to be more aggressive
     } else {
       const [newConstituent] = await tx
         .insert(schema.Constituents)
         .values({
           ...constituentData,
-          // Generate publicId automatically by DB default
         })
         .returning({
           id: schema.Constituents.id,
@@ -492,20 +542,32 @@ export async function createVolunteerApplication(
       constituentId = newConstituent.id;
     }
 
-    const applicationData = {
-      ...remApplicationData,
-      constituentId,
-    };
-
-    const [newApplication] = await tx
-      .insert(schema.VolunteerApplications)
-      .values(applicationData)
+    // Create base application record
+    const [baseApplication] = await tx
+      .insert(schema.Applications)
+      .values({
+        constituentId,
+      })
       .returning({
-        id: schema.VolunteerApplications.id,
-        trackingNumber: schema.VolunteerApplications.trackingNumber,
+        id: schema.Applications.id,
+        trackingNumber: schema.Applications.trackingNumber,
       });
 
-    return newApplication;
+    // Create volunteer-specific application record
+    const [volunteerApplication] = await tx
+      .insert(schema.VolunteerApplications)
+      .values({
+        applicationId: baseApplication.id,
+        reason: remApplicationData.reason,
+      })
+      .returning({
+        id: schema.VolunteerApplications.id,
+      });
+
+    return {
+      id: volunteerApplication.id,
+      trackingNumber: baseApplication.trackingNumber,
+    };
   });
 
   return result;
@@ -518,14 +580,14 @@ export async function getVolunteerApplications(
   const offset = (page - 1) * pageSize;
 
   const conditions = [];
-  if (status) conditions.push(eq(schema.VolunteerApplications.status, status));
+  if (status) conditions.push(eq(schema.Applications.status, status));
 
   const baseQuery = dbClient.db
     .select({
       id: schema.VolunteerApplications.id,
-      trackingNumber: schema.VolunteerApplications.trackingNumber,
-      status: schema.VolunteerApplications.status,
-      createdAt: schema.VolunteerApplications.createdAt,
+      trackingNumber: schema.Applications.trackingNumber,
+      status: schema.Applications.status,
+      createdAt: schema.Applications.createdAt,
       constituent: {
         id: schema.Constituents.id,
         firstName: schema.Constituents.firstName,
@@ -538,8 +600,12 @@ export async function getVolunteerApplications(
     })
     .from(schema.VolunteerApplications)
     .innerJoin(
+      schema.Applications,
+      eq(schema.VolunteerApplications.applicationId, schema.Applications.id),
+    )
+    .innerJoin(
       schema.Constituents,
-      eq(schema.VolunteerApplications.constituentId, schema.Constituents.id),
+      eq(schema.Applications.constituentId, schema.Constituents.id),
     );
 
   if (search) {
@@ -559,10 +625,14 @@ export async function getVolunteerApplications(
       .where(whereClause)
       .limit(pageSize)
       .offset(offset)
-      .orderBy(desc(schema.VolunteerApplications.createdAt)),
+      .orderBy(desc(schema.Applications.createdAt)),
     dbClient.db
       .select({ count: count() })
       .from(schema.VolunteerApplications)
+      .innerJoin(
+        schema.Applications,
+        eq(schema.VolunteerApplications.applicationId, schema.Applications.id),
+      )
       .where(whereClause),
   ]);
 
@@ -593,12 +663,12 @@ export async function getVolunteerApplicationById(
   const [application] = await dbClient.db
     .select({
       id: schema.VolunteerApplications.id,
-      trackingNumber: schema.VolunteerApplications.trackingNumber,
-      status: schema.VolunteerApplications.status,
+      trackingNumber: schema.Applications.trackingNumber,
+      status: schema.Applications.status,
       reason: schema.VolunteerApplications.reason,
       notes: schema.VolunteerApplications.notes,
-      createdAt: schema.VolunteerApplications.createdAt,
-      updatedAt: schema.VolunteerApplications.updatedAt,
+      createdAt: schema.Applications.createdAt,
+      updatedAt: schema.Applications.updatedAt,
       constituent: {
         id: schema.Constituents.id,
         firstName: schema.Constituents.firstName,
@@ -615,8 +685,12 @@ export async function getVolunteerApplicationById(
     })
     .from(schema.VolunteerApplications)
     .innerJoin(
+      schema.Applications,
+      eq(schema.VolunteerApplications.applicationId, schema.Applications.id),
+    )
+    .innerJoin(
       schema.Constituents,
-      eq(schema.VolunteerApplications.constituentId, schema.Constituents.id),
+      eq(schema.Applications.constituentId, schema.Constituents.id),
     )
     .where(eq(schema.VolunteerApplications.id, id))
     .limit(1);
