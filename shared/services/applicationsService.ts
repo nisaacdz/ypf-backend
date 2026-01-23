@@ -430,48 +430,59 @@ export async function updateMembershipApplicationStatus(
   adminId: string,
   declinedReason?: string,
 ) {
-  // First get the applicationId from MembershipApplications
-  const [membershipApp] = await dbClient.db
-    .select({
-      applicationId: schema.MembershipApplications.applicationId,
-    })
-    .from(schema.MembershipApplications)
-    .where(eq(schema.MembershipApplications.id, id))
-    .limit(1);
+  // Perform all database operations in a transaction
+  const result = await dbClient.db.transaction(async (tx) => {
+    // First get the applicationId from MembershipApplications
+    const [membershipApp] = await tx
+      .select({
+        applicationId: schema.MembershipApplications.applicationId,
+      })
+      .from(schema.MembershipApplications)
+      .where(eq(schema.MembershipApplications.id, id))
+      .limit(1);
 
-  if (!membershipApp) throw new ApiError("Application not found", 404);
+    if (!membershipApp) throw new ApiError("Application not found", 404);
 
-  // Update base application status
-  const [updatedBase] = await dbClient.db
-    .update(schema.Applications)
-    .set({
-      status: newStatus,
-      updatedAt: new Date(),
-    })
-    .where(eq(schema.Applications.id, membershipApp.applicationId))
-    .returning({
-      constituentId: schema.Applications.constituentId,
-      trackingNumber: schema.Applications.trackingNumber,
-    });
+    // Update base application status
+    const [updatedBase] = await tx
+      .update(schema.Applications)
+      .set({
+        status: newStatus,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.Applications.id, membershipApp.applicationId))
+      .returning({
+        constituentId: schema.Applications.constituentId,
+        trackingNumber: schema.Applications.trackingNumber,
+      });
 
-  // Update membership-specific fields
-  await dbClient.db
-    .update(schema.MembershipApplications)
-    .set({
-      declinedReason: newStatus === "REJECTED" ? declinedReason : null,
-      approvedAt: newStatus === "ACCEPTED" ? new Date() : null,
-      approvedBy: newStatus === "ACCEPTED" ? adminId : null,
-    })
-    .where(eq(schema.MembershipApplications.id, id));
+    if (!updatedBase) {
+      throw new ApiError("Failed to update application status", 500);
+    }
 
-  // If accepted, create membership and send email
+    // Update membership-specific fields
+    await tx
+      .update(schema.MembershipApplications)
+      .set({
+        declinedReason: newStatus === "REJECTED" ? declinedReason : null,
+        approvedAt: newStatus === "ACCEPTED" ? new Date() : null,
+        approvedBy: newStatus === "ACCEPTED" ? adminId : null,
+      })
+      .where(eq(schema.MembershipApplications.id, id));
+
+    // If accepted, create membership record for the constituent
+    if (newStatus === "ACCEPTED") {
+      await tx.insert(schema.Members).values({
+        constituentId: updatedBase.constituentId,
+        startedAt: new Date(),
+      });
+    }
+
+    return updatedBase;
+  });
+
+  // Send acceptance email after transaction commits
   if (newStatus === "ACCEPTED") {
-    // Create membership record for the constituent
-    await dbClient.db.insert(schema.Members).values({
-      constituentId: updatedBase.constituentId,
-      startedAt: new Date(),
-    });
-
     // Fetch constituent for email
     const [constituent] = await dbClient.db
       .select({
@@ -480,14 +491,14 @@ export async function updateMembershipApplicationStatus(
         email: schema.Constituents.email,
       })
       .from(schema.Constituents)
-      .where(eq(schema.Constituents.id, updatedBase.constituentId))
+      .where(eq(schema.Constituents.id, result.constituentId))
       .limit(1);
 
     if (constituent && constituent.email) {
       sendMembershipApplicationAcceptanceEmail({
         email: constituent.email,
         name: `${constituent.firstName} ${constituent.lastName}`,
-        trackingNumber: updatedBase.trackingNumber,
+        trackingNumber: result.trackingNumber,
       }).catch((err) => {
         logger.error("Failed to send acceptance email", err);
       });
