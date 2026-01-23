@@ -154,11 +154,11 @@ export const MemberTitles = core.table("member_titles", {
 
 #### Schema Issues
 
-| **Issue**              | **Severity** | **Description**                                             |
-| ---------------------- | ------------ | ----------------------------------------------------------- |
-| Missing indexes        | **MEDIUM**   | **FIXED** (Indexes added via migration 0002)                |
-| Missing constraints    | **LOW**      | Temporal exclusion constraints not enforced in DB           |
-| Nullable `email` field | **LOW**      | `Constituents.email` is nullable but often assumed non-null |
+| **Issue**              | **Severity** | **Description**                                                    |
+| ---------------------- | ------------ | ------------------------------------------------------------------ |
+| Missing indexes        | **MEDIUM**   | **FIXED** (Indexes added via migration 0002)                       |
+| Missing constraints    | **LOW**      | **FIXED** (Temporal exclusion constraints added in migration 0002) |
+| Nullable `email` field | **LOW**      | `Constituents.email` is nullable but often assumed non-null        |
 
 ### 1.3 Key Conventions Compliance
 
@@ -864,20 +864,20 @@ export async function authenticate(
 
 ### 5.1 Authentication & Authorization
 
-| **Check**             | **Status**  | **Severity** | **Notes**                                 |
-| --------------------- | ----------- | ------------ | ----------------------------------------- |
-| Password hashing      | ✅ Pass     | -            | bcrypt with proper salt rounds            |
-| JWT secrets           | ✅ Pass     | -            | Stored in env variables                   |
-| Token expiration      | ✅ Pass     | -            | Proper expiration times                   |
-| httpOnly cookies      | ✅ Pass     | -            | Prevents XSS token theft                  |
-| Secure cookies        | ✅ Pass     | -            | HTTPS only in production                  |
-| sameSite cookies      | ✅ Pass     | -            | Set to "none" for cross-origin            |
-| RBAC implementation   | ✅ Pass     | -            | Flexible visitor pattern                  |
-| Authorization checks  | ✅ Pass     | -            | Consistent `authorize()` middleware       |
-| Rate limiting on auth | ❌ **FAIL** | **HIGH**     | No rate limiting on login/forgot-password |
-| Session revocation    | ❌ **FAIL** | **HIGH**     | Cannot revoke compromised tokens          |
-| Password complexity   | ⚠️ Warning  | MEDIUM       | No complexity requirements enforced       |
-| Account lockout       | ⚠️ Warning  | MEDIUM       | No lockout after failed attempts          |
+| **Check**             | **Status**  | **Severity** | **Notes**                                             |
+| --------------------- | ----------- | ------------ | ----------------------------------------------------- |
+| Password hashing      | ✅ Pass     | -            | bcrypt with proper salt rounds                        |
+| JWT secrets           | ✅ Pass     | -            | Stored in env variables                               |
+| Token expiration      | ✅ Pass     | -            | Proper expiration times                               |
+| httpOnly cookies      | ✅ Pass     | -            | Prevents XSS token theft                              |
+| Secure cookies        | ✅ Pass     | -            | HTTPS only in production                              |
+| sameSite cookies      | ✅ Pass     | -            | Set to "none" for cross-origin                        |
+| RBAC implementation   | ✅ Pass     | -            | Flexible visitor pattern                              |
+| Authorization checks  | ✅ Pass     | -            | Consistent `authorize()` middleware                   |
+| Rate limiting on auth | ✅ Pass     | -            | Limits applied to login and forgot-password endpoints |
+| Session revocation    | ❌ **FAIL** | **HIGH**     | Cannot revoke compromised tokens                      |
+| Password complexity   | ⚠️ Warning  | MEDIUM       | No complexity requirements enforced                   |
+| Account lockout       | ⚠️ Warning  | MEDIUM       | No lockout after failed attempts                      |
 
 ### 5.2 SQL Injection
 
@@ -1266,7 +1266,7 @@ None identified. Codebase has no critical security vulnerabilities or data integ
 | L-2   | Hardcoded callback URLs                                  | Config flexibility | 1 hour     | 2            |
 | L-3   | Missing JSDoc on complex functions                       | Documentation      | 4 hours    | 3            |
 | L-4   | Temporal exclusion constraints not enforced              | Edge case bugs     | 1 day      | 4            |
-| L-5   | Inconsistent secret key naming (secretHash vs secretKey) | Confusion          | 1 hour     | 5            |
+| L-5   | Inconsistent secret key naming (secretHash vs secretKey) | Confusion          | 1 hour     | **FIXED**    |
 
 ### 8.5 ℹ️ INFORMATIONAL (Consider for Future)
 
