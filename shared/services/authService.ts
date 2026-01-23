@@ -230,21 +230,28 @@ export async function resetPassword(
 /**
  * Onboards a user by sending an OTP if they exist but have no auth method set.
  *
- * @param email The user's email address.
- * @returns The generated OTP code.
+ * @param publicId The constituent's public ID (e.g., 'YPF-2024-ABC123').
+ * @returns An object containing the generated OTP code and the user's email address.
  * @throws ApiError if user not found or already has an auth method.
  */
-export async function onboardUser(email: string): Promise<string> {
+export async function onboardUser(
+  publicId: string,
+): Promise<{ otp: string; email: string }> {
   const [user] = await dbClient.db
     .select({
       id: schema.Users.id,
+      email: schema.Users.email,
       password: schema.Users.password,
       googleId: schema.Users.googleId,
       appleId: schema.Users.appleId,
       facebookId: schema.Users.facebookId,
     })
     .from(schema.Users)
-    .where(eq(schema.Users.email, email));
+    .innerJoin(
+      schema.Constituents,
+      eq(schema.Users.constituentId, schema.Constituents.id),
+    )
+    .where(eq(schema.Constituents.publicId, publicId));
 
   if (!user) {
     throw new ApiError("User not found", 404);
@@ -256,6 +263,7 @@ export async function onboardUser(email: string): Promise<string> {
   }
 
   const otp = randomInt(100000, 1000000).toString();
+  const email = user.email!;
 
   // Use transaction to ensure atomicity
   await dbClient.db.transaction(async (tx) => {
@@ -270,5 +278,5 @@ export async function onboardUser(email: string): Promise<string> {
     });
   });
 
-  return otp;
+  return { otp, email };
 }

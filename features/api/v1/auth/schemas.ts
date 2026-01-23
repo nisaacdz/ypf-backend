@@ -51,5 +51,10 @@ export const ResetPasswordSchema = z.object({
 });
 
 export const OnboardSchema = z.object({
-  email: z.email({ message: "Please enter a valid email address." }),
+  user: z
+    .string({ message: "User ID is required." })
+    .regex(/^YPF-\d{4}-[A-Za-z0-9]{6}$/, {
+      message:
+        "User ID must match the format 'YPF-YYYY-XXXXXX' (e.g., 'YPF-2024-ABC123').",
+    }),
 });
