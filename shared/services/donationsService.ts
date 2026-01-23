@@ -247,7 +247,7 @@ export async function startPaystackDonation(
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${variables.services.paystack.secretHash}`,
+          Authorization: `Bearer ${variables.services.paystack.secretKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -336,7 +336,7 @@ export async function verifyPaystackDonation(
     }
 
     // Call Paystack verification API
-    const paystackSecretKey = variables.services.paystack.secretHash;
+    const paystackSecretKey = variables.services.paystack.secretKey;
 
     const verifyResponse = await fetch(
       `https://api.paystack.co/transaction/verify/${donation.transaction.externalRef}`,

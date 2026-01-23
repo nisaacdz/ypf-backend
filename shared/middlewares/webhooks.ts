@@ -13,7 +13,7 @@ export function verifyPaystackSignature(
   }
 
   const hash = crypto
-    .createHmac("sha512", variables.services.paystack.secretHash)
+    .createHmac("sha512", variables.services.paystack.secretKey)
     .update(JSON.stringify(req.body))
     .digest("hex");
 

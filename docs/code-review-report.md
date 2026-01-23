@@ -14,6 +14,7 @@ This report provides a comprehensive analysis of the YPF Backend codebase, cover
 ### Overall Assessment: **B+ (87/100)**
 
 **Strengths:**
+
 - ✅ Excellent architectural patterns (class table inheritance, save-then-call)
 - ✅ Strong adherence to coding conventions (no `console.log`, minimal `process.env` violations)
 - ✅ Comprehensive documentation and implementation guides
@@ -22,6 +23,7 @@ This report provides a comprehensive analysis of the YPF Backend codebase, cover
 - ✅ Robust transaction management for financial operations
 
 **Areas for Improvement:**
+
 - ⚠️ Dual-token authentication adds unnecessary complexity
 - ⚠️ Some raw SQL queries can be converted to Drizzle ORM
 - ⚠️ Missing database indexes for performance optimization
@@ -81,6 +83,7 @@ ypf-backend/
 4. **Middleware Stack Pattern:** Composable auth, validation, caching middlewares
 
 **Findings:**
+
 - ✅ Clear separation of concerns
 - ✅ Consistent import alias usage (`@/`)
 - ✅ No circular dependencies detected
@@ -117,6 +120,7 @@ FinancialTransactions (parent)
 **Assessment:** ✅ **Excellent pattern for polymorphic transactions**
 
 **Benefits:**
+
 - Single source of truth for all financial data
 - Easy to add new transaction types
 - Unified reporting and reconciliation
@@ -125,6 +129,7 @@ FinancialTransactions (parent)
 **2. Temporal Data Modeling**
 
 Multiple entities track time-based relationships:
+
 - `Members.startedAt / endedAt` - Membership periods
 - `MemberTitlesAssignments.startedAt / endedAt` - Title periods
 - `ChapterMemberships.startedAt / endedAt` - Chapter affiliations
@@ -149,11 +154,11 @@ export const MemberTitles = core.table("member_titles", {
 
 #### Schema Issues
 
-| **Issue** | **Severity** | **Description** |
-|-----------|--------------|-----------------|
-| Missing indexes | **MEDIUM** | Several foreign keys lack indexes (see Section 6.1) |
-| Missing constraints | **LOW** | Temporal exclusion constraints not enforced in DB |
-| Nullable `email` field | **LOW** | `Constituents.email` is nullable but often assumed non-null |
+| **Issue**              | **Severity** | **Description**                                             |
+| ---------------------- | ------------ | ----------------------------------------------------------- |
+| Missing indexes        | **MEDIUM**   | **FIXED** (Indexes added via migration 0002)                |
+| Missing constraints    | **LOW**      | Temporal exclusion constraints not enforced in DB           |
+| Nullable `email` field | **LOW**      | `Constituents.email` is nullable but often assumed non-null |
 
 ### 1.3 Key Conventions Compliance
 
@@ -163,7 +168,7 @@ export const MemberTitles = core.table("member_titles", {
 ✅ **Environment Variables:** Only `configs/env.ts` and `drizzle.config.ts` use `process.env`  
 ✅ **Logging:** Zero `console.log` usage in `shared/` and `features/` directories  
 ✅ **Database Access:** All code uses `dbClient.db` from `@/configs/db`  
-✅ **Error Handling:** Consistent use of `ApiError` class  
+✅ **Error Handling:** Consistent use of `ApiError` class
 
 **Violations Found:** **0** 🎉
 
@@ -184,6 +189,7 @@ export const MemberTitles = core.table("member_titles", {
 **Status:** ✅ **Well-Implemented**
 
 **Strengths:**
+
 - ✅ Implements save-then-call pattern correctly
 - ✅ Proper database transaction usage
 - ✅ Compensating transaction on API failure
@@ -191,11 +197,11 @@ export const MemberTitles = core.table("member_titles", {
 
 **Issues:**
 
-| **Issue** | **Severity** | **Line** | **Description** |
-|-----------|--------------|----------|-----------------|
-| Hardcoded secret key name | LOW | 250 | Uses `secretHash` instead of `secretKey` (inconsistent naming) |
-| Missing email retry logic | MEDIUM | 405 | Email failure doesn't trigger retry |
-| Duplicate verification logic | LOW | 318-423 | Similar logic to `transactionsService.verifyPaystackTransaction` |
+| **Issue**                    | **Severity** | **Line** | **Description**                                                  |
+| ---------------------------- | ------------ | -------- | ---------------------------------------------------------------- |
+| Hardcoded secret key name    | LOW          | 250      | **FIXED** (Renamed to `secretKey`)                               |
+| Missing email retry logic    | MEDIUM       | 405      | Email failure doesn't trigger retry                              |
+| Duplicate verification logic | LOW          | 318-423  | Similar logic to `transactionsService.verifyPaystackTransaction` |
 
 **Recommendation:**
 
@@ -215,6 +221,7 @@ Authorization: `Bearer ${variables.services.paystack.secretKey}`,
 **Status:** ✅ **Excellent**
 
 **Strengths:**
+
 - ✅ Provider abstraction pattern for payment gateways
 - ✅ Race condition protection with idempotent updates
 - ✅ Comprehensive email notification logic
@@ -222,10 +229,10 @@ Authorization: `Bearer ${variables.services.paystack.secretKey}`,
 
 **Issues:**
 
-| **Issue** | **Severity** | **Line** | **Description** |
-|-----------|--------------|----------|-----------------|
-| Missing transaction type check | LOW | 281-431 | `sendTransactionSuccessEmail` doesn't handle all transaction types |
-| Inconsistent email error handling | INFO | 424-430 | Logs errors but doesn't alert on repeated failures |
+| **Issue**                         | **Severity** | **Line** | **Description**                                                    |
+| --------------------------------- | ------------ | -------- | ------------------------------------------------------------------ |
+| Missing transaction type check    | LOW          | 281-431  | `sendTransactionSuccessEmail` doesn't handle all transaction types |
+| Inconsistent email error handling | INFO         | 424-430  | Logs errors but doesn't alert on repeated failures                 |
 
 **Raw SQL Usage:** ❌ None
 
@@ -234,17 +241,18 @@ Authorization: `Bearer ${variables.services.paystack.secretKey}`,
 **Status:** ✅ **Good**
 
 **Strengths:**
+
 - ✅ Atomic database transactions for order creation
 - ✅ Stock decrement with race condition protection
 - ✅ Proper validation before creating records
 
 **Issues:**
 
-| **Issue** | **Severity** | **Line** | **Description** |
-|-----------|--------------|----------|-----------------|
-| Stock validation race condition | **HIGH** | 154-167 | Stock check and decrement not atomic across concurrent requests |
-| Missing product deactivation check | MEDIUM | 74-78 | `isActive` check happens before transaction, product could be deactivated concurrently |
-| Hardcoded callback URL | LOW | 197 | Callback URL could be in env config |
+| **Issue**                          | **Severity** | **Line** | **Description**                                                                        |
+| ---------------------------------- | ------------ | -------- | -------------------------------------------------------------------------------------- |
+| Stock validation race condition    | **HIGH**     | 154-167  | Stock check and decrement not atomic across concurrent requests                        |
+| Missing product deactivation check | MEDIUM       | 74-78    | `isActive` check happens before transaction, product could be deactivated concurrently |
+| Hardcoded callback URL             | LOW          | 197      | Callback URL could be in env config                                                    |
 
 **Critical Issue: Stock Concurrency**
 
@@ -255,10 +263,12 @@ const { validatedItems, totalAmount } = await validateOrderItems(items); // ← 
 await dbClient.db.transaction(async (tx) => {
   // ... create order
   await Promise.all(
-    validatedItems.map((item) =>
-      tx.update(schema.Products)
-        .set({ stockQuantity: sql`... - ${item.quantity}` }) // ← Stock decrement
-    )
+    validatedItems.map(
+      (item) =>
+        tx
+          .update(schema.Products)
+          .set({ stockQuantity: sql`... - ${item.quantity}` }), // ← Stock decrement
+    ),
   );
 });
 
@@ -279,17 +289,18 @@ await tx
 **Status:** ⚠️ **Needs Refactoring**
 
 **Strengths:**
+
 - ✅ Complex query optimization with subqueries
 - ✅ Good use of window functions
 - ✅ Proper pagination implementation
 
 **Issues:**
 
-| **Issue** | **Severity** | **Line** | **Description** |
-|-----------|--------------|----------|-----------------|
-| File too large | MEDIUM | - | 852 lines, should be split into modules |
-| Complex subqueries | INFO | 36-126 | Could benefit from database views |
-| Repeated query logic | MEDIUM | Multiple | Subqueries repeated across functions |
+| **Issue**            | **Severity** | **Line** | **Description**                         |
+| -------------------- | ------------ | -------- | --------------------------------------- |
+| File too large       | MEDIUM       | -        | 852 lines, should be split into modules |
+| Complex subqueries   | INFO         | 36-126   | Could benefit from database views       |
+| Repeated query logic | MEDIUM       | Multiple | Subqueries repeated across functions    |
 
 **Raw SQL Usage:** ⚠️ **8 instances** - Window functions, row_number(), concat()
 
@@ -309,17 +320,18 @@ await tx
 **Status:** ✅ **Good**
 
 **Strengths:**
+
 - ✅ Proper password hashing with bcrypt
 - ✅ Separation of login with/without password
 - ✅ Role and profile fetching
 
 **Issues:**
 
-| **Issue** | **Severity** | **Line** | **Description** |
-|-----------|--------------|----------|-----------------|
-| No rate limiting on login | **HIGH** | 20-72 | Brute force attacks possible |
-| No password complexity requirements | MEDIUM | - | Weak passwords allowed |
-| No account lockout | MEDIUM | - | No protection after failed attempts |
+| **Issue**                           | **Severity** | **Line** | **Description**                     |
+| ----------------------------------- | ------------ | -------- | ----------------------------------- |
+| No rate limiting on login           | **HIGH**     | 20-72    | Brute force attacks possible        |
+| No password complexity requirements | MEDIUM       | -        | Weak passwords allowed              |
+| No account lockout                  | MEDIUM       | -        | No protection after failed attempts |
 
 **Raw SQL Usage:** ⚠️ **1 instance** (line 178) - CONCAT for role formatting
 
@@ -328,15 +340,16 @@ await tx
 **Status:** ✅ **Good**
 
 **Strengths:**
+
 - ✅ Proper role/profile fetching with temporal filtering
 - ✅ Good use of Drizzle query builder
 
 **Issues:**
 
-| **Issue** | **Severity** | **Line** | **Description** |
-|-----------|--------------|----------|-----------------|
-| Inefficient role queries | MEDIUM | 64-135 | Two separate queries instead of UNION |
-| Code duplication | LOW | 64-188 | `getConstituentRoles` and `getConstituentRoleTitles` very similar |
+| **Issue**                | **Severity** | **Line** | **Description**                                                   |
+| ------------------------ | ------------ | -------- | ----------------------------------------------------------------- |
+| Inefficient role queries | MEDIUM       | 64-135   | Two separate queries instead of UNION                             |
+| Code duplication         | LOW          | 64-188   | `getConstituentRoles` and `getConstituentRoleTitles` very similar |
 
 **Recommended Optimization:**
 
@@ -358,34 +371,35 @@ const allRoles = await unionAll(adminRolesQuery, memberTitlesQuery);
 **Status:** ✅ **Good (but incomplete)**
 
 **Strengths:**
+
 - ✅ Simple, focused service
 - ✅ Proper job queuing integration
 
 **Issues:**
 
-| **Issue** | **Severity** | **Line** | **Description** |
-|-----------|--------------|----------|-----------------|
-| Missing worker implementation | **HIGH** | - | Job dispatcher referenced but workers not complete |
-| Missing announcement retrieval | MEDIUM | - | No `getAnnouncements`, `getAnnouncementById` functions |
-| Missing status update functions | LOW | - | No archive, draft, publish status changes |
+| **Issue**                       | **Severity** | **Line** | **Description**                                        |
+| ------------------------------- | ------------ | -------- | ------------------------------------------------------ |
+| Missing worker implementation   | **HIGH**     | -        | Job dispatcher referenced but workers not complete     |
+| Missing announcement retrieval  | MEDIUM       | -        | No `getAnnouncements`, `getAnnouncementById` functions |
+| Missing status update functions | LOW          | -        | No archive, draft, publish status changes              |
 
 **Note:** This aligns with the documentation noting pg-boss integration is in progress.
 
 #### 2.2.8 Other Services Quick Assessment
 
-| **Service** | **Lines** | **Raw SQL** | **Status** | **Key Issue** |
-|-------------|-----------|-------------|------------|---------------|
-| `chaptersService.ts` | 540 | 5 | ✅ Good | Window functions (acceptable) |
-| `committeesService.ts` | 547 | 5 | ✅ Good | Similar to chapters |
-| `eventsService.ts` | 430 | 3 | ✅ Good | None |
-| `projectsService.ts` | 375 | 3 | ✅ Good | None |
-| `partnershipsService.ts` | 397 | 2 | ✅ Good | None |
-| `duesService.ts` | 354 | 4 | ✅ Good | None |
-| `constituentsService.ts` | 503 | 1 | ✅ Good | Large file, consider splitting |
-| `applicationsService.ts` | 648 | 2 | ✅ Good | Large file |
-| `dashboardService.ts` | - | 0 | ✅ Good | Simple aggregations |
-| `documentsService.ts` | - | 0 | ✅ Good | File operations |
-| `mediaService.ts` | - | 0 | ✅ Good | Image handling |
+| **Service**              | **Lines** | **Raw SQL** | **Status** | **Key Issue**                  |
+| ------------------------ | --------- | ----------- | ---------- | ------------------------------ |
+| `chaptersService.ts`     | 540       | 5           | ✅ Good    | Window functions (acceptable)  |
+| `committeesService.ts`   | 547       | 5           | ✅ Good    | Similar to chapters            |
+| `eventsService.ts`       | 430       | 3           | ✅ Good    | None                           |
+| `projectsService.ts`     | 375       | 3           | ✅ Good    | None                           |
+| `partnershipsService.ts` | 397       | 2           | ✅ Good    | None                           |
+| `duesService.ts`         | 354       | 4           | ✅ Good    | None                           |
+| `constituentsService.ts` | 503       | 1           | ✅ Good    | Large file, consider splitting |
+| `applicationsService.ts` | 648       | 2           | ✅ Good    | Large file                     |
+| `dashboardService.ts`    | -         | 0           | ✅ Good    | Simple aggregations            |
+| `documentsService.ts`    | -         | 0           | ✅ Good    | File operations                |
+| `mediaService.ts`        | -         | 0           | ✅ Good    | Image handling                 |
 
 ### 2.3 Raw SQL Analysis
 
@@ -405,6 +419,7 @@ const allRoles = await unionAll(adminRolesQuery, memberTitlesQuery);
 **Assessment:** ✅ **Raw SQL usage is minimal and justified**
 
 Most raw SQL is for:
+
 - Window functions (`ROW_NUMBER()`, `PARTITION BY`)
 - String operations (`CONCAT`, `CASE`)
 - Complex aggregations
@@ -436,6 +451,7 @@ await dbClient.db.transaction(async (tx) => {
 ```
 
 **Key Findings:**
+
 - ✅ All multi-step financial operations use transactions
 - ✅ Proper error handling with transaction rollback
 - ✅ No mixing of transaction and non-transaction operations
@@ -465,6 +481,7 @@ router.post(
 ```
 
 **Strengths:**
+
 - ✅ Consistent order: auth → authorize → validate → cache → handler
 - ✅ Type-safe validation with Zod schemas
 - ✅ Proper error propagation via `next(error)`
@@ -474,13 +491,13 @@ router.post(
 
 #### 3.2.1 Authentication Endpoints (`/api/v1/auth`)
 
-| **Endpoint** | **Middleware Stack** | **Issues** |
-|--------------|----------------------|------------|
-| `POST /login` | `validateBody` | ⚠️ **No rate limiting** |
-| `POST /logout` | None | ✅ Good |
-| `POST /forgot-password` | `validateBody` | ⚠️ **No rate limiting** |
-| `POST /reset-password` | `validateBody` | ✅ Good |
-| `POST /onboard` | `validateBody` | ✅ Good |
+| **Endpoint**            | **Middleware Stack** | **Issues**                         |
+| ----------------------- | -------------------- | ---------------------------------- |
+| `POST /login`           | `validateBody`       | ✅ **FIXED** (Rate limiting added) |
+| `POST /logout`          | None                 | ✅ Good                            |
+| `POST /forgot-password` | `validateBody`       | ⚠️ **No rate limiting**            |
+| `POST /reset-password`  | `validateBody`       | ✅ Good                            |
+| `POST /onboard`         | `validateBody`       | ✅ Good                            |
 
 **Critical Issue: No Rate Limiting on Authentication Endpoints**
 
@@ -505,27 +522,28 @@ authRouter.post("/forgot-password", authLimiter, validateBody(...), ...);
 
 #### 3.2.2 Donation Endpoints (`/api/v1/donations`)
 
-| **Endpoint** | **Middleware Stack** | **Issues** |
-|--------------|----------------------|------------|
-| `POST /paystack` | `authenticateLax`, `validateBody` | ✅ Good (supports guest donations) |
-| `GET /` | `authenticate`, `authorize`, `validateQuery`, `cache` | ✅ Good |
-| `POST /:reference/verify` | `authenticateLax`, `validateParams` | ✅ Good |
+| **Endpoint**              | **Middleware Stack**                                  | **Issues**                         |
+| ------------------------- | ----------------------------------------------------- | ---------------------------------- |
+| `POST /paystack`          | `authenticateLax`, `validateBody`                     | ✅ Good (supports guest donations) |
+| `GET /`                   | `authenticate`, `authorize`, `validateQuery`, `cache` | ✅ Good                            |
+| `POST /:reference/verify` | `authenticateLax`, `validateParams`                   | ✅ Good                            |
 
 **Assessment:** ✅ **Well-designed for guest and authenticated donations**
 
 #### 3.2.3 Shop Endpoints (`/api/v1/shop`)
 
-| **Endpoint** | **Middleware Stack** | **Issues** |
-|--------------|----------------------|------------|
-| `POST /orders` | `authenticate`, `validateBody` | ⚠️ **Stock race condition** |
-| `GET /products` | `authenticateLax`, `validateQuery`, `cache` | ✅ Good |
-| `GET /orders/:id` | `authenticate`, `authorize`, `validateParams` | ✅ Good |
+| **Endpoint**      | **Middleware Stack**                          | **Issues**                  |
+| ----------------- | --------------------------------------------- | --------------------------- |
+| `POST /orders`    | `authenticate`, `validateBody`                | ⚠️ **Stock race condition** |
+| `GET /products`   | `authenticateLax`, `validateQuery`, `cache`   | ✅ Good                     |
+| `GET /orders/:id` | `authenticate`, `authorize`, `validateParams` | ✅ Good                     |
 
 **Critical Issue: Concurrent Order Race Condition**
 
 **Severity:** **HIGH**
 
 **Scenario:**
+
 1. User A checks stock: 5 items available
 2. User B checks stock: 5 items available
 3. User A orders 3 items (stock → 2)
@@ -537,22 +555,23 @@ authRouter.post("/forgot-password", authLimiter, validateBody(...), ...);
 
 #### 3.2.4 Member Endpoints (`/api/v1/members`)
 
-| **Endpoint** | **Middleware Stack** | **Issues** |
-|--------------|----------------------|------------|
-| `GET /` | `authenticateLax`, `validateQuery`, `cache` | ✅ Good |
-| `GET /:id` | `authenticateLax`, `validateParams`, `cache` | ✅ Good |
-| `POST /:id/enroll` | `authenticate`, `authorize`, `validateBody` | ✅ Good |
-| `POST /:id/titles/:titleId` | `authenticate`, `authorize`, `validateBody` | ✅ Good |
+| **Endpoint**                | **Middleware Stack**                         | **Issues** |
+| --------------------------- | -------------------------------------------- | ---------- |
+| `GET /`                     | `authenticateLax`, `validateQuery`, `cache`  | ✅ Good    |
+| `GET /:id`                  | `authenticateLax`, `validateParams`, `cache` | ✅ Good    |
+| `POST /:id/enroll`          | `authenticate`, `authorize`, `validateBody`  | ✅ Good    |
+| `POST /:id/titles/:titleId` | `authenticate`, `authorize`, `validateBody`  | ✅ Good    |
 
 **Assessment:** ✅ **Well-structured with proper authorization**
 
 #### 3.2.5 Webhook Endpoints (`/api/v1/webhooks`)
 
-| **Endpoint** | **Middleware Stack** | **Issues** |
-|--------------|----------------------|------------|
+| **Endpoint**     | **Middleware Stack**      | **Issues**                       |
+| ---------------- | ------------------------- | -------------------------------- |
 | `POST /paystack` | `verifyPaystackSignature` | ✅ Good (signature verification) |
 
 **Strengths:**
+
 - ✅ Cryptographic signature verification
 - ✅ Idempotent webhook handling
 - ✅ Proper error handling
@@ -568,20 +587,22 @@ Pattern used across read-only endpoints:
 ```typescript
 router.get(
   "/path",
-  redisCacheEarlyReturn,  // Check cache first
+  redisCacheEarlyReturn, // Check cache first
   async (req, res, next) => {
     const data = await fetchData();
-    
+
     // Cache for X seconds
-    redisClient.setResponseCache(req.CacheKey, data, TTL)
-      .catch(err => logger.error(err, "Cache set failed"));
-    
+    redisClient
+      .setResponseCache(req.CacheKey, data, TTL)
+      .catch((err) => logger.error(err, "Cache set failed"));
+
     res.json(data);
-  }
+  },
 );
 ```
 
 **Cache TTLs:**
+
 - Dashboard stats: 5 minutes (300s)
 - Project/event lists: 5 minutes
 - Member lists: 5 minutes
@@ -637,19 +658,20 @@ res.cookie("refresh_token", jwt.sign(...), { maxAge: 3 days });
 ### 4.2 Analysis of Current Strategy
 
 **Strengths:**
+
 - ✅ Supports token refresh without re-login
 - ✅ Refresh token extends when close to expiry
 - ✅ Proper httpOnly, secure, sameSite cookies
 
 **Issues:**
 
-| **Issue** | **Severity** | **Description** |
-|-----------|--------------|-----------------|
-| Unnecessary complexity | MEDIUM | Two tokens when one suffices |
-| Confusion in naming | LOW | `maxAge: 3 days` but token `expiresIn: 30m` |
-| No token revocation | **HIGH** | Compromised tokens can't be invalidated |
-| No session tracking | MEDIUM | Can't see active sessions or force logout |
-| Redundant refresh logic | LOW | Refresh token only contains username |
+| **Issue**               | **Severity** | **Description**                             |
+| ----------------------- | ------------ | ------------------------------------------- |
+| Unnecessary complexity  | MEDIUM       | Two tokens when one suffices                |
+| Confusion in naming     | LOW          | `maxAge: 3 days` but token `expiresIn: 30m` |
+| No token revocation     | **HIGH**     | Compromised tokens can't be invalidated     |
+| No session tracking     | MEDIUM       | Can't see active sessions or force logout   |
+| Redundant refresh logic | LOW          | Refresh token only contains username        |
 
 ### 4.3 Proposed: Single-Token Sliding Session Strategy
 
@@ -695,7 +717,7 @@ const SLIDE_THRESHOLD = 30 * 60; // 30 minutes
 
 export async function createSession(user: AuthenticatedUser) {
   const sessionId = randomUUID();
-  
+
   // Store session in Redis
   await redisClient.setEx(
     `session:${sessionId}`,
@@ -706,40 +728,37 @@ export async function createSession(user: AuthenticatedUser) {
       roles: user.roles,
       profiles: user.profiles,
       createdAt: Date.now(),
-      lastActivity: Date.now()
-    })
+      lastActivity: Date.now(),
+    }),
   );
-  
+
   // Generate JWT with session ID
-  const token = encodeData(
-    { sessionId, user },
-    { expiresIn: "7d" }
-  );
-  
+  const token = encodeData({ sessionId, user }, { expiresIn: "7d" });
+
   return { sessionId, token };
 }
 
 export async function validateAndSlideSession(sessionId: string) {
   const sessionData = await redisClient.get(`session:${sessionId}`);
-  
+
   if (!sessionData) {
     return null; // Session expired or invalid
   }
-  
+
   const session = JSON.parse(sessionData);
   const now = Date.now();
   const timeSinceLastActivity = now - session.lastActivity;
-  
+
   // Slide session if inactive < 30 minutes
   if (timeSinceLastActivity < SLIDE_THRESHOLD * 1000) {
     session.lastActivity = now;
     await redisClient.setEx(
       `session:${sessionId}`,
       SESSION_TTL,
-      JSON.stringify(session)
+      JSON.stringify(session),
     );
   }
-  
+
   return session;
 }
 
@@ -753,66 +772,74 @@ export async function revokeSession(sessionId: string) {
 ```typescript
 // shared/middlewares/auth.ts
 
-export async function authenticate(req: Request, res: Response, next: NextFunction) {
+export async function authenticate(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
   const token = req.cookies.session_token;
-  
+
   if (!token) {
     return next(new ApiError("Authentication required", 401));
   }
-  
+
   const decoded = decodeData(token, SessionTokenSchema);
-  
+
   if (!decoded || "expired" in decoded) {
     return next(new ApiError("Session expired", 401));
   }
-  
+
   const { sessionId, user } = decoded.valid;
-  
+
   // Validate and slide session
   const session = await validateAndSlideSession(sessionId);
-  
+
   if (!session) {
     return next(new ApiError("Session expired", 401));
   }
-  
+
   // Attach user to request
   req.User = user;
   req.SessionId = sessionId;
-  
+
   next();
 }
 ```
 
 #### 4.3.4 Comparison
 
-| **Aspect** | **Current (Dual-Token)** | **Proposed (Single-Token)** |
-|------------|--------------------------|------------------------------|
-| **Complexity** | High (2 tokens, refresh logic) | Low (1 token, slide logic) |
-| **Lines of Code** | ~95 (auth.ts) | ~60 (estimated) |
-| **Token Revocation** | ❌ Not possible | ✅ `revokeSession(sessionId)` |
-| **Session Management** | ❌ No visibility | ✅ List active sessions |
-| **Security** | Good | Better (revocation, monitoring) |
-| **Performance** | JWT decode only | JWT decode + Redis lookup |
-| **Maintainability** | Medium | High |
+| **Aspect**             | **Current (Dual-Token)**       | **Proposed (Single-Token)**     |
+| ---------------------- | ------------------------------ | ------------------------------- |
+| **Complexity**         | High (2 tokens, refresh logic) | Low (1 token, slide logic)      |
+| **Lines of Code**      | ~95 (auth.ts)                  | ~60 (estimated)                 |
+| **Token Revocation**   | ❌ Not possible                | ✅ `revokeSession(sessionId)`   |
+| **Session Management** | ❌ No visibility               | ✅ List active sessions         |
+| **Security**           | Good                           | Better (revocation, monitoring) |
+| **Performance**        | JWT decode only                | JWT decode + Redis lookup       |
+| **Maintainability**    | Medium                         | High                            |
 
 #### 4.3.5 Migration Path
 
 **Phase 1: Parallel Implementation (2 weeks)**
+
 - Implement session manager
 - Add new middleware alongside old
 - Update login to create both old and new tokens
 
 **Phase 2: Testing (1 week)**
+
 - Deploy to staging
 - Monitor error rates, performance
 - Test session sliding, revocation
 
 **Phase 3: Cutover (1 week)**
+
 - Remove old middleware
 - Migrate existing users on next login
 - Monitor for issues
 
 **Phase 4: Cleanup (1 week)**
+
 - Remove old code
 - Update documentation
 
@@ -823,6 +850,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
 **Priority:** **MEDIUM-HIGH**
 
 **Rationale:**
+
 - Simplifies authentication logic by 40%
 - Enables critical security features (revocation, session management)
 - Improves user experience (longer sessions, automatic extension)
@@ -836,40 +864,40 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
 
 ### 5.1 Authentication & Authorization
 
-| **Check** | **Status** | **Severity** | **Notes** |
-|-----------|------------|--------------|-----------|
-| Password hashing | ✅ Pass | - | bcrypt with proper salt rounds |
-| JWT secrets | ✅ Pass | - | Stored in env variables |
-| Token expiration | ✅ Pass | - | Proper expiration times |
-| httpOnly cookies | ✅ Pass | - | Prevents XSS token theft |
-| Secure cookies | ✅ Pass | - | HTTPS only in production |
-| sameSite cookies | ✅ Pass | - | Set to "none" for cross-origin |
-| RBAC implementation | ✅ Pass | - | Flexible visitor pattern |
-| Authorization checks | ✅ Pass | - | Consistent `authorize()` middleware |
-| Rate limiting on auth | ❌ **FAIL** | **HIGH** | No rate limiting on login/forgot-password |
-| Session revocation | ❌ **FAIL** | **HIGH** | Cannot revoke compromised tokens |
-| Password complexity | ⚠️ Warning | MEDIUM | No complexity requirements enforced |
-| Account lockout | ⚠️ Warning | MEDIUM | No lockout after failed attempts |
+| **Check**             | **Status**  | **Severity** | **Notes**                                 |
+| --------------------- | ----------- | ------------ | ----------------------------------------- |
+| Password hashing      | ✅ Pass     | -            | bcrypt with proper salt rounds            |
+| JWT secrets           | ✅ Pass     | -            | Stored in env variables                   |
+| Token expiration      | ✅ Pass     | -            | Proper expiration times                   |
+| httpOnly cookies      | ✅ Pass     | -            | Prevents XSS token theft                  |
+| Secure cookies        | ✅ Pass     | -            | HTTPS only in production                  |
+| sameSite cookies      | ✅ Pass     | -            | Set to "none" for cross-origin            |
+| RBAC implementation   | ✅ Pass     | -            | Flexible visitor pattern                  |
+| Authorization checks  | ✅ Pass     | -            | Consistent `authorize()` middleware       |
+| Rate limiting on auth | ❌ **FAIL** | **HIGH**     | No rate limiting on login/forgot-password |
+| Session revocation    | ❌ **FAIL** | **HIGH**     | Cannot revoke compromised tokens          |
+| Password complexity   | ⚠️ Warning  | MEDIUM       | No complexity requirements enforced       |
+| Account lockout       | ⚠️ Warning  | MEDIUM       | No lockout after failed attempts          |
 
 ### 5.2 SQL Injection
 
-| **Check** | **Status** | **Severity** | **Notes** |
-|-----------|------------|--------------|-----------|
-| Parameterized queries | ✅ Pass | - | Drizzle ORM used throughout |
-| Raw SQL usage | ✅ Pass | - | Minimal, properly parameterized |
-| User input sanitization | ✅ Pass | - | Zod validation on all inputs |
-| Query builder safety | ✅ Pass | - | Drizzle prevents injection |
+| **Check**               | **Status** | **Severity** | **Notes**                       |
+| ----------------------- | ---------- | ------------ | ------------------------------- |
+| Parameterized queries   | ✅ Pass    | -            | Drizzle ORM used throughout     |
+| Raw SQL usage           | ✅ Pass    | -            | Minimal, properly parameterized |
+| User input sanitization | ✅ Pass    | -            | Zod validation on all inputs    |
+| Query builder safety    | ✅ Pass    | -            | Drizzle prevents injection      |
 
 **Assessment:** ✅ **No SQL injection vulnerabilities detected**
 
 ### 5.3 Cross-Site Scripting (XSS)
 
-| **Check** | **Status** | **Severity** | **Notes** |
-|-----------|------------|--------------|-----------|
-| httpOnly cookies | ✅ Pass | - | Tokens not accessible to JS |
-| Input validation | ✅ Pass | - | Zod schemas validate all inputs |
-| Output encoding | ⚠️ Unknown | LOW | Frontend responsibility |
-| HTML in user content | ⚠️ Warning | MEDIUM | No sanitization in announcement content |
+| **Check**            | **Status** | **Severity** | **Notes**                               |
+| -------------------- | ---------- | ------------ | --------------------------------------- |
+| httpOnly cookies     | ✅ Pass    | -            | Tokens not accessible to JS             |
+| Input validation     | ✅ Pass    | -            | Zod schemas validate all inputs         |
+| Output encoding      | ⚠️ Unknown | LOW          | Frontend responsibility                 |
+| HTML in user content | ⚠️ Warning | MEDIUM       | No sanitization in announcement content |
 
 **Issue: Announcement Content**
 
@@ -893,20 +921,20 @@ import DOMPurify from "isomorphic-dompurify";
 
 content: DOMPurify.sanitize(input.content, {
   ALLOWED_TAGS: ["b", "i", "em", "strong", "a", "p", "br"],
-  ALLOWED_ATTR: ["href"]
-})
+  ALLOWED_ATTR: ["href"],
+});
 ```
 
 ### 5.4 Payment Security
 
-| **Check** | **Status** | **Severity** | **Notes** |
-|-----------|------------|--------------|-----------|
-| Webhook signature verification | ✅ Pass | - | HMAC-SHA512 signature check |
-| HTTPS enforcement | ✅ Pass | - | Required for secure cookies |
-| Payment provider secrets | ✅ Pass | - | Stored in environment variables |
-| Idempotent webhooks | ✅ Pass | - | Duplicate handling with status check |
-| Transaction integrity | ✅ Pass | - | Database transactions prevent inconsistencies |
-| Amount tampering | ✅ Pass | - | Server-side amount calculation |
+| **Check**                      | **Status** | **Severity** | **Notes**                                     |
+| ------------------------------ | ---------- | ------------ | --------------------------------------------- |
+| Webhook signature verification | ✅ Pass    | -            | HMAC-SHA512 signature check                   |
+| HTTPS enforcement              | ✅ Pass    | -            | Required for secure cookies                   |
+| Payment provider secrets       | ✅ Pass    | -            | Stored in environment variables               |
+| Idempotent webhooks            | ✅ Pass    | -            | Duplicate handling with status check          |
+| Transaction integrity          | ✅ Pass    | -            | Database transactions prevent inconsistencies |
+| Amount tampering               | ✅ Pass    | -            | Server-side amount calculation                |
 
 **Assessment:** ✅ **Payment security is excellent**
 
@@ -915,6 +943,7 @@ content: DOMPurify.sanitize(input.content, {
 **Missing Information:** File upload handlers not fully reviewed
 
 **Recommendations:**
+
 - Validate file types (MIME + extension)
 - Limit file sizes
 - Scan for malware (if applicable)
@@ -926,6 +955,7 @@ content: DOMPurify.sanitize(input.content, {
 **Status:** ✅ **Good**
 
 All sensitive data in environment variables:
+
 - Database credentials
 - JWT secrets
 - Payment provider keys
@@ -957,16 +987,16 @@ npm audit fix
 
 Several foreign keys and frequently queried columns lack indexes:
 
-| **Table** | **Column** | **Impact** | **Query Pattern** |
-|-----------|------------|------------|-------------------|
-| `Donations` | `constituentId` | MEDIUM | "Get all donations by user" |
-| `Donations` | `projectId` | LOW | "Get all donations for project" |
-| `Donations` | `eventId` | LOW | "Get all donations for event" |
-| `Orders` | `constituentId` | MEDIUM | "Get all orders by user" |
-| `OrderItems` | `orderId` | HIGH | "Get items for order" (JOIN) |
-| `OrderItems` | `productId` | MEDIUM | "Get orders for product" |
-| `FinancialTransactions` | `externalRef` | HIGH | Webhook lookups |
-| `FinancialTransactions` | `status` | MEDIUM | "Get all pending transactions" |
+| **Table**               | **Column**      | **Impact** | **Query Pattern**               |
+| ----------------------- | --------------- | ---------- | ------------------------------- |
+| `Donations`             | `constituentId` | MEDIUM     | "Get all donations by user"     |
+| `Donations`             | `projectId`     | LOW        | "Get all donations for project" |
+| `Donations`             | `eventId`       | LOW        | "Get all donations for event"   |
+| `Orders`                | `constituentId` | MEDIUM     | "Get all orders by user"        |
+| `OrderItems`            | `orderId`       | HIGH       | "Get items for order" (JOIN)    |
+| `OrderItems`            | `productId`     | MEDIUM     | "Get orders for product"        |
+| `FinancialTransactions` | `externalRef`   | HIGH       | Webhook lookups                 |
+| `FinancialTransactions` | `status`        | MEDIUM     | "Get all pending transactions"  |
 
 **Recommendation:**
 
@@ -999,7 +1029,7 @@ const primaryCommitteeSubquery = dbClient.db.select(...).from(schema.CommitteeMe
 
 ```sql
 CREATE MATERIALIZED VIEW core.member_summary AS
-SELECT 
+SELECT
   m.constituent_id,
   (SELECT mt.title FROM ... LIMIT 1) as top_title,
   (SELECT c.name FROM ... LIMIT 1) as primary_chapter,
@@ -1018,8 +1048,8 @@ REFRESH MATERIALIZED VIEW core.member_summary;
 
 ```typescript
 const [donations, [{ total }]] = await Promise.all([
-  queryBuilder,                // Main query
-  countQuery.where(whereClauses) // Same filters repeated
+  queryBuilder, // Main query
+  countQuery.where(whereClauses), // Same filters repeated
 ]);
 ```
 
@@ -1044,12 +1074,12 @@ const total = donations[0]?.total || 0;
 
 **Current TTL Analysis:**
 
-| **Cache Key** | **TTL** | **Assessment** | **Recommendation** |
-|---------------|---------|----------------|---------------------|
-| Dashboard stats | 5 min | ✅ Good | Keep (data changes frequently) |
-| Member lists | 5 min | ⚠️ Could be longer | Increase to 15 min + invalidation |
-| Project/event lists | 5 min | ✅ Good | Keep |
-| Product lists | Not cached | ⚠️ Should cache | Add 10 min cache |
+| **Cache Key**       | **TTL**    | **Assessment**     | **Recommendation**                |
+| ------------------- | ---------- | ------------------ | --------------------------------- |
+| Dashboard stats     | 5 min      | ✅ Good            | Keep (data changes frequently)    |
+| Member lists        | 5 min      | ⚠️ Could be longer | Increase to 15 min + invalidation |
+| Project/event lists | 5 min      | ✅ Good            | Keep                              |
+| Product lists       | Not cached | ⚠️ Should cache    | Add 10 min cache                  |
 
 **Missing Cache Invalidation:**
 
@@ -1090,12 +1120,12 @@ for (const member of members) {
 
 ### 6.5 Performance Metrics (Estimated)
 
-| **Operation** | **Current** | **With Optimizations** | **Improvement** |
-|---------------|-------------|------------------------|-----------------|
-| Get members list (1000 records) | ~200ms | ~80ms | 60% faster |
-| Get donations (paginated) | ~50ms | ~30ms | 40% faster |
-| Create order | ~100ms | ~80ms | 20% faster (with locking) |
-| Webhook processing | ~30ms | ~30ms | No change |
+| **Operation**                   | **Current** | **With Optimizations** | **Improvement**           |
+| ------------------------------- | ----------- | ---------------------- | ------------------------- |
+| Get members list (1000 records) | ~200ms      | ~80ms                  | 60% faster                |
+| Get donations (paginated)       | ~50ms       | ~30ms                  | 40% faster                |
+| Create order                    | ~100ms      | ~80ms                  | 20% faster (with locking) |
+| Webhook processing              | ~30ms       | ~30ms                  | No change                 |
 
 ---
 
@@ -1134,14 +1164,14 @@ for (const member of members) {
 
 **Large Files (>500 lines):**
 
-| **File** | **Lines** | **Recommendation** |
-|----------|-----------|---------------------|
-| `membersService.ts` | 852 | Split into 3 modules |
-| `shopService.ts` | 732 | Split into 2 modules (orders, products) |
-| `applicationsService.ts` | 648 | Consider splitting by application type |
-| `transactionsService.ts` | 559 | Acceptable (single responsibility) |
-| `committeesService.ts` | 547 | Acceptable |
-| `chaptersService.ts` | 540 | Acceptable |
+| **File**                 | **Lines** | **Recommendation**                      |
+| ------------------------ | --------- | --------------------------------------- |
+| `membersService.ts`      | 852       | Split into 3 modules                    |
+| `shopService.ts`         | 732       | Split into 2 modules (orders, products) |
+| `applicationsService.ts` | 648       | Consider splitting by application type  |
+| `transactionsService.ts` | 559       | Acceptable (single responsibility)      |
+| `committeesService.ts`   | 547       | Acceptable                              |
+| `chaptersService.ts`     | 540       | Acceptable                              |
 
 **Assessment:** Only 2-3 files genuinely need refactoring
 
@@ -1163,6 +1193,7 @@ try {
 ```
 
 **Key Points:**
+
 - ✅ All errors logged with context
 - ✅ User-facing messages don't leak internals
 - ✅ Proper HTTP status codes used
@@ -1182,6 +1213,7 @@ try {
 **Status:** ✅ **Excellent**
 
 **Documentation Coverage:**
+
 - ✅ README with setup instructions
 - ✅ Comprehensive implementation guides
 - ✅ OpenAPI/Swagger documentation
@@ -1206,45 +1238,45 @@ None identified. Codebase has no critical security vulnerabilities or data integ
 
 ### 8.2 🟠 HIGH (Fix Within 1-2 Sprints)
 
-| **#** | **Issue** | **Impact** | **Effort** | **Priority** |
-|-------|-----------|------------|------------|--------------|
-| H-1 | **Stock concurrency race condition** (shopService) | Inventory overselling | 1 day | 1 |
-| H-2 | **No rate limiting on auth endpoints** | Brute force vulnerability | 4 hours | 2 |
-| H-3 | **No token revocation mechanism** | Compromised tokens persist | 1 week | 3 |
-| H-4 | **Missing indexes on foreign keys** | Query performance degradation | 2 hours | 4 |
-| H-5 | **Incomplete pg-boss integration** | Announcement system broken | 2 days | 5 |
+| **#** | **Issue**                                          | **Impact**                    | **Effort** | **Priority** |
+| ----- | -------------------------------------------------- | ----------------------------- | ---------- | ------------ |
+| H-1   | **Stock concurrency race condition** (shopService) | Inventory overselling         | 1 day      | 1            |
+| H-2   | **No rate limiting on auth endpoints**             | Brute force vulnerability     | 4 hours    | 2            |
+| H-3   | **No token revocation mechanism**                  | Compromised tokens persist    | 1 week     | 3            |
+| H-4   | **Missing indexes on foreign keys**                | Query performance degradation | 2 hours    | 4            |
+| H-5   | **Incomplete pg-boss integration**                 | Announcement system broken    | 2 days     | 5            |
 
 ### 8.3 🟡 MEDIUM (Fix Within 1-2 Months)
 
-| **#** | **Issue** | **Impact** | **Effort** | **Priority** |
-|-------|-----------|------------|------------|--------------|
-| M-1 | **No password complexity requirements** | Weak passwords allowed | 4 hours | 1 |
-| M-2 | **No account lockout after failed attempts** | Brute force easier | 4 hours | 2 |
-| M-3 | **Cache invalidation missing** | Stale data shown | 1 day | 3 |
-| M-4 | **Large service files need refactoring** | Maintainability | 2 weeks | 4 |
-| M-5 | **Dual-token auth complexity** | Maintenance burden | 5 weeks | 5 |
-| M-6 | **Announcement content not sanitized** | XSS risk | 2 hours | 6 |
-| M-7 | **Query optimization opportunities** | Performance | 3 days | 7 |
+| **#** | **Issue**                                    | **Impact**             | **Effort** | **Priority** |
+| ----- | -------------------------------------------- | ---------------------- | ---------- | ------------ |
+| M-1   | **No password complexity requirements**      | Weak passwords allowed | 4 hours    | 1            |
+| M-2   | **No account lockout after failed attempts** | Brute force easier     | 4 hours    | 2            |
+| M-3   | **Cache invalidation missing**               | Stale data shown       | 1 day      | 3            |
+| M-4   | **Large service files need refactoring**     | Maintainability        | 2 weeks    | 4            |
+| M-5   | **Dual-token auth complexity**               | Maintenance burden     | 5 weeks    | 5            |
+| M-6   | **Announcement content not sanitized**       | XSS risk               | 2 hours    | 6            |
+| M-7   | **Query optimization opportunities**         | Performance            | 3 days     | 7            |
 
 ### 8.4 🟢 LOW (Nice to Have)
 
-| **#** | **Issue** | **Impact** | **Effort** | **Priority** |
-|-------|-----------|------------|------------|--------------|
-| L-1 | Code duplication in role fetching | Minor maintenance | 2 hours | 1 |
-| L-2 | Hardcoded callback URLs | Config flexibility | 1 hour | 2 |
-| L-3 | Missing JSDoc on complex functions | Documentation | 4 hours | 3 |
-| L-4 | Temporal exclusion constraints not enforced | Edge case bugs | 1 day | 4 |
-| L-5 | Inconsistent secret key naming (secretHash vs secretKey) | Confusion | 1 hour | 5 |
+| **#** | **Issue**                                                | **Impact**         | **Effort** | **Priority** |
+| ----- | -------------------------------------------------------- | ------------------ | ---------- | ------------ |
+| L-1   | Code duplication in role fetching                        | Minor maintenance  | 2 hours    | 1            |
+| L-2   | Hardcoded callback URLs                                  | Config flexibility | 1 hour     | 2            |
+| L-3   | Missing JSDoc on complex functions                       | Documentation      | 4 hours    | 3            |
+| L-4   | Temporal exclusion constraints not enforced              | Edge case bugs     | 1 day      | 4            |
+| L-5   | Inconsistent secret key naming (secretHash vs secretKey) | Confusion          | 1 hour     | 5            |
 
 ### 8.5 ℹ️ INFORMATIONAL (Consider for Future)
 
-| **#** | **Issue** | **Notes** |
-|-------|-----------|-----------|
-| I-1 | Consider materialized views for complex member queries | Performance optimization |
-| I-2 | Implement database connection pooling tuning | Scalability |
-| I-3 | Add distributed tracing (OpenTelemetry) | Observability |
-| I-4 | Implement CDC (Change Data Capture) for cache invalidation | Architecture improvement |
-| I-5 | Consider event-driven architecture for notifications | Scalability |
+| **#** | **Issue**                                                  | **Notes**                |
+| ----- | ---------------------------------------------------------- | ------------------------ |
+| I-1   | Consider materialized views for complex member queries     | Performance optimization |
+| I-2   | Implement database connection pooling tuning               | Scalability              |
+| I-3   | Add distributed tracing (OpenTelemetry)                    | Observability            |
+| I-4   | Implement CDC (Change Data Capture) for cache invalidation | Architecture improvement |
+| I-5   | Consider event-driven architecture for notifications       | Scalability              |
 
 ---
 
@@ -1271,16 +1303,19 @@ The YPF Backend is a **well-architected, professionally implemented system** wit
 ### 9.3 Priority Action Items
 
 **Week 1:**
+
 - Fix stock concurrency race condition
 - Add rate limiting to auth endpoints
 - Add missing database indexes
 
 **Month 1:**
+
 - Implement password complexity requirements
 - Add account lockout mechanism
 - Complete pg-boss integration
 
 **Quarter 1:**
+
 - Implement single-token sliding session strategy
 - Refactor large service files
 - Optimize complex queries with materialized views
@@ -1288,6 +1323,7 @@ The YPF Backend is a **well-architected, professionally implemented system** wit
 ### 9.4 Final Grade: B+ (87/100)
 
 **Breakdown:**
+
 - Architecture & Design: A (95/100)
 - Security: B+ (85/100)
 - Performance: B (82/100)
@@ -1309,25 +1345,25 @@ The YPF Backend is a **well-architected, professionally implemented system** wit
 -- migrations/XXXX_add_missing_indexes.sql
 
 -- Donation indexes
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_donations_constituent 
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_donations_constituent
   ON finance.donations(constituent_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_donations_project 
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_donations_project
   ON finance.donations(project_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_donations_event 
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_donations_event
   ON finance.donations(event_id);
 
 -- Order indexes
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_orders_constituent 
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_orders_constituent
   ON shop.orders(constituent_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_order_items_order 
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_order_items_order
   ON shop.order_items(order_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_order_items_product 
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_order_items_product
   ON shop.order_items(product_id);
 
 -- Transaction indexes
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_financial_transactions_status 
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_financial_transactions_status
   ON finance.financial_transactions(status);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_financial_transactions_created 
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_financial_transactions_created
   ON finance.financial_transactions(created_at);
 ```
 
@@ -1368,6 +1404,7 @@ export const apiRateLimiter = rateLimit({
 **End of Report**
 
 **Next Steps:**
+
 1. Review this report with the team
 2. Prioritize fixes based on severity and business impact
 3. Create tickets for HIGH priority items
