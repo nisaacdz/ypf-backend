@@ -456,7 +456,7 @@ describe("Authentication API", () => {
       });
 
       const response = await request(server).post("/api/v1/auth/onboard").send({
-        email: email,
+        user: constituent.publicId,
       });
 
       expect(response.status).toBe(200);
@@ -485,7 +485,7 @@ describe("Authentication API", () => {
 
     it("should reject onboard for non-existent user", async () => {
       const response = await request(server).post("/api/v1/auth/onboard").send({
-        email: "nonexistent_onboard@example.com",
+        user: "nonexistent_public_id",
       });
 
       expect(response.status).toBe(404);
@@ -494,8 +494,14 @@ describe("Authentication API", () => {
 
     it("should reject onboard if user already has auth method (password)", async () => {
       // Use the testUser which has a password set
+      // We need to fetch the publicId for the testUser first
+      const [constituent] = await dbClient.db
+        .select()
+        .from(schema.Constituents)
+        .where(eq(schema.Constituents.id, testUser.constituentId!));
+
       const response = await request(server).post("/api/v1/auth/onboard").send({
-        email: testUser.email,
+        user: constituent.publicId,
       });
 
       expect(response.status).toBe(409);

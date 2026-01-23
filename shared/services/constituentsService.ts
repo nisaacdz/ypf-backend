@@ -451,6 +451,7 @@ export async function onboardConstituent(
       firstName: true,
       lastName: true,
       preferredName: true,
+      publicId: true,
     },
   });
 
@@ -489,8 +490,8 @@ export async function onboardConstituent(
     constituent.preferredName ??
     `${constituent.firstName} ${constituent.lastName}`;
 
-  const onboardingUrl = `${dashboardUrl}/auth/onboard?email=${encodeURIComponent(
-    constituent.email,
+  const onboardingUrl = `${dashboardUrl}/auth/onboard?user=${encodeURIComponent(
+    constituent.publicId,
   )}`;
 
   sendOnboardingInvitationEmail({

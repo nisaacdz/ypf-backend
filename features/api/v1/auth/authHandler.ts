@@ -91,9 +91,9 @@ export async function forgotPassword({
  * @throws ApiError if user not found or has auth method
  */
 export async function onboard({
-  email,
+  user,
 }: z.infer<typeof OnboardSchema>): Promise<ApiResponse<null>> {
-  const otp = await authService.onboardUser(email);
+  const { otp, email } = await authService.onboardUser(user);
 
   await sendOtpEmail(email, otp);
 

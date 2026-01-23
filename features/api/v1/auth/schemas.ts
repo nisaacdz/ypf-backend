@@ -51,5 +51,5 @@ export const ResetPasswordSchema = z.object({
 });
 
 export const OnboardSchema = z.object({
-  email: z.email({ message: "Please enter a valid email address." }),
+  user: z.string({ message: "User ID is required." }),
 });
