@@ -1,7 +1,7 @@
 import * as authService from "@/shared/services/authService";
 import * as constituentsService from "@/shared/services/constituentsService";
 import { encodeData } from "@/shared/utils/jwt";
-import { ApiResponse, ApiError } from "@/shared/types";
+import { ApiResponse, ApiError, AuthenticatedUser } from "@/shared/types";
 import { sendOtpEmail } from "@/shared/utils/email";
 import {
   ForgotPasswordSchema,
@@ -162,6 +162,36 @@ export async function logout(): Promise<{
       data: null,
       message: "User successfully logged out",
     },
+  };
+}
+
+/**
+ * Retrieves the currently authenticated user's profile detail.
+ *
+ * @param authenticatedUser - The authenticated user object from the request
+ * @returns Response with detailed user profile
+ * @throws ApiError if user detail retrieval fails
+ */
+export async function getMe(
+  authenticatedUser: AuthenticatedUser,
+): Promise<ApiResponse<AuthData>> {
+  const constituentDetail = await constituentsService.getDetailedConstituent(
+    authenticatedUser.constituentId,
+  );
+
+  if (!constituentDetail) {
+    throw new ApiError("Failed to retrieve user profile.", 404);
+  }
+
+  const authData: AuthData = {
+    ...constituentDetail,
+    auth: authenticatedUser,
+  };
+
+  return {
+    success: true,
+    data: authData,
+    message: "User profile retrieved successfully.",
   };
 }
 
