@@ -365,19 +365,93 @@
                   oneOf:
                     - type: object
                       properties:
-                        id:
-                          type: string
-                          format: uuid
-                        email:
-                          type: string
-                          format: email
-                        fullName:
-                          type: string
-                        profiles:
-                          type: array
-                          items:
-                            type: string
-                            enum: [ADMIN, MEMBER, VOLUNTEER, AUDITOR]
+                        success:
+                          type: boolean
+                          example: true
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            firstName:
+                              type: string
+                            lastName:
+                              type: string
+                            preferredName:
+                              type: string
+                            profilePhoto:
+                              type: object
+                            profiles:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  name:
+                                    type: string
+                                    enum: [ADMIN, MEMBER, VOLUNTEER, AUDITOR]
+                                  startedAt:
+                                    type: string
+                                    format: date-time
+                                  endedAt:
+                                    type: string
+                                    format: date-time
+                            roles:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  profile:
+                                    type: string
+                                  title:
+                                    type: string
+                                  startedAt:
+                                    type: string
+                                    format: date-time
+                                  endedAt:
+                                    type: string
+                                    format: date-time
+                            committees:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  id:
+                                    type: string
+                                  name:
+                                    type: string
+                            chapters:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  id:
+                                    type: string
+                                  name:
+                                    type: string
+                            auth:
+                              type: object
+                              properties:
+                                id:
+                                  type: string
+                                  format: uuid
+                                constituentId:
+                                  type: string
+                                  format: uuid
+                                email:
+                                  type: string
+                                  format: email
+                                fullName:
+                                  type: string
+                                roles:
+                                  type: array
+                                  items:
+                                    type: string
+                                profiles:
+                                  type: array
+                                  items:
+                                    type: string
+                                    enum: [ADMIN, MEMBER, VOLUNTEER, AUDITOR]
                     - type: null
                       description: User is not authenticated
 

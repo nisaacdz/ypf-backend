@@ -1,7 +1,7 @@
 import * as authService from "@/shared/services/authService";
 import * as constituentsService from "@/shared/services/constituentsService";
 import { encodeData } from "@/shared/utils/jwt";
-import { ApiResponse, ApiError } from "@/shared/types";
+import { ApiResponse, ApiError, AuthenticatedUser } from "@/shared/types";
 import { sendOtpEmail } from "@/shared/utils/email";
 import {
   ForgotPasswordSchema,
@@ -105,6 +105,29 @@ export async function onboard({
 }
 
 /**
+ * Checks the onboarding status of a user by their public ID.
+ *
+ * @param publicId - The constituent's public ID
+ * @returns Eligibility status and masked email if eligible
+ * @throws ApiError if user not found
+ */
+export async function checkOnboardStatus(
+  publicId: string,
+): Promise<
+  ApiResponse<{ eligible: boolean; maskedEmail?: string; reason?: string }>
+> {
+  const status = await authService.checkOnboardStatus(publicId);
+
+  return {
+    success: true,
+    data: status,
+    message: status.eligible
+      ? "User is eligible for onboarding"
+      : "User is already onboarded",
+  };
+}
+
+/**
  * Resets the user's password using a valid OTP and logs them in.
  *
  * @param email - The user's email address
@@ -162,6 +185,36 @@ export async function logout(): Promise<{
       data: null,
       message: "User successfully logged out",
     },
+  };
+}
+
+/**
+ * Retrieves the currently authenticated user's profile detail.
+ *
+ * @param authenticatedUser - The authenticated user object from the request
+ * @returns Response with detailed user profile
+ * @throws ApiError if user detail retrieval fails
+ */
+export async function getMe(
+  authenticatedUser: AuthenticatedUser,
+): Promise<ApiResponse<AuthData>> {
+  const constituentDetail = await constituentsService.getDetailedConstituent(
+    authenticatedUser.constituentId,
+  );
+
+  if (!constituentDetail) {
+    throw new ApiError("Failed to retrieve user profile.", 404);
+  }
+
+  const authData: AuthData = {
+    ...constituentDetail,
+    auth: authenticatedUser,
+  };
+
+  return {
+    success: true,
+    data: authData,
+    message: "User profile retrieved successfully.",
   };
 }
 

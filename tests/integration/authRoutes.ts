@@ -402,9 +402,9 @@ describe("Authentication API", () => {
       expect(response.body.success).toBe(true);
       expect(response.body.data).not.toBeNull();
       expect(response.body.data).toHaveProperty("id");
-      // /auth/me returns AuthenticatedUser (not AuthData)
-      expect(response.body.data.email).toBe(testUser.email);
-      expect(response.body.data).toHaveProperty("fullName");
+      // /auth/me returns AuthData (YPFConstituentDetail + { auth: AuthenticatedUser })
+      expect(response.body.data.auth.email).toBe(testUser.email);
+      expect(response.body.data).toHaveProperty("firstName");
       expect(response.body.data).toHaveProperty("profiles");
     });
 

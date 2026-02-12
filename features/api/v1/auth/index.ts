@@ -120,12 +120,46 @@ authRouter.post("/logout", async (req: Request, res: Response) => {
 //   },
 // );
 
-authRouter.get("/me", authenticateLax, async (req: Request, res: Response) => {
-  res.status(200).json({
-    success: true,
-    data: req.User ?? null,
-  });
-});
+authRouter.get(
+  "/me",
+  authenticateLax,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.User) {
+        res.status(200).json({
+          success: true,
+          data: null,
+        });
+        return;
+      }
+
+      const response = await authHandler.getMe(req.User);
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+authRouter.get(
+  "/onboard/status",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = req.query.user as string;
+      if (!user) {
+        res.status(400).json({
+          success: false,
+          message: "User ID is required",
+        });
+        return;
+      }
+      const response = await authHandler.checkOnboardStatus(user);
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 authRouter.post(
   "/onboard",
