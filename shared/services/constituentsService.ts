@@ -39,6 +39,7 @@ export async function getDetailedConstituent(
     where: eq(schema.Constituents.id, constituentId),
     columns: {
       id: true,
+      publicId: true,
       firstName: true,
       lastName: true,
       preferredName: true,
@@ -76,6 +77,7 @@ export async function getDetailedConstituent(
 
   return {
     id: constituent.id,
+    publicId: constituent.publicId,
     profilePhoto,
     firstName: constituent.firstName,
     lastName: constituent.lastName,

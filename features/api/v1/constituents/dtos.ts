@@ -13,6 +13,7 @@ export type YPFConstituent = {
 
 export type YPFConstituentDetail = {
   id: string;
+  publicId: string;
   profilePhoto?: Medium;
   firstName: string;
   lastName: string;
