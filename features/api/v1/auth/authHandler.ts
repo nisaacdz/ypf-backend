@@ -105,6 +105,29 @@ export async function onboard({
 }
 
 /**
+ * Checks the onboarding status of a user by their public ID.
+ *
+ * @param publicId - The constituent's public ID
+ * @returns Eligibility status and masked email if eligible
+ * @throws ApiError if user not found
+ */
+export async function checkOnboardStatus(
+  publicId: string,
+): Promise<
+  ApiResponse<{ eligible: boolean; maskedEmail?: string; reason?: string }>
+> {
+  const status = await authService.checkOnboardStatus(publicId);
+
+  return {
+    success: true,
+    data: status,
+    message: status.eligible
+      ? "User is eligible for onboarding"
+      : "User is already onboarded",
+  };
+}
+
+/**
  * Resets the user's password using a valid OTP and logs them in.
  *
  * @param email - The user's email address

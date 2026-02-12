@@ -280,3 +280,50 @@ export async function onboardUser(
 
   return { otp, email };
 }
+
+/**
+ * Checks the onboarding status of a user by their public ID.
+ *
+ * @param publicId The constituent's public ID (e.g., 'YPF-2024-ABC123').
+ * @returns An object with eligibility and a masked email if eligible.
+ * @throws ApiError if user not found.
+ */
+export async function checkOnboardStatus(
+  publicId: string,
+): Promise<{ eligible: boolean; maskedEmail?: string; reason?: string }> {
+  const [result] = await dbClient.db
+    .select({
+      eligible: sql<boolean>`(
+        ${schema.Users.password} IS NULL AND
+        ${schema.Users.googleId} IS NULL AND
+        ${schema.Users.appleId} IS NULL AND
+        ${schema.Users.facebookId} IS NULL
+      )`,
+
+      maskedEmail: sql<string>`
+        CASE
+          WHEN LENGTH(SPLIT_PART(${schema.Users.email}, '@', 1)) <= 2
+            THEN SUBSTRING(${schema.Users.email} FROM 1 FOR 1) || '***@' || SPLIT_PART(${schema.Users.email}, '@', 2)
+          ELSE
+            SUBSTRING(${schema.Users.email} FROM 1 FOR 2) || '***@' || SPLIT_PART(${schema.Users.email}, '@', 2)
+        END
+      `,
+    })
+    .from(schema.Users)
+    .innerJoin(
+      schema.Constituents,
+      eq(schema.Users.constituentId, schema.Constituents.id),
+    )
+    .where(eq(schema.Constituents.publicId, publicId))
+    .limit(1);
+
+  if (!result) {
+    throw new ApiError("User not found", 404);
+  }
+
+  if (!result.eligible) {
+    return { eligible: false, reason: "already_onboarded" };
+  }
+
+  return { eligible: true, maskedEmail: result.maskedEmail };
+}
