@@ -20,9 +20,15 @@ export const MEMBER = {
   PRESIDENT: Role.new("MEMBER.president"),
   TREASURER: Role.new("MEMBER.treasurer"),
   CHAPTERLEAD: Role.matches(/^MEMBER\.lead\..+$/),
-  COMMITTEECHAIR: Role.matches(/^MEMBER\.chair\..+$/),
+  CHAPTERHEAD: Role.matches(/^MEMBER\.chapterhead\..+$/),
+  COMMITTEECHAIR: Role.matches(/^MEMBER\.committeechair\..+$/),
+  COMMITTEEMEMBER: Role.matches(/^MEMBER\.committeemember\..+$/),
   chapterLead: (chapterId: string) =>
     Role.new(`MEMBER.chapterlead.${chapterId}`),
+  chapterHead: (chapterId: string) =>
+    Role.new(`MEMBER.chapterhead.${chapterId}`),
   committeeChair: (committeeId: string) =>
     Role.new(`MEMBER.committeechair.${committeeId}`),
+  committeeMember: (committeeId: string) =>
+    Role.new(`MEMBER.committeemember.${committeeId}`),
 };

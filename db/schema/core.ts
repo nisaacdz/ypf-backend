@@ -351,6 +351,7 @@ export const ChapterMemberships = core.table(
 export const Committees = core.table("committees", {
   id: uuid().defaultRandom().primaryKey(),
   name: text().notNull().unique(),
+  alias: text().notNull().unique(),
   description: text(),
   chapterId: uuid("chapter_id").references(() => Chapters.id, {
     onDelete: "cascade",
