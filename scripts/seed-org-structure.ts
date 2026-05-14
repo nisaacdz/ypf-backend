@@ -159,9 +159,13 @@ async function seed(
       console.log(`  + ${c.name} (${c.alias})`);
     }
 
+    // Title aliases must carry the `committee` type prefix so the role string
+    // produced by usersService.getConstituentRoles ("MEMBER.<alias>.<committeeId>")
+    // matches what the authorizer helpers expect ("MEMBER.committeechair.<id>").
+    // See docs/title-aliases.md for the role-string grammar.
     const titles = [
-      { name: "Chair", alias: "chair", level: c.chairLevel },
-      { name: "Member", alias: "member", level: c.memberLevel },
+      { name: "Chair", alias: "committeechair", level: c.chairLevel },
+      { name: "Member", alias: "committeemember", level: c.memberLevel },
     ];
 
     for (const t of titles) {

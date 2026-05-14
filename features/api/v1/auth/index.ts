@@ -10,6 +10,10 @@ import {
 } from "./schemas";
 import { authenticateLax } from "@/shared/middlewares/auth";
 import { rateLimit } from "@/shared/middlewares/rateLimit";
+import {
+  getAccessCookieOptions,
+  getAccessCookieClearOptions,
+} from "@/shared/utils/cookies";
 
 const authRouter = Router();
 
@@ -25,15 +29,7 @@ authRouter.post(
       const { response, accessToken } =
         await authHandler.loginWithUsernameAndPassword(req.Body);
 
-      // Set access_token cookie with 3-day expiry
-      res.cookie("access_token", accessToken, {
-        httpOnly: true,
-        secure: true,
-        sameSite: "none",
-        maxAge: 3 * 24 * 60 * 60 * 1000,
-        path: "/",
-        partitioned: true,
-      });
+      res.cookie("access_token", accessToken, getAccessCookieOptions());
 
       res.status(200).json(response);
     } catch (error) {
@@ -65,15 +61,7 @@ authRouter.post(
         req.Body,
       );
 
-      // Set access_token cookie with 3-day expiry
-      res.cookie("access_token", accessToken, {
-        httpOnly: true,
-        secure: true,
-        sameSite: "none",
-        maxAge: 3 * 24 * 60 * 60 * 1000,
-        path: "/",
-        partitioned: true,
-      });
+      res.cookie("access_token", accessToken, getAccessCookieOptions());
 
       res.status(200).json(response);
     } catch (error) {
@@ -85,13 +73,7 @@ authRouter.post(
 authRouter.post("/logout", async (req: Request, res: Response) => {
   const { response } = await authHandler.logout();
 
-  // Clear access_token cookie
-  res.clearCookie("access_token", {
-    httpOnly: true,
-    secure: true,
-    sameSite: "none",
-    path: "/",
-  });
+  res.clearCookie("access_token", getAccessCookieClearOptions());
 
   res.status(200).json(response);
 });

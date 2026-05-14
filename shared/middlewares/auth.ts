@@ -4,6 +4,7 @@ import { decodeData, encodeData } from "../utils/jwt";
 import { AuthenticatedUserSchema } from "../validators";
 import type { GuardFunction } from "@/configs/authorizer";
 import * as authService from "../services/authService";
+import { getAccessCookieOptions } from "../utils/cookies";
 
 export async function authenticate(
   req: Request,
@@ -48,14 +49,7 @@ export async function authenticate(
         const newAccessToken = encodeData(authenticatedUser, {
           expiresIn: "3d",
         });
-        res.cookie("access_token", newAccessToken, {
-          httpOnly: true,
-          secure: true,
-          sameSite: "none",
-          maxAge: 3 * 24 * 60 * 60 * 1000,
-          path: "/",
-          partitioned: true,
-        });
+        res.cookie("access_token", newAccessToken, getAccessCookieOptions());
 
         req.User = authenticatedUser;
       } catch {

@@ -27,22 +27,24 @@ Used as URL segments in the UMS (`/dashboard/workspaces/<alias>`) and as the `al
 
 Every committee seeded by `scripts/seed-org-structure.ts` gets exactly two titles. To assign a constituent, create a `core.member_titles_assignments` row pointing at the right `member_titles.id`.
 
+> **Important:** Title aliases carry their **type prefix** because the role string is constructed as `MEMBER.<alias>.<scopeId>`. A bare `chair` alias would produce `MEMBER.chair.<id>` which collides with chapter-scoped roles. Always prefix with the scope type (`committee` or `chapter`).
+
 | Alias | Display | `_level` (boards) | `_level` (functional committees) |
 | --- | --- | --- | --- |
-| `chair` | Chair / Head | 0–10 | 20 |
-| `member` | Member | 10–20 | 40 |
+| `committeechair` | Chair / Head | 0–10 | 20 |
+| `committeemember` | Member | 10–20 | 40 |
 
 > `_level` convention: lower number = more senior. Used for sorting and tie-breaking in the UI, not for permission checks (use role strings for that — see below).
 
 ## Chapter title aliases
 
-Chapters live in `core.chapters` (separate from committees). Chapter titles use the same per-scope title pattern. Suggested aliases:
+Chapters live in `core.chapters` (separate from committees). Chapter titles use the same per-scope title pattern. Aliases also carry the `chapter` type prefix:
 
 | Alias | Display | Notes |
 | --- | --- | --- |
-| `lead` | Chapter Lead | Top role for a chapter |
-| `head` | Chapter Head | Day-to-day operations |
-| `member` | Chapter Member | General chapter member |
+| `chapterlead` | Chapter Lead | Top role for a chapter |
+| `chapterhead` | Chapter Head | Day-to-day operations |
+| `chaptermember` | Chapter Member | General chapter member |
 
 > Chapter titles are **not** seeded by `seed-org-structure.ts`. They're created per-chapter as chapters are spun up.
 

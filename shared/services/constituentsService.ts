@@ -214,63 +214,101 @@ async function fetchRoles(constituentId: string): Promise<RolePeriod[]> {
 }
 
 /**
- * Fetches all current committee memberships for a constituent.
+ * Fetches all current committee involvements for a constituent.
+ *
+ * Source of truth is `MemberTitlesAssignments` joined through `MemberTitles`
+ * scoped to a committee — every committee involvement (chair OR member) has
+ * a title assignment, so this captures both. Each returned row includes the
+ * committee's stable `alias` and the user's `titleAlias` so the frontend can
+ * route to `/dashboard/workspaces/<alias>` and gate UI on `committeechair`
+ * vs `committeemember`.
  */
 async function fetchCommittees(constituentId: string) {
   const db = dbClient.db;
   const now = new Date();
 
-  return await db
+  const rows = await db
     .select({
       id: schema.Committees.id,
       name: schema.Committees.name,
+      alias: schema.Committees.alias,
+      titleAlias: schema.MemberTitles.alias,
       chapterName: schema.Chapters.name,
-      // Get the photo externalId directly here
       photoExternalId: schema.Media.externalId,
     })
     .from(schema.Members)
     .innerJoin(
-      schema.CommitteeMemberships,
-      eq(schema.Members.id, schema.CommitteeMemberships.memberId),
+      schema.MemberTitlesAssignments,
+      eq(schema.Members.id, schema.MemberTitlesAssignments.memberId),
+    )
+    .innerJoin(
+      schema.MemberTitles,
+      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
     )
     .innerJoin(
       schema.Committees,
-      eq(schema.CommitteeMemberships.committeeId, schema.Committees.id),
+      eq(schema.MemberTitles.committeeId, schema.Committees.id),
     )
     .leftJoin(
       schema.Chapters,
       eq(schema.Committees.chapterId, schema.Chapters.id),
     )
-    // Join Media via CommitteeMedia directly
     .leftJoin(
       schema.CommitteeMedia,
       and(
         eq(schema.CommitteeMedia.committeeId, schema.Committees.id),
-        eq(schema.CommitteeMedia.isFeatured, true), // Only get featured
+        eq(schema.CommitteeMedia.isFeatured, true),
       ),
     )
-    .leftJoin(schema.Media, eq(schema.CommitteeMedia.mediumId, schema.Media.id))
+    .leftJoin(
+      schema.Media,
+      eq(schema.CommitteeMedia.mediumId, schema.Media.id),
+    )
     .where(
       and(
         eq(schema.Members.constituentId, constituentId),
-        lte(schema.CommitteeMemberships.startedAt, now),
+        lte(schema.Members.startedAt, now),
         or(
-          isNull(schema.CommitteeMemberships.endedAt),
-          gte(schema.CommitteeMemberships.endedAt, now),
+          isNull(schema.Members.endedAt),
+          gte(schema.Members.endedAt, now),
+        ),
+        lte(schema.MemberTitlesAssignments.startedAt, now),
+        or(
+          isNull(schema.MemberTitlesAssignments.endedAt),
+          gte(schema.MemberTitlesAssignments.endedAt, now),
         ),
       ),
-    )
-    .then((rows) =>
-      // Simple transformation at the end, no Maps
-      rows.map((row) => ({
-        id: row.id,
-        name: row.name,
-        chapterName: row.chapterName ?? undefined,
-        featuredPhotoUrl: row.photoExternalId
-          ? generatePublicMediaUrl(row.photoExternalId)
-          : undefined,
-      })),
     );
+
+  // Dedupe by (committeeId, titleAlias) — same person could have multiple
+  // assignments to the same title across overlapping periods (shouldn't, but
+  // the DB-level exclusion constraint covers a different shape).
+  const seen = new Map<
+    string,
+    {
+      id: string;
+      name: string;
+      alias?: string;
+      titleAlias?: string;
+      chapterName?: string;
+      featuredPhotoUrl?: string;
+    }
+  >();
+  for (const row of rows) {
+    const key = `${row.id}::${row.titleAlias}`;
+    if (seen.has(key)) continue;
+    seen.set(key, {
+      id: row.id,
+      name: row.name,
+      alias: row.alias ?? undefined,
+      titleAlias: row.titleAlias ?? undefined,
+      chapterName: row.chapterName ?? undefined,
+      featuredPhotoUrl: row.photoExternalId
+        ? generatePublicMediaUrl(row.photoExternalId)
+        : undefined,
+    });
+  }
+  return Array.from(seen.values());
 }
 
 /**
