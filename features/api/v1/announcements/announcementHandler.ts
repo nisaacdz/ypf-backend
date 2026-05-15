@@ -2,6 +2,7 @@ import { CreateAnnouncementDto } from "./schemas";
 import {
   createAnnouncement as createAnnouncementService,
   publishAnnouncement,
+  getConstituentAnnouncements,
 } from "@/shared/services/announcementService";
 import logger from "@/configs/logger";
 import { ApiResponse } from "@/shared/types";
@@ -31,5 +32,17 @@ export async function createAnnouncement(
     success: true,
     message: "Announcement created successfully",
     data: { announcementId: announcement.id },
+  };
+}
+
+export async function listMyAnnouncements(
+  constituentId: string,
+  query: { page?: number; pageSize?: number },
+): Promise<ApiResponse<Awaited<ReturnType<typeof getConstituentAnnouncements>>>> {
+  const data = await getConstituentAnnouncements(constituentId, query);
+  return {
+    success: true,
+    message: "Announcements fetched successfully",
+    data,
   };
 }
