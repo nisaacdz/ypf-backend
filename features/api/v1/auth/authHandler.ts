@@ -1,5 +1,7 @@
 import * as authService from "@/shared/services/authService";
 import * as constituentsService from "@/shared/services/constituentsService";
+import * as mediaService from "@/shared/services/mediaService";
+import * as mediaUtils from "@/shared/utils/files";
 import { encodeData } from "@/shared/utils/jwt";
 import { ApiResponse, ApiError, AuthenticatedUser } from "@/shared/types";
 import { sendOtpEmail } from "@/shared/utils/email";
@@ -7,6 +9,8 @@ import {
   ForgotPasswordSchema,
   ResetPasswordSchema,
   OnboardSchema,
+  UpdateMeSchema,
+  ChangePasswordSchema,
 } from "./schemas";
 import { AuthData } from "./dtos";
 import { z } from "zod";
@@ -215,6 +219,59 @@ export async function getMe(
     success: true,
     data: authData,
     message: "User profile retrieved successfully.",
+  };
+}
+
+export async function updateMe(
+  authenticatedUser: AuthenticatedUser,
+  updates: z.infer<typeof UpdateMeSchema>,
+): Promise<ApiResponse<AuthData>> {
+  await constituentsService.updateConstituent(
+    authenticatedUser.constituentId,
+    updates,
+  );
+
+  return getMe(authenticatedUser);
+}
+
+export async function uploadProfilePhoto(
+  authenticatedUser: AuthenticatedUser,
+  file: Express.Multer.File,
+): Promise<ApiResponse<AuthData>> {
+  const uploadMeta = await mediaUtils.storeMediumFile(file);
+
+  try {
+    const medium = await mediaService.uploadMedium({
+      ...uploadMeta,
+      uploadedBy: authenticatedUser.constituentId,
+    });
+
+    await constituentsService.updateConstituentProfilePhoto(
+      authenticatedUser.constituentId,
+      medium.id,
+    );
+
+    return getMe(authenticatedUser);
+  } catch (error) {
+    await mediaUtils.deleteMediumFile(uploadMeta.externalId);
+    throw error;
+  }
+}
+
+export async function changePassword(
+  authenticatedUser: AuthenticatedUser,
+  body: z.infer<typeof ChangePasswordSchema>,
+): Promise<ApiResponse<null>> {
+  await authService.changePassword(
+    authenticatedUser.id,
+    body.currentPassword,
+    body.newPassword,
+  );
+
+  return {
+    success: true,
+    data: null,
+    message: "Password updated successfully.",
   };
 }
 

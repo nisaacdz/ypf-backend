@@ -46,7 +46,7 @@ export async function publishAnnouncement(announcementId: string) {
         priority: JobPriority.HIGH,
         retryLimit: 2,
         retryDelay: 300, // 5 minutes
-        expireInHours: 24,
+        expireInHours: 23,
       },
     );
 
@@ -67,8 +67,10 @@ export async function publishAnnouncement(announcementId: string) {
 
 /**
  * Returns the authenticated constituent's announcement feed: PUBLISHED
- * announcements (not expired) that have been routed to them via
- * `constituent_announcements`. Includes per-recipient read state.
+ * announcements (not expired) that have either been routed to them via
+ * `constituent_announcements` or were authored by them. Authored announcements
+ * appear immediately, even before the async publishing worker creates inbox
+ * entries.
  *
  * Used by `GET /api/v1/announcements`.
  */
@@ -81,11 +83,14 @@ export async function getConstituentAnnouncements(
   const offset = (page - 1) * pageSize;
 
   const baseWhere = and(
-    eq(schema.ConstituentAnnouncements.constituentId, constituentId),
     eq(schema.Announcements.status, "PUBLISHED"),
     or(
       isNull(schema.Announcements.expiresAt),
       gt(schema.Announcements.expiresAt, new Date()),
+    ),
+    or(
+      eq(schema.ConstituentAnnouncements.constituentId, constituentId),
+      eq(schema.Announcements.authorId, constituentId),
     ),
   );
 
@@ -97,15 +102,18 @@ export async function getConstituentAnnouncements(
       status: schema.Announcements.status,
       publishedAt: schema.Announcements.publishedAt,
       expiresAt: schema.Announcements.expiresAt,
-      isRead: schema.ConstituentAnnouncements.isRead,
+      isRead: sql<boolean>`coalesce(${schema.ConstituentAnnouncements.isRead}, true)`,
       readAt: schema.ConstituentAnnouncements.readAt,
     })
-    .from(schema.ConstituentAnnouncements)
-    .innerJoin(
-      schema.Announcements,
-      eq(
-        schema.ConstituentAnnouncements.announcementId,
-        schema.Announcements.id,
+    .from(schema.Announcements)
+    .leftJoin(
+      schema.ConstituentAnnouncements,
+      and(
+        eq(
+          schema.ConstituentAnnouncements.announcementId,
+          schema.Announcements.id,
+        ),
+        eq(schema.ConstituentAnnouncements.constituentId, constituentId),
       ),
     )
     .where(baseWhere)
@@ -115,12 +123,15 @@ export async function getConstituentAnnouncements(
 
   const [{ count }] = await dbClient.db
     .select({ count: sql<number>`count(*)::int` })
-    .from(schema.ConstituentAnnouncements)
-    .innerJoin(
-      schema.Announcements,
-      eq(
-        schema.ConstituentAnnouncements.announcementId,
-        schema.Announcements.id,
+    .from(schema.Announcements)
+    .leftJoin(
+      schema.ConstituentAnnouncements,
+      and(
+        eq(
+          schema.ConstituentAnnouncements.announcementId,
+          schema.Announcements.id,
+        ),
+        eq(schema.ConstituentAnnouncements.constituentId, constituentId),
       ),
     )
     .where(baseWhere);
@@ -131,4 +142,87 @@ export async function getConstituentAnnouncements(
     pageSize,
     total: count,
   };
+}
+
+export async function getConstituentAnnouncementById(
+  constituentId: string,
+  announcementId: string,
+) {
+  const [row] = await dbClient.db
+    .select({
+      id: schema.Announcements.id,
+      title: schema.Announcements.title,
+      content: schema.Announcements.content,
+      status: schema.Announcements.status,
+      publishedAt: schema.Announcements.publishedAt,
+      expiresAt: schema.Announcements.expiresAt,
+      isRead: sql<boolean>`coalesce(${schema.ConstituentAnnouncements.isRead}, true)`,
+      readAt: schema.ConstituentAnnouncements.readAt,
+    })
+    .from(schema.Announcements)
+    .leftJoin(
+      schema.ConstituentAnnouncements,
+      and(
+        eq(
+          schema.ConstituentAnnouncements.announcementId,
+          schema.Announcements.id,
+        ),
+        eq(schema.ConstituentAnnouncements.constituentId, constituentId),
+      ),
+    )
+    .where(
+      and(
+        eq(schema.Announcements.id, announcementId),
+        eq(schema.Announcements.status, "PUBLISHED"),
+        or(
+          isNull(schema.Announcements.expiresAt),
+          gt(schema.Announcements.expiresAt, new Date()),
+        ),
+        or(
+          eq(schema.ConstituentAnnouncements.constituentId, constituentId),
+          eq(schema.Announcements.authorId, constituentId),
+        ),
+      ),
+    );
+
+  return row ?? null;
+}
+
+export async function markConstituentAnnouncementRead(
+  constituentId: string,
+  announcementId: string,
+) {
+  await dbClient.db
+    .update(schema.ConstituentAnnouncements)
+    .set({ isRead: true, readAt: new Date() })
+    .where(
+      and(
+        eq(schema.ConstituentAnnouncements.constituentId, constituentId),
+        eq(schema.ConstituentAnnouncements.announcementId, announcementId),
+      ),
+    );
+}
+
+export async function updateAnnouncement(
+  announcementId: string,
+  updates: Partial<{
+    title: string;
+    content: string;
+    targetCriteria: TargetingFilter;
+    status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+    publishedAt: Date;
+    expiresAt: Date | null;
+  }>,
+) {
+  const [announcement] = await dbClient.db
+    .update(schema.Announcements)
+    .set({ ...updates, updatedAt: new Date() })
+    .where(eq(schema.Announcements.id, announcementId))
+    .returning({ id: schema.Announcements.id });
+
+  return announcement;
+}
+
+export async function archiveAnnouncement(announcementId: string) {
+  await updateAnnouncement(announcementId, { status: "ARCHIVED" });
 }

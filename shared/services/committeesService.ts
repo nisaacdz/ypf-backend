@@ -96,6 +96,7 @@ export async function getCommittees(
     .select({
       id: schema.Committees.id,
       name: schema.Committees.name,
+      alias: schema.Committees.alias,
       description: schema.Committees.description,
       featuredPhotoExternalId: featuredPhotoSubquery.externalId,
       chapterName: schema.Chapters.name,
@@ -131,6 +132,7 @@ export async function getCommittees(
   const items: YPFCommittee[] = dbCommittees.map((c) => ({
     id: c.id,
     name: c.name,
+    alias: c.alias,
     description: c.description ?? undefined,
     featuredPhotoUrl: c.featuredPhotoExternalId
       ? mediaUtils.generatePublicMediaUrl(c.featuredPhotoExternalId, {
@@ -311,6 +313,7 @@ export async function getCommitteesByConstituentId(
     .select({
       id: schema.Committees.id,
       name: schema.Committees.name,
+      alias: schema.Committees.alias,
       description: schema.Committees.description,
       featuredPhotoExternalId: featuredPhotoSubquery.externalId,
       chapterName: schema.Chapters.name,
@@ -364,6 +367,7 @@ export async function getCommitteesByConstituentId(
   const items: YPFCommittee[] = dbCommittees.map((c) => ({
     id: c.id,
     name: c.name,
+    alias: c.alias,
     description: c.description ?? undefined,
     featuredPhotoUrl: c.featuredPhotoExternalId
       ? mediaUtils.generatePublicMediaUrl(c.featuredPhotoExternalId, {

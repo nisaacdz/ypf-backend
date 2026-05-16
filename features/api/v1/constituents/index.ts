@@ -9,13 +9,16 @@ import {
 import * as constituentsHandler from "./constituentsHandler";
 import {
   GetConstituentsQuerySchema,
+  InviteConstituentSchema,
   OnboardConstituentSchema,
 } from "./schemas";
 import { Visitors, MEMBER, ADMIN, anyOf } from "@/configs/authorizer";
 import z from "zod";
 import variables from "@/configs/env";
+import redisClient from "@/configs/redis";
 
 const constituentsRouter = Router();
+const dashboardUrl = variables.app.dashboardUrl ?? "http://localhost:3000";
 
 constituentsRouter.get(
   "/",
@@ -35,13 +38,32 @@ constituentsRouter.get(
 );
 
 constituentsRouter.post(
+  "/invite",
+  authenticate,
+  authorize(Visitors.hasRole(ADMIN.SUPER)),
+  validateBody(InviteConstituentSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await constituentsHandler.inviteConstituent(
+        req.Body,
+        dashboardUrl,
+      );
+      await redisClient.delCache("/api/v1/members");
+      await redisClient.delCache("/api/v1/chapters");
+      res.status(201).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+constituentsRouter.post(
   "/onboard",
   authenticate,
   authorize(Visitors.hasRole(ADMIN.SUPER)),
   validateBody(OnboardConstituentSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const dashboardUrl = `${variables.app.dashboardUrl}/auth/onboarding`;
       const response = await constituentsHandler.onboardConstituent(
         req.Body,
         dashboardUrl,

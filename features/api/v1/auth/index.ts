@@ -1,14 +1,18 @@
 import { Request, Response, NextFunction } from "express";
 import { Router } from "express";
 import * as authHandler from "./authHandler";
-import { validateBody } from "@/shared/middlewares/validate";
+import { validateBody, validateFile } from "@/shared/middlewares/validate";
 import {
   UsernameAndPasswordSchema,
   ForgotPasswordSchema,
   ResetPasswordSchema,
   OnboardSchema,
+  UpdateMeSchema,
+  ChangePasswordSchema,
+  UploadProfilePhotoSchema,
 } from "./schemas";
-import { authenticateLax } from "@/shared/middlewares/auth";
+import { authenticate, authenticateLax } from "@/shared/middlewares/auth";
+import filesUpload from "@/shared/middlewares/multipart";
 import { rateLimit } from "@/shared/middlewares/rateLimit";
 import {
   getAccessCookieOptions,
@@ -116,6 +120,53 @@ authRouter.get(
       }
 
       const response = await authHandler.getMe(req.User);
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+authRouter.patch(
+  "/me",
+  authenticate,
+  validateBody(UpdateMeSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await authHandler.updateMe(req.User!, req.Body);
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+authRouter.post(
+  "/me/profile-photo",
+  authenticate,
+  filesUpload.mediaUpload.single("file"),
+  validateFile(UploadProfilePhotoSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await authHandler.uploadProfilePhoto(
+        req.User!,
+        req.File,
+      );
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+authRouter.post(
+  "/change-password",
+  authenticate,
+  authRateLimiter,
+  validateBody(ChangePasswordSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await authHandler.changePassword(req.User!, req.Body);
       res.status(200).json(response);
     } catch (error) {
       next(error);

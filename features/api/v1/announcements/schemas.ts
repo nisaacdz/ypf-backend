@@ -20,3 +20,13 @@ export const CreateAnnouncementSchema = z.object({
 });
 
 export type CreateAnnouncementDto = z.infer<typeof CreateAnnouncementSchema>;
+
+export const UpdateAnnouncementSchema = z.object({
+  title: z.string().min(1).max(255).optional(),
+  content: z.string().min(1).optional(),
+  targetCriteria: TargetingFilterSchema.optional(),
+  status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]).optional(),
+  expiresAt: z.iso.datetime().nullable().optional(),
+});
+
+export type UpdateAnnouncementDto = z.infer<typeof UpdateAnnouncementSchema>;

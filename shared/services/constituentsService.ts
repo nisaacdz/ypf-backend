@@ -2,7 +2,7 @@ import { eq, and, lte, gte, isNull, or, sql, count, ilike } from "drizzle-orm";
 import z from "zod";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
-import { Profile } from "@/shared/types";
+import { ApiError, Profile } from "@/shared/types";
 import {
   YPFConstituent,
   YPFConstituentDetail,
@@ -10,6 +10,9 @@ import {
 import { generatePublicMediaUrl } from "@/shared/utils/files";
 import { Paginated } from "@/shared/dtos";
 import { GetConstituentsQuerySchema } from "@/features/api/v1/constituents/schemas";
+import { InviteConstituentSchema } from "@/features/api/v1/constituents/schemas";
+import * as membersService from "@/shared/services/membersService";
+import * as chaptersService from "@/shared/services/chaptersService";
 
 interface ProfilePeriod {
   name: Profile;
@@ -43,6 +46,18 @@ export async function getDetailedConstituent(
       firstName: true,
       lastName: true,
       preferredName: true,
+      email: true,
+      phone: true,
+      whatsapp: true,
+      occupation: true,
+      skills: true,
+      country: true,
+      region: true,
+      city: true,
+      campus: true,
+      linkedinProfile: true,
+      twitterHandle: true,
+      previousVolunteerExperience: true,
     },
     with: {
       profilePhoto: true,
@@ -82,6 +97,19 @@ export async function getDetailedConstituent(
     firstName: constituent.firstName,
     lastName: constituent.lastName,
     preferredName: constituent.preferredName ?? undefined,
+    email: constituent.email ?? undefined,
+    phone: constituent.phone ?? undefined,
+    whatsapp: constituent.whatsapp ?? undefined,
+    occupation: constituent.occupation ?? undefined,
+    skills: constituent.skills ?? undefined,
+    country: constituent.country ?? undefined,
+    region: constituent.region ?? undefined,
+    city: constituent.city ?? undefined,
+    campus: constituent.campus ?? undefined,
+    linkedinProfile: constituent.linkedinProfile ?? undefined,
+    twitterHandle: constituent.twitterHandle ?? undefined,
+    previousVolunteerExperience:
+      constituent.previousVolunteerExperience ?? undefined,
     profiles: profilePeriods,
     roles,
     committees,
@@ -541,4 +569,111 @@ export async function onboardConstituent(
   });
 
   return newUser;
+}
+
+export async function inviteConstituent(
+  input: z.infer<typeof InviteConstituentSchema>,
+  dashboardUrl: string,
+): Promise<{ constituentId: string; userId: string }> {
+  const email = input.email.trim().toLowerCase();
+
+  const existingConstituent = await dbClient.db.query.Constituents.findFirst({
+    where: eq(schema.Constituents.email, email),
+    columns: { id: true },
+  });
+
+  if (existingConstituent) {
+    throw new ApiError("A constituent with this email already exists", 409);
+  }
+
+  const [constituent] = await dbClient.db
+    .insert(schema.Constituents)
+    .values({
+      firstName: input.firstName.trim(),
+      lastName: input.lastName.trim(),
+      preferredName: input.preferredName?.trim() || null,
+      email,
+      phone: input.phone?.trim() || null,
+      whatsapp: input.whatsapp?.trim() || null,
+      country: input.country?.trim() || null,
+      region: input.region?.trim() || null,
+      city: input.city?.trim() || null,
+      campus: input.campus?.trim() || null,
+      occupation: input.occupation?.trim() || null,
+    })
+    .returning({ id: schema.Constituents.id });
+
+  await membersService.enrollGlobal(constituent.id);
+
+  if (input.chapterId) {
+    await chaptersService.enrollToChapter(input.chapterId, constituent.id);
+  }
+
+  const user = await onboardConstituent(constituent.id, dashboardUrl);
+
+  return {
+    constituentId: constituent.id,
+    userId: user.id,
+  };
+}
+
+export async function updateConstituent(
+  constituentId: string,
+  updates: Partial<{
+    firstName: string;
+    lastName: string;
+    preferredName: string | null;
+    email: string | null;
+    phone: string | null;
+    whatsapp: string | null;
+    country: string | null;
+    region: string | null;
+    city: string | null;
+    campus: string | null;
+    occupation: string | null;
+    linkedinProfile: string | null;
+    twitterHandle: string | null;
+    skills: string[];
+    previousVolunteerExperience: string | null;
+  }>,
+): Promise<string> {
+  const [updated] = await dbClient.db
+    .update(schema.Constituents)
+    .set({
+      ...updates,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.Constituents.id, constituentId))
+    .returning({ id: schema.Constituents.id });
+
+  if (!updated) {
+    throw new Error("Constituent not found");
+  }
+
+  if (updates.email) {
+    await dbClient.db
+      .update(schema.Users)
+      .set({ email: updates.email, username: updates.email, updatedAt: new Date() })
+      .where(eq(schema.Users.constituentId, constituentId));
+  }
+
+  return updated.id;
+}
+
+export async function updateConstituentProfilePhoto(
+  constituentId: string,
+  profilePhotoId: string,
+): Promise<void> {
+  const [updated] = await dbClient.db
+    .update(schema.Constituents)
+    .set({
+      profilePhotoId,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.Constituents.id, constituentId))
+    .returning({ id: schema.Constituents.id });
+
+  if (!updated) {
+    throw new Error("Constituent not found");
+  }
 }

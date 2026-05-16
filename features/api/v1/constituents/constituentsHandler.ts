@@ -2,6 +2,7 @@ import * as constituentsService from "@/shared/services/constituentsService";
 import { ApiResponse } from "@/shared/types";
 import {
   GetConstituentsQuerySchema,
+  InviteConstituentSchema,
   OnboardConstituentSchema,
 } from "./schemas";
 import { Paginated } from "@/shared/dtos";
@@ -31,4 +32,16 @@ export async function onboardConstituent(
     dashboardUrl,
   );
   return { success: true, data: id };
+}
+
+export async function inviteConstituent(
+  body: z.infer<typeof InviteConstituentSchema>,
+  dashboardUrl: string,
+): Promise<ApiResponse<{ constituentId: string; userId: string }>> {
+  const data = await constituentsService.inviteConstituent(body, dashboardUrl);
+  return {
+    success: true,
+    data,
+    message: "Member invited successfully.",
+  };
 }

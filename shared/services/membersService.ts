@@ -219,6 +219,7 @@ export async function getMembers(
       memberId: schema.Members.id,
       constituentId: schema.Constituents.id,
       publicId: schema.Constituents.publicId,
+      email: schema.Constituents.email,
       firstName: schema.Constituents.firstName,
       lastName: schema.Constituents.lastName,
       preferredName: schema.Constituents.preferredName,
@@ -282,6 +283,7 @@ export async function getMembers(
     id: m.memberId,
     constituentId: m.constituentId,
     publicId: m.publicId,
+    email: m.email ?? undefined,
     fullName: m.preferredName ?? `${m.firstName} ${m.lastName}`,
     profilePhotoUrl: m.profilePhotoExternalId
       ? mediaUtils.generatePublicMediaUrl(m.profilePhotoExternalId, {

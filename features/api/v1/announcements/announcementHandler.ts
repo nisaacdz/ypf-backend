@@ -1,8 +1,12 @@
-import { CreateAnnouncementDto } from "./schemas";
+import { CreateAnnouncementDto, UpdateAnnouncementDto } from "./schemas";
 import {
   createAnnouncement as createAnnouncementService,
   publishAnnouncement,
   getConstituentAnnouncements,
+  getConstituentAnnouncementById,
+  markConstituentAnnouncementRead,
+  updateAnnouncement as updateAnnouncementService,
+  archiveAnnouncement,
 } from "@/shared/services/announcementService";
 import logger from "@/configs/logger";
 import { ApiResponse } from "@/shared/types";
@@ -44,5 +48,65 @@ export async function listMyAnnouncements(
     success: true,
     message: "Announcements fetched successfully",
     data,
+  };
+}
+
+export async function getMyAnnouncement(
+  constituentId: string,
+  announcementId: string,
+): Promise<ApiResponse<Awaited<ReturnType<typeof getConstituentAnnouncementById>>>> {
+  const data = await getConstituentAnnouncementById(
+    constituentId,
+    announcementId,
+  );
+  return {
+    success: true,
+    message: "Announcement fetched successfully",
+    data,
+  };
+}
+
+export async function markRead(
+  constituentId: string,
+  announcementId: string,
+): Promise<ApiResponse<null>> {
+  await markConstituentAnnouncementRead(constituentId, announcementId);
+  return {
+    success: true,
+    message: "Announcement marked as read",
+    data: null,
+  };
+}
+
+export async function updateAnnouncement(
+  announcementId: string,
+  data: UpdateAnnouncementDto,
+): Promise<ApiResponse<{ announcementId: string }>> {
+  const { expiresAt, ...updates } = data;
+  await updateAnnouncementService(announcementId, {
+    ...updates,
+    expiresAt:
+      expiresAt === undefined
+        ? undefined
+        : expiresAt === null
+          ? null
+          : new Date(expiresAt),
+    publishedAt: updates.status === "PUBLISHED" ? new Date() : undefined,
+  });
+  return {
+    success: true,
+    message: "Announcement updated successfully",
+    data: { announcementId },
+  };
+}
+
+export async function deleteAnnouncement(
+  announcementId: string,
+): Promise<ApiResponse<null>> {
+  await archiveAnnouncement(announcementId);
+  return {
+    success: true,
+    message: "Announcement archived successfully",
+    data: null,
   };
 }

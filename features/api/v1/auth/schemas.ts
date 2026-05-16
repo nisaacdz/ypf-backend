@@ -50,6 +50,44 @@ export const ResetPasswordSchema = z.object({
     .max(55, { message: "Password must not exceed 55 characters." }),
 });
 
+export const UpdateMeSchema = z.object({
+  firstName: z.string().min(1).max(100).optional(),
+  lastName: z.string().min(1).max(100).optional(),
+  preferredName: z.string().max(150).nullable().optional(),
+  email: z.email().nullable().optional(),
+  phone: z.string().max(40).nullable().optional(),
+  whatsapp: z.string().max(40).nullable().optional(),
+  country: z.string().max(100).nullable().optional(),
+  region: z.string().max(100).nullable().optional(),
+  city: z.string().max(100).nullable().optional(),
+  campus: z.string().max(150).nullable().optional(),
+  occupation: z.string().max(150).nullable().optional(),
+  linkedinProfile: z.string().max(255).nullable().optional(),
+  twitterHandle: z.string().max(120).nullable().optional(),
+  skills: z.array(z.string().min(1).max(80)).max(30).optional(),
+  previousVolunteerExperience: z.string().max(2000).nullable().optional(),
+});
+
+export const ChangePasswordSchema = z.object({
+  currentPassword: z.string().min(1, { message: "Current password is required." }),
+  newPassword: z
+    .string({ message: "New password is required." })
+    .min(8, { message: "Password must be at least 8 characters." })
+    .max(55, { message: "Password must not exceed 55 characters." }),
+});
+
+export const UploadProfilePhotoSchema = z.object({
+  size: z
+    .number()
+    .positive({ message: "File size must be a positive number." })
+    .max(5 * 1024 * 1024, { message: "Profile photo cannot exceed 5MB." }),
+  mimeType: z.enum(["image/png", "image/jpeg"], {
+    error: () => ({
+      message: "Invalid file type. Only PNG or JPG images are allowed.",
+    }),
+  }),
+});
+
 export const OnboardSchema = z.object({
   user: z
     .string({ message: "User ID is required." })

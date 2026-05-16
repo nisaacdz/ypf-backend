@@ -2,6 +2,7 @@ export type YPFMember = {
   id: string; // Member.id (membership record)
   constituentId: string; // Constituent.id
   publicId: string; // Constituent.publicId (e.g., YPFC-XXXX)
+  email?: string;
   profilePhotoUrl?: string;
   fullName: string; // preferredName ?? `${firstName} ${lastName}`
   title?: string; // most significant active title (e.g., "President")

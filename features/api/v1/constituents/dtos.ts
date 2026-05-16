@@ -18,6 +18,18 @@ export type YPFConstituentDetail = {
   firstName: string;
   lastName: string;
   preferredName?: string;
+  email?: string;
+  phone?: string;
+  whatsapp?: string;
+  occupation?: string;
+  skills?: string[];
+  country?: string;
+  region?: string;
+  city?: string;
+  campus?: string;
+  linkedinProfile?: string;
+  twitterHandle?: string;
+  previousVolunteerExperience?: string;
   profiles: {
     name: Profile;
     startedAt: Date;
