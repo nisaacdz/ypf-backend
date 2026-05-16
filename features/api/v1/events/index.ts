@@ -23,7 +23,7 @@ import {
 import * as eventsHandler from "./eventsHandler";
 import filesUpload from "@/shared/middlewares/multipart";
 import z from "zod";
-import { anyOf, MEMBER, Visitors } from "@/configs/authorizer";
+import { ADMIN, anyOf, MEMBER, Visitors } from "@/configs/authorizer";
 import { redisCacheEarlyReturn } from "@/shared/middlewares/redisCache";
 import redisClient from "@/configs/redis";
 import logger from "@/configs/logger";
@@ -54,7 +54,10 @@ eventsRouter.post(
   "/",
   authenticate,
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.PRESIDENT),
+    ),
   ),
   validateBody(CreateEventSchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -72,7 +75,10 @@ eventsRouter.post(
   authenticate,
   validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.PRESIDENT),
+    ),
   ),
   filesUpload.mediaUpload.single("file"),
   validateFile(UploadEventFileSchema),
@@ -145,7 +151,10 @@ eventsRouter.put(
   authenticate,
   validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.PRESIDENT),
+    ),
   ),
   validateBody(UpdateEventSchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -162,12 +171,39 @@ eventsRouter.put(
   },
 );
 
+eventsRouter.delete(
+  "/:id",
+  authenticate,
+  validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
+  authorize(
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.PRESIDENT),
+    ),
+  ),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await eventsHandler.deleteEvent(req.Params.id);
+
+      // Clear caches that reference this event
+      await redisClient.delCache(`/api/v1/events/${req.Params.id}`);
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 eventsRouter.patch(
   "/:eventId/media/:eventMediumId",
   authenticate,
   validateParams(z.object({ eventId: z.uuid(), eventMediumId: z.uuid() }), 404),
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.PRESIDENT),
+    ),
   ),
   validateBody(UpdateEventMediumSchema),
   async (req: Request, res: Response, next: NextFunction) => {

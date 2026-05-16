@@ -15,6 +15,7 @@ import { redisCacheEarlyReturn } from "@/shared/middlewares/redisCache";
 import redisClient from "@/configs/redis";
 import logger from "@/configs/logger";
 import {
+  CreateChapterSchema,
   GetChaptersQuerySchema,
   UpdateChapterSchema,
   GetConstituentChaptersQuerySchema,
@@ -40,6 +41,22 @@ chaptersRouter.get(
         logger.error(err, `Failed to set cache for ${req.CacheKey}`);
       });
       res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+chaptersRouter.post(
+  "/",
+  authenticate,
+  authorize(Visitors.hasRole(ADMIN.SUPER)),
+  validateBody(CreateChapterSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await chaptersHandler.createChapter(req.Body);
+      await redisClient.delCache("/api/v1/chapters");
+      res.status(201).json(response);
     } catch (error) {
       next(error);
     }
@@ -110,7 +127,25 @@ chaptersRouter.patch(
 
       // Clear the detail cache
       await redisClient.delCache(`/api/v1/chapters/${req.Params.id}`);
+      await redisClient.delCache("/api/v1/chapters");
 
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+chaptersRouter.delete(
+  "/:id",
+  authenticate,
+  validateParams(z.object({ id: z.uuid("Invalid chapter ID") }), 404),
+  authorize(Visitors.hasRole(ADMIN.SUPER)),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await chaptersHandler.archiveChapter(req.Params.id);
+      await redisClient.delCache(`/api/v1/chapters/${req.Params.id}`);
+      await redisClient.delCache("/api/v1/chapters");
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -149,6 +184,8 @@ chaptersRouter.post(
         req.Params.id,
         req.Body,
       );
+      await redisClient.delCache(`/api/v1/chapters/${req.Params.id}`);
+      await redisClient.delCache("/api/v1/chapters");
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -168,6 +205,8 @@ chaptersRouter.patch(
         req.Params.id,
         req.Body,
       );
+      await redisClient.delCache(`/api/v1/chapters/${req.Params.id}`);
+      await redisClient.delCache("/api/v1/chapters");
       res.status(200).json(response);
     } catch (error) {
       next(error);

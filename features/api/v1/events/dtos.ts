@@ -7,6 +7,7 @@ export type YPFEvent = {
   scheduledStart: Date;
   scheduledEnd: Date;
   location?: string;
+  objective?: string;
   status: EventStatus;
   type: EventType;
   projectTitle?: string;

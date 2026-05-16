@@ -13,9 +13,18 @@ export const GetConstituentChaptersQuerySchema = z.object({
   ...PaginationQuery.shape,
 });
 
+export const CreateChapterSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  country: z.string().min(1, "Country is required"),
+  description: z.string("Invalid description format.").optional(),
+  foundingDate: z.coerce.date("Invalid date format.").optional(),
+  parentId: z.uuid("Invalid parent chapter ID").optional(),
+});
+
 export const UpdateChapterSchema = z
   .object({
     name: z.string().min(1, "Name is required").optional(),
+    country: z.string().min(1, "Country is required").optional(),
     description: z.string("Invalid description format.").optional(),
     foundingDate: z.coerce.date("Invalid date format.").optional(),
   })

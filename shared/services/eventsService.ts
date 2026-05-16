@@ -52,6 +52,7 @@ export async function fetchEvents(
         scheduledStart: schema.Events.scheduledStart,
         scheduledEnd: schema.Events.scheduledEnd,
         location: schema.Events.location,
+        objective: schema.Events.objective,
         type: schema.Events.type,
         status: schema.Events.status,
         projectTitle: schema.Projects.title,
@@ -84,6 +85,7 @@ export async function fetchEvents(
         schema.Events.scheduledStart,
         schema.Events.scheduledEnd,
         schema.Events.location,
+        schema.Events.objective,
         schema.Events.type,
         schema.Events.status,
         schema.Projects.title,
@@ -110,6 +112,7 @@ export async function fetchEvents(
     scheduledStart: event.scheduledStart,
     scheduledEnd: event.scheduledEnd,
     location: event.location || undefined,
+    objective: event.objective || undefined,
     type: event.type,
     status: event.status,
     projectTitle: event.projectTitle || undefined,
@@ -393,6 +396,17 @@ export async function updateEvent(
     .returning({ id: schema.Events.id });
 
   if (!updatedEvent) {
+    throw new ApiError("Event not found", 404);
+  }
+}
+
+export async function deleteEvent(eventId: string): Promise<void> {
+  const [deletedEvent] = await dbClient.db
+    .delete(schema.Events)
+    .where(eq(schema.Events.id, eventId))
+    .returning({ id: schema.Events.id });
+
+  if (!deletedEvent) {
     throw new ApiError("Event not found", 404);
   }
 }

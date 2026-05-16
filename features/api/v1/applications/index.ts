@@ -9,7 +9,7 @@ import {
 import { authenticate, authorize } from "@/shared/middlewares/auth";
 import * as applicationsHandler from "./applicationsHandler";
 import { documentsUpload } from "@/shared/middlewares/multipart";
-import { Visitors } from "@/configs/authorizer";
+import { ADMIN, anyOf, MEMBER, Visitors } from "@/configs/authorizer";
 import z from "zod";
 import {
   PostMembershipApplicationBody,
@@ -28,7 +28,12 @@ const applicationsRouter = Router();
 applicationsRouter.get(
   "/membership",
   authenticate,
-  authorize(Visitors.hasProfile("ADMIN")),
+  authorize(
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.PRESIDENT, MEMBER.COMMITTEECHAIR),
+    ),
+  ),
   validateQuery(GetMembershipApplicationsQuerySchema),
   redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
@@ -49,7 +54,12 @@ applicationsRouter.get(
 applicationsRouter.patch(
   "/membership/:id/status",
   authenticate,
-  authorize(Visitors.hasProfile("ADMIN")),
+  authorize(
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.PRESIDENT, MEMBER.COMMITTEECHAIR),
+    ),
+  ),
   validateParams(z.object({ id: z.uuid("Applicant not found") }), 404),
   validateBody(UpdateMembershipApplicationStatusSchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -75,7 +85,12 @@ applicationsRouter.patch(
 applicationsRouter.get(
   "/membership/:id",
   authenticate,
-  authorize(Visitors.hasProfile("ADMIN")),
+  authorize(
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.PRESIDENT, MEMBER.COMMITTEECHAIR),
+    ),
+  ),
   validateParams(z.object({ id: z.uuid("Applicant not found") }), 404),
   redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
@@ -124,7 +139,12 @@ applicationsRouter.post(
 applicationsRouter.get(
   "/volunteer",
   authenticate,
-  authorize(Visitors.hasProfile("ADMIN")),
+  authorize(
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.PRESIDENT, MEMBER.COMMITTEECHAIR),
+    ),
+  ),
   validateQuery(GetVolunteerApplicationsQuerySchema),
   redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
@@ -145,7 +165,12 @@ applicationsRouter.get(
 applicationsRouter.get(
   "/volunteer/:id",
   authenticate,
-  authorize(Visitors.hasProfile("ADMIN")),
+  authorize(
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.PRESIDENT, MEMBER.COMMITTEECHAIR),
+    ),
+  ),
   validateParams(z.object({ id: z.uuid("Applicant not found") }), 404),
   redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {

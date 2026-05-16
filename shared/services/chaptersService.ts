@@ -17,6 +17,7 @@ import schema from "@/db/schema";
 import { Paginated } from "@/shared/dtos";
 import { YPFChapter, YPFChapterDetail } from "@/features/api/v1/chapters/dtos";
 import {
+  CreateChapterSchema,
   GetChaptersQuerySchema,
   GetConstituentChaptersQuerySchema,
   UpdateChapterSchema,
@@ -231,6 +232,23 @@ export async function getChapterById(
   return detailedChapter;
 }
 
+export async function createChapter(
+  input: z.infer<typeof CreateChapterSchema>,
+): Promise<{ id: string }> {
+  const [chapter] = await dbClient.db
+    .insert(schema.Chapters)
+    .values({
+      name: input.name,
+      country: input.country,
+      description: input.description,
+      foundingDate: input.foundingDate,
+      parentId: input.parentId,
+    })
+    .returning({ id: schema.Chapters.id });
+
+  return chapter;
+}
+
 export async function updateChapter(
   chapterId: string,
   updates: z.infer<typeof UpdateChapterSchema>,
@@ -246,6 +264,18 @@ export async function updateChapter(
   }
 
   return updatedChapter;
+}
+
+export async function archiveChapter(chapterId: string): Promise<void> {
+  const [chapter] = await dbClient.db
+    .update(schema.Chapters)
+    .set({ archivedAt: new Date() })
+    .where(eq(schema.Chapters.id, chapterId))
+    .returning({ id: schema.Chapters.id });
+
+  if (!chapter) {
+    throw new ApiError("Chapter not found", 404);
+  }
 }
 
 export async function getChaptersByConstituentId(

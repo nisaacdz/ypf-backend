@@ -122,6 +122,18 @@ export async function updateEvent(
   };
 }
 
+export async function deleteEvent(
+  eventId: string,
+): Promise<ApiResponse<null>> {
+  await eventsService.deleteEvent(eventId);
+
+  return {
+    success: true,
+    message: "Event deleted successfully",
+    data: null,
+  };
+}
+
 export async function updateEventMedium(
   eventId: string,
   eventMediumId: string,

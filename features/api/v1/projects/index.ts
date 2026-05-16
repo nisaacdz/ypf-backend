@@ -59,6 +59,7 @@ projectsRouter.post(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await projectsHandler.createProject(req.Body);
+      await redisClient.delCache("/api/v1/projects");
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -103,6 +104,7 @@ projectsRouter.put(
 
       // Clear the detail cache
       await redisClient.delCache(`/api/v1/projects/${req.Params.id}`);
+      await redisClient.delCache("/api/v1/projects");
 
       res.status(200).json(response);
     } catch (error) {

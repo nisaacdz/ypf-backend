@@ -1,6 +1,7 @@
 import * as chaptersService from "@/shared/services/chaptersService";
 import { ApiResponse } from "@/shared/types";
 import {
+  CreateChapterSchema,
   GetChaptersQuerySchema,
   GetConstituentChaptersQuerySchema,
   UpdateChapterSchema,
@@ -27,6 +28,13 @@ export async function getChapter(
   return { success: true, data };
 }
 
+export async function createChapter(
+  body: z.infer<typeof CreateChapterSchema>,
+): Promise<ApiResponse<string>> {
+  const chapter = await chaptersService.createChapter(body);
+  return { success: true, data: chapter.id };
+}
+
 export async function updateChapter(
   chapterId: string,
   updates: z.infer<typeof UpdateChapterSchema>,
@@ -36,6 +44,11 @@ export async function updateChapter(
     updates,
   );
   return { success: true, data: updatedChapter.id };
+}
+
+export async function archiveChapter(chapterId: string): Promise<ApiResponse<null>> {
+  await chaptersService.archiveChapter(chapterId);
+  return { success: true, data: null };
 }
 
 export async function getChaptersByConstituentId(
