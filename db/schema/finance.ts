@@ -25,6 +25,10 @@ export const finance = pgSchema("finance");
 
 export const ExternalProviderEnum = finance.enum("external_provider", [
   "PAYSTACK",
+  // Used for admin-recorded offline payments (cash, transfer, mobile money)
+  // and any future internal-system payments that don't flow through a
+  // third-party gateway.
+  "MANUAL",
 ]);
 export const PaymentMethodEnum = finance.enum("payment_method", [
   "CREDIT_CARD",
@@ -114,6 +118,28 @@ export const DuesPayments = finance.table("dues_payments", {
   memberId: uuid("member_id")
     .notNull()
     .references(() => Members.id, { onDelete: "restrict" }),
+});
+
+/**
+ * Recurring monthly dues policy set by a super admin. The active row defines
+ * the amount every member is billed for the current month. Setting a new
+ * policy ends the previous one (endedAt = now) — `effectiveFrom <= now AND
+ * (endedAt IS NULL OR endedAt > now)` identifies the active row.
+ *
+ * The scheduler / on-demand `ensureCurrentMonthDues()` reads this policy to
+ * create a `Dues` row for each month with the right amount.
+ */
+export const DuesPolicies = finance.table("dues_policies", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).notNull(),
+  effectiveFrom: timestamp("effective_from", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  endedAt: timestamp("ended_at", { withTimezone: true }),
+  createdBy: uuid("created_by").references(() => Constituents.id, {
+    onDelete: "set null",
+  }),
 });
 
 export const Expenditures = finance.table("expenditures", {

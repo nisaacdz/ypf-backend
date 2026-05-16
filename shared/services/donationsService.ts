@@ -7,6 +7,7 @@ import logger from "@/configs/logger";
 import { sendDonationAcknowledgementEmail } from "@/shared/utils/email";
 import { v4 as uuidv4 } from "uuid";
 import { paymentMethodMap, transactionStatusMap } from "../utils";
+import { paystackSplitFields } from "./paymentProviders";
 import { sql, desc, gte, lte } from "drizzle-orm";
 import { Paginated } from "@/shared/dtos";
 import { YPFDonation } from "@/features/api/v1/donations/dtos";
@@ -256,6 +257,7 @@ export async function startPaystackDonation(
           reference: paymentReference,
           callback_url: `${variables.app.host}/donations/callback`,
           email: guestEmail ?? user?.email,
+          ...paystackSplitFields(),
         }),
       },
     );

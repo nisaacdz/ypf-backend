@@ -40,3 +40,27 @@ export const EnrollChapterSchema = z.object({
 export const UnenrollChapterSchema = z.object({
   constituentId: z.uuid({ message: "Invalid constituent ID." }),
 });
+
+/**
+ * Allowed chapter-role alias values. Kept in sync with
+ * `CHAPTER_ROLE_ALIASES` in `chaptersService.ts`.
+ */
+export const ChapterRoleAliasEnum = z.enum([
+  "chapterlead",
+  "chapterhead",
+  "chapter_secretary",
+  "chapter_finance",
+  "chapter_programs",
+  "chapter_welfare",
+  "chapter_media",
+  "chapter_records",
+]);
+
+export const ChapterRoleParamsSchema = z.object({
+  id: z.uuid("Invalid chapter ID"),
+  roleAlias: ChapterRoleAliasEnum,
+});
+
+export const AssignChapterRoleSchema = z.object({
+  constituentId: z.uuid({ message: "Invalid constituent ID." }),
+});

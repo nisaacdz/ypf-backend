@@ -568,3 +568,314 @@ export async function unenrollFromChapter(
     throw new ApiError("No active chapter membership found", 404);
   }
 }
+
+/**
+ * Canonical chapter-scoped role aliases. Matches the convention documented in
+ * `constituents/dtos.ts` and the authorizer's `MEMBER.chapterlead.<id>` /
+ * `MEMBER.chapterhead.<id>` role-string format. The remaining slots use
+ * `chapter_*` underscore form so they never collide with existing
+ * global / committee titles.
+ */
+export const CHAPTER_ROLE_ALIASES = [
+  "chapterlead",
+  "chapterhead",
+  "chapter_secretary",
+  "chapter_finance",
+  "chapter_programs",
+  "chapter_welfare",
+  "chapter_media",
+  "chapter_records",
+] as const;
+
+export type ChapterRoleAlias = (typeof CHAPTER_ROLE_ALIASES)[number];
+
+const CHAPTER_ROLE_TITLES: Record<ChapterRoleAlias, string> = {
+  chapterlead: "Chapter Lead",
+  chapterhead: "Chapter Head",
+  chapter_secretary: "Chapter Secretary",
+  chapter_finance: "Finance Coordinator",
+  chapter_programs: "Programs Coordinator",
+  chapter_welfare: "Welfare Coordinator",
+  chapter_media: "Media Liaison",
+  chapter_records: "Records Officer",
+};
+
+const CHAPTER_ROLE_LEVELS: Record<ChapterRoleAlias, number> = {
+  chapterlead: 10,
+  chapterhead: 15,
+  chapter_secretary: 30,
+  chapter_finance: 30,
+  chapter_programs: 30,
+  chapter_welfare: 30,
+  chapter_media: 30,
+  chapter_records: 30,
+};
+
+export type ChapterRoleHolder = {
+  alias: ChapterRoleAlias;
+  title: string;
+  member?: {
+    memberId: string;
+    constituentId: string;
+    publicId: string;
+    fullName: string;
+    email?: string;
+    profilePhotoUrl?: string;
+    startedAt: Date;
+  };
+};
+
+/**
+ * Fetches all eight canonical chapter role slots for `chapterId`. Slots that
+ * have an active assignment include the holder; empty slots are returned
+ * without a `member`. Always returns 8 entries in the alias declaration order
+ * so the frontend can render the full list without filling in gaps itself.
+ */
+export async function getChapterRoles(
+  chapterId: string,
+): Promise<ChapterRoleHolder[]> {
+  const db = dbClient.db;
+
+  // Pull the active holder for every chapter-scoped title in one shot.
+  const rows = await db
+    .select({
+      alias: schema.MemberTitles.alias,
+      title: schema.MemberTitles.title,
+      memberId: schema.Members.id,
+      constituentId: schema.Constituents.id,
+      publicId: schema.Constituents.publicId,
+      firstName: schema.Constituents.firstName,
+      lastName: schema.Constituents.lastName,
+      preferredName: schema.Constituents.preferredName,
+      email: schema.Constituents.email,
+      profilePhotoExternalId: schema.Media.externalId,
+      startedAt: schema.MemberTitlesAssignments.startedAt,
+    })
+    .from(schema.MemberTitles)
+    .innerJoin(
+      schema.MemberTitlesAssignments,
+      eq(schema.MemberTitles.id, schema.MemberTitlesAssignments.titleId),
+    )
+    .innerJoin(
+      schema.Members,
+      eq(schema.MemberTitlesAssignments.memberId, schema.Members.id),
+    )
+    .innerJoin(
+      schema.Constituents,
+      eq(schema.Members.constituentId, schema.Constituents.id),
+    )
+    .leftJoin(
+      schema.Media,
+      eq(schema.Constituents.profilePhotoId, schema.Media.id),
+    )
+    .where(
+      and(
+        eq(schema.MemberTitles.chapterId, chapterId),
+        sql`${schema.MemberTitlesAssignments.startedAt} <= now()`,
+        sql`(${schema.MemberTitlesAssignments.endedAt} IS NULL OR ${schema.MemberTitlesAssignments.endedAt} >= now())`,
+        sql`${schema.Members.startedAt} <= now()`,
+        sql`(${schema.Members.endedAt} IS NULL OR ${schema.Members.endedAt} >= now())`,
+      ),
+    );
+
+  const byAlias = new Map<string, (typeof rows)[number]>();
+  for (const row of rows) {
+    // First active row wins per alias — should be unique under normal use
+    // but a defensive filter avoids surprising "double role" displays.
+    if (!byAlias.has(row.alias)) byAlias.set(row.alias, row);
+  }
+
+  return CHAPTER_ROLE_ALIASES.map((alias) => {
+    const row = byAlias.get(alias);
+    if (!row) {
+      return { alias, title: CHAPTER_ROLE_TITLES[alias] };
+    }
+    return {
+      alias,
+      title: row.title || CHAPTER_ROLE_TITLES[alias],
+      member: {
+        memberId: row.memberId,
+        constituentId: row.constituentId,
+        publicId: row.publicId,
+        fullName: row.preferredName ?? `${row.firstName} ${row.lastName}`,
+        email: row.email ?? undefined,
+        profilePhotoUrl: row.profilePhotoExternalId
+          ? mediaUtils.generatePublicMediaUrl(row.profilePhotoExternalId, {
+              resolution: 360,
+            })
+          : undefined,
+        startedAt: row.startedAt,
+      },
+    };
+  });
+}
+
+/**
+ * Finds the chapter-scoped MemberTitle for `alias`, creating it on demand if
+ * the row hasn't been provisioned yet. Idempotent — repeated calls return the
+ * same row.
+ */
+async function ensureChapterRoleTitle(
+  tx: typeof dbClient.db,
+  chapterId: string,
+  alias: ChapterRoleAlias,
+): Promise<{ id: string }> {
+  const existing = await tx.query.MemberTitles.findFirst({
+    where: and(
+      eq(schema.MemberTitles.chapterId, chapterId),
+      eq(schema.MemberTitles.alias, alias),
+    ),
+    columns: { id: true },
+  });
+  if (existing) return existing;
+
+  const [created] = await tx
+    .insert(schema.MemberTitles)
+    .values({
+      title: CHAPTER_ROLE_TITLES[alias],
+      alias,
+      _level: CHAPTER_ROLE_LEVELS[alias],
+      chapterId,
+    })
+    .returning({ id: schema.MemberTitles.id });
+
+  return created;
+}
+
+/**
+ * Assigns a chapter role to a constituent. The constituent must already have
+ * an active `Members` record. If a different person currently holds the role,
+ * their assignment is closed out (`endedAt = now`) before the new one is
+ * inserted, so each slot has at most one active holder.
+ *
+ * Returns the holder snapshot for the new assignment.
+ */
+export async function assignChapterRole(
+  chapterId: string,
+  alias: ChapterRoleAlias,
+  constituentId: string,
+): Promise<ChapterRoleHolder> {
+  // Verify chapter exists and isn't archived first — cheap check, friendlier 404.
+  const [chapter] = await dbClient.db
+    .select({ id: schema.Chapters.id })
+    .from(schema.Chapters)
+    .where(and(eq(schema.Chapters.id, chapterId), isNull(schema.Chapters.archivedAt)))
+    .limit(1);
+  if (!chapter) {
+    throw new ApiError("Chapter not found", 404);
+  }
+
+  await dbClient.db.transaction(async (tx) => {
+    const now = new Date();
+
+    const [member] = await tx
+      .select({ id: schema.Members.id })
+      .from(schema.Members)
+      .where(
+        and(
+          eq(schema.Members.constituentId, constituentId),
+          lte(schema.Members.startedAt, now),
+          or(
+            isNull(schema.Members.endedAt),
+            gte(schema.Members.endedAt, now),
+          ),
+        ),
+      )
+      .limit(1);
+
+    if (!member) {
+      throw new ApiError(
+        "Constituent has no active member record — invite them as a member first.",
+        400,
+      );
+    }
+
+    const title = await ensureChapterRoleTitle(
+      tx as typeof dbClient.db,
+      chapterId,
+      alias,
+    );
+
+    // Close out any active holders of this role (might be the same member —
+    // we still end + reinsert so startedAt reflects the latest assignment).
+    await tx
+      .update(schema.MemberTitlesAssignments)
+      .set({ endedAt: now })
+      .where(
+        and(
+          eq(schema.MemberTitlesAssignments.titleId, title.id),
+          isNull(schema.MemberTitlesAssignments.endedAt),
+        ),
+      );
+
+    await tx.insert(schema.MemberTitlesAssignments).values({
+      memberId: member.id,
+      titleId: title.id,
+      startedAt: now,
+    });
+
+    // Ensure the member is enrolled in the chapter — feels surprising for a
+    // chapter role-holder to not also appear in the chapter roster.
+    const [existingMembership] = await tx
+      .select({ id: schema.ChapterMemberships.id })
+      .from(schema.ChapterMemberships)
+      .where(
+        and(
+          eq(schema.ChapterMemberships.memberId, member.id),
+          eq(schema.ChapterMemberships.chapterId, chapterId),
+          isNull(schema.ChapterMemberships.endedAt),
+        ),
+      )
+      .limit(1);
+
+    if (!existingMembership) {
+      await tx.insert(schema.ChapterMemberships).values({
+        memberId: member.id,
+        chapterId,
+        startedAt: now,
+      });
+    }
+  });
+
+  const roles = await getChapterRoles(chapterId);
+  const holder = roles.find((r) => r.alias === alias);
+  if (!holder) {
+    // Practically unreachable — we just inserted the assignment.
+    throw new ApiError("Failed to reload role after assignment", 500);
+  }
+  return holder;
+}
+
+/**
+ * Ends the active assignment for a chapter role slot. The role title row is
+ * kept so the next assignment reuses the same id (and the seeded level).
+ */
+export async function clearChapterRole(
+  chapterId: string,
+  alias: ChapterRoleAlias,
+): Promise<void> {
+  const now = new Date();
+
+  const title = await dbClient.db.query.MemberTitles.findFirst({
+    where: and(
+      eq(schema.MemberTitles.chapterId, chapterId),
+      eq(schema.MemberTitles.alias, alias),
+    ),
+    columns: { id: true },
+  });
+
+  if (!title) {
+    // Nothing to clear — slot was never assigned. Treat as success.
+    return;
+  }
+
+  await dbClient.db
+    .update(schema.MemberTitlesAssignments)
+    .set({ endedAt: now })
+    .where(
+      and(
+        eq(schema.MemberTitlesAssignments.titleId, title.id),
+        isNull(schema.MemberTitlesAssignments.endedAt),
+      ),
+    );
+}

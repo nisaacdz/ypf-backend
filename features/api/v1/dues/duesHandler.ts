@@ -3,6 +3,8 @@ import {
   InitiateDuesPaymentSchema,
   GetMemberDuesPaymentsQuerySchema,
   GetDuesQuerySchema,
+  RecordOfflineDuesPaymentSchema,
+  SetDuesPolicySchema,
 } from "./schemas";
 import {
   YPFDues,
@@ -58,6 +60,57 @@ export async function initiateDuesPayment(
   return {
     success: true,
     message: "Payment initiated successfully",
+    data: result,
+  };
+}
+
+/**
+ * Returns the active dues policy (super-admin-configured monthly amount).
+ */
+export async function getDuesPolicy(): Promise<ApiResponse<duesService.DuesPolicy | null>> {
+  const policy = await duesService.getActiveDuesPolicy();
+  return { success: true, data: policy };
+}
+
+/**
+ * Replaces the active dues policy with new amount/currency. Super-admin only.
+ */
+export async function setDuesPolicy(
+  body: z.infer<typeof SetDuesPolicySchema>,
+  user: AuthenticatedUser,
+): Promise<ApiResponse<duesService.DuesPolicy>> {
+  const policy = await duesService.setDuesPolicy({
+    amount: body.amount,
+    currency: body.currency,
+    createdBy: user.constituentId,
+  });
+  return {
+    success: true,
+    message: "Dues policy updated",
+    data: policy,
+  };
+}
+
+/**
+ * Admin records an offline (cash/transfer/mobile money) dues payment for a
+ * specific member. The payment is marked COMPLETED immediately — no Paystack.
+ */
+export async function recordOfflineDuesPayment(
+  body: z.infer<typeof RecordOfflineDuesPaymentSchema>,
+  user: AuthenticatedUser,
+): Promise<ApiResponse<{ paymentId: string; transactionId: string }>> {
+  const result = await duesService.recordOfflineDuesPayment({
+    memberId: body.memberId,
+    duesId: body.duesId,
+    amount: body.amount,
+    currency: body.currency,
+    paymentMethod: body.paymentMethod,
+    note: body.note,
+    recordedBy: user.constituentId,
+  });
+  return {
+    success: true,
+    message: "Payment recorded",
     data: result,
   };
 }

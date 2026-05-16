@@ -13,6 +13,7 @@ import { sendOrderPlacementEmail } from "@/shared/utils/email";
 import z from "zod";
 import { GetShopProductsQuerySchema } from "@/features/api/v1/shop/schemas";
 import { ShopProduct, ShopProductDetail } from "@/features/api/v1/shop/dtos";
+import { paystackSplitFields } from "./paymentProviders";
 import { Paginated } from "../dtos";
 import * as mediaUtils from "@/shared/utils/files";
 
@@ -196,6 +197,7 @@ export async function createAuthenticatedOrder(
           reference: paymentReference,
           callback_url: `${variables.app.host}/shop/callback`,
           email: user.email,
+          ...paystackSplitFields(),
         }),
       },
     );
@@ -445,6 +447,7 @@ export async function completeGuestOrder(
           reference: paymentReference,
           callback_url: `${variables.app.host}/shop/callback`,
           email: payload.email,
+          ...paystackSplitFields(),
         }),
       },
     );

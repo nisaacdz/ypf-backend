@@ -1,6 +1,8 @@
 import * as chaptersService from "@/shared/services/chaptersService";
+import type { ChapterRoleAlias, ChapterRoleHolder } from "@/shared/services/chaptersService";
 import { ApiResponse } from "@/shared/types";
 import {
+  AssignChapterRoleSchema,
   CreateChapterSchema,
   GetChaptersQuerySchema,
   GetConstituentChaptersQuerySchema,
@@ -87,5 +89,33 @@ export async function unenrollFromChapter(
   body: z.infer<typeof UnenrollChapterSchema>,
 ): Promise<ApiResponse<null>> {
   await chaptersService.unenrollFromChapter(chapterId, body.constituentId);
+  return { success: true, data: null };
+}
+
+export async function getChapterRoles(
+  chapterId: string,
+): Promise<ApiResponse<ChapterRoleHolder[]>> {
+  const data = await chaptersService.getChapterRoles(chapterId);
+  return { success: true, data };
+}
+
+export async function assignChapterRole(
+  chapterId: string,
+  roleAlias: ChapterRoleAlias,
+  body: z.infer<typeof AssignChapterRoleSchema>,
+): Promise<ApiResponse<ChapterRoleHolder>> {
+  const holder = await chaptersService.assignChapterRole(
+    chapterId,
+    roleAlias,
+    body.constituentId,
+  );
+  return { success: true, data: holder };
+}
+
+export async function clearChapterRole(
+  chapterId: string,
+  roleAlias: ChapterRoleAlias,
+): Promise<ApiResponse<null>> {
+  await chaptersService.clearChapterRole(chapterId, roleAlias);
   return { success: true, data: null };
 }

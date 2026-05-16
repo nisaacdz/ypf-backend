@@ -15,6 +15,8 @@ import { redisCacheEarlyReturn } from "@/shared/middlewares/redisCache";
 import redisClient from "@/configs/redis";
 import logger from "@/configs/logger";
 import {
+  AssignChapterRoleSchema,
+  ChapterRoleParamsSchema,
   CreateChapterSchema,
   GetChaptersQuerySchema,
   UpdateChapterSchema,
@@ -50,7 +52,12 @@ chaptersRouter.get(
 chaptersRouter.post(
   "/",
   authenticate,
-  authorize(Visitors.hasRole(ADMIN.SUPER)),
+  authorize(
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR),
+    ),
+  ),
   validateBody(CreateChapterSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -66,7 +73,12 @@ chaptersRouter.post(
 chaptersRouter.get(
   "/:id",
   authenticateLax,
-  authorize(Visitors.hasProfile("MEMBER", "ADMIN")),
+  authorize(
+    anyOf(
+      Visitors.hasProfile("MEMBER", "ADMIN"),
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR),
+    ),
+  ),
   validateParams(z.object({ id: z.uuid("Invalid chapter ID") }), 404),
   redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
@@ -140,7 +152,12 @@ chaptersRouter.delete(
   "/:id",
   authenticate,
   validateParams(z.object({ id: z.uuid("Invalid chapter ID") }), 404),
-  authorize(Visitors.hasRole(ADMIN.SUPER)),
+  authorize(
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR),
+    ),
+  ),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await chaptersHandler.archiveChapter(req.Params.id);
@@ -157,7 +174,12 @@ chaptersRouter.get(
   "/:id/leadership",
   authenticateLax,
   validateParams(z.object({ id: z.uuid("Invalid chapter ID") }), 404),
-  authorize(Visitors.hasProfile("MEMBER", "ADMIN")),
+  authorize(
+    anyOf(
+      Visitors.hasProfile("MEMBER", "ADMIN"),
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR),
+    ),
+  ),
   validateQuery(GetChapterLeadershipQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -176,7 +198,12 @@ chaptersRouter.post(
   "/:id/enroll",
   authenticate,
   validateParams(z.object({ id: z.uuid("Invalid chapter ID") }), 404),
-  authorize(Visitors.hasRole(ADMIN.SUPER)),
+  authorize(
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR),
+    ),
+  ),
   validateBody(EnrollChapterSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -197,13 +224,90 @@ chaptersRouter.patch(
   "/:id/unenroll",
   authenticate,
   validateParams(z.object({ id: z.uuid("Invalid chapter ID") }), 404),
-  authorize(Visitors.hasRole(ADMIN.SUPER)),
+  authorize(
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR),
+    ),
+  ),
   validateBody(UnenrollChapterSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await chaptersHandler.unenrollFromChapter(
         req.Params.id,
         req.Body,
+      );
+      await redisClient.delCache(`/api/v1/chapters/${req.Params.id}`);
+      await redisClient.delCache("/api/v1/chapters");
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+chaptersRouter.get(
+  "/:id/roles",
+  authenticateLax,
+  validateParams(z.object({ id: z.uuid("Invalid chapter ID") }), 404),
+  authorize(
+    anyOf(
+      Visitors.hasProfile("MEMBER", "ADMIN"),
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR),
+    ),
+  ),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await chaptersHandler.getChapterRoles(req.Params.id);
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+chaptersRouter.put(
+  "/:id/roles/:roleAlias",
+  authenticate,
+  validateParams(ChapterRoleParamsSchema, 404),
+  authorize(
+    anyOf(
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR),
+      Visitors.hasRole((req) => MEMBER.chapterLead(req.Params.id)),
+    ),
+  ),
+  validateBody(AssignChapterRoleSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await chaptersHandler.assignChapterRole(
+        req.Params.id,
+        req.Params.roleAlias,
+        req.Body,
+      );
+      await redisClient.delCache(`/api/v1/chapters/${req.Params.id}`);
+      await redisClient.delCache("/api/v1/chapters");
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+chaptersRouter.delete(
+  "/:id/roles/:roleAlias",
+  authenticate,
+  validateParams(ChapterRoleParamsSchema, 404),
+  authorize(
+    anyOf(
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR),
+      Visitors.hasRole((req) => MEMBER.chapterLead(req.Params.id)),
+    ),
+  ),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await chaptersHandler.clearChapterRole(
+        req.Params.id,
+        req.Params.roleAlias,
       );
       await redisClient.delCache(`/api/v1/chapters/${req.Params.id}`);
       await redisClient.delCache("/api/v1/chapters");

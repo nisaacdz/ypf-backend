@@ -36,6 +36,13 @@
       "when": 1778746223203,
       "tag": "0004_uneven_mariko_yashida",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1778950693799,
+      "tag": "0005_dues_policy_and_manual_provider",
+      "breakpoints": true
     }
   ]
 }

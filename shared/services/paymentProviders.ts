@@ -4,6 +4,25 @@ import { transactionStatusMap, paymentMethodMap } from "../utils";
 import schema from "@/db/schema";
 
 /**
+ * Returns the subaccount + bearer fields to merge into a Paystack
+ * `/transaction/initialize` body. When `PAYSTACK_SUBACCOUNT_CODE` is set in
+ * env, every UMS-initiated transaction (dues, donations, shop) is routed to
+ * that subaccount and Paystack fees are charged against its split — i.e.
+ * the main account collects its share net of fees.
+ *
+ * If the env is empty, returns `{}` so calls to the main account keep
+ * working unchanged.
+ */
+export function paystackSplitFields(): {
+  subaccount?: string;
+  bearer?: "account" | "subaccount";
+} {
+  const code = variables.services.paystack.subaccountCode;
+  if (!code) return {};
+  return { subaccount: code, bearer: "subaccount" };
+}
+
+/**
  * Payment provider interface for future extensibility.
  * This allows adding other payment gateways (Stripe, Flutterwave, etc.)
  * in the future without changing the core transaction logic.

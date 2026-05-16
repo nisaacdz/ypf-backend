@@ -40,6 +40,10 @@ const envSchema = z
       .string()
       .min(1, "PAYSTACK_SECRET is required")
       .default(""), // TODO remove default soon!
+    // Optional Paystack subaccount that should receive funds from any UMS-
+    // initiated transaction (dues, donations, shop). Format: ACCT_xxxxxxxxxxx.
+    // Leave blank to keep funds on the main account.
+    PAYSTACK_SUBACCOUNT_CODE: z.string().optional(),
 
     // SMTP Email Configuration
     SMTP_HOST: z.string().min(1, "SMTP_HOST is required"),
@@ -98,6 +102,7 @@ const envSchema = z
       },
       paystack: {
         secretKey: env.PAYSTACK_SECRET,
+        subaccountCode: env.PAYSTACK_SUBACCOUNT_CODE,
       },
     },
     jobs: {
