@@ -1,4 +1,4 @@
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, or, gt, isNull, desc, sql } from "drizzle-orm";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import variables from "@/configs/env";
@@ -35,6 +35,12 @@ export async function getAvailableDues(query: {
   } catch (err) {
     logger.warn(err, "ensureCurrentMonthDues failed during GET /dues");
   }
+
+  // Fire-and-forget: generate reminders for unpaid users in the last 7 days
+  // of the month. Idempotent and non-blocking.
+  import("./duesReminderService")
+    .then((svc) => svc.generateRemindersForCurrentMonth())
+    .catch(() => {});
 
   const [dues, countResult] = await Promise.all([
     dbClient.db
@@ -196,13 +202,36 @@ export async function getActiveMember(constituentId: string) {
     .where(
       and(
         eq(schema.Members.constituentId, constituentId),
-        sql`${schema.Members.endedAt} IS NULL OR ${schema.Members.endedAt} > now()`,
+        or(
+          isNull(schema.Members.endedAt),
+          gt(schema.Members.endedAt, sql`now()`),
+        ),
       ),
     )
     .orderBy(desc(schema.Members.startedAt))
     .limit(1);
 
   return member ?? null;
+}
+
+/**
+ * Returns an active member record, creating one if none exists.
+ * Dues payment is open to everyone — paying dues enrolls you as a member.
+ */
+export async function getOrCreateActiveMember(constituentId: string) {
+  const existing = await getActiveMember(constituentId);
+  if (existing) return existing;
+
+  const [created] = await dbClient.db
+    .insert(schema.Members)
+    .values({ constituentId, startedAt: new Date() })
+    .returning();
+
+  logger.info(
+    { constituentId, memberId: created.id },
+    "Auto-created Members row for dues payment",
+  );
+  return created;
 }
 
 /**
@@ -214,10 +243,7 @@ export async function initiateDuesPayment(
 ) {
   const { duesId, amount, currency } = input;
 
-  const member = await getActiveMember(user.constituentId);
-  if (!member) {
-    throw new ApiError("You must be an active member to pay dues", 403);
-  }
+  const member = await getOrCreateActiveMember(user.constituentId);
 
   const [dues] = await dbClient.db
     .select()
@@ -303,6 +329,29 @@ export async function initiateDuesPayment(
 
   let paymentUrl: string;
   try {
+    const paystackBody = {
+      amount: Math.round(amount * 100),
+      currency,
+      reference: paymentReference,
+      ...paystackSplitFields(),
+      callback_url:
+        (variables.app.dashboardUrl?.replace(/\/$/, "") ??
+          `http://${variables.app.host}:${variables.app.port}`) +
+        "/dashboard/me/dues/callback",
+      email: user.email,
+      metadata: {
+        type: "dues_payment",
+        duesId,
+        memberId: member.id,
+        period: `${dues.periodStart} - ${dues.periodEnd}`,
+      },
+    };
+
+    logger.info(
+      { paystackBody: { ...paystackBody, email: user.email } },
+      "Calling Paystack /transaction/initialize",
+    );
+
     const paystackResponse = await fetch(
       "https://api.paystack.co/transaction/initialize",
       {
@@ -311,27 +360,7 @@ export async function initiateDuesPayment(
           Authorization: `Bearer ${variables.services.paystack.secretKey}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          amount: Math.round(amount * 100),
-          currency,
-          reference: paymentReference,
-          ...paystackSplitFields(),
-          // Paystack redirects the user here after card entry. Must be a fully
-          // qualified URL pointing at the *frontend*, not the API host. The
-          // page at this route reads `?reference=` from the query string and
-          // refetches dues so the new payment shows up.
-          callback_url:
-            (variables.app.dashboardUrl?.replace(/\/$/, "") ??
-              `http://${variables.app.host}:${variables.app.port}`) +
-            "/dashboard/me/dues/callback",
-          email: user.email,
-          metadata: {
-            type: "dues_payment",
-            duesId,
-            memberId: member.id,
-            period: `${dues.periodStart} - ${dues.periodEnd}`,
-          },
-        }),
+        body: JSON.stringify(paystackBody),
       },
     );
 
@@ -348,8 +377,9 @@ export async function initiateDuesPayment(
       (await paystackResponse.json()) as PaystackInitializeResponse;
     paymentUrl = paystackData.data.authorization_url;
   } catch (apiError) {
-    logger.warn(
-      `Compensating transaction for dues payment [${duesPaymentId}] due to API failure.`,
+    logger.error(
+      { err: apiError, duesPaymentId, transactionId, currency },
+      `Paystack API call failed for dues payment`,
     );
     try {
       await dbClient.db
@@ -362,7 +392,11 @@ export async function initiateDuesPayment(
         `CRITICAL: Failed to compensate (mark as FAILED) transaction [${transactionId}].`,
       );
     }
-    throw apiError;
+    if (apiError instanceof ApiError) throw apiError;
+    throw new ApiError(
+      "Payment provider unavailable — please check your internet connection and try again",
+      502,
+    );
   }
 
   return {

@@ -43,6 +43,13 @@
       "when": 1778950693799,
       "tag": "0005_dues_policy_and_manual_provider",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1778963069902,
+      "tag": "0006_melted_gravity",
+      "breakpoints": true
     }
   ]
 }

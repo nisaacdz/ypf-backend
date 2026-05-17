@@ -70,6 +70,27 @@ eventsRouter.post(
   },
 );
 
+eventsRouter.get(
+  "/my-registrations",
+  authenticate,
+  authorize(Visitors.AUTHENTICATED),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { getMyEventRegistrations } = await import(
+        "@/shared/services/enrollmentService"
+      );
+      const eventIds = await getMyEventRegistrations(req.User!.constituentId);
+      res.status(200).json({
+        success: true,
+        message: "My event registrations",
+        data: eventIds,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 eventsRouter.post(
   "/:id/media",
   authenticate,
@@ -218,6 +239,55 @@ eventsRouter.patch(
       await redisClient.delCache(`/api/v1/events/${req.Params.eventId}`);
 
       res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// ─── Event Registration (self-service for authenticated members) ────────────
+
+eventsRouter.post(
+  "/:id/register",
+  authenticate,
+  authorize(Visitors.AUTHENTICATED),
+  validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { registerForEvent } = await import(
+        "@/shared/services/enrollmentService"
+      );
+      const attendeeId = await registerForEvent(
+        req.Params.id,
+        req.User!.constituentId,
+      );
+      res.status(200).json({
+        success: true,
+        message: "Registered for event",
+        data: { attendeeId },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+eventsRouter.post(
+  "/:id/unregister",
+  authenticate,
+  authorize(Visitors.AUTHENTICATED),
+  validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { unregisterFromEvent } = await import(
+        "@/shared/services/enrollmentService"
+      );
+      await unregisterFromEvent(req.Params.id, req.User!.constituentId);
+      res.status(200).json({
+        success: true,
+        message: "Unregistered from event",
+        data: null,
+      });
     } catch (error) {
       next(error);
     }

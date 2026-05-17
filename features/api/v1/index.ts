@@ -17,6 +17,7 @@ import partnershipsRouter from "./partnerships";
 import dashboardRouter from "./dashboard";
 import constituentsRouter from "./constituents";
 import jobsRouter from "./jobs";
+import certificatesRouter from "./certificates";
 
 const apiRouter = Router();
 
@@ -38,5 +39,6 @@ apiRouter.use("/partnerships", partnershipsRouter);
 apiRouter.use("/dashboard", dashboardRouter);
 apiRouter.use("/constituents", constituentsRouter);
 apiRouter.use("/jobs", jobsRouter);
+apiRouter.use("/certificates", certificatesRouter);
 
 export default apiRouter;

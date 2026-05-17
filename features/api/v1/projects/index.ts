@@ -68,6 +68,29 @@ projectsRouter.post(
 );
 
 projectsRouter.get(
+  "/my-enrollments",
+  authenticate,
+  authorize(Visitors.AUTHENTICATED),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { getMyProjectEnrollments } = await import(
+        "@/shared/services/enrollmentService"
+      );
+      const projectIds = await getMyProjectEnrollments(
+        req.User!.constituentId,
+      );
+      res.status(200).json({
+        success: true,
+        message: "My project enrollments",
+        data: projectIds,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+projectsRouter.get(
   "/:id",
   authenticateLax,
   authorize(Visitors.ALL),
@@ -208,6 +231,55 @@ projectsRouter.get(
         req.Query,
       );
       res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// ─── Project Enrollment (self-service for authenticated members) ─────────────
+
+projectsRouter.post(
+  "/:id/enroll",
+  authenticate,
+  authorize(Visitors.AUTHENTICATED),
+  validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { enrollInProject } = await import(
+        "@/shared/services/enrollmentService"
+      );
+      const enrollmentId = await enrollInProject(
+        req.Params.id,
+        req.User!.constituentId,
+      );
+      res.status(200).json({
+        success: true,
+        message: "Enrolled in project",
+        data: { enrollmentId },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+projectsRouter.post(
+  "/:id/unenroll",
+  authenticate,
+  authorize(Visitors.AUTHENTICATED),
+  validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { unenrollFromProject } = await import(
+        "@/shared/services/enrollmentService"
+      );
+      await unenrollFromProject(req.Params.id, req.User!.constituentId);
+      res.status(200).json({
+        success: true,
+        message: "Unenrolled from project",
+        data: null,
+      });
     } catch (error) {
       next(error);
     }

@@ -1,6 +1,7 @@
 import * as authService from "@/shared/services/authService";
 import * as constituentsService from "@/shared/services/constituentsService";
 import * as mediaService from "@/shared/services/mediaService";
+import * as preferencesService from "@/shared/services/preferencesService";
 import * as mediaUtils from "@/shared/utils/files";
 import { encodeData } from "@/shared/utils/jwt";
 import { ApiResponse, ApiError, AuthenticatedUser } from "@/shared/types";
@@ -272,6 +273,34 @@ export async function changePassword(
     success: true,
     data: null,
     message: "Password updated successfully.",
+  };
+}
+
+export async function getPreferences(
+  authenticatedUser: AuthenticatedUser,
+): Promise<ApiResponse<preferencesService.UserPreferencesData>> {
+  const prefs = await preferencesService.getPreferences(authenticatedUser.id);
+
+  return {
+    success: true,
+    data: prefs,
+    message: "Preferences retrieved.",
+  };
+}
+
+export async function updatePreferences(
+  authenticatedUser: AuthenticatedUser,
+  body: Partial<preferencesService.UserPreferencesData>,
+): Promise<ApiResponse<preferencesService.UserPreferencesData>> {
+  const prefs = await preferencesService.updatePreferences(
+    authenticatedUser.id,
+    body,
+  );
+
+  return {
+    success: true,
+    data: prefs,
+    message: "Preferences updated.",
   };
 }
 

@@ -6,6 +6,7 @@ import {
   timestamp,
   text,
   date,
+  boolean,
   index,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
@@ -141,6 +142,32 @@ export const DuesPolicies = finance.table("dues_policies", {
     onDelete: "set null",
   }),
 });
+
+/**
+ * Dues reminders generated when a month is about to end and a user hasn't
+ * fully paid. One row per (constituent, dues period). Dismissed by the user
+ * or auto-dismissed when they complete payment.
+ */
+export const DuesReminders = finance.table(
+  "dues_reminders",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    constituentId: uuid("constituent_id")
+      .notNull()
+      .references(() => Constituents.id, { onDelete: "cascade" }),
+    duesId: uuid("dues_id")
+      .notNull()
+      .references(() => Dues.id, { onDelete: "cascade" }),
+    dismissed: boolean("dismissed").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("idx_dues_reminders_constituent").on(table.constituentId),
+    index("idx_dues_reminders_dues").on(table.duesId),
+  ],
+);
 
 export const Expenditures = finance.table("expenditures", {
   id: uuid().defaultRandom().primaryKey(),

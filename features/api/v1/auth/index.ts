@@ -175,6 +175,32 @@ authRouter.post(
 );
 
 authRouter.get(
+  "/me/preferences",
+  authenticate,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await authHandler.getPreferences(req.User!);
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+authRouter.patch(
+  "/me/preferences",
+  authenticate,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await authHandler.updatePreferences(req.User!, req.Body);
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+authRouter.get(
   "/onboard/status",
   async (req: Request, res: Response, next: NextFunction) => {
     try {

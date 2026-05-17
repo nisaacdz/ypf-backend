@@ -58,6 +58,24 @@ export const AppNotifications = app.table("notifications", {
     .notNull(),
 });
 
+export const UserPreferences = app.table("user_preferences", {
+  id: uuid().defaultRandom().primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .unique()
+    .references(() => Users.id, { onDelete: "cascade" }),
+  twoFactorEnabled: boolean("two_factor_enabled").default(false).notNull(),
+  sensitiveChangeAlerts: boolean("sensitive_change_alerts")
+    .default(true)
+    .notNull(),
+  notifyAnnouncements: boolean("notify_announcements").default(true).notNull(),
+  notifyEvents: boolean("notify_events").default(true).notNull(),
+  notifyDues: boolean("notify_dues").default(true).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
 // === RELATIONS ===
 
 export const usersRelations = relations(Users, ({ one }) => ({
@@ -65,4 +83,18 @@ export const usersRelations = relations(Users, ({ one }) => ({
     fields: [Users.constituentId],
     references: [Constituents.id],
   }),
+  preferences: one(UserPreferences, {
+    fields: [Users.id],
+    references: [UserPreferences.userId],
+  }),
 }));
+
+export const userPreferencesRelations = relations(
+  UserPreferences,
+  ({ one }) => ({
+    user: one(Users, {
+      fields: [UserPreferences.userId],
+      references: [Users.id],
+    }),
+  }),
+);

@@ -5,7 +5,8 @@ import {
   validateQuery,
   validateParams,
 } from "@/shared/middlewares/validate";
-import { ADMIN, anyOf, Visitors } from "@/configs/authorizer";
+import { ADMIN, MEMBER, anyOf, Visitors } from "@/configs/authorizer";
+// ADMIN/MEMBER/anyOf/Visitors still used by policy + admin/record routes below
 import {
   InitiateDuesPaymentSchema,
   GetMemberDuesPaymentsQuerySchema,
@@ -22,12 +23,6 @@ const duesRouter = Router();
 duesRouter.get(
   "/",
   authenticate,
-  authorize(
-    anyOf(
-      Visitors.hasProfile("MEMBER", "ADMIN"),
-      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR),
-    ),
-  ),
   validateQuery(GetDuesQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -45,18 +40,9 @@ duesRouter.get(
   validateParams(z.object({ duesId: z.string().uuid() })),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const member = await duesService.getActiveMember(req.User!.constituentId);
-      // Non-members get an empty status payload instead of a 403 — the My
-      // Dues page already renders an empty state, and dropping the 403 keeps
-      // the browser console clean for admin / volunteer accounts.
-      if (!member) {
-        res.status(200).json({
-          success: true,
-          data: null,
-          message: "Not an active member — no dues status to report.",
-        });
-        return;
-      }
+      const member = await duesService.getOrCreateActiveMember(
+        req.User!.constituentId,
+      );
 
       const response = await duesHandler.getMemberDuesStatus(
         member.id,
@@ -75,17 +61,9 @@ duesRouter.get(
   validateQuery(GetMemberDuesPaymentsQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const member = await duesService.getActiveMember(req.User!.constituentId);
-      // See above — return an empty page for non-members rather than 403.
-      if (!member) {
-        const { page, pageSize } = req.Query;
-        res.status(200).json({
-          success: true,
-          data: { items: [], page, pageSize, total: 0 },
-          message: "Not an active member — no dues payment history to report.",
-        });
-        return;
-      }
+      const member = await duesService.getOrCreateActiveMember(
+        req.User!.constituentId,
+      );
 
       const response = await duesHandler.getMemberDuesPayments(
         member.id,
@@ -171,7 +149,7 @@ duesRouter.post(
   authorize(
     anyOf(
       Visitors.hasProfile("ADMIN"),
-      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR),
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.COMMITTEECHAIR),
     ),
   ),
   validateBody(RecordOfflineDuesPaymentSchema),
@@ -182,6 +160,65 @@ duesRouter.post(
         req.User!,
       );
       res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Dues reminders
+// ---------------------------------------------------------------------------
+
+import * as duesReminderService from "@/shared/services/duesReminderService";
+
+duesRouter.get(
+  "/reminders",
+  authenticate,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const reminders = await duesReminderService.getRemindersForConstituent(
+        req.User!.constituentId,
+      );
+      res.status(200).json({ success: true, data: reminders });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+duesRouter.post(
+  "/reminders/:reminderId/dismiss",
+  authenticate,
+  validateParams(z.object({ reminderId: z.string().uuid() })),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await duesReminderService.dismissReminder(req.Params.reminderId);
+      res.status(200).json({ success: true, data: null });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+duesRouter.post(
+  "/reminders/generate",
+  authenticate,
+  authorize(
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR),
+    ),
+  ),
+  async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const count =
+        await duesReminderService.generateRemindersForCurrentMonth({ force: true });
+      res.status(200).json({
+        success: true,
+        data: { generated: count },
+        message: `Generated ${count} reminder(s).`,
+      });
     } catch (error) {
       next(error);
     }
