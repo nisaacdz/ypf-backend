@@ -11,6 +11,7 @@ import {
   check,
   index,
   customType,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 
@@ -115,7 +116,10 @@ export const Constituents = core.table(
       () => Documents.id,
     ),
 
-    // missionPillars: text("mission_pillars").array(),
+    missionPillars: text("mission_pillars")
+      .array()
+      .default(sql`'{}'::text[]`)
+      .notNull(),
 
     emergencyContactName: text("emergency_contact_name"),
     emergencyContactPhone: text("emergency_contact_phone"),
@@ -177,6 +181,9 @@ export const MembershipApplications = core.table("membership_applications", {
   cvDocumentId: uuid("cv_document_id").references(() => Documents.id),
 
   referralSource: text("referral_source"),
+
+  // { termsAgreedAt: ISO, privacyAgreedAt: ISO, declarationAgreedAt: ISO }
+  consents: jsonb("consents"),
 });
 
 export const VolunteerApplications = core.table("volunteer_applications", {
@@ -186,6 +193,9 @@ export const VolunteerApplications = core.table("volunteer_applications", {
     .unique()
     .references(() => Applications.id, { onDelete: "cascade" }),
   reason: text("reason"), // Motivation/Reason for applying
+  experience: text("experience"),
+  availability: text("availability"), // WEEKDAYS | WEEKENDS | BOTH | FLEXIBLE
+  consents: jsonb("consents"),
   notes: text(), // Internal admin notes
 });
 

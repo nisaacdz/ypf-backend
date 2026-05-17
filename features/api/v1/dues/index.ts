@@ -5,14 +5,14 @@ import {
   validateQuery,
   validateParams,
 } from "@/shared/middlewares/validate";
-import { ADMIN, anyOf, Visitors } from "@/configs/authorizer";
-// ADMIN/anyOf/Visitors still used by reminder routes below
 import {
   InitiateDuesPaymentSchema,
   GetMemberDuesPaymentsQuerySchema,
   GetDuesQuerySchema,
   RecordOfflineDuesPaymentSchema,
   SetDuesPolicySchema,
+  DuesDebtorsQuerySchema,
+  TriggerDuesReminderSchema,
 } from "./schemas";
 import * as duesHandler from "./duesHandler";
 import * as duesService from "@/shared/services/duesService";
@@ -155,6 +155,42 @@ duesRouter.post(
   },
 );
 
+duesRouter.get(
+  "/admin/debtors",
+  authenticate,
+  authorize(canManageFinance),
+  validateQuery(DuesDebtorsQuerySchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await duesHandler.getDuesDebtors({
+        duesId: req.Query.duesId,
+      });
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+duesRouter.post(
+  "/admin/debtors/:memberId/remind",
+  authenticate,
+  authorize(canManageFinance),
+  validateParams(z.object({ memberId: z.string().uuid() })),
+  validateBody(TriggerDuesReminderSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await duesHandler.triggerDuesReminder(
+        req.Params.memberId,
+        req.Body,
+      );
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 // ---------------------------------------------------------------------------
 // Dues reminders
 // ---------------------------------------------------------------------------
@@ -193,12 +229,7 @@ duesRouter.post(
 duesRouter.post(
   "/reminders/generate",
   authenticate,
-  authorize(
-    anyOf(
-      Visitors.hasProfile("ADMIN"),
-      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR),
-    ),
-  ),
+  authorize(canManageFinance),
   async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const count =

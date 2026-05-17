@@ -26,6 +26,10 @@ export const Products = shop.table("products", {
   name: text().notNull(), // e.g., "YPF Supporter T-Shirt - Red, M"
   sku: text().notNull().unique(), // e.g., "YPF-TSH-RED-M"
   description: text(),
+  longDescription: text("long_description"),
+  category: text("category"),
+  // { features?: string[]; sizes?: string[]; colors?: string[] }
+  attributes: jsonb("attributes"),
   price: decimal({ precision: 10, scale: 2 }).notNull(),
   stockQuantity: integer("stock_quantity").default(1).notNull(),
   // imageUrl: text("image_url"),
@@ -63,6 +67,7 @@ export const Orders = shop.table(
     totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
     status: orderStatus().default("PENDING").notNull(),
     deliveryAddress: jsonb("delivery_address"), // nullable, this ain't amazon
+    note: text("note"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),

@@ -19,6 +19,8 @@ import constituentsRouter from "./constituents";
 import jobsRouter from "./jobs";
 import certificatesRouter from "./certificates";
 import workspacesRouter from "./workspaces";
+import mediaRouter from "./media";
+import contactRouter from "./contact";
 
 const apiRouter = Router();
 
@@ -42,5 +44,9 @@ apiRouter.use("/constituents", constituentsRouter);
 apiRouter.use("/jobs", jobsRouter);
 apiRouter.use("/certificates", certificatesRouter);
 apiRouter.use("/workspaces", workspacesRouter);
+apiRouter.use("/media", mediaRouter);
+apiRouter.use("/contact-submissions", contactRouter);
+// Plan §8.3 — alias public POST under /contact for friendly URL.
+apiRouter.use("/contact", contactRouter);
 
 export default apiRouter;

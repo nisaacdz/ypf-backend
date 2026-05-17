@@ -13,6 +13,7 @@ import {
   CreateProjectSchema,
   UpdateProjectSchema,
   UpdateProjectMediumSchema,
+  GuestProjectRegistrationSchema,
 } from "./schemas";
 import {
   validateQuery,
@@ -248,6 +249,25 @@ projectsRouter.get(
         req.Query,
       );
       res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// ─── Public guest registration (plan §8.1) ───────────────────────────────────
+
+projectsRouter.post(
+  "/:id/register-guest",
+  validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
+  validateBody(GuestProjectRegistrationSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await projectsHandler.registerGuestForProject(
+        req.Params.id,
+        req.Body,
+      );
+      res.status(201).json(response);
     } catch (error) {
       next(error);
     }

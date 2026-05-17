@@ -9,6 +9,7 @@ export const UpdateEventSchema = z.object({
     .min(3, { message: "Event name must be at least 3 characters." })
     .max(100, { message: "Event name must not exceed 100 characters." })
     .optional(),
+  description: z.string().optional(),
   objective: z.string().optional(),
   location: z.string().optional(),
   scheduledStart: z.coerce
@@ -39,6 +40,7 @@ export const CreateEventSchema = z.object({
     .string({ message: "Event name is required." })
     .min(3, { message: "Event name must be at least 3 characters." })
     .max(100, { message: "Event name must not exceed 100 characters." }),
+  description: z.string().optional(),
   objective: z.string().optional(),
   type: z.enum(EventTypeEnum.enumValues, {
     message: "Invalid event type.",

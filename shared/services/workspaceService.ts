@@ -16,7 +16,9 @@ import { ApiError, type AuthenticatedUser } from "@/shared/types";
 import {
   canAccessCommittee,
   canManageCommittee,
+  FINANCE_ALIAS,
   getCommitteeByAlias,
+  HR_ALIAS,
   isSystemAdmin,
 } from "./workspaceAccessService";
 
@@ -99,6 +101,55 @@ export type WorkspaceNote = {
   createdAt: Date;
 };
 
+export type FinanceDonation = {
+  id: string;
+  amount: string;
+  currency: string;
+  status: string;
+  donorName: string;
+  donorEmail?: string | null;
+  note?: string | null;
+  createdAt: Date;
+};
+
+export type FinanceExpenditure = {
+  id: string;
+  amount: string;
+  currency: string;
+  description: string;
+  category?: string | null;
+  timestamp: Date;
+};
+
+export type FinanceBudgetRequest = {
+  id: string;
+  title: string;
+  month: Date;
+  currency: string;
+  totalAmount: string;
+  rationale: string;
+  lines: {
+    description: string;
+    category?: string;
+    amount: string;
+    notes?: string;
+  }[];
+  status: "SUBMITTED" | "APPROVED" | "REJECTED";
+  submittedBy: string;
+  submittedByName: string;
+  submittedAt: Date;
+  reviewedBy?: string | null;
+  reviewedAt?: Date | null;
+  reviewNote?: string | null;
+};
+
+export type PaginatedWorkspaceResult<T> = {
+  items: T[];
+  page: number;
+  pageSize: number;
+  total: number;
+};
+
 export async function getWorkspaceReport({
   alias,
   month,
@@ -133,6 +184,17 @@ export async function getWorkspaceReport({
 
   if (alias === "finance") {
     const reportData = await getFinanceReportData(monthStart, nextMonthStart);
+    return {
+      committee,
+      month: getMonthMeta(monthStart),
+      access,
+      submissions,
+      ...reportData,
+    };
+  }
+
+  if (alias === HR_ALIAS) {
+    const reportData = await getHrReportData(monthStart, nextMonthStart);
     return {
       committee,
       month: getMonthMeta(monthStart),
@@ -381,6 +443,33 @@ export async function createWorkspaceNote({
   return note.id;
 }
 
+export async function updateWorkspaceNote({
+  noteId,
+  body,
+  user,
+}: {
+  noteId: string;
+  body: string;
+  user: AuthenticatedUser;
+}): Promise<string> {
+  const note = await dbClient.db.query.WorkspaceNotes.findFirst({
+    where: eq(schema.WorkspaceNotes.id, noteId),
+  });
+  if (!note || note.deletedAt) throw new ApiError("Workspace note not found", 404);
+
+  const canManage = canManageCommittee(user, note.committeeId);
+  if (!canManage && !isSystemAdmin(user) && note.authorId !== user.constituentId) {
+    throw new ApiError("Only the note author, a workspace chair, or an admin can update this note", 403);
+  }
+
+  await dbClient.db
+    .update(schema.WorkspaceNotes)
+    .set({ body })
+    .where(eq(schema.WorkspaceNotes.id, noteId));
+
+  return noteId;
+}
+
 export async function deleteWorkspaceNote({
   noteId,
   user,
@@ -403,6 +492,314 @@ export async function deleteWorkspaceNote({
     .where(eq(schema.WorkspaceNotes.id, noteId));
 }
 
+export async function getFinanceDonations({
+  user,
+  page,
+  pageSize,
+  month,
+}: {
+  user: AuthenticatedUser;
+  page: number;
+  pageSize: number;
+  month?: string;
+}): Promise<PaginatedWorkspaceResult<FinanceDonation>> {
+  await requireWorkspaceAccess(FINANCE_ALIAS, user);
+  const offset = (page - 1) * pageSize;
+  const { start, end } = monthRange(month);
+  const conditions = [
+    eq(schema.FinancialTransactions.status, "COMPLETED"),
+    gte(schema.FinancialTransactions.createdAt, start),
+    lt(schema.FinancialTransactions.createdAt, end),
+  ];
+
+  const [rows, [{ total }]] = await Promise.all([
+    dbClient.db
+      .select({
+        id: schema.Donations.id,
+        amount: schema.FinancialTransactions.amount,
+        currency: schema.FinancialTransactions.currency,
+        status: schema.FinancialTransactions.status,
+        createdAt: schema.FinancialTransactions.createdAt,
+        guestName: schema.Donations.guestName,
+        guestEmail: schema.Donations.guestEmail,
+        note: schema.Donations.note,
+        firstName: schema.Constituents.firstName,
+        lastName: schema.Constituents.lastName,
+        email: schema.Constituents.email,
+      })
+      .from(schema.Donations)
+      .innerJoin(
+        schema.FinancialTransactions,
+        eq(schema.Donations.transactionId, schema.FinancialTransactions.id),
+      )
+      .leftJoin(
+        schema.Constituents,
+        eq(schema.Donations.constituentId, schema.Constituents.id),
+      )
+      .where(and(...conditions))
+      .orderBy(desc(schema.FinancialTransactions.createdAt))
+      .limit(pageSize)
+      .offset(offset),
+    dbClient.db
+      .select({ total: count() })
+      .from(schema.Donations)
+      .innerJoin(
+        schema.FinancialTransactions,
+        eq(schema.Donations.transactionId, schema.FinancialTransactions.id),
+      )
+      .where(and(...conditions)),
+  ]);
+
+  return {
+    items: rows.map((row) => ({
+      id: row.id,
+      amount: row.amount,
+      currency: row.currency,
+      status: row.status,
+      donorName:
+        row.guestName ||
+        `${row.firstName ?? ""} ${row.lastName ?? ""}`.trim() ||
+        "Anonymous donor",
+      donorEmail: row.guestEmail ?? row.email,
+      note: row.note,
+      createdAt: row.createdAt,
+    })),
+    page,
+    pageSize,
+    total,
+  };
+}
+
+export async function getFinanceExpenditures({
+  user,
+  page,
+  pageSize,
+  month,
+}: {
+  user: AuthenticatedUser;
+  page: number;
+  pageSize: number;
+  month?: string;
+}): Promise<PaginatedWorkspaceResult<FinanceExpenditure>> {
+  await requireWorkspaceAccess(FINANCE_ALIAS, user);
+  const offset = (page - 1) * pageSize;
+  const { start, end } = monthRange(month);
+  const conditions = [
+    gte(schema.Expenditures.timestamp, start),
+    lt(schema.Expenditures.timestamp, end),
+  ];
+
+  const [rows, [{ total }]] = await Promise.all([
+    dbClient.db
+      .select({
+        id: schema.Expenditures.id,
+        amount: schema.Expenditures.amount,
+        currency: schema.Expenditures.currency,
+        description: schema.Expenditures.description,
+        category: schema.Expenditures.category,
+        timestamp: schema.Expenditures.timestamp,
+      })
+      .from(schema.Expenditures)
+      .where(and(...conditions))
+      .orderBy(desc(schema.Expenditures.timestamp))
+      .limit(pageSize)
+      .offset(offset),
+    dbClient.db
+      .select({ total: count() })
+      .from(schema.Expenditures)
+      .where(and(...conditions)),
+  ]);
+
+  return { items: rows, page, pageSize, total };
+}
+
+export async function createFinanceExpenditure({
+  user,
+  amount,
+  currency,
+  description,
+  category,
+  timestamp,
+}: {
+  user: AuthenticatedUser;
+  amount: number;
+  currency: string;
+  description: string;
+  category?: string;
+  timestamp?: string;
+}): Promise<FinanceExpenditure> {
+  await requireWorkspaceManageAccess(
+    FINANCE_ALIAS,
+    user,
+    "Only Finance chairs and admins can record expenditures",
+  );
+  const [row] = await dbClient.db
+    .insert(schema.Expenditures)
+    .values({
+      amount: amount.toFixed(2),
+      currency: currency.toUpperCase(),
+      description,
+      category,
+      timestamp: timestamp ? new Date(timestamp) : new Date(),
+    })
+    .returning();
+  return row;
+}
+
+export async function getFinanceBudgets({
+  user,
+  page,
+  pageSize,
+  month,
+}: {
+  user: AuthenticatedUser;
+  page: number;
+  pageSize: number;
+  month?: string;
+}): Promise<PaginatedWorkspaceResult<FinanceBudgetRequest>> {
+  const committee = await requireWorkspaceAccess(FINANCE_ALIAS, user);
+  const offset = (page - 1) * pageSize;
+  const conditions = [eq(schema.BudgetRequests.committeeId, committee.id)];
+  if (month) conditions.push(eq(schema.BudgetRequests.month, normalizeMonth(month)));
+
+  const [rows, [{ total }]] = await Promise.all([
+    dbClient.db
+      .select({
+        id: schema.BudgetRequests.id,
+        title: schema.BudgetRequests.title,
+        month: schema.BudgetRequests.month,
+        currency: schema.BudgetRequests.currency,
+        totalAmount: schema.BudgetRequests.totalAmount,
+        rationale: schema.BudgetRequests.rationale,
+        lines: schema.BudgetRequests.lines,
+        status: schema.BudgetRequests.status,
+        submittedBy: schema.BudgetRequests.submittedBy,
+        submittedAt: schema.BudgetRequests.submittedAt,
+        reviewedBy: schema.BudgetRequests.reviewedBy,
+        reviewedAt: schema.BudgetRequests.reviewedAt,
+        reviewNote: schema.BudgetRequests.reviewNote,
+        firstName: schema.Constituents.firstName,
+        lastName: schema.Constituents.lastName,
+      })
+      .from(schema.BudgetRequests)
+      .innerJoin(
+        schema.Constituents,
+        eq(schema.BudgetRequests.submittedBy, schema.Constituents.id),
+      )
+      .where(and(...conditions))
+      .orderBy(desc(schema.BudgetRequests.submittedAt))
+      .limit(pageSize)
+      .offset(offset),
+    dbClient.db
+      .select({ total: count() })
+      .from(schema.BudgetRequests)
+      .where(and(...conditions)),
+  ]);
+
+  return {
+    items: rows.map(toBudgetRequest),
+    page,
+    pageSize,
+    total,
+  };
+}
+
+export async function createFinanceBudget({
+  user,
+  title,
+  month,
+  currency,
+  rationale,
+  lines,
+}: {
+  user: AuthenticatedUser;
+  title: string;
+  month: string;
+  currency: string;
+  rationale: string;
+  lines: { description: string; category?: string; amount: number; notes?: string }[];
+}): Promise<FinanceBudgetRequest> {
+  const committee = await requireWorkspaceManageAccess(
+    FINANCE_ALIAS,
+    user,
+    "Only Finance chairs and admins can submit budgets",
+  );
+  const total = lines.reduce((sum, line) => sum + line.amount, 0);
+  const [row] = await dbClient.db
+    .insert(schema.BudgetRequests)
+    .values({
+      committeeId: committee.id,
+      title,
+      month: normalizeMonth(month),
+      currency: currency.toUpperCase(),
+      totalAmount: total.toFixed(2),
+      rationale,
+      lines: lines.map((line) => ({
+        description: line.description,
+        category: line.category,
+        amount: line.amount.toFixed(2),
+        notes: line.notes,
+      })),
+      submittedBy: user.constituentId,
+      submittedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .returning();
+
+  return {
+    ...toBudgetRequest({
+      ...row,
+      firstName: user.fullName?.split(" ")[0] ?? "Finance",
+      lastName: user.fullName?.split(" ").slice(1).join(" ") ?? "Chair",
+    }),
+  };
+}
+
+export async function reviewFinanceBudget({
+  user,
+  budgetId,
+  status,
+  reviewNote,
+}: {
+  user: AuthenticatedUser;
+  budgetId: string;
+  status: "APPROVED" | "REJECTED";
+  reviewNote?: string;
+}): Promise<FinanceBudgetRequest> {
+  if (!isSystemAdmin(user)) {
+    throw new ApiError("Only admins can review Finance budget requests", 403);
+  }
+
+  const [row] = await dbClient.db
+    .update(schema.BudgetRequests)
+    .set({
+      status,
+      reviewNote,
+      reviewedBy: user.constituentId,
+      reviewedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.BudgetRequests.id, budgetId))
+    .returning();
+
+  if (!row) throw new ApiError("Budget request not found", 404);
+
+  const [submitter] = await dbClient.db
+    .select({
+      firstName: schema.Constituents.firstName,
+      lastName: schema.Constituents.lastName,
+    })
+    .from(schema.Constituents)
+    .where(eq(schema.Constituents.id, row.submittedBy))
+    .limit(1);
+
+  return toBudgetRequest({
+    ...row,
+    firstName: submitter?.firstName ?? "Finance",
+    lastName: submitter?.lastName ?? "Chair",
+  });
+}
+
 async function requireWorkspaceAccess(alias: string, user: AuthenticatedUser) {
   const committee = await getCommitteeByAlias(alias);
   if (!committee) throw new ApiError("Workspace not found", 404);
@@ -412,11 +809,15 @@ async function requireWorkspaceAccess(alias: string, user: AuthenticatedUser) {
   return committee;
 }
 
-async function requireWorkspaceManageAccess(alias: string, user: AuthenticatedUser) {
+async function requireWorkspaceManageAccess(
+  alias: string,
+  user: AuthenticatedUser,
+  message = "Only committee chairs and admins can submit workspace reports",
+) {
   const committee = await getCommitteeByAlias(alias);
   if (!committee) throw new ApiError("Workspace not found", 404);
   if (!canManageCommittee(user, committee.id)) {
-    throw new ApiError("Only committee chairs and admins can submit workspace reports", 403);
+    throw new ApiError(message, 403);
   }
   return committee;
 }
@@ -567,6 +968,143 @@ async function getProgramsRecordsReportData(monthStart: Date, nextMonthStart: Da
     attendance: attendanceItems,
     outcomes: outcomeItems,
     generatedItems: [],
+  };
+}
+
+async function getHrReportData(monthStart: Date, nextMonthStart: Date) {
+  const [
+    [{ pendingMembership }],
+    [{ acceptedMembership }],
+    [{ pendingVolunteer }],
+    [{ acceptedVolunteer }],
+    [{ acceptedThisMonth }],
+    recentMembership,
+    recentVolunteer,
+  ] = await Promise.all([
+    dbClient.db
+      .select({ pendingMembership: count() })
+      .from(schema.MembershipApplications)
+      .innerJoin(
+        schema.Applications,
+        eq(schema.MembershipApplications.applicationId, schema.Applications.id),
+      )
+      .where(eq(schema.Applications.status, "PENDING")),
+    dbClient.db
+      .select({ acceptedMembership: count() })
+      .from(schema.MembershipApplications)
+      .innerJoin(
+        schema.Applications,
+        eq(schema.MembershipApplications.applicationId, schema.Applications.id),
+      )
+      .where(eq(schema.Applications.status, "ACCEPTED")),
+    dbClient.db
+      .select({ pendingVolunteer: count() })
+      .from(schema.VolunteerApplications)
+      .innerJoin(
+        schema.Applications,
+        eq(schema.VolunteerApplications.applicationId, schema.Applications.id),
+      )
+      .where(eq(schema.Applications.status, "PENDING")),
+    dbClient.db
+      .select({ acceptedVolunteer: count() })
+      .from(schema.VolunteerApplications)
+      .innerJoin(
+        schema.Applications,
+        eq(schema.VolunteerApplications.applicationId, schema.Applications.id),
+      )
+      .where(eq(schema.Applications.status, "ACCEPTED")),
+    dbClient.db
+      .select({ acceptedThisMonth: count() })
+      .from(schema.MembershipApplications)
+      .innerJoin(
+        schema.Applications,
+        eq(schema.MembershipApplications.applicationId, schema.Applications.id),
+      )
+      .where(
+        and(
+          eq(schema.Applications.status, "ACCEPTED"),
+          gte(schema.Applications.updatedAt, monthStart),
+          lt(schema.Applications.updatedAt, nextMonthStart),
+        ),
+      ),
+    dbClient.db
+      .select({
+        id: schema.MembershipApplications.id,
+        trackingNumber: schema.Applications.trackingNumber,
+        status: schema.Applications.status,
+        createdAt: schema.Applications.createdAt,
+        firstName: schema.Constituents.firstName,
+        lastName: schema.Constituents.lastName,
+      })
+      .from(schema.MembershipApplications)
+      .innerJoin(
+        schema.Applications,
+        eq(schema.MembershipApplications.applicationId, schema.Applications.id),
+      )
+      .innerJoin(
+        schema.Constituents,
+        eq(schema.Applications.constituentId, schema.Constituents.id),
+      )
+      .orderBy(desc(schema.Applications.createdAt))
+      .limit(6),
+    dbClient.db
+      .select({
+        id: schema.VolunteerApplications.id,
+        trackingNumber: schema.Applications.trackingNumber,
+        status: schema.Applications.status,
+        createdAt: schema.Applications.createdAt,
+        firstName: schema.Constituents.firstName,
+        lastName: schema.Constituents.lastName,
+      })
+      .from(schema.VolunteerApplications)
+      .innerJoin(
+        schema.Applications,
+        eq(schema.VolunteerApplications.applicationId, schema.Applications.id),
+      )
+      .innerJoin(
+        schema.Constituents,
+        eq(schema.Applications.constituentId, schema.Constituents.id),
+      )
+      .orderBy(desc(schema.Applications.createdAt))
+      .limit(6),
+  ]);
+
+  const membershipItems = recentMembership.map((application) => ({
+    id: application.id,
+    title: `${application.firstName} ${application.lastName}`.trim(),
+    meta: `${application.trackingNumber} · ${formatDate(application.createdAt)}`,
+    badge: `membership:${application.status.toLowerCase()}`,
+  }));
+  const volunteerItems = recentVolunteer.map((application) => ({
+    id: application.id,
+    title: `${application.firstName} ${application.lastName}`.trim(),
+    meta: `${application.trackingNumber} · ${formatDate(application.createdAt)}`,
+    badge: `volunteer:${application.status.toLowerCase()}`,
+  }));
+
+  return {
+    metrics: [
+      { label: "Membership pending", value: pendingMembership, hint: "Website membership forms awaiting HR" },
+      { label: "Volunteer pending", value: pendingVolunteer, hint: "Website volunteer forms awaiting HR" },
+      { label: "Approved members", value: acceptedMembership, hint: "Membership applications accepted" },
+      { label: "Accepted this month", value: acceptedThisMonth, hint: "New member approvals in this report month" },
+    ],
+    attendance: membershipItems,
+    outcomes: volunteerItems,
+    generatedItems: [
+      {
+        id: "onboarding",
+        title: `${acceptedMembership} approved member${acceptedMembership === 1 ? "" : "s"} in onboarding scope`,
+        meta: "Accepted members feed the first-login queue automatically",
+        badge: "onboarding",
+      },
+      {
+        id: "volunteers",
+        title: `${acceptedVolunteer} accepted volunteer${acceptedVolunteer === 1 ? "" : "s"}`,
+        meta: "Volunteer application decisions captured by HR",
+        badge: "volunteer",
+      },
+    ],
   };
 }
 
@@ -834,6 +1372,49 @@ function normalizeMonth(month?: string): Date {
   }
   const now = new Date();
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+}
+
+function monthRange(month?: string) {
+  const start = normalizeMonth(month);
+  const end = new Date(
+    Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1),
+  );
+  return { start, end };
+}
+
+function toBudgetRequest(row: {
+  id: string;
+  title: string;
+  month: Date;
+  currency: string;
+  totalAmount: string;
+  rationale: string;
+  lines: FinanceBudgetRequest["lines"];
+  status: "SUBMITTED" | "APPROVED" | "REJECTED";
+  submittedBy: string;
+  submittedAt: Date;
+  reviewedBy: string | null;
+  reviewedAt: Date | null;
+  reviewNote: string | null;
+  firstName: string;
+  lastName: string;
+}): FinanceBudgetRequest {
+  return {
+    id: row.id,
+    title: row.title,
+    month: row.month,
+    currency: row.currency,
+    totalAmount: row.totalAmount,
+    rationale: row.rationale,
+    lines: row.lines,
+    status: row.status,
+    submittedBy: row.submittedBy,
+    submittedByName: `${row.firstName} ${row.lastName}`.trim(),
+    submittedAt: row.submittedAt,
+    reviewedBy: row.reviewedBy,
+    reviewedAt: row.reviewedAt,
+    reviewNote: row.reviewNote,
+  };
 }
 
 function getMonthMeta(monthStart: Date) {

@@ -1,6 +1,14 @@
 import z from "zod";
 import { PaginationQuery } from "@/shared/validators";
 
+const ProductAttributesSchema = z
+  .object({
+    features: z.array(z.string()).optional(),
+    sizes: z.array(z.string()).optional(),
+    colors: z.array(z.string()).optional(),
+  })
+  .strict();
+
 export const CreateProductSchema = z.object({
   name: z
     .string()
@@ -19,6 +27,15 @@ export const CreateProductSchema = z.object({
     .string()
     .max(5000, { message: "Description is too long." })
     .optional(),
+
+  longDescription: z
+    .string()
+    .max(20000, { message: "Long description is too long." })
+    .optional(),
+
+  category: z.string().max(120).optional(),
+
+  attributes: ProductAttributesSchema.optional(),
 
   price: z.string().regex(/^\d+(\.\d{1,2})?$/, {
     message: "Please enter a valid price (e.g., 49.99).",
@@ -64,6 +81,9 @@ export const ValidateOrderItemsSchema = z.object({
     .nonempty({ message: "Your shopping cart cannot be empty." }),
 });
 
+// Plan §11 #2 — single-line shipping for v1, structured later.
+const DeliveryAddressSchema = z.object({ raw: z.string().min(1).max(500) });
+
 // Guest order initiation schema
 export const InitiateGuestOrderSchema = z.object({
   firstName: z.string().min(1, { message: "First name is required." }),
@@ -77,6 +97,8 @@ export const InitiateGuestOrderSchema = z.object({
     .string()
     .length(3, "Currency must be a 3-letter code")
     .default("GHS"),
+  deliveryAddress: DeliveryAddressSchema.optional(),
+  note: z.string().max(500).optional(),
 });
 
 // Guest order completion schema

@@ -123,6 +123,7 @@ type CreateDonationInput = {
     email?: string;
     phone?: string;
   };
+  note?: string;
   projectId?: string;
   eventId?: string;
 };
@@ -185,6 +186,7 @@ export async function startPaystackDonation(
     currency,
     anonymous = false,
     donorInfo,
+    note,
     projectId,
     eventId,
   }: CreateDonationInput,
@@ -196,6 +198,7 @@ export async function startPaystackDonation(
   const constituentId = !anonymous ? (user?.constituentId ?? null) : null;
   const guestName = !anonymous ? (donorInfo?.name ?? null) : null;
   const guestEmail = !anonymous ? (donorInfo?.email ?? null) : null;
+  const guestPhone = !anonymous ? (donorInfo?.phone ?? null) : null;
 
   const paymentReference = uuidv4();
 
@@ -224,6 +227,8 @@ export async function startPaystackDonation(
             constituentId,
             guestName,
             guestEmail,
+            guestPhone,
+            note: note ?? null,
             projectId: projectId || null,
             eventId: eventId || null,
           })
@@ -255,7 +260,7 @@ export async function startPaystackDonation(
           amount: Math.round(amount * 100),
           currency,
           reference: paymentReference,
-          callback_url: `${variables.app.host}/donations/callback`,
+          callback_url: `${variables.app.websiteUrl ?? variables.app.host}/donations/callback`,
           email: guestEmail ?? user?.email,
           ...paystackSplitFields(),
         }),

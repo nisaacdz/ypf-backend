@@ -1,10 +1,11 @@
-import { ApiResponse } from "@/shared/types";
+import { ApiError, ApiResponse } from "@/shared/types";
 import {
   GetProjectsQuerySchema,
   GetProjectMediaQuerySchema,
   CreateProjectSchema,
   UpdateProjectSchema,
   UpdateProjectMediumSchema,
+  GuestProjectRegistrationSchema,
 } from "./schemas";
 import z from "zod";
 import { Paginated } from "@/shared/dtos";
@@ -12,6 +13,9 @@ import { YPFProject, YPFProjectDetail, YPFProjectMedium } from "./dtos";
 import * as projectsService from "@/shared/services/projectsService";
 import * as mediaUtils from "@/shared/utils/files";
 import * as mediaService from "@/shared/services/mediaService";
+import dbClient from "@/configs/db";
+import schema from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 export async function getProjects(
   query: z.infer<typeof GetProjectsQuerySchema>,
@@ -128,6 +132,52 @@ export async function updateProjectMedium(
     success: true,
     message: "Project medium updated successfully",
     data: null,
+  };
+}
+
+/**
+ * Plan §8.1 — public guest project registration. Inserts into
+ * project_enrollments with constituent_id NULL and the rich payload in
+ * guest_profile JSONB. Project must be UPCOMING or ONGOING.
+ */
+export async function registerGuestForProject(
+  projectId: string,
+  body: z.infer<typeof GuestProjectRegistrationSchema>,
+): Promise<ApiResponse<{ id: string; projectId: string }>> {
+  const project = await dbClient.db.query.Projects.findFirst({
+    where: eq(schema.Projects.id, projectId),
+    columns: { id: true, status: true, title: true },
+  });
+
+  if (!project) {
+    throw new ApiError("Project not found", 404);
+  }
+  if (project.status !== "UPCOMING" && project.status !== "ONGOING") {
+    throw new ApiError("This project is no longer accepting registrations", 400);
+  }
+
+  const [enrollment] = await dbClient.db
+    .insert(schema.ProjectEnrollments)
+    .values({
+      projectId,
+      constituentId: null,
+      guestName: `${body.firstName} ${body.lastName}`.trim(),
+      guestEmail: body.email,
+      guestPhone: body.phone,
+      guestProfile: {
+        ...body.guestProfile,
+        consents: body.consents,
+      },
+    })
+    .returning({ id: schema.ProjectEnrollments.id });
+
+  // TODO: queue confirmation + admin notification emails via pg-boss. For now
+  // the row persists and admin can see it in UMS — emails come in a follow-up.
+
+  return {
+    success: true,
+    message: "Registration received",
+    data: { id: enrollment.id, projectId },
   };
 }
 

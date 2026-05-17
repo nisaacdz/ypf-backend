@@ -5,6 +5,7 @@ import {
   GetDuesQuerySchema,
   RecordOfflineDuesPaymentSchema,
   SetDuesPolicySchema,
+  TriggerDuesReminderSchema,
 } from "./schemas";
 import {
   YPFDues,
@@ -16,6 +17,7 @@ import {
 import { Paginated } from "@/shared/dtos";
 import z from "zod";
 import * as duesService from "@/shared/services/duesService";
+import * as duesReminderService from "@/shared/services/duesReminderService";
 
 /**
  * Get all available dues
@@ -112,5 +114,31 @@ export async function recordOfflineDuesPayment(
     success: true,
     message: "Payment recorded",
     data: result,
+  };
+}
+
+export async function getDuesDebtors(input: {
+  duesId?: string;
+}): Promise<ApiResponse<duesReminderService.DuesDebtor[]>> {
+  const result = await duesReminderService.getDuesDebtors(input);
+  return {
+    success: true,
+    message: "Dues debtors fetched",
+    data: result,
+  };
+}
+
+export async function triggerDuesReminder(
+  memberId: string,
+  body: z.infer<typeof TriggerDuesReminderSchema>,
+): Promise<ApiResponse<{ reminderId: string }>> {
+  const reminder = await duesReminderService.triggerReminderForMember({
+    memberId,
+    duesId: body.duesId,
+  });
+  return {
+    success: true,
+    message: "Dues reminder triggered",
+    data: { reminderId: reminder.id },
   };
 }

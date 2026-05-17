@@ -5,12 +5,15 @@ export type YPFProject = {
   id: string;
   publicId: string;
   title: string;
+  abstract?: string;
   type: ProjectType;
   category?: string;
+  location?: string;
   scheduledStart: Date;
   scheduledEnd: Date;
   status: ProjectStatus;
   featuredMediumUrl?: string;
+  enrollmentCount: number;
   chapterName?: string;
 };
 
@@ -22,6 +25,9 @@ export type YPFProjectDetail = {
   category?: string;
   abstract?: string;
   description?: string;
+  location?: string;
+  objectives?: string[];
+  impact?: string;
   scheduledStart: Date;
   scheduledEnd: Date;
   status: ProjectStatus;
@@ -29,6 +35,7 @@ export type YPFProjectDetail = {
     caption?: string;
     medium: Medium;
   }[];
+  enrollmentCount: number;
   chapter?: {
     id: string;
     name: string;

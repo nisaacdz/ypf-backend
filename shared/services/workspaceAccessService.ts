@@ -7,6 +7,7 @@ import type { AuthenticatedUser } from "@/shared/types";
 
 export const PROGRAMS_RECORDS_ALIAS = "programs_records";
 export const FINANCE_ALIAS = "finance";
+export const HR_ALIAS = "hr";
 
 export type WorkspaceCommittee = {
   id: string;
@@ -96,6 +97,20 @@ export async function canManageFinance(req: Request) {
 export async function canAccessFinance(req: Request) {
   if (!req.User) return false;
   const committee = await getCommitteeByAlias(FINANCE_ALIAS);
+  if (!committee) return isSystemAdmin(req.User);
+  return canAccessCommittee(req.User, committee.id);
+}
+
+export async function canManageHr(req: Request) {
+  if (!req.User) return false;
+  const committee = await getCommitteeByAlias(HR_ALIAS);
+  if (!committee) return isSystemAdmin(req.User);
+  return canManageCommittee(req.User, committee.id);
+}
+
+export async function canAccessHr(req: Request) {
+  if (!req.User) return false;
+  const committee = await getCommitteeByAlias(HR_ALIAS);
   if (!committee) return isSystemAdmin(req.User);
   return canAccessCommittee(req.User, committee.id);
 }

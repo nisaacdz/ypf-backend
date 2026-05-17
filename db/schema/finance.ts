@@ -8,10 +8,12 @@ import {
   date,
   boolean,
   index,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import {
   Chapters,
+  Committees,
   Constituents,
   Documents,
   Members,
@@ -42,6 +44,11 @@ export const TransactionStatusEnum = finance.enum("transaction_status", [
   "COMPLETED",
   "FAILED",
   "REFUNDED",
+]);
+export const BudgetRequestStatusEnum = finance.enum("budget_request_status", [
+  "SUBMITTED",
+  "APPROVED",
+  "REJECTED",
 ]);
 
 export const PartnershipTypeEnum = finance.enum("partnership_type", [
@@ -88,6 +95,8 @@ export const Donations = finance.table(
     }),
     guestName: text("guest_name"),
     guestEmail: text("guest_email"),
+    guestPhone: text("guest_phone"),
+    note: text("note"),
   },
   (table) => [
     index("donations_constituent_id_idx").on(table.constituentId),
@@ -186,6 +195,51 @@ export const Expenditures = finance.table("expenditures", {
     onDelete: "restrict",
   }),
 });
+
+export type BudgetRequestLine = {
+  description: string;
+  category?: string;
+  amount: string;
+  notes?: string;
+};
+
+export const BudgetRequests = finance.table(
+  "budget_requests",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    committeeId: uuid("committee_id")
+      .notNull()
+      .references(() => Committees.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    month: date("month", { mode: "date" }).notNull(),
+    currency: varchar("currency", { length: 3 }).notNull(),
+    totalAmount: decimal("total_amount", { precision: 12, scale: 2 }).notNull(),
+    rationale: text("rationale").notNull(),
+    lines: jsonb("lines").$type<BudgetRequestLine[]>().notNull(),
+    status: BudgetRequestStatusEnum("status").default("SUBMITTED").notNull(),
+    submittedBy: uuid("submitted_by")
+      .notNull()
+      .references(() => Constituents.id, { onDelete: "restrict" }),
+    submittedAt: timestamp("submitted_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    reviewedBy: uuid("reviewed_by").references(() => Constituents.id, {
+      onDelete: "set null",
+    }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewNote: text("review_note"),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("budget_requests_committee_month_idx").on(
+      table.committeeId,
+      table.month,
+    ),
+    index("budget_requests_status_idx").on(table.status),
+  ],
+);
 
 export const Partnerships = finance.table("partnerships", {
   id: uuid().defaultRandom().primaryKey(),

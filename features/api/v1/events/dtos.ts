@@ -4,6 +4,7 @@ import { EventStatus, EventType } from "@/shared/utils";
 export type YPFEvent = {
   id: string;
   name: string;
+  description?: string;
   scheduledStart: Date;
   scheduledEnd: Date;
   location?: string;
@@ -18,6 +19,7 @@ export type YPFEvent = {
 export type YPFEventDetail = {
   id: string;
   name: string;
+  description?: string;
   scheduledStart: Date;
   scheduledEnd: Date;
   location?: string;

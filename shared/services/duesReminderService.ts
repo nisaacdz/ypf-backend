@@ -1,7 +1,26 @@
-import { eq, and, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import logger from "@/configs/logger";
+import { ApiError } from "@/shared/types";
+import { ensureCurrentMonthDues } from "./duesService";
+
+export type DuesDebtor = {
+  memberId: string;
+  constituentId: string;
+  publicId: string;
+  fullName: string;
+  email: string | null;
+  amountDue: string;
+  amountPaid: string;
+  balance: string;
+  currency: string;
+  duesId: string;
+  periodStart: Date;
+  periodEnd: Date;
+  reminderSent: boolean;
+  reminderId: string | null;
+};
 
 /**
  * Generates dues reminders for all constituents who have NOT fully paid the
@@ -120,6 +139,141 @@ export async function generateRemindersForCurrentMonth(
   return newReminders.length;
 }
 
+export async function getDuesDebtors(input?: {
+  duesId?: string;
+}): Promise<DuesDebtor[]> {
+  const currentDues = await resolveDuesPeriod(input?.duesId);
+  if (!currentDues) return [];
+
+  const duesAmount = Number(currentDues.amount);
+  const [allMembers, paymentRows, reminderRows] = await Promise.all([
+    dbClient.db
+      .select({
+        memberId: schema.Members.id,
+        constituentId: schema.Members.constituentId,
+        publicId: schema.Constituents.publicId,
+        firstName: schema.Constituents.firstName,
+        lastName: schema.Constituents.lastName,
+        email: schema.Constituents.email,
+      })
+      .from(schema.Members)
+      .innerJoin(
+        schema.Constituents,
+        eq(schema.Members.constituentId, schema.Constituents.id),
+      )
+      .where(
+        sql`${schema.Members.endedAt} IS NULL OR ${schema.Members.endedAt} > now()`,
+      )
+      .orderBy(schema.Constituents.firstName, schema.Constituents.lastName),
+    dbClient.db
+      .select({
+        memberId: schema.DuesPayments.memberId,
+        totalPaid: sql<string>`COALESCE(SUM(${schema.FinancialTransactions.amount}), 0)::text`,
+      })
+      .from(schema.DuesPayments)
+      .innerJoin(
+        schema.FinancialTransactions,
+        eq(schema.DuesPayments.transactionId, schema.FinancialTransactions.id),
+      )
+      .where(
+        and(
+          eq(schema.DuesPayments.duesId, currentDues.id),
+          eq(schema.FinancialTransactions.status, "COMPLETED"),
+        ),
+      )
+      .groupBy(schema.DuesPayments.memberId),
+    dbClient.db
+      .select({
+        id: schema.DuesReminders.id,
+        constituentId: schema.DuesReminders.constituentId,
+        dismissed: schema.DuesReminders.dismissed,
+      })
+      .from(schema.DuesReminders)
+      .where(eq(schema.DuesReminders.duesId, currentDues.id))
+      .orderBy(desc(schema.DuesReminders.createdAt)),
+  ]);
+
+  const paidByMember = new Map(
+    paymentRows.map((row) => [row.memberId, Number(row.totalPaid)]),
+  );
+  const reminderByConstituent = new Map<
+    string,
+    { id: string; dismissed: boolean }
+  >();
+  for (const reminder of reminderRows) {
+    if (!reminderByConstituent.has(reminder.constituentId)) {
+      reminderByConstituent.set(reminder.constituentId, reminder);
+    }
+  }
+
+  return allMembers
+    .map((member) => {
+      const amountPaid = paidByMember.get(member.memberId) ?? 0;
+      const balance = Math.max(0, duesAmount - amountPaid);
+      const reminder = reminderByConstituent.get(member.constituentId);
+      return {
+        memberId: member.memberId,
+        constituentId: member.constituentId,
+        publicId: member.publicId,
+        fullName: `${member.firstName} ${member.lastName}`.trim(),
+        email: member.email,
+        amountDue: duesAmount.toFixed(2),
+        amountPaid: amountPaid.toFixed(2),
+        balance: balance.toFixed(2),
+        currency: currentDues.currency,
+        duesId: currentDues.id,
+        periodStart: currentDues.periodStart,
+        periodEnd: currentDues.periodEnd,
+        reminderSent: Boolean(reminder && !reminder.dismissed),
+        reminderId: reminder?.id ?? null,
+      };
+    })
+    .filter((row) => Number(row.balance) > 0);
+}
+
+export async function triggerReminderForMember(input: {
+  memberId: string;
+  duesId?: string;
+}) {
+  const debtors = await getDuesDebtors({ duesId: input.duesId });
+  const debtor = debtors.find((row) => row.memberId === input.memberId);
+  if (!debtor) {
+    throw new ApiError("This member does not owe dues for the selected period", 400);
+  }
+
+  const existing = await dbClient.db.query.DuesReminders.findFirst({
+    where: and(
+      eq(schema.DuesReminders.constituentId, debtor.constituentId),
+      eq(schema.DuesReminders.duesId, debtor.duesId),
+    ),
+    orderBy: desc(schema.DuesReminders.createdAt),
+  });
+
+  if (existing) {
+    const [updated] = await dbClient.db
+      .update(schema.DuesReminders)
+      .set({ dismissed: false, createdAt: new Date() })
+      .where(eq(schema.DuesReminders.id, existing.id))
+      .returning();
+    return updated;
+  }
+
+  const [created] = await dbClient.db
+    .insert(schema.DuesReminders)
+    .values({
+      constituentId: debtor.constituentId,
+      duesId: debtor.duesId,
+    })
+    .returning();
+
+  logger.info(
+    { memberId: debtor.memberId, constituentId: debtor.constituentId, duesId: debtor.duesId },
+    "Triggered dues reminder for member",
+  );
+
+  return created;
+}
+
 /**
  * Returns active (non-dismissed) reminders for a specific constituent.
  */
@@ -174,4 +328,43 @@ export async function dismissRemindersForPayment(
         eq(schema.DuesReminders.dismissed, false),
       ),
     );
+}
+
+async function resolveDuesPeriod(duesId?: string) {
+  if (duesId) {
+    const [dues] = await dbClient.db
+      .select()
+      .from(schema.Dues)
+      .where(eq(schema.Dues.id, duesId))
+      .limit(1);
+    if (!dues) throw new ApiError("Dues period not found", 404);
+    return dues;
+  }
+
+  await ensureCurrentMonthDues();
+  const now = new Date();
+  const monthStartDate = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+  )
+    .toISOString()
+    .slice(0, 10);
+  const nextMonthStartDate = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1),
+  )
+    .toISOString()
+    .slice(0, 10);
+
+  const [currentDues] = await dbClient.db
+    .select()
+    .from(schema.Dues)
+    .where(
+      and(
+        sql`${schema.Dues.chapterId} IS NULL`,
+        sql`${schema.Dues.periodStart} >= ${monthStartDate}`,
+        sql`${schema.Dues.periodStart} < ${nextMonthStartDate}`,
+      ),
+    )
+    .limit(1);
+
+  return currentDues ?? null;
 }

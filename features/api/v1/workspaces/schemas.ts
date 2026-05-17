@@ -42,3 +42,46 @@ export const CreateWorkspaceNoteSchema = z.object({
   entityId: z.uuid("Invalid entity ID").optional(),
   body: z.string().min(1, "Note body is required"),
 });
+
+export const UpdateWorkspaceNoteSchema = z.object({
+  body: z.string().min(1, "Note body is required"),
+});
+
+const BudgetLineSchema = z.object({
+  description: z.string().min(2, "Line description is required").max(160),
+  category: z.string().max(80).optional(),
+  amount: z.number().positive("Line amount must be positive"),
+  notes: z.string().max(400).optional(),
+});
+
+export const FinanceLedgerQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(50),
+  month: z
+    .string()
+    .regex(/^\d{4}-\d{2}$/, "Month must be in YYYY-MM format")
+    .optional(),
+});
+
+export const CreateFinanceExpenditureSchema = z.object({
+  amount: z.number().positive("Amount must be positive"),
+  currency: z.string().length(3, "Currency must be a 3-letter code").default("GHS"),
+  description: z.string().min(3, "Description is required").max(240),
+  category: z.string().max(80).optional(),
+  timestamp: z.iso.datetime().optional(),
+});
+
+export const CreateFinanceBudgetSchema = z.object({
+  title: z.string().min(3, "Budget title is required").max(160),
+  month: z
+    .string()
+    .regex(/^\d{4}-\d{2}$/, "Month must be in YYYY-MM format"),
+  currency: z.string().length(3, "Currency must be a 3-letter code").default("GHS"),
+  rationale: z.string().min(10, "Add a short rationale").max(1200),
+  lines: z.array(BudgetLineSchema).min(1, "Add at least one budget line"),
+});
+
+export const ReviewFinanceBudgetSchema = z.object({
+  status: z.enum(["APPROVED", "REJECTED"]),
+  reviewNote: z.string().max(800).optional(),
+});

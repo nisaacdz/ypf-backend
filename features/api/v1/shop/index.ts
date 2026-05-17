@@ -50,6 +50,19 @@ shopRouter.get(
   },
 );
 
+shopRouter.get(
+  "/products/:id/related",
+  validateParams(z.object({ id: z.uuid("Invalid product ID") })),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await shopHandler.getRelatedProducts(req.Params.id);
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 // ========================
 // ORDER ROUTES
 // ========================
@@ -86,6 +99,20 @@ shopRouter.post(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await shopHandler.completeGuestOrder(req.Body);
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// Plan §8.8 — public success-page polling. No PII; status + total + itemCount.
+shopRouter.get(
+  "/orders/by-ref/:ref",
+  validateParams(z.object({ ref: z.string().min(8).max(100) })),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await shopHandler.getOrderByRef(req.Params.ref);
       res.status(200).json(response);
     } catch (error) {
       next(error);

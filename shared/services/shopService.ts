@@ -34,6 +34,8 @@ type GuestOrderInput = {
   phone?: string;
   items: OrderItem[];
   currency: string;
+  deliveryAddress?: { raw: string };
+  note?: string;
 };
 
 /**
@@ -195,7 +197,7 @@ export async function createAuthenticatedOrder(
           amount: Math.round(totalAmount * 100),
           currency,
           reference: paymentReference,
-          callback_url: `${variables.app.host}/shop/callback`,
+          callback_url: `${variables.app.websiteUrl ?? variables.app.host}/orders/success`,
           email: user.email,
           ...paystackSplitFields(),
         }),
@@ -385,7 +387,8 @@ export async function completeGuestOrder(
           constituentId: newConstituent.id,
           totalAmount: totalAmount.toFixed(2),
           status: "PENDING",
-          deliveryAddress: null,
+          deliveryAddress: payload.deliveryAddress ?? null,
+          note: payload.note ?? null,
         })
         .returning();
 
@@ -445,7 +448,7 @@ export async function completeGuestOrder(
           amount: Math.round(totalAmount * 100),
           currency: payload.currency,
           reference: paymentReference,
-          callback_url: `${variables.app.host}/shop/callback`,
+          callback_url: `${variables.app.websiteUrl ?? variables.app.host}/orders/success`,
           email: payload.email,
           ...paystackSplitFields(),
         }),
@@ -564,6 +567,8 @@ export async function fetchShopProducts(
         sku: schema.Products.sku,
         price: schema.Products.price,
         stockQuantity: schema.Products.stockQuantity,
+        description: schema.Products.description,
+        category: schema.Products.category,
         featuredMediumExternalId: schema.Media.externalId,
       })
       .from(schema.Products)
@@ -585,6 +590,8 @@ export async function fetchShopProducts(
         schema.Products.sku,
         schema.Products.price,
         schema.Products.stockQuantity,
+        schema.Products.description,
+        schema.Products.category,
         schema.Products.createdAt,
         schema.Media.externalId,
       ),
@@ -602,6 +609,8 @@ export async function fetchShopProducts(
     sku: p.sku,
     price: parseFloat(p.price),
     stockQuantity: p.stockQuantity,
+    description: p.description ?? undefined,
+    category: p.category ?? undefined,
     previewUrl: p.featuredMediumExternalId
       ? mediaUtils.generateSignedMediaUrl(p.featuredMediumExternalId, {
           resolution: 720,
@@ -618,6 +627,69 @@ export async function fetchShopProducts(
   };
 }
 
+/**
+ * Fetches up to `limit` active products in the same category as `:id`,
+ * excluding the product itself. Returns empty array if the product has
+ * no category set.
+ */
+export async function fetchRelatedShopProducts(
+  productId: string,
+  limit = 3,
+): Promise<ShopProduct[]> {
+  const product = await dbClient.db.query.Products.findFirst({
+    where: eq(schema.Products.id, productId),
+    columns: { id: true, category: true },
+  });
+
+  if (!product || !product.category) return [];
+
+  const rows = await dbClient.db
+    .select({
+      id: schema.Products.id,
+      name: schema.Products.name,
+      sku: schema.Products.sku,
+      price: schema.Products.price,
+      stockQuantity: schema.Products.stockQuantity,
+      description: schema.Products.description,
+      category: schema.Products.category,
+      featuredMediumExternalId: schema.Media.externalId,
+    })
+    .from(schema.Products)
+    .leftJoin(
+      schema.ProductMedia,
+      and(
+        eq(schema.Products.id, schema.ProductMedia.productId),
+        eq(schema.ProductMedia.isFeatured, true),
+      ),
+    )
+    .leftJoin(schema.Media, eq(schema.ProductMedia.mediumId, schema.Media.id))
+    .where(
+      and(
+        eq(schema.Products.isActive, true),
+        eq(schema.Products.category, product.category),
+        sql`${schema.Products.id} != ${productId}`,
+      ),
+    )
+    .orderBy(desc(schema.Products.createdAt))
+    .limit(limit);
+
+  return rows.map((p) => ({
+    id: p.id,
+    name: p.name,
+    sku: p.sku,
+    price: parseFloat(p.price),
+    stockQuantity: p.stockQuantity,
+    description: p.description ?? undefined,
+    category: p.category ?? undefined,
+    previewUrl: p.featuredMediumExternalId
+      ? mediaUtils.generateSignedMediaUrl(p.featuredMediumExternalId, {
+          resolution: 720,
+          expireSeconds: 60 * 60 * 24,
+        })
+      : undefined,
+  }));
+}
+
 export async function fetchShopProductById(
   id: string,
 ): Promise<ShopProductDetail | null> {
@@ -629,38 +701,34 @@ export async function fetchShopProductById(
     return null;
   }
 
-  // Get product media
   const productMedia = await dbClient.db
     .select({
       id: schema.ProductMedia.id,
       caption: schema.ProductMedia.caption,
       isFeatured: schema.ProductMedia.isFeatured,
       medium: {
-        id: schema.Media.id,
         externalId: schema.Media.externalId,
         type: schema.Media.type,
         width: schema.Media.width,
         height: schema.Media.height,
-        size: schema.Media.size,
-        uploadedAt: schema.Media.uploadedAt,
       },
     })
     .from(schema.ProductMedia)
     .innerJoin(schema.Media, eq(schema.ProductMedia.mediumId, schema.Media.id))
-    .where(eq(schema.ProductMedia.productId, id));
+    .where(eq(schema.ProductMedia.productId, id))
+    // Featured-first so frontends can take the first item as the hero image.
+    .orderBy(desc(schema.ProductMedia.isFeatured));
 
-  const gallery = productMedia.map((pm) => ({
+  const media = productMedia.map((pm) => ({
     url: mediaUtils.generateSignedMediaUrl(pm.medium.externalId, {
-      resolution: 720,
+      resolution: 1080,
       expireSeconds: 60 * 60 * 24,
     }),
+    caption: pm.caption ?? undefined,
+    isFeatured: pm.isFeatured,
     type: pm.medium.type as "PICTURE" | "VIDEO",
-    dimensions: {
-      width: pm.medium.width,
-      height: pm.medium.height,
-    },
-    size: pm.medium.size,
-    uploadedAt: pm.medium.uploadedAt,
+    width: pm.medium.width,
+    height: pm.medium.height,
   }));
 
   return {
@@ -668,17 +736,30 @@ export async function fetchShopProductById(
     name: product.name,
     sku: product.sku,
     description: product.description ?? undefined,
+    longDescription: product.longDescription ?? undefined,
+    category: product.category ?? undefined,
+    attributes:
+      (product.attributes as ShopProductDetail["attributes"]) ?? undefined,
     stockQuantity: product.stockQuantity,
     price: parseFloat(product.price),
-    gallery,
+    media,
     createdAt: product.createdAt,
   };
 }
+
+type ProductAttributes = {
+  features?: string[];
+  sizes?: string[];
+  colors?: string[];
+};
 
 export async function createProduct(data: {
   name: string;
   sku: string;
   description?: string;
+  longDescription?: string;
+  category?: string;
+  attributes?: ProductAttributes;
   price: string;
   stockQuantity: number;
   isActive?: boolean;
@@ -689,6 +770,9 @@ export async function createProduct(data: {
       name: data.name,
       sku: data.sku,
       description: data.description,
+      longDescription: data.longDescription,
+      category: data.category,
+      attributes: data.attributes,
       price: data.price,
       stockQuantity: data.stockQuantity,
       isActive: data.isActive ?? true,
@@ -704,6 +788,9 @@ export async function updateProduct(
     name?: string;
     sku?: string;
     description?: string;
+    longDescription?: string;
+    category?: string;
+    attributes?: ProductAttributes;
     price?: string;
     stockQuantity?: number;
     isActive?: boolean;

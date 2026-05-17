@@ -57,3 +57,11 @@ export const RecordOfflineDuesPaymentSchema = z.object({
   paymentMethod: z.enum(["CASH", "BANK_TRANSFER", "MOBILE_MONEY"]),
   note: z.string().max(500).optional(),
 });
+
+export const DuesDebtorsQuerySchema = z.object({
+  duesId: z.string().uuid("Invalid dues ID").optional(),
+});
+
+export const TriggerDuesReminderSchema = z.object({
+  duesId: z.string().uuid("Invalid dues ID").optional(),
+});

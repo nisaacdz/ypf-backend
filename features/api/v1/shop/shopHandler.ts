@@ -12,6 +12,9 @@ import {
 import { OrderResponse, ValidatedOrderItems } from "@/shared/dtos/shop";
 import { Paginated } from "@/shared/dtos";
 import { ShopProduct, ShopProductDetail } from "./dtos";
+import dbClient from "@/configs/db";
+import schema from "@/db/schema";
+import { eq, count } from "drizzle-orm";
 
 /**
  * Handler for getting all shop products
@@ -44,6 +47,76 @@ export async function getProduct(
     success: true,
     message: "Product fetched successfully",
     data,
+  };
+}
+
+/**
+ * Handler for getting up to 3 related products (same category, excluding self).
+ */
+export async function getRelatedProducts(
+  productId: string,
+): Promise<ApiResponse<ShopProduct[]>> {
+  const data = await shopService.fetchRelatedShopProducts(productId, 3);
+  return {
+    success: true,
+    message: "Related products fetched successfully",
+    data,
+  };
+}
+
+/**
+ * Plan §8.8 — public order success-page polling by Paystack reference.
+ * No PII; returns status + total + itemCount.
+ */
+export async function getOrderByRef(ref: string): Promise<
+  ApiResponse<{
+    orderId: string;
+    status: "PENDING" | "COMPLETED" | "CANCELLED";
+    totalAmount: string;
+    currency: string;
+    itemCount: number;
+  }>
+> {
+  const [row] = await dbClient.db
+    .select({
+      orderId: schema.Orders.id,
+      orderStatus: schema.Orders.status,
+      totalAmount: schema.Orders.totalAmount,
+      currency: schema.FinancialTransactions.currency,
+    })
+    .from(schema.FinancialTransactions)
+    .innerJoin(
+      schema.OrderPayments,
+      eq(
+        schema.OrderPayments.transactionId,
+        schema.FinancialTransactions.id,
+      ),
+    )
+    .innerJoin(
+      schema.Orders,
+      eq(schema.Orders.id, schema.OrderPayments.orderId),
+    )
+    .where(eq(schema.FinancialTransactions.externalRef, ref))
+    .limit(1);
+
+  if (!row) {
+    throw new ApiError("Order not found", 404);
+  }
+
+  const [itemCountRow] = await dbClient.db
+    .select({ n: count() })
+    .from(schema.OrderItems)
+    .where(eq(schema.OrderItems.orderId, row.orderId));
+
+  return {
+    success: true,
+    data: {
+      orderId: row.orderId,
+      status: row.orderStatus,
+      totalAmount: row.totalAmount,
+      currency: row.currency,
+      itemCount: Number(itemCountRow?.n ?? 0),
+    },
   };
 }
 

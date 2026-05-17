@@ -9,7 +9,10 @@ import {
 import { authenticate, authorize } from "@/shared/middlewares/auth";
 import * as applicationsHandler from "./applicationsHandler";
 import { documentsUpload } from "@/shared/middlewares/multipart";
-import { ADMIN, anyOf, MEMBER, Visitors } from "@/configs/authorizer";
+import {
+  canAccessHr,
+  canManageHr,
+} from "@/shared/services/workspaceAccessService";
 import z from "zod";
 import {
   PostMembershipApplicationBody,
@@ -17,6 +20,7 @@ import {
   UpdateMembershipApplicationStatusSchema,
   GetMembershipApplicationsQuerySchema,
   GetVolunteerApplicationsQuerySchema,
+  UpdateVolunteerApplicationStatusSchema,
   UploadRegistrationFileSchema,
 } from "./schemas";
 import { redisCacheEarlyReturn } from "@/shared/middlewares/redisCache";
@@ -28,12 +32,7 @@ const applicationsRouter = Router();
 applicationsRouter.get(
   "/membership",
   authenticate,
-  authorize(
-    anyOf(
-      Visitors.hasProfile("ADMIN"),
-      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.PRESIDENT, MEMBER.COMMITTEECHAIR),
-    ),
-  ),
+  authorize(canAccessHr),
   validateQuery(GetMembershipApplicationsQuerySchema),
   redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
@@ -54,12 +53,7 @@ applicationsRouter.get(
 applicationsRouter.patch(
   "/membership/:id/status",
   authenticate,
-  authorize(
-    anyOf(
-      Visitors.hasProfile("ADMIN"),
-      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.PRESIDENT, MEMBER.COMMITTEECHAIR),
-    ),
-  ),
+  authorize(canManageHr),
   validateParams(z.object({ id: z.uuid("Applicant not found") }), 404),
   validateBody(UpdateMembershipApplicationStatusSchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -85,12 +79,7 @@ applicationsRouter.patch(
 applicationsRouter.get(
   "/membership/:id",
   authenticate,
-  authorize(
-    anyOf(
-      Visitors.hasProfile("ADMIN"),
-      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.PRESIDENT, MEMBER.COMMITTEECHAIR),
-    ),
-  ),
+  authorize(canAccessHr),
   validateParams(z.object({ id: z.uuid("Applicant not found") }), 404),
   redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
@@ -139,12 +128,7 @@ applicationsRouter.post(
 applicationsRouter.get(
   "/volunteer",
   authenticate,
-  authorize(
-    anyOf(
-      Visitors.hasProfile("ADMIN"),
-      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.PRESIDENT, MEMBER.COMMITTEECHAIR),
-    ),
-  ),
+  authorize(canAccessHr),
   validateQuery(GetVolunteerApplicationsQuerySchema),
   redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
@@ -165,12 +149,7 @@ applicationsRouter.get(
 applicationsRouter.get(
   "/volunteer/:id",
   authenticate,
-  authorize(
-    anyOf(
-      Visitors.hasProfile("ADMIN"),
-      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.PRESIDENT, MEMBER.COMMITTEECHAIR),
-    ),
-  ),
+  authorize(canAccessHr),
   validateParams(z.object({ id: z.uuid("Applicant not found") }), 404),
   redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
@@ -199,6 +178,26 @@ applicationsRouter.post(
         req.Body,
       );
       res.status(201).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+applicationsRouter.patch(
+  "/volunteer/:id/status",
+  authenticate,
+  authorize(canManageHr),
+  validateParams(z.object({ id: z.uuid("Applicant not found") }), 404),
+  validateBody(UpdateVolunteerApplicationStatusSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await applicationsHandler.updateVolunteerApplicationStatus({
+        applicationId: req.Params.id,
+        body: req.Body,
+      });
+      await redisClient.delCache(`/api/v1/applications/volunteer/${req.Params.id}`);
+      res.status(200).json(response);
     } catch (error) {
       next(error);
     }

@@ -118,6 +118,27 @@ export async function createWorkspaceNote({
   };
 }
 
+export async function updateWorkspaceNote({
+  noteId,
+  body,
+  user,
+}: {
+  noteId: string;
+  body: string;
+  user: AuthenticatedUser;
+}): Promise<ApiResponse<{ id: string }>> {
+  const id = await workspaceService.updateWorkspaceNote({
+    noteId,
+    body,
+    user,
+  });
+  return {
+    success: true,
+    message: "Workspace note updated successfully",
+    data: { id },
+  };
+}
+
 export async function deleteWorkspaceNote({
   noteId,
   user,
@@ -130,5 +151,93 @@ export async function deleteWorkspaceNote({
     success: true,
     message: "Workspace note deleted successfully",
     data: null,
+  };
+}
+
+export async function getFinanceDonations(input: {
+  user: AuthenticatedUser;
+  page: number;
+  pageSize: number;
+  month?: string;
+}): Promise<ApiResponse<workspaceService.PaginatedWorkspaceResult<workspaceService.FinanceDonation>>> {
+  const data = await workspaceService.getFinanceDonations(input);
+  return {
+    success: true,
+    message: "Finance donations fetched successfully",
+    data,
+  };
+}
+
+export async function getFinanceExpenditures(input: {
+  user: AuthenticatedUser;
+  page: number;
+  pageSize: number;
+  month?: string;
+}): Promise<ApiResponse<workspaceService.PaginatedWorkspaceResult<workspaceService.FinanceExpenditure>>> {
+  const data = await workspaceService.getFinanceExpenditures(input);
+  return {
+    success: true,
+    message: "Finance expenditures fetched successfully",
+    data,
+  };
+}
+
+export async function createFinanceExpenditure(input: {
+  user: AuthenticatedUser;
+  amount: number;
+  currency: string;
+  description: string;
+  category?: string;
+  timestamp?: string;
+}): Promise<ApiResponse<workspaceService.FinanceExpenditure>> {
+  const data = await workspaceService.createFinanceExpenditure(input);
+  return {
+    success: true,
+    message: "Finance expenditure recorded successfully",
+    data,
+  };
+}
+
+export async function getFinanceBudgets(input: {
+  user: AuthenticatedUser;
+  page: number;
+  pageSize: number;
+  month?: string;
+}): Promise<ApiResponse<workspaceService.PaginatedWorkspaceResult<workspaceService.FinanceBudgetRequest>>> {
+  const data = await workspaceService.getFinanceBudgets(input);
+  return {
+    success: true,
+    message: "Finance budgets fetched successfully",
+    data,
+  };
+}
+
+export async function createFinanceBudget(input: {
+  user: AuthenticatedUser;
+  title: string;
+  month: string;
+  currency: string;
+  rationale: string;
+  lines: { description: string; category?: string; amount: number; notes?: string }[];
+}): Promise<ApiResponse<workspaceService.FinanceBudgetRequest>> {
+  const data = await workspaceService.createFinanceBudget(input);
+  return {
+    success: true,
+    message: "Finance budget submitted for review",
+    data,
+  };
+}
+
+export async function reviewFinanceBudget(input: {
+  user: AuthenticatedUser;
+  budgetId: string;
+  status: "APPROVED" | "REJECTED";
+  reviewNote?: string;
+}): Promise<ApiResponse<workspaceService.FinanceBudgetRequest>> {
+  const data = await workspaceService.reviewFinanceBudget(input);
+  return {
+    success: true,
+    message: "Finance budget reviewed successfully",
+    data,
   };
 }

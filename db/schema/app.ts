@@ -9,9 +9,17 @@ import {
   index,
   unique,
   integer,
+  customType,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { Constituents } from "./core";
+import { Constituents, citext } from "./core";
+
+// Postgres "inet" type for storing IPv4/IPv6 source addresses on contact submissions.
+const inet = customType<{ data: string }>({
+  dataType() {
+    return "inet";
+  },
+});
 
 export const app = pgSchema("app");
 
@@ -75,6 +83,34 @@ export const UserPreferences = app.table("user_preferences", {
     .defaultNow()
     .notNull(),
 });
+
+// Public-site contact form submissions. Persisted so messages aren't lost even
+// if the admin notification email fails. UMS exposes the inbox.
+export const ContactSubmissions = app.table(
+  "contact_submissions",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    name: text("name").notNull(),
+    email: citext("email").notNull(),
+    subject: text("subject").notNull(),
+    message: text("message").notNull(),
+    status: text("status").notNull().default("NEW"), // NEW | READ | REPLIED | SPAM
+    sourceIp: inet("source_ip"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    reviewedBy: uuid("reviewed_by").references(() => Constituents.id, {
+      onDelete: "set null",
+    }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("contact_submissions_status_created_idx").on(
+      table.status,
+      table.createdAt,
+    ),
+  ],
+);
 
 // === RELATIONS ===
 

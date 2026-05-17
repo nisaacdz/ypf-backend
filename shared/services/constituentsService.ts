@@ -1,6 +1,7 @@
 import { eq, and, lte, gte, isNull, or, sql, count, ilike } from "drizzle-orm";
 import z from "zod";
 import dbClient from "@/configs/db";
+import logger from "@/configs/logger";
 import schema from "@/db/schema";
 import { ApiError, Profile } from "@/shared/types";
 import {
@@ -533,11 +534,40 @@ export async function onboardConstituent(
 
   const existingUser = await dbClient.db.query.Users.findFirst({
     where: eq(schema.Users.constituentId, constituentId),
-    columns: { id: true },
+    columns: {
+      id: true,
+      password: true,
+      googleId: true,
+      appleId: true,
+      facebookId: true,
+    },
   });
 
   if (existingUser) {
-    throw new Error("Constituent already has a User account");
+    const hasAuthMethod = Boolean(
+      existingUser.password ||
+        existingUser.googleId ||
+        existingUser.appleId ||
+        existingUser.facebookId,
+    );
+    if (hasAuthMethod) return { id: existingUser.id };
+
+    const name =
+      constituent.preferredName ??
+      `${constituent.firstName} ${constituent.lastName}`;
+    const onboardingUrl = `${dashboardUrl}/auth/onboard?user=${encodeURIComponent(
+      constituent.publicId,
+    )}`;
+
+    sendOnboardingInvitationEmail({
+      email: constituent.email,
+      name,
+      onboardingUrl,
+    }).catch((error) => {
+      logger.error(error, "Failed to send onboarding invitation email");
+    });
+
+    return { id: existingUser.id };
   }
 
   const [newUser] = await dbClient.db
@@ -566,6 +596,8 @@ export async function onboardConstituent(
     email: constituent.email,
     name,
     onboardingUrl,
+  }).catch((error) => {
+    logger.error(error, "Failed to send onboarding invitation email");
   });
 
   return newUser;

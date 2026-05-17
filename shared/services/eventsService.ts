@@ -49,6 +49,7 @@ export async function fetchEvents(
       .select({
         id: schema.Events.id,
         name: schema.Events.name,
+        description: schema.Events.description,
         scheduledStart: schema.Events.scheduledStart,
         scheduledEnd: schema.Events.scheduledEnd,
         location: schema.Events.location,
@@ -82,6 +83,7 @@ export async function fetchEvents(
       .groupBy(
         schema.Events.id,
         schema.Events.name,
+        schema.Events.description,
         schema.Events.scheduledStart,
         schema.Events.scheduledEnd,
         schema.Events.location,
@@ -109,6 +111,7 @@ export async function fetchEvents(
   const items: YPFEvent[] = events.map((event) => ({
     id: event.id,
     name: event.name,
+    description: event.description || undefined,
     scheduledStart: event.scheduledStart,
     scheduledEnd: event.scheduledEnd,
     location: event.location || undefined,
@@ -250,6 +253,7 @@ export async function fetchEventById(
     .select({
       id: schema.Events.id,
       name: schema.Events.name,
+      description: schema.Events.description,
       scheduledStart: schema.Events.scheduledStart,
       scheduledEnd: schema.Events.scheduledEnd,
       location: schema.Events.location,
@@ -323,6 +327,7 @@ export async function fetchEventById(
   return {
     id: ypfEvent.id,
     name: ypfEvent.name,
+    description: ypfEvent.description || undefined,
     scheduledStart: ypfEvent.scheduledStart,
     scheduledEnd: ypfEvent.scheduledEnd,
     location: ypfEvent.location || undefined,
