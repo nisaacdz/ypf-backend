@@ -84,14 +84,14 @@ async function seed(
 
   const committeesData = [
     // Lagos
-    { name: "Lagos Finance", chapterId: chapters[0].id },
-    { name: "Lagos Tech", chapterId: chapters[0].id },
+    { name: "Lagos Finance", alias: "lagos_finance", chapterId: chapters[0].id },
+    { name: "Lagos Tech", alias: "lagos_tech", chapterId: chapters[0].id },
     // Accra
-    { name: "Accra Outreach", chapterId: chapters[1].id },
+    { name: "Accra Outreach", alias: "accra_outreach", chapterId: chapters[1].id },
     // Nairobi
-    { name: "Nairobi Events", chapterId: chapters[2].id },
+    { name: "Nairobi Events", alias: "nairobi_events", chapterId: chapters[2].id },
     // Global/No Chapter specific? Or just more chapters
-    { name: "Global Strategy", description: "Oversight committee" },
+    { name: "Global Strategy", alias: "global_strategy", description: "Oversight committee" },
   ];
   const committees = await tx
     .insert(schema.Committees)

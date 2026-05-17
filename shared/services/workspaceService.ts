@@ -27,6 +27,8 @@ export type WorkspaceSubmission = {
   id: string;
   kind: WorkspaceSubmissionKind;
   body: string;
+  documentName?: string;
+  documentUrl?: string;
   submittedBy: string;
   submittedAt: Date;
   updatedAt: Date;
@@ -73,6 +75,19 @@ export type WorkspaceReport = {
   generatedItems: WorkspaceReportListItem[];
 };
 
+export type WorkspaceCommitteeReportSummary = {
+  committee: {
+    id: string;
+    name: string;
+    alias: string;
+  };
+  month: ReturnType<typeof getMonthMeta>;
+  submissions: {
+    plan: WorkspaceSubmission | null;
+    report: WorkspaceSubmission | null;
+  };
+};
+
 export type WorkspaceNote = {
   id: string;
   committeeId: string;
@@ -107,6 +122,17 @@ export async function getWorkspaceReport({
       monthStart,
       nextMonthStart,
     );
+    return {
+      committee,
+      month: getMonthMeta(monthStart),
+      access,
+      submissions,
+      ...reportData,
+    };
+  }
+
+  if (alias === "finance") {
+    const reportData = await getFinanceReportData(monthStart, nextMonthStart);
     return {
       committee,
       month: getMonthMeta(monthStart),
@@ -170,12 +196,16 @@ export async function submitWorkspaceMonthlyDocument({
   month,
   kind,
   body,
+  documentName,
+  documentUrl,
 }: {
   alias: string;
   user: AuthenticatedUser;
   month?: string;
   kind: WorkspaceSubmissionKind;
   body: string;
+  documentName?: string;
+  documentUrl?: string;
 }): Promise<WorkspaceSubmission> {
   const committee = await requireWorkspaceManageAccess(alias, user);
   const monthStart = normalizeMonth(month);
@@ -188,6 +218,8 @@ export async function submitWorkspaceMonthlyDocument({
       month: monthStart,
       kind,
       body,
+      documentName,
+      documentUrl,
       submittedBy: user.constituentId,
       submittedAt: now,
       updatedAt: now,
@@ -200,6 +232,8 @@ export async function submitWorkspaceMonthlyDocument({
       ],
       set: {
         body,
+        documentName,
+        documentUrl,
         submittedBy: user.constituentId,
         submittedAt: now,
         updatedAt: now,
@@ -208,6 +242,58 @@ export async function submitWorkspaceMonthlyDocument({
     .returning();
 
   return toSubmission(row);
+}
+
+export async function getAllWorkspaceReports({
+  month,
+  user,
+}: {
+  month?: string;
+  user: AuthenticatedUser;
+}): Promise<WorkspaceCommitteeReportSummary[]> {
+  if (!isSystemAdmin(user)) {
+    throw new ApiError("Only admins can view all committee workspace reports", 403);
+  }
+
+  const monthStart = normalizeMonth(month);
+  const committees = await dbClient.db
+    .select({
+      id: schema.Committees.id,
+      name: schema.Committees.name,
+      alias: schema.Committees.alias,
+    })
+    .from(schema.Committees)
+    .where(isNull(schema.Committees.archivedAt))
+    .orderBy(schema.Committees.name);
+
+  const rows = await dbClient.db
+    .select()
+    .from(schema.WorkspaceMonthlySubmissions)
+    .where(eq(schema.WorkspaceMonthlySubmissions.month, monthStart));
+
+  const submissionsByCommittee = new Map<
+    string,
+    { plan: WorkspaceSubmission | null; report: WorkspaceSubmission | null }
+  >();
+
+  for (const row of rows) {
+    const entry = submissionsByCommittee.get(row.committeeId) ?? {
+      plan: null,
+      report: null,
+    };
+    if (row.kind === "PLAN") entry.plan = toSubmission(row);
+    if (row.kind === "REPORT") entry.report = toSubmission(row);
+    submissionsByCommittee.set(row.committeeId, entry);
+  }
+
+  return committees.map((committee) => ({
+    committee,
+    month: getMonthMeta(monthStart),
+    submissions: submissionsByCommittee.get(committee.id) ?? {
+      plan: null,
+      report: null,
+    },
+  }));
 }
 
 export async function getWorkspaceNotes({
@@ -484,6 +570,263 @@ async function getProgramsRecordsReportData(monthStart: Date, nextMonthStart: Da
   };
 }
 
+async function getFinanceReportData(monthStart: Date, nextMonthStart: Date) {
+  const monthStartDate = monthStart.toISOString().slice(0, 10);
+  const nextMonthStartDate = nextMonthStart.toISOString().slice(0, 10);
+  const [
+    [{ members }],
+    [{ duesCollected, duesPayments }],
+    [{ donationsCollected, donations }],
+    [{ expendituresTotal, expenditures }],
+    [{ activePartnerships }],
+    currentDues,
+    latestDuesPayments,
+    latestDonations,
+    latestExpenditures,
+  ] = await Promise.all([
+    dbClient.db
+      .select({ members: count() })
+      .from(schema.Members)
+      .where(
+        and(
+          sql`${schema.Members.startedAt} <= now()`,
+          or(isNull(schema.Members.endedAt), sql`${schema.Members.endedAt} >= now()`),
+        ),
+      ),
+    dbClient.db
+      .select({
+        duesCollected: sql<string>`COALESCE(SUM(${schema.FinancialTransactions.amount}), 0)::text`,
+        duesPayments: sql<number>`COUNT(${schema.DuesPayments.id})::int`,
+      })
+      .from(schema.DuesPayments)
+      .innerJoin(
+        schema.FinancialTransactions,
+        eq(schema.DuesPayments.transactionId, schema.FinancialTransactions.id),
+      )
+      .where(
+        and(
+          eq(schema.FinancialTransactions.status, "COMPLETED"),
+          gte(schema.FinancialTransactions.createdAt, monthStart),
+          lt(schema.FinancialTransactions.createdAt, nextMonthStart),
+        ),
+      ),
+    dbClient.db
+      .select({
+        donationsCollected: sql<string>`COALESCE(SUM(${schema.FinancialTransactions.amount}), 0)::text`,
+        donations: sql<number>`COUNT(${schema.Donations.id})::int`,
+      })
+      .from(schema.Donations)
+      .innerJoin(
+        schema.FinancialTransactions,
+        eq(schema.Donations.transactionId, schema.FinancialTransactions.id),
+      )
+      .where(
+        and(
+          eq(schema.FinancialTransactions.status, "COMPLETED"),
+          gte(schema.FinancialTransactions.createdAt, monthStart),
+          lt(schema.FinancialTransactions.createdAt, nextMonthStart),
+        ),
+      ),
+    dbClient.db
+      .select({
+        expendituresTotal: sql<string>`COALESCE(SUM(${schema.Expenditures.amount}), 0)::text`,
+        expenditures: sql<number>`COUNT(${schema.Expenditures.id})::int`,
+      })
+      .from(schema.Expenditures)
+      .where(
+        and(
+          gte(schema.Expenditures.timestamp, monthStart),
+          lt(schema.Expenditures.timestamp, nextMonthStart),
+        ),
+      ),
+    dbClient.db
+      .select({ activePartnerships: count() })
+      .from(schema.Partnerships)
+      .where(
+        and(
+          sql`${schema.Partnerships.startedAt} <= ${nextMonthStartDate}`,
+          or(
+            isNull(schema.Partnerships.endedAt),
+            sql`${schema.Partnerships.endedAt} >= ${monthStartDate}`,
+          ),
+        ),
+      ),
+    dbClient.db
+      .select({
+        id: schema.Dues.id,
+        amount: schema.Dues.amount,
+        currency: schema.Dues.currency,
+        periodStart: schema.Dues.periodStart,
+        periodEnd: schema.Dues.periodEnd,
+      })
+      .from(schema.Dues)
+      .where(
+        and(
+          isNull(schema.Dues.chapterId),
+          sql`${schema.Dues.periodStart} >= ${monthStartDate}`,
+          sql`${schema.Dues.periodStart} < ${nextMonthStartDate}`,
+        ),
+      )
+      .limit(1),
+    dbClient.db
+      .select({
+        id: schema.DuesPayments.id,
+        amount: schema.FinancialTransactions.amount,
+        currency: schema.FinancialTransactions.currency,
+        createdAt: schema.FinancialTransactions.createdAt,
+        firstName: schema.Constituents.firstName,
+        lastName: schema.Constituents.lastName,
+      })
+      .from(schema.DuesPayments)
+      .innerJoin(
+        schema.FinancialTransactions,
+        eq(schema.DuesPayments.transactionId, schema.FinancialTransactions.id),
+      )
+      .innerJoin(schema.Members, eq(schema.DuesPayments.memberId, schema.Members.id))
+      .innerJoin(
+        schema.Constituents,
+        eq(schema.Members.constituentId, schema.Constituents.id),
+      )
+      .where(
+        and(
+          eq(schema.FinancialTransactions.status, "COMPLETED"),
+          gte(schema.FinancialTransactions.createdAt, monthStart),
+          lt(schema.FinancialTransactions.createdAt, nextMonthStart),
+        ),
+      )
+      .orderBy(desc(schema.FinancialTransactions.createdAt))
+      .limit(5),
+    dbClient.db
+      .select({
+        id: schema.Donations.id,
+        amount: schema.FinancialTransactions.amount,
+        currency: schema.FinancialTransactions.currency,
+        createdAt: schema.FinancialTransactions.createdAt,
+        guestName: schema.Donations.guestName,
+        firstName: schema.Constituents.firstName,
+        lastName: schema.Constituents.lastName,
+      })
+      .from(schema.Donations)
+      .innerJoin(
+        schema.FinancialTransactions,
+        eq(schema.Donations.transactionId, schema.FinancialTransactions.id),
+      )
+      .leftJoin(
+        schema.Constituents,
+        eq(schema.Donations.constituentId, schema.Constituents.id),
+      )
+      .where(
+        and(
+          eq(schema.FinancialTransactions.status, "COMPLETED"),
+          gte(schema.FinancialTransactions.createdAt, monthStart),
+          lt(schema.FinancialTransactions.createdAt, nextMonthStart),
+        ),
+      )
+      .orderBy(desc(schema.FinancialTransactions.createdAt))
+      .limit(5),
+    dbClient.db
+      .select({
+        id: schema.Expenditures.id,
+        amount: schema.Expenditures.amount,
+        currency: schema.Expenditures.currency,
+        description: schema.Expenditures.description,
+        category: schema.Expenditures.category,
+        timestamp: schema.Expenditures.timestamp,
+      })
+      .from(schema.Expenditures)
+      .where(
+        and(
+          gte(schema.Expenditures.timestamp, monthStart),
+          lt(schema.Expenditures.timestamp, nextMonthStart),
+        ),
+      )
+      .orderBy(desc(schema.Expenditures.timestamp))
+      .limit(5),
+  ]);
+
+  const currentDue = currentDues[0];
+  const duesTarget = currentDue ? Number(currentDue.amount) * members : 0;
+  const collected = Number(duesCollected) + Number(donationsCollected);
+
+  const attendance = latestDuesPayments.map((payment) => ({
+    id: payment.id,
+    title: `${payment.firstName} ${payment.lastName}`.trim() || "Member payment",
+    meta: `${money(Number(payment.amount), payment.currency)} dues payment · ${formatDate(payment.createdAt)}`,
+    badge: "dues",
+  }));
+
+  const outcomes = [
+    ...latestDonations.map((donation) => ({
+      id: donation.id,
+      title:
+        donation.guestName ||
+        `${donation.firstName ?? ""} ${donation.lastName ?? ""}`.trim() ||
+        "Donation",
+      meta: `${money(Number(donation.amount), donation.currency)} donation · ${formatDate(donation.createdAt)}`,
+      badge: "donation",
+    })),
+    ...latestExpenditures.map((expense) => ({
+      id: expense.id,
+      title: expense.description,
+      meta: `${money(Number(expense.amount), expense.currency)} expense · ${expense.category || "uncategorized"}`,
+      badge: "expense",
+    })),
+  ];
+
+  return {
+    metrics: [
+      {
+        label: "Dues collected",
+        value: money(Number(duesCollected)),
+        hint: `${duesPayments} completed payment${duesPayments === 1 ? "" : "s"} this month`,
+      },
+      {
+        label: "Donations",
+        value: money(Number(donationsCollected)),
+        hint: `${donations} completed donation${donations === 1 ? "" : "s"} this month`,
+      },
+      {
+        label: "Expenditures",
+        value: money(Number(expendituresTotal)),
+        hint: `${expenditures} expense record${expenditures === 1 ? "" : "s"} this month`,
+      },
+      {
+        label: "Dues target",
+        value: money(duesTarget, currentDue?.currency ?? "GHS"),
+        hint: currentDue
+          ? `${members} active member${members === 1 ? "" : "s"} at ${money(Number(currentDue.amount), currentDue.currency)}`
+          : "No dues period has been generated for this month",
+      },
+    ],
+    attendance,
+    outcomes,
+    generatedItems: [
+      {
+        id: "net-position",
+        title: `Net inflow ${money(collected - Number(expendituresTotal))}`,
+        meta: "Completed dues and donations minus recorded expenditures",
+        badge: "net",
+      },
+      {
+        id: "partners",
+        title: `${activePartnerships} active partnership${activePartnerships === 1 ? "" : "s"}`,
+        meta: "Partnerships active during this report month",
+        badge: "partners",
+      },
+      {
+        id: "dues-period",
+        title: currentDue
+          ? `${money(Number(currentDue.amount), currentDue.currency)} monthly dues`
+          : "No monthly dues period",
+        meta: currentDue
+          ? `${formatDate(currentDue.periodStart)} to ${formatDate(currentDue.periodEnd)}`
+          : "Set a dues policy to generate monthly dues",
+        badge: "dues",
+      },
+    ],
+  };
+}
+
 function normalizeMonth(month?: string): Date {
   if (month && /^\d{4}-\d{2}$/.test(month)) {
     const [year, monthIndex] = month.split("-").map(Number);
@@ -553,6 +896,8 @@ function toSubmission(row: typeof schema.WorkspaceMonthlySubmissions.$inferSelec
     id: row.id,
     kind: row.kind,
     body: row.body,
+    documentName: row.documentName ?? undefined,
+    documentUrl: row.documentUrl ?? undefined,
     submittedBy: row.submittedBy,
     submittedAt: row.submittedAt,
     updatedAt: row.updatedAt,
@@ -566,4 +911,11 @@ function formatDate(value: Date) {
     year: "numeric",
     timeZone: "UTC",
   });
+}
+
+function money(value: number, currency = "GHS") {
+  return `${currency} ${value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }

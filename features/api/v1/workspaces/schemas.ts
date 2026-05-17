@@ -11,14 +11,24 @@ export const WorkspaceReportQuerySchema = z.object({
     .optional(),
 });
 
+export const WorkspaceReportsQuerySchema = WorkspaceReportQuerySchema;
+
 export const SubmitWorkspaceDocumentSchema = z.object({
   month: z
     .string()
     .regex(/^\d{4}-\d{2}$/, "Month must be in YYYY-MM format")
     .optional(),
   kind: z.enum(["PLAN", "REPORT"]),
-  body: z.string().min(10, "Submission must be at least 10 characters"),
-});
+  body: z.string().default(""),
+  documentName: z.string().max(160, "Document name is too long").optional(),
+  documentUrl: z.url("Enter a valid document URL").optional(),
+}).refine(
+  (value) => value.body.trim().length >= 10 || Boolean(value.documentUrl),
+  {
+    message: "Type at least 10 characters or attach a document link",
+    path: ["body"],
+  },
+);
 
 export const WorkspaceNotesQuerySchema = z.object({
   committeeId: z.uuid("Invalid committee ID"),

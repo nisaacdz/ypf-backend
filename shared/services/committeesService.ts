@@ -9,6 +9,8 @@ import {
   or,
   lte,
   gte,
+  inArray,
+  ne,
 } from "drizzle-orm";
 import z from "zod";
 
@@ -474,6 +476,7 @@ export async function enrollToCommittee(
   committeeId: string,
   constituentId: string,
   startedAt?: Date,
+  titleAlias: "committeemember" | "committeechair" = "committeemember",
 ): Promise<string> {
   const now = new Date();
 
@@ -494,16 +497,131 @@ export async function enrollToCommittee(
     throw new ApiError("No active membership found for constituent", 404);
   }
 
-  const [membership] = await dbClient.db
-    .insert(schema.CommitteeMemberships)
-    .values({
-      memberId: member.id,
-      committeeId,
-      startedAt: startedAt ?? now,
-    })
-    .returning({ id: schema.CommitteeMemberships.id });
+  const [title] = await dbClient.db
+    .select({ id: schema.MemberTitles.id })
+    .from(schema.MemberTitles)
+    .where(
+      and(
+        eq(schema.MemberTitles.committeeId, committeeId),
+        eq(schema.MemberTitles.alias, titleAlias),
+      ),
+    )
+    .limit(1);
 
-  return membership.id;
+  if (!title) {
+    throw new ApiError("Committee role title was not found", 404);
+  }
+
+  return await dbClient.db.transaction(async (tx) => {
+    const [existingMembership] = await tx
+      .select({ id: schema.CommitteeMemberships.id })
+      .from(schema.CommitteeMemberships)
+      .where(
+        and(
+          eq(schema.CommitteeMemberships.memberId, member.id),
+          eq(schema.CommitteeMemberships.committeeId, committeeId),
+          lte(schema.CommitteeMemberships.startedAt, now),
+          or(
+            isNull(schema.CommitteeMemberships.endedAt),
+            gte(schema.CommitteeMemberships.endedAt, now),
+          ),
+        ),
+      )
+      .limit(1);
+
+    const membershipId =
+      existingMembership?.id ??
+      (
+        await tx
+          .insert(schema.CommitteeMemberships)
+          .values({
+            memberId: member.id,
+            committeeId,
+            startedAt: startedAt ?? now,
+          })
+          .returning({ id: schema.CommitteeMemberships.id })
+      )[0].id;
+
+    const activeAssignments = await tx
+      .select({
+        id: schema.MemberTitlesAssignments.id,
+        alias: schema.MemberTitles.alias,
+      })
+      .from(schema.MemberTitlesAssignments)
+      .innerJoin(
+        schema.MemberTitles,
+        eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
+      )
+      .where(
+        and(
+          eq(schema.MemberTitlesAssignments.memberId, member.id),
+          eq(schema.MemberTitles.committeeId, committeeId),
+          lte(schema.MemberTitlesAssignments.startedAt, now),
+          or(
+            isNull(schema.MemberTitlesAssignments.endedAt),
+            gte(schema.MemberTitlesAssignments.endedAt, now),
+          ),
+        ),
+      );
+
+    const existingTitle = activeAssignments.find(
+      (assignment) => assignment.alias === titleAlias,
+    );
+    const assignmentsToEnd = activeAssignments
+      .filter((assignment) => assignment.alias !== titleAlias)
+      .map((assignment) => assignment.id);
+
+    if (assignmentsToEnd.length > 0) {
+      await tx
+        .update(schema.MemberTitlesAssignments)
+        .set({ endedAt: now })
+        .where(inArray(schema.MemberTitlesAssignments.id, assignmentsToEnd));
+    }
+
+    if (titleAlias === "committeechair") {
+      const otherActiveChairAssignments = await tx
+        .select({ id: schema.MemberTitlesAssignments.id })
+        .from(schema.MemberTitlesAssignments)
+        .innerJoin(
+          schema.MemberTitles,
+          eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
+        )
+        .where(
+          and(
+            eq(schema.MemberTitles.committeeId, committeeId),
+            eq(schema.MemberTitles.alias, "committeechair"),
+            ne(schema.MemberTitlesAssignments.memberId, member.id),
+            lte(schema.MemberTitlesAssignments.startedAt, now),
+            or(
+              isNull(schema.MemberTitlesAssignments.endedAt),
+              gte(schema.MemberTitlesAssignments.endedAt, now),
+            ),
+          ),
+        );
+
+      if (otherActiveChairAssignments.length > 0) {
+        await tx
+          .update(schema.MemberTitlesAssignments)
+          .set({ endedAt: now })
+          .where(
+            inArray(
+              schema.MemberTitlesAssignments.id,
+              otherActiveChairAssignments.map((assignment) => assignment.id),
+            ),
+          );
+      }
+    }
+
+    if (!existingTitle) {
+      await tx.insert(schema.MemberTitlesAssignments).values({
+        memberId: member.id,
+        titleId: title.id,
+        startedAt: startedAt ?? now,
+      });
+    }
+
+    return membershipId;
+  });
 }
 
 /**
@@ -532,20 +650,56 @@ export async function unenrollFromCommittee(
     throw new ApiError("No active membership found for constituent", 404);
   }
 
-  const result = await dbClient.db
-    .update(schema.CommitteeMemberships)
-    .set({ endedAt: now })
-    .where(
-      and(
-        eq(schema.CommitteeMemberships.memberId, member.id),
-        eq(schema.CommitteeMemberships.committeeId, committeeId),
-        isNull(schema.CommitteeMemberships.endedAt),
-        lte(schema.CommitteeMemberships.startedAt, now),
-      ),
-    )
-    .returning({ id: schema.CommitteeMemberships.id });
+  await dbClient.db.transaction(async (tx) => {
+    const result = await tx
+      .update(schema.CommitteeMemberships)
+      .set({ endedAt: now })
+      .where(
+        and(
+          eq(schema.CommitteeMemberships.memberId, member.id),
+          eq(schema.CommitteeMemberships.committeeId, committeeId),
+          lte(schema.CommitteeMemberships.startedAt, now),
+          or(
+            isNull(schema.CommitteeMemberships.endedAt),
+            gte(schema.CommitteeMemberships.endedAt, now),
+          ),
+        ),
+      )
+      .returning({ id: schema.CommitteeMemberships.id });
 
-  if (result.length === 0) {
-    throw new ApiError("No active committee membership found", 404);
-  }
+    if (result.length === 0) {
+      throw new ApiError("No active committee membership found", 404);
+    }
+
+    const activeTitleAssignments = await tx
+      .select({ id: schema.MemberTitlesAssignments.id })
+      .from(schema.MemberTitlesAssignments)
+      .innerJoin(
+        schema.MemberTitles,
+        eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
+      )
+      .where(
+        and(
+          eq(schema.MemberTitlesAssignments.memberId, member.id),
+          eq(schema.MemberTitles.committeeId, committeeId),
+          lte(schema.MemberTitlesAssignments.startedAt, now),
+          or(
+            isNull(schema.MemberTitlesAssignments.endedAt),
+            gte(schema.MemberTitlesAssignments.endedAt, now),
+          ),
+        ),
+      );
+
+    if (activeTitleAssignments.length > 0) {
+      await tx
+        .update(schema.MemberTitlesAssignments)
+        .set({ endedAt: now })
+        .where(
+          inArray(
+            schema.MemberTitlesAssignments.id,
+            activeTitleAssignments.map((assignment) => assignment.id),
+          ),
+        );
+    }
+  });
 }

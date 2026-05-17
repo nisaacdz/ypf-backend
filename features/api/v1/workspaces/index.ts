@@ -11,6 +11,7 @@ import {
   canAccessWorkspaceRequest,
   canManageWorkspaceRequest,
 } from "@/shared/services/workspaceAccessService";
+import { ADMIN, Visitors } from "@/configs/authorizer";
 import * as workspacesHandler from "./workspacesHandler";
 import {
   CreateWorkspaceNoteSchema,
@@ -18,9 +19,28 @@ import {
   WorkspaceAliasParamsSchema,
   WorkspaceNotesQuerySchema,
   WorkspaceReportQuerySchema,
+  WorkspaceReportsQuerySchema,
 } from "./schemas";
 
 const workspacesRouter = Router();
+
+workspacesRouter.get(
+  "/reports",
+  authenticate,
+  authorize(Visitors.hasRole(ADMIN.SUPER)),
+  validateQuery(WorkspaceReportsQuerySchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await workspacesHandler.getAllWorkspaceReports({
+        month: req.Query.month,
+        user: req.User!,
+      });
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 workspacesRouter.get(
   "/notes",
@@ -112,6 +132,8 @@ workspacesRouter.post(
         month: req.Body.month,
         kind: req.Body.kind,
         body: req.Body.body,
+        documentName: req.Body.documentName,
+        documentUrl: req.Body.documentUrl,
       });
       res.status(200).json(response);
     } catch (error) {

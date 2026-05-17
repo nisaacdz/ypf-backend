@@ -17,6 +17,9 @@ export const GetCommitteeLeadershipQuerySchema = z.object({
 export const EnrollCommitteeSchema = z.object({
   constituentId: z.uuid({ message: "Invalid constituent ID." }),
   startedAt: z.iso.datetime().optional(),
+  titleAlias: z
+    .enum(["committeemember", "committeechair"])
+    .default("committeemember"),
 });
 
 export const UnenrollCommitteeSchema = z.object({

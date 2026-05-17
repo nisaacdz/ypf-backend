@@ -5,8 +5,8 @@ import {
   validateQuery,
   validateParams,
 } from "@/shared/middlewares/validate";
-import { ADMIN, MEMBER, anyOf, Visitors } from "@/configs/authorizer";
-// ADMIN/MEMBER/anyOf/Visitors still used by policy + admin/record routes below
+import { ADMIN, anyOf, Visitors } from "@/configs/authorizer";
+// ADMIN/anyOf/Visitors still used by reminder routes below
 import {
   InitiateDuesPaymentSchema,
   GetMemberDuesPaymentsQuerySchema,
@@ -16,6 +16,10 @@ import {
 } from "./schemas";
 import * as duesHandler from "./duesHandler";
 import * as duesService from "@/shared/services/duesService";
+import {
+  canAccessFinance,
+  canManageFinance,
+} from "@/shared/services/workspaceAccessService";
 import z from "zod";
 
 const duesRouter = Router();
@@ -103,12 +107,7 @@ duesRouter.post(
 duesRouter.get(
   "/policy",
   authenticate,
-  authorize(
-    anyOf(
-      Visitors.hasProfile("ADMIN"),
-      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR),
-    ),
-  ),
+  authorize(canAccessFinance),
   async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await duesHandler.getDuesPolicy();
@@ -122,12 +121,7 @@ duesRouter.get(
 duesRouter.put(
   "/policy",
   authenticate,
-  authorize(
-    anyOf(
-      Visitors.hasProfile("ADMIN"),
-      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR),
-    ),
-  ),
+  authorize(canManageFinance),
   validateBody(SetDuesPolicySchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -146,12 +140,7 @@ duesRouter.put(
 duesRouter.post(
   "/admin/record",
   authenticate,
-  authorize(
-    anyOf(
-      Visitors.hasProfile("ADMIN"),
-      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.COMMITTEECHAIR),
-    ),
-  ),
+  authorize(canManageFinance),
   validateBody(RecordOfflineDuesPaymentSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {

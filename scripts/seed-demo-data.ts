@@ -464,7 +464,10 @@ async function seed(
       ANNOUNCEMENT_SEEDS.map((a, i) => ({
         title: a.title,
         content: a.content,
-        targetCriteria: { profileTypes: ["MEMBER"] },
+        targetCriteria: {
+          constituentTypes: ["MEMBER" as const],
+          status: "ACTIVE" as const,
+        },
         authorId: authorConstituentId,
         status: "PUBLISHED",
         publishedAt: new Date(now.getTime() - i * 24 * 60 * 60 * 1000),

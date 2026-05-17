@@ -31,6 +31,13 @@ const TEST_USERS: TestUserSeed[] = [
     committeeChairAlias: "finance",
   },
   {
+    email: "finance.member@ypfafrica.org",
+    password: "FinanceMember123!",
+    firstName: "Frank",
+    lastName: "Ledger",
+    committeeMemberAlias: "finance",
+  },
+  {
     email: "hr@ypfafrica.org",
     password: "Hr123!",
     firstName: "Henry",

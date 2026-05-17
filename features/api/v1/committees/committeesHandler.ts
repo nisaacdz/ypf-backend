@@ -56,6 +56,7 @@ export async function enrollToCommittee(
     committeeId,
     body.constituentId,
     body.startedAt ? new Date(body.startedAt) : undefined,
+    body.titleAlias,
   );
   return { success: true, data: { membershipId } };
 }

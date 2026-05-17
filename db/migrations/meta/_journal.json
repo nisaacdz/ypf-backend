@@ -57,6 +57,13 @@
       "when": 1779052620000,
       "tag": "0010_workspace_submissions_notes",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1779052680000,
+      "tag": "0011_workspace_submission_document_fields",
+      "breakpoints": true
     }
   ]
 }

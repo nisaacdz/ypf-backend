@@ -25,12 +25,16 @@ export async function submitWorkspaceDocument({
   month,
   kind,
   body,
+  documentName,
+  documentUrl,
 }: {
   alias: string;
   user: AuthenticatedUser;
   month?: string;
   kind: workspaceService.WorkspaceSubmissionKind;
   body: string;
+  documentName?: string;
+  documentUrl?: string;
 }): Promise<ApiResponse<workspaceService.WorkspaceSubmission>> {
   const data = await workspaceService.submitWorkspaceMonthlyDocument({
     alias,
@@ -38,10 +42,27 @@ export async function submitWorkspaceDocument({
     month,
     kind,
     body,
+    documentName,
+    documentUrl,
   });
   return {
     success: true,
     message: "Workspace submission saved successfully",
+    data,
+  };
+}
+
+export async function getAllWorkspaceReports({
+  month,
+  user,
+}: {
+  month?: string;
+  user: AuthenticatedUser;
+}): Promise<ApiResponse<workspaceService.WorkspaceCommitteeReportSummary[]>> {
+  const data = await workspaceService.getAllWorkspaceReports({ month, user });
+  return {
+    success: true,
+    message: "Committee workspace reports fetched successfully",
     data,
   };
 }

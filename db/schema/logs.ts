@@ -74,6 +74,8 @@ export const WorkspaceMonthlySubmissions = logs.table(
     month: timestamp("month", { withTimezone: true }).notNull(),
     kind: WorkspaceSubmissionKindEnum().notNull(),
     body: text().notNull(),
+    documentName: text("document_name"),
+    documentUrl: text("document_url"),
     submittedBy: uuid("submitted_by")
       .notNull()
       .references(() => Constituents.id, { onDelete: "restrict" }),

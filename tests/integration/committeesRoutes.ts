@@ -75,6 +75,7 @@ describe("Committees API", () => {
       .insert(schema.Committees)
       .values({
         name: testCommittee.name,
+        alias: "test_committee",
         description: testCommittee.description,
       })
       .returning();
@@ -86,6 +87,7 @@ describe("Committees API", () => {
       .insert(schema.Committees)
       .values({
         name: testCommitteeWithChapter.name,
+        alias: "test_committee_with_chapter",
         description: testCommitteeWithChapter.description,
         chapterId: testChapter.id,
       })
