@@ -27,6 +27,7 @@ import filesUpload from "@/shared/middlewares/multipart";
 import { redisCacheEarlyReturn } from "@/shared/middlewares/redisCache";
 import redisClient from "@/configs/redis";
 import logger from "@/configs/logger";
+import { canManageProgramsRecords } from "@/shared/services/workspaceAccessService";
 
 const projectsRouter = Router();
 
@@ -53,7 +54,11 @@ projectsRouter.post(
   "/",
   authenticate,
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(MEMBER.PRESIDENT),
+      canManageProgramsRecords,
+    ),
   ),
   validateBody(CreateProjectSchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -115,7 +120,11 @@ projectsRouter.put(
   authenticate,
   validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(MEMBER.PRESIDENT),
+      canManageProgramsRecords,
+    ),
   ),
   validateBody(UpdateProjectSchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -165,7 +174,11 @@ projectsRouter.post(
   authenticate,
   validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(MEMBER.PRESIDENT),
+      canManageProgramsRecords,
+    ),
   ),
   filesUpload.mediaUpload.single("file"),
   validateFile(UploadProjectFileSchema),
@@ -194,7 +207,11 @@ projectsRouter.patch(
   authenticate,
   validateParams(z.object({ projectId: z.uuid(), mediumId: z.uuid() }), 404),
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(MEMBER.PRESIDENT),
+      canManageProgramsRecords,
+    ),
   ),
   validateBody(UpdateProjectMediumSchema),
   async (req: Request, res: Response, next: NextFunction) => {

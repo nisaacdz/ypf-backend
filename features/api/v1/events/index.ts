@@ -27,6 +27,7 @@ import { ADMIN, anyOf, MEMBER, Visitors } from "@/configs/authorizer";
 import { redisCacheEarlyReturn } from "@/shared/middlewares/redisCache";
 import redisClient from "@/configs/redis";
 import logger from "@/configs/logger";
+import { canManageProgramsRecords } from "@/shared/services/workspaceAccessService";
 
 const eventsRouter = Router();
 
@@ -57,6 +58,7 @@ eventsRouter.post(
     anyOf(
       Visitors.hasProfile("ADMIN"),
       Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.PRESIDENT),
+      canManageProgramsRecords,
     ),
   ),
   validateBody(CreateEventSchema),
@@ -99,6 +101,7 @@ eventsRouter.post(
     anyOf(
       Visitors.hasProfile("ADMIN"),
       Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.PRESIDENT),
+      canManageProgramsRecords,
     ),
   ),
   filesUpload.mediaUpload.single("file"),
@@ -175,6 +178,7 @@ eventsRouter.put(
     anyOf(
       Visitors.hasProfile("ADMIN"),
       Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.PRESIDENT),
+      canManageProgramsRecords,
     ),
   ),
   validateBody(UpdateEventSchema),
@@ -200,6 +204,7 @@ eventsRouter.delete(
     anyOf(
       Visitors.hasProfile("ADMIN"),
       Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.PRESIDENT),
+      canManageProgramsRecords,
     ),
   ),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -224,6 +229,7 @@ eventsRouter.patch(
     anyOf(
       Visitors.hasProfile("ADMIN"),
       Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.PRESIDENT),
+      canManageProgramsRecords,
     ),
   ),
   validateBody(UpdateEventMediumSchema),

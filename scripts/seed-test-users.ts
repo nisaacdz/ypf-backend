@@ -11,6 +11,7 @@ type TestUserSeed = {
   // exactly one of these may be set
   superAdmin?: boolean;
   committeeChairAlias?: string;
+  committeeMemberAlias?: string;
   plainMember?: boolean;
 };
 
@@ -35,6 +36,20 @@ const TEST_USERS: TestUserSeed[] = [
     firstName: "Henry",
     lastName: "Human",
     committeeChairAlias: "hr",
+  },
+  {
+    email: "programs@ypfafrica.org",
+    password: "Programs123!",
+    firstName: "Priscilla",
+    lastName: "Programs",
+    committeeChairAlias: "programs_records",
+  },
+  {
+    email: "programs.member@ypfafrica.org",
+    password: "ProgramsMember123!",
+    firstName: "Peter",
+    lastName: "Records",
+    committeeMemberAlias: "programs_records",
   },
   {
     email: "member@ypfafrica.org",
@@ -95,36 +110,45 @@ async function seed(
         startedAt: now,
       });
       role = "SUPER_ADMIN";
-    } else if (u.committeeChairAlias) {
+    } else if (u.committeeChairAlias || u.committeeMemberAlias) {
+      const committeeAlias = u.committeeChairAlias ?? u.committeeMemberAlias!;
+      const titleAlias = u.committeeChairAlias
+        ? "committeechair"
+        : "committeemember";
       const committee = await tx.query.Committees.findFirst({
-        where: eq(schema.Committees.alias, u.committeeChairAlias),
+        where: eq(schema.Committees.alias, committeeAlias),
       });
       if (!committee) {
         throw new Error(
-          `Committee with alias '${u.committeeChairAlias}' not found. Run seed-org-structure first.`,
+          `Committee with alias '${committeeAlias}' not found. Run seed-org-structure first.`,
         );
       }
       const title = await tx.query.MemberTitles.findFirst({
         where: and(
-          eq(schema.MemberTitles.alias, "committeechair"),
+          eq(schema.MemberTitles.alias, titleAlias),
           eq(schema.MemberTitles.committeeId, committee.id),
         ),
       });
       if (!title) {
         throw new Error(
-          `committeechair title for '${u.committeeChairAlias}' not found.`,
+          `${titleAlias} title for '${committeeAlias}' not found.`,
         );
       }
       const [member] = await tx
         .insert(schema.Members)
         .values({ constituentId: constituent.id, startedAt: now })
         .returning();
+      await tx.insert(schema.CommitteeMemberships).values({
+        memberId: member.id,
+        committeeId: committee.id,
+        startedAt: now,
+      });
       await tx.insert(schema.MemberTitlesAssignments).values({
         memberId: member.id,
         titleId: title.id,
         startedAt: now,
       });
-      role = `chair of ${committee.name}`;
+      role = `${u.committeeChairAlias ? "chair" : "member"} of ${committee.name}`;
     } else if (u.plainMember) {
       await tx
         .insert(schema.Members)

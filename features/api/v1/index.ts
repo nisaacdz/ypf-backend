@@ -18,6 +18,7 @@ import dashboardRouter from "./dashboard";
 import constituentsRouter from "./constituents";
 import jobsRouter from "./jobs";
 import certificatesRouter from "./certificates";
+import workspacesRouter from "./workspaces";
 
 const apiRouter = Router();
 
@@ -40,5 +41,6 @@ apiRouter.use("/dashboard", dashboardRouter);
 apiRouter.use("/constituents", constituentsRouter);
 apiRouter.use("/jobs", jobsRouter);
 apiRouter.use("/certificates", certificatesRouter);
+apiRouter.use("/workspaces", workspacesRouter);
 
 export default apiRouter;
