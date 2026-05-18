@@ -14,6 +14,8 @@ export const GRAPHICS_ALIAS = "graphics";
 export const SPONSORSHIP_ALIAS = "sponsorship";
 export const LEGAL_ALIAS = "legal";
 export const RECORDS_MGMT_ALIAS = "records_mgmt";
+export const TECHNICAL_ALIAS = "technical";
+export const INSTITUTIONAL_ALIAS = "institutional";
 
 export type WorkspaceCommittee = {
   id: string;
@@ -142,6 +144,27 @@ export async function canAccessHr(req: Request) {
   const committee = await getCommitteeByAlias(HR_ALIAS);
   if (!committee) return isSystemAdmin(req.User);
   return canAccessCommitteeLive(req.User, committee.id);
+}
+
+export async function canAccessTechnical(req: Request) {
+  if (!req.User) return false;
+  const committee = await getCommitteeByAlias(TECHNICAL_ALIAS);
+  if (!committee) return isSystemAdmin(req.User);
+  return canAccessCommitteeLive(req.User, committee.id);
+}
+
+export async function canManageTechnical(req: Request) {
+  if (!req.User) return false;
+  const committee = await getCommitteeByAlias(TECHNICAL_ALIAS);
+  if (!committee) return isSystemAdmin(req.User);
+  return canManageCommitteeLive(req.User, committee.id);
+}
+
+export async function canManageInstitutional(req: Request) {
+  if (!req.User) return false;
+  const committee = await getCommitteeByAlias(INSTITUTIONAL_ALIAS);
+  if (!committee) return isSystemAdmin(req.User);
+  return canManageCommitteeLive(req.User, committee.id);
 }
 
 export async function isSystemAdminLive(user: AuthenticatedUser) {

@@ -34,6 +34,10 @@ export async function getCommittees(
   query: z.infer<typeof GetCommitteesQuerySchema>,
 ): Promise<Paginated<YPFCommittee>> {
   const { page, pageSize, search, chapterId } = query;
+  // Note: this function constructs three subqueries — member count, chair,
+  // featured photo — and left-joins them to the committees table. The
+  // alternate getCommitteesByConstituentId below shares the member_count
+  // subquery name but is a separate query graph.
 
   // --- SUBQUERY FOR MEMBER COUNT ---
   const memberCountSubquery = dbClient.db
@@ -57,6 +61,37 @@ export async function getCommittees(
     )
     .groupBy(schema.CommitteeMemberships.committeeId)
     .as("member_counts");
+
+  // --- SUBQUERY FOR ACTIVE CHAIR ---
+  // Returns one row per (committee, member) where the member currently holds
+  // the committeechair title. The window function ranks active chairs so we
+  // can pick the most recently-assigned one if the data ever has dupes.
+  const chairSubquery = dbClient.db
+    .select({
+      committeeId: schema.MemberTitles.committeeId,
+      memberId: schema.Members.id,
+      rn: sql<number>`row_number() OVER (PARTITION BY ${schema.MemberTitles.committeeId} ORDER BY ${schema.MemberTitlesAssignments.startedAt} DESC)`.as(
+        "chair_rn",
+      ),
+    })
+    .from(schema.MemberTitlesAssignments)
+    .innerJoin(
+      schema.MemberTitles,
+      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
+    )
+    .innerJoin(
+      schema.Members,
+      eq(schema.MemberTitlesAssignments.memberId, schema.Members.id),
+    )
+    .where(
+      and(
+        eq(schema.MemberTitles.alias, "committeechair"),
+        sql`${schema.MemberTitles.committeeId} IS NOT NULL`,
+        sql`${schema.MemberTitlesAssignments.startedAt} <= now()`,
+        sql`(${schema.MemberTitlesAssignments.endedAt} IS NULL OR ${schema.MemberTitlesAssignments.endedAt} >= now())`,
+      ),
+    )
+    .as("active_chairs");
 
   // --- SUBQUERY FOR FEATURED PHOTO ---
   const featuredPhotoSubquery = dbClient.db
@@ -104,6 +139,7 @@ export async function getCommittees(
       featuredPhotoExternalId: featuredPhotoSubquery.externalId,
       chapterName: schema.Chapters.name,
       memberCount: memberCountSubquery.memberCount,
+      chairMemberId: chairSubquery.memberId,
     })
     .from(schema.Committees)
     .leftJoin(
@@ -113,6 +149,13 @@ export async function getCommittees(
     .leftJoin(
       memberCountSubquery,
       eq(schema.Committees.id, memberCountSubquery.committeeId),
+    )
+    .leftJoin(
+      chairSubquery,
+      and(
+        eq(schema.Committees.id, chairSubquery.committeeId),
+        eq(chairSubquery.rn, 1),
+      ),
     )
     .leftJoin(
       featuredPhotoSubquery,
@@ -144,6 +187,7 @@ export async function getCommittees(
       : undefined,
     chapterName: c.chapterName ?? undefined,
     memberCount: c.memberCount ?? 0,
+    chairMemberId: c.chairMemberId ?? null,
   }));
 
   return {
@@ -379,6 +423,10 @@ export async function getCommitteesByConstituentId(
       : undefined,
     chapterName: c.chapterName ?? undefined,
     memberCount: c.memberCount ?? 0,
+    // This endpoint is scoped to a single constituent's committees; chair
+    // info isn't surfaced here. Callers that need chair use the main
+    // GET /committees list which joins the chair subquery.
+    chairMemberId: null,
   }));
 
   return {

@@ -8,6 +8,8 @@ export type YPFCommittee = {
   featuredPhotoUrl?: string;
   chapterName?: string;
   memberCount: number;
+  /** Active committeechair's `members.id`, or `null` if no chair is assigned. */
+  chairMemberId: string | null;
 };
 
 export type YPFCommitteeDetail = {

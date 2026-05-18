@@ -31,6 +31,7 @@ import {
   UploadChapterMediumOptionsSchema,
 } from "./schemas";
 import { Visitors, MEMBER, anyOf, ADMIN } from "@/configs/authorizer";
+import { canManageInstitutional } from "@/shared/services/workspaceAccessService";
 import filesUpload from "@/shared/middlewares/multipart";
 import z from "zod";
 
@@ -62,6 +63,7 @@ chaptersRouter.post(
     anyOf(
       Visitors.hasProfile("ADMIN"),
       Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR),
+      canManageInstitutional,
     ),
   ),
   validateBody(CreateChapterSchema),
@@ -133,6 +135,7 @@ chaptersRouter.patch(
     anyOf(
       Visitors.hasRole(ADMIN.SUPER),
       Visitors.hasRole((req) => MEMBER.chapterLead(req.Params.id)),
+      canManageInstitutional,
     ),
   ),
   validateBody(UpdateChapterSchema),
@@ -162,6 +165,7 @@ chaptersRouter.delete(
     anyOf(
       Visitors.hasProfile("ADMIN"),
       Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR),
+      canManageInstitutional,
     ),
   ),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -208,6 +212,7 @@ chaptersRouter.post(
     anyOf(
       Visitors.hasProfile("ADMIN"),
       Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR),
+      canManageInstitutional,
     ),
   ),
   validateBody(EnrollChapterSchema),
@@ -234,6 +239,7 @@ chaptersRouter.patch(
     anyOf(
       Visitors.hasProfile("ADMIN"),
       Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR),
+      canManageInstitutional,
     ),
   ),
   validateBody(UnenrollChapterSchema),
@@ -280,6 +286,7 @@ chaptersRouter.put(
     anyOf(
       Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR),
       Visitors.hasRole((req) => MEMBER.chapterLead(req.Params.id)),
+      canManageInstitutional,
     ),
   ),
   validateBody(AssignChapterRoleSchema),
@@ -307,6 +314,7 @@ chaptersRouter.delete(
     anyOf(
       Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR),
       Visitors.hasRole((req) => MEMBER.chapterLead(req.Params.id)),
+      canManageInstitutional,
     ),
   ),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -360,6 +368,7 @@ chaptersRouter.post(
     anyOf(
       Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR),
       Visitors.hasRole((req) => MEMBER.chapterLead(req.Params.id)),
+      canManageInstitutional,
     ),
   ),
   filesUpload.mediaUpload.single("file"),
@@ -393,6 +402,7 @@ chaptersRouter.patch(
     anyOf(
       Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR),
       Visitors.hasRole((req) => MEMBER.chapterLead(req.Params.chapterId)),
+      canManageInstitutional,
     ),
   ),
   validateBody(UpdateChapterMediumSchema),
@@ -424,6 +434,7 @@ chaptersRouter.delete(
     anyOf(
       Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR),
       Visitors.hasRole((req) => MEMBER.chapterLead(req.Params.chapterId)),
+      canManageInstitutional,
     ),
   ),
   async (req: Request, res: Response, next: NextFunction) => {

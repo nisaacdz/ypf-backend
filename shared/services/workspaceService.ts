@@ -20,11 +20,13 @@ import {
   getCommitteeByAlias,
   GRAPHICS_ALIAS,
   HR_ALIAS,
+  INSTITUTIONAL_ALIAS,
   isSystemAdminLive,
   LEGAL_ALIAS,
   MEDIA_ALIAS,
   RECORDS_MGMT_ALIAS,
   SPONSORSHIP_ALIAS,
+  TECHNICAL_ALIAS,
   WELFARE_ALIAS,
 } from "./workspaceAccessService";
 import {
@@ -310,6 +312,36 @@ export async function getWorkspaceReport({
 
   if (alias === RECORDS_MGMT_ALIAS) {
     const reportData = await getRecordsManagementReportData(
+      committee.id,
+      monthStart,
+      nextMonthStart,
+    );
+    return {
+      committee,
+      month: getMonthMeta(monthStart),
+      access,
+      submissions,
+      ...reportData,
+    };
+  }
+
+  if (alias === TECHNICAL_ALIAS) {
+    const reportData = await getTechnicalReportData(
+      committee.id,
+      monthStart,
+      nextMonthStart,
+    );
+    return {
+      committee,
+      month: getMonthMeta(monthStart),
+      access,
+      submissions,
+      ...reportData,
+    };
+  }
+
+  if (alias === INSTITUTIONAL_ALIAS) {
+    const reportData = await getInstitutionalReportData(
       committee.id,
       monthStart,
       nextMonthStart,
@@ -2830,7 +2862,8 @@ function legalMeta(record: LegalWorkspaceRecord) {
 }
 
 function priorityWeight(priority: string) {
-  return { LOW: 1, MEDIUM: 2, HIGH: 3, URGENT: 4 }[priority] ?? 0;
+  const weights: Record<string, number> = { LOW: 1, MEDIUM: 2, HIGH: 3, URGENT: 4 };
+  return weights[priority] ?? 0;
 }
 
 type RecordsManagementWorkspaceRecord = {
@@ -3157,6 +3190,597 @@ function recordsManagementMeta(record: RecordsManagementWorkspaceRecord) {
     record.reviewDate ? `Review ${record.reviewDate}` : undefined,
     record.legalHold ? "Legal hold" : undefined,
     record.privacyFlag ? "Privacy flag" : undefined,
+  ].filter(Boolean);
+  return chunks.join(" · ") || `${record.area} · ${formatDate(record.createdAt)}`;
+}
+
+type TechnicalWorkspaceRecord = {
+  id: string;
+  area: "services" | "incidents" | "integrations" | "jobs" | "releases" | "security";
+  category: string;
+  title: string;
+  status: string;
+  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+  owner?: string;
+  affectedSystem?: string;
+  environment?: string;
+  severity?: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  reportedByCommittee?: string;
+  detectedBy?: string;
+  startedAt?: string;
+  resolvedAt?: string;
+  nextCheckAt?: string;
+  serviceName?: string;
+  serviceType?: string;
+  healthState?: string;
+  uptimeTarget?: string;
+  endpointUrl?: string;
+  lastCheckedAt?: string;
+  rootCause?: string;
+  preventionAction?: string;
+  provider?: string;
+  integrationName?: string;
+  lastFailureAt?: string;
+  failureCount?: string;
+  recoveryNotes?: string;
+  queueName?: string;
+  pendingCount?: string;
+  failedCount?: string;
+  lastSuccessAt?: string;
+  lastFailureReason?: string;
+  releaseVersion?: string;
+  releaseType?: string;
+  releaseDate?: string;
+  commitRef?: string;
+  rollbackPlan?: string;
+  affectedCommittees?: string;
+  qaChecklist?: string;
+  securityCategory?: string;
+  evidenceSummary?: string;
+  mitigation?: string;
+  privacyFlag?: boolean;
+  legalHandoff?: string;
+  details: string;
+  outcome?: string;
+  authorName: string;
+  createdAt: Date;
+};
+
+async function getTechnicalReportData(
+  committeeId: string,
+  monthStart: Date,
+  nextMonthStart: Date,
+) {
+  const rows = await dbClient.db
+    .select({
+      id: schema.WorkspaceNotes.id,
+      body: schema.WorkspaceNotes.body,
+      createdAt: schema.WorkspaceNotes.createdAt,
+      authorFirstName: schema.Constituents.firstName,
+      authorLastName: schema.Constituents.lastName,
+    })
+    .from(schema.WorkspaceNotes)
+    .innerJoin(
+      schema.Constituents,
+      eq(schema.WorkspaceNotes.authorId, schema.Constituents.id),
+    )
+    .where(
+      and(
+        eq(schema.WorkspaceNotes.committeeId, committeeId),
+        eq(schema.WorkspaceNotes.entityType, "workspace"),
+        isNull(schema.WorkspaceNotes.deletedAt),
+      ),
+    )
+    .orderBy(desc(schema.WorkspaceNotes.createdAt));
+
+  const records = rows
+    .map((row) =>
+      parseTechnicalRecord({
+        ...row,
+        authorName: `${row.authorFirstName} ${row.authorLastName}`.trim(),
+      }),
+    )
+    .filter((record): record is TechnicalWorkspaceRecord => Boolean(record));
+  const monthRecords = records.filter(
+    (record) => record.createdAt >= monthStart && record.createdAt < nextMonthStart,
+  );
+  const services = records.filter((record) => record.area === "services");
+  const incidents = records.filter((record) => record.area === "incidents");
+  const integrations = records.filter((record) => record.area === "integrations");
+  const jobs = records.filter((record) => record.area === "jobs");
+  const releases = records.filter((record) => record.area === "releases");
+  const security = records.filter((record) => record.area === "security");
+  const openIncidents = incidents.filter((record) => !isTechnicalClosedStatus(record.status));
+  const degradedServices = services.filter((record) =>
+    ["DEGRADED", "OUTAGE", "MAINTENANCE", "MONITORING"].includes(record.status) ||
+    ["DEGRADED", "DOWN", "WARNING"].includes(record.healthState ?? ""),
+  );
+  const integrationWarnings = integrations.filter((record) =>
+    !isTechnicalClosedStatus(record.status) ||
+    Number(record.failureCount || 0) > 0 ||
+    ["DEGRADED", "FAILING", "DOWN"].includes(record.healthState ?? ""),
+  );
+  const failedJobs = jobs.filter((record) =>
+    ["FAILED", "RETRYING", "BLOCKED", "DEGRADED"].includes(record.status) ||
+    Number(record.failedCount || 0) > 0,
+  );
+  const openSecurity = security.filter((record) => !isTechnicalClosedStatus(record.status));
+  const releasesThisMonth = releases.filter(
+    (record) => record.createdAt >= monthStart && record.createdAt < nextMonthStart,
+  );
+  const queue = [
+    ...openIncidents,
+    ...degradedServices,
+    ...integrationWarnings,
+    ...failedJobs,
+    ...openSecurity,
+  ].sort((a, b) => priorityWeight(b.priority) - priorityWeight(a.priority));
+  const outcomes = records
+    .filter((record) =>
+      isTechnicalClosedStatus(record.status) ||
+      ["DEPLOYED", "ROLLED_BACK", "RESOLVED", "HEALTHY", "RECOVERED"].includes(record.outcome ?? ""),
+    )
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+  return {
+    metrics: [
+      {
+        label: "Open incidents",
+        value: openIncidents.length,
+        hint: "Production, UMS, public-site, or workflow issues still active",
+      },
+      {
+        label: "Degraded services",
+        value: degradedServices.length,
+        hint: "Services in outage, degraded, maintenance, or monitoring states",
+      },
+      {
+        label: "Failed jobs/integrations",
+        value: failedJobs.length + integrationWarnings.length,
+        hint: "Queue failures, webhook issues, and external service warnings",
+      },
+      {
+        label: "Security/access items",
+        value: openSecurity.length,
+        hint: "Open access, authentication, upload, API, or privacy technical issues",
+      },
+    ],
+    attendance: queue.slice(0, 8).map((record) => ({
+      id: record.id,
+      title: record.title,
+      meta: technicalMeta(record),
+      badge: record.status.toLowerCase(),
+    })),
+    outcomes: outcomes.slice(0, 8).map((record) => ({
+      id: record.id,
+      title: record.title,
+      meta: record.outcome || technicalMeta(record),
+      badge: record.area,
+    })),
+    generatedItems: [
+      {
+        id: "month-activity",
+        title: `${monthRecords.length} technical item${monthRecords.length === 1 ? "" : "s"} logged this month`,
+        meta: "Generated from services, incidents, integrations, jobs, releases, and security records",
+        badge: "monthly",
+      },
+      {
+        id: "releases",
+        title: `${releasesThisMonth.length} release record${releasesThisMonth.length === 1 ? "" : "s"} this month`,
+        meta: "Deployments, rollback plans, release monitoring, and change-control notes",
+        badge: "release",
+      },
+      {
+        id: "platform-health",
+        title: `${degradedServices.length + openIncidents.length} platform health alert${degradedServices.length + openIncidents.length === 1 ? "" : "s"}`,
+        meta: "Open incidents and degraded services affecting the UMS or public website",
+        badge: "health",
+      },
+      {
+        id: "integrations",
+        title: `${failedJobs.length + integrationWarnings.length} automation warning${failedJobs.length + integrationWarnings.length === 1 ? "" : "s"}`,
+        meta: "Failed jobs, retries, payment/email/upload/callback integration warnings",
+        badge: "automation",
+      },
+    ],
+  };
+}
+
+function parseTechnicalRecord(row: {
+  id: string;
+  body: string;
+  authorName: string;
+  createdAt: Date;
+}): TechnicalWorkspaceRecord | null {
+  try {
+    const parsed = JSON.parse(row.body) as Partial<TechnicalWorkspaceRecord> & {
+      kind?: string;
+    };
+    if (parsed.kind !== "ypf.technical.record.v1") return null;
+    if (!parsed.area || !parsed.category || !parsed.title || !parsed.details) {
+      return null;
+    }
+    if (!["services", "incidents", "integrations", "jobs", "releases", "security"].includes(parsed.area)) {
+      return null;
+    }
+
+    return {
+      id: row.id,
+      area: parsed.area,
+      category: parsed.category,
+      title: parsed.title,
+      status: parsed.status ?? "OPEN",
+      priority: parsed.priority ?? "MEDIUM",
+      owner: parsed.owner,
+      affectedSystem: parsed.affectedSystem,
+      environment: parsed.environment,
+      severity: parsed.severity,
+      reportedByCommittee: parsed.reportedByCommittee,
+      detectedBy: parsed.detectedBy,
+      startedAt: parsed.startedAt,
+      resolvedAt: parsed.resolvedAt,
+      nextCheckAt: parsed.nextCheckAt,
+      serviceName: parsed.serviceName,
+      serviceType: parsed.serviceType,
+      healthState: parsed.healthState,
+      uptimeTarget: parsed.uptimeTarget,
+      endpointUrl: parsed.endpointUrl,
+      lastCheckedAt: parsed.lastCheckedAt,
+      rootCause: parsed.rootCause,
+      preventionAction: parsed.preventionAction,
+      provider: parsed.provider,
+      integrationName: parsed.integrationName,
+      lastFailureAt: parsed.lastFailureAt,
+      failureCount: parsed.failureCount,
+      recoveryNotes: parsed.recoveryNotes,
+      queueName: parsed.queueName,
+      pendingCount: parsed.pendingCount,
+      failedCount: parsed.failedCount,
+      lastSuccessAt: parsed.lastSuccessAt,
+      lastFailureReason: parsed.lastFailureReason,
+      releaseVersion: parsed.releaseVersion,
+      releaseType: parsed.releaseType,
+      releaseDate: parsed.releaseDate,
+      commitRef: parsed.commitRef,
+      rollbackPlan: parsed.rollbackPlan,
+      affectedCommittees: parsed.affectedCommittees,
+      qaChecklist: parsed.qaChecklist,
+      securityCategory: parsed.securityCategory,
+      evidenceSummary: parsed.evidenceSummary,
+      mitigation: parsed.mitigation,
+      privacyFlag: parsed.privacyFlag,
+      legalHandoff: parsed.legalHandoff,
+      details: parsed.details,
+      outcome: parsed.outcome,
+      authorName: row.authorName,
+      createdAt: row.createdAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isTechnicalClosedStatus(status: string) {
+  return [
+    "RESOLVED",
+    "ARCHIVED",
+    "HEALTHY",
+    "ONLINE",
+    "RECOVERED",
+    "DEPLOYED",
+    "ROLLED_BACK",
+    "CLOSED",
+    "CLEARED",
+    "NO_ACTION_NEEDED",
+  ].includes(status);
+}
+
+function technicalMeta(record: TechnicalWorkspaceRecord) {
+  const counts =
+    record.pendingCount || record.failedCount
+      ? `${record.pendingCount ?? 0} pending${record.failedCount ? `, ${record.failedCount} failed` : ""}`
+      : undefined;
+  const chunks = [
+    record.category,
+    record.affectedSystem || record.serviceName || record.integrationName || record.queueName || record.releaseVersion,
+    record.environment,
+    record.severity ? `Severity: ${record.severity}` : undefined,
+    record.healthState ? `Health: ${record.healthState}` : undefined,
+    counts,
+    record.provider,
+    record.reportedByCommittee ? `Reported by ${record.reportedByCommittee}` : undefined,
+    record.owner ? `Owner: ${record.owner}` : undefined,
+    record.nextCheckAt ? `Next check ${record.nextCheckAt}` : undefined,
+    record.releaseDate ? `Release ${record.releaseDate}` : undefined,
+    record.privacyFlag ? "Privacy flag" : undefined,
+    record.legalHandoff ? `Legal: ${record.legalHandoff}` : undefined,
+  ].filter(Boolean);
+  return chunks.join(" · ") || `${record.area} · ${formatDate(record.createdAt)}`;
+}
+
+type InstitutionalWorkspaceRecord = {
+  id: string;
+  area: "chapters" | "applications" | "health" | "coordination" | "check_ins";
+  category: string;
+  title: string;
+  status: string;
+  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+  owner?: string;
+  chapterName?: string;
+  country?: string;
+  region?: string;
+  city?: string;
+  chapterStatus?: string;
+  chapterLead?: string;
+  leadApplicant?: string;
+  applicantContact?: string;
+  institution?: string;
+  proposedLeadership?: string;
+  memberInterestCount?: string;
+  readinessStatus?: string;
+  decision?: string;
+  healthStatus?: string;
+  membershipActivity?: string;
+  leadershipStatus?: string;
+  duesHealth?: string;
+  programActivity?: string;
+  reportingCompliance?: string;
+  welfareConcerns?: string;
+  governanceRisk?: string;
+  technicalSupport?: string;
+  participatingChapters?: string;
+  leadChapter?: string;
+  supportingCommittees?: string;
+  timeline?: string;
+  attendanceExpectation?: string;
+  handoffNeeds?: string;
+  checkInType?: string;
+  checkInDate?: string;
+  attendees?: string;
+  keyIssues?: string;
+  supportRequested?: string;
+  followUpDate?: string;
+  details: string;
+  outcome?: string;
+  authorName: string;
+  createdAt: Date;
+};
+
+async function getInstitutionalReportData(
+  committeeId: string,
+  monthStart: Date,
+  nextMonthStart: Date,
+) {
+  const [chapterCountRow] = await dbClient.db
+    .select({ total: count() })
+    .from(schema.Chapters)
+    .where(isNull(schema.Chapters.archivedAt));
+  const [chapterMemberCountRow] = await dbClient.db
+    .select({ total: count() })
+    .from(schema.ChapterMemberships)
+    .where(isNull(schema.ChapterMemberships.endedAt));
+
+  const rows = await dbClient.db
+    .select({
+      id: schema.WorkspaceNotes.id,
+      body: schema.WorkspaceNotes.body,
+      createdAt: schema.WorkspaceNotes.createdAt,
+      authorFirstName: schema.Constituents.firstName,
+      authorLastName: schema.Constituents.lastName,
+    })
+    .from(schema.WorkspaceNotes)
+    .innerJoin(
+      schema.Constituents,
+      eq(schema.WorkspaceNotes.authorId, schema.Constituents.id),
+    )
+    .where(
+      and(
+        eq(schema.WorkspaceNotes.committeeId, committeeId),
+        eq(schema.WorkspaceNotes.entityType, "workspace"),
+        isNull(schema.WorkspaceNotes.deletedAt),
+      ),
+    )
+    .orderBy(desc(schema.WorkspaceNotes.createdAt));
+
+  const records = rows
+    .map((row) =>
+      parseInstitutionalRecord({
+        ...row,
+        authorName: `${row.authorFirstName} ${row.authorLastName}`.trim(),
+      }),
+    )
+    .filter((record): record is InstitutionalWorkspaceRecord => Boolean(record));
+  const monthRecords = records.filter(
+    (record) => record.createdAt >= monthStart && record.createdAt < nextMonthStart,
+  );
+  const applications = records.filter((record) => record.area === "applications");
+  const health = records.filter((record) => record.area === "health");
+  const coordination = records.filter((record) => record.area === "coordination");
+  const checkIns = records.filter((record) => record.area === "check_ins");
+  const pendingApplications = applications.filter((record) =>
+    ["SUBMITTED", "UNDER_REVIEW", "NEEDS_INFO", "SITE_CHECK", "ON_HOLD"].includes(record.status),
+  );
+  const atRiskHealth = health.filter((record) =>
+    ["WATCHLIST", "NEEDS_SUPPORT", "AT_RISK", "INACTIVE"].includes(record.status) ||
+    ["WATCHLIST", "NEEDS_SUPPORT", "AT_RISK", "INACTIVE"].includes(record.healthStatus ?? ""),
+  );
+  const openCoordination = coordination.filter((record) => !isInstitutionalClosedStatus(record.status));
+  const followUpCheckIns = checkIns.filter((record) =>
+    !isInstitutionalClosedStatus(record.status) || Boolean(record.followUpDate),
+  );
+  const monthCheckIns = checkIns.filter(
+    (record) => record.createdAt >= monthStart && record.createdAt < nextMonthStart,
+  );
+  const queue = [
+    ...pendingApplications,
+    ...atRiskHealth,
+    ...openCoordination,
+    ...followUpCheckIns,
+  ].sort((a, b) => priorityWeight(b.priority) - priorityWeight(a.priority));
+  const outcomes = records
+    .filter((record) => isInstitutionalClosedStatus(record.status) || Boolean(record.outcome))
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+  return {
+    metrics: [
+      {
+        label: "Active chapters",
+        value: chapterCountRow?.total ?? 0,
+        hint: `${chapterMemberCountRow?.total ?? 0} active chapter membership record${(chapterMemberCountRow?.total ?? 0) === 1 ? "" : "s"}`,
+      },
+      {
+        label: "Pending applications",
+        value: pendingApplications.length,
+        hint: "New chapter requests still awaiting decision",
+      },
+      {
+        label: "At-risk chapters",
+        value: atRiskHealth.length,
+        hint: "Chapter support records on watchlist, support, inactive, or risk states",
+      },
+      {
+        label: "Check-ins this month",
+        value: monthCheckIns.length,
+        hint: "Institutional calls, visits, and follow-ups logged this month",
+      },
+    ],
+    attendance: queue.slice(0, 8).map((record) => ({
+      id: record.id,
+      title: record.title,
+      meta: institutionalMeta(record),
+      badge: record.status.toLowerCase(),
+    })),
+    outcomes: outcomes.slice(0, 8).map((record) => ({
+      id: record.id,
+      title: record.title,
+      meta: record.outcome || institutionalMeta(record),
+      badge: record.area,
+    })),
+    generatedItems: [
+      {
+        id: "month-activity",
+        title: `${monthRecords.length} institutional item${monthRecords.length === 1 ? "" : "s"} logged this month`,
+        meta: "Generated from chapter records, applications, health reviews, coordination, and check-ins",
+        badge: "monthly",
+      },
+      {
+        id: "chapter-coverage",
+        title: `${chapterCountRow?.total ?? 0} active chapter${(chapterCountRow?.total ?? 0) === 1 ? "" : "s"} under oversight`,
+        meta: "Live chapter directory count plus workspace health records",
+        badge: "chapters",
+      },
+      {
+        id: "risk",
+        title: `${atRiskHealth.length} chapter support alert${atRiskHealth.length === 1 ? "" : "s"}`,
+        meta: "Watchlist, support-needed, at-risk, or inactive chapter support records",
+        badge: "health",
+      },
+      {
+        id: "coordination",
+        title: `${openCoordination.length} inter-chapter coordination item${openCoordination.length === 1 ? "" : "s"} open`,
+        meta: "Joint programs, leadership meetings, chapter visits, and cross-chapter initiatives",
+        badge: "coordination",
+      },
+    ],
+  };
+}
+
+function parseInstitutionalRecord(row: {
+  id: string;
+  body: string;
+  authorName: string;
+  createdAt: Date;
+}): InstitutionalWorkspaceRecord | null {
+  try {
+    const parsed = JSON.parse(row.body) as Partial<InstitutionalWorkspaceRecord> & {
+      kind?: string;
+    };
+    if (parsed.kind !== "ypf.institutional.record.v1") return null;
+    if (!parsed.area || !parsed.category || !parsed.title || !parsed.details) {
+      return null;
+    }
+    if (!["chapters", "applications", "health", "coordination", "check_ins"].includes(parsed.area)) {
+      return null;
+    }
+
+    return {
+      id: row.id,
+      area: parsed.area,
+      category: parsed.category,
+      title: parsed.title,
+      status: parsed.status ?? "OPEN",
+      priority: parsed.priority ?? "MEDIUM",
+      owner: parsed.owner,
+      chapterName: parsed.chapterName,
+      country: parsed.country,
+      region: parsed.region,
+      city: parsed.city,
+      chapterStatus: parsed.chapterStatus,
+      chapterLead: parsed.chapterLead,
+      leadApplicant: parsed.leadApplicant,
+      applicantContact: parsed.applicantContact,
+      institution: parsed.institution,
+      proposedLeadership: parsed.proposedLeadership,
+      memberInterestCount: parsed.memberInterestCount,
+      readinessStatus: parsed.readinessStatus,
+      decision: parsed.decision,
+      healthStatus: parsed.healthStatus,
+      membershipActivity: parsed.membershipActivity,
+      leadershipStatus: parsed.leadershipStatus,
+      duesHealth: parsed.duesHealth,
+      programActivity: parsed.programActivity,
+      reportingCompliance: parsed.reportingCompliance,
+      welfareConcerns: parsed.welfareConcerns,
+      governanceRisk: parsed.governanceRisk,
+      technicalSupport: parsed.technicalSupport,
+      participatingChapters: parsed.participatingChapters,
+      leadChapter: parsed.leadChapter,
+      supportingCommittees: parsed.supportingCommittees,
+      timeline: parsed.timeline,
+      attendanceExpectation: parsed.attendanceExpectation,
+      handoffNeeds: parsed.handoffNeeds,
+      checkInType: parsed.checkInType,
+      checkInDate: parsed.checkInDate,
+      attendees: parsed.attendees,
+      keyIssues: parsed.keyIssues,
+      supportRequested: parsed.supportRequested,
+      followUpDate: parsed.followUpDate,
+      details: parsed.details,
+      outcome: parsed.outcome,
+      authorName: row.authorName,
+      createdAt: row.createdAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isInstitutionalClosedStatus(status: string) {
+  return [
+    "APPROVED",
+    "REJECTED",
+    "HEALTHY",
+    "RECOVERING",
+    "COMPLETED",
+    "RESOLVED",
+    "CLOSED",
+    "ARCHIVED",
+  ].includes(status);
+}
+
+function institutionalMeta(record: InstitutionalWorkspaceRecord) {
+  const chunks = [
+    record.category,
+    record.chapterName || record.leadChapter || record.institution,
+    record.country || record.region || record.city,
+    record.healthStatus ? `Health: ${record.healthStatus}` : undefined,
+    record.readinessStatus ? `Readiness: ${record.readinessStatus}` : undefined,
+    record.memberInterestCount ? `${record.memberInterestCount} interested members` : undefined,
+    record.participatingChapters ? `Chapters: ${record.participatingChapters}` : undefined,
+    record.checkInDate ? `Check-in ${record.checkInDate}` : undefined,
+    record.followUpDate ? `Follow-up ${record.followUpDate}` : undefined,
+    record.owner ? `Owner: ${record.owner}` : undefined,
+    record.handoffNeeds ? `Handoff: ${record.handoffNeeds}` : undefined,
   ].filter(Boolean);
   return chunks.join(" · ") || `${record.area} · ${formatDate(record.createdAt)}`;
 }

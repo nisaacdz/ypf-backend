@@ -1,32 +1,43 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { authenticate, authorize } from "@/shared/middlewares/auth";
-import { Visitors, ADMIN } from "@/configs/authorizer";
+import { Visitors, ADMIN, anyOf } from "@/configs/authorizer";
 import {
   validateBody,
   validateParams,
   validateQuery,
 } from "@/shared/middlewares/validate";
 import { audit } from "@/shared/middlewares/audit";
+import {
+  canAccessTechnical,
+  canManageTechnical,
+} from "@/shared/services/workspaceAccessService";
 import * as systemHandler from "./systemHandler";
 
 /**
- * /api/v1/system — super-admin-only ops surface.
+ * /api/v1/system — ops surface.
  *
- * Every route requires `ADMIN.SUPER_ADMIN`. Mutating routes are wrapped in
- * the audit middleware so changes leave a trail in `app.audit_logs`. Health
- * + metrics are read-only and not audited (would just inflate noise).
+ * Super admins and the Technical Committee can view system telemetry. Super
+ * admins and Technical Committee chairs can operate controls. Mutating routes
+ * are wrapped in the audit middleware so changes leave a trail in
+ * `app.audit_logs`. Health + metrics are read-only and not audited.
  */
 
 const systemRouter = Router();
 
 systemRouter.use(authenticate);
-systemRouter.use(authorize(Visitors.hasRole(ADMIN.SUPER)));
+
+const canViewSystem = anyOf(Visitors.hasRole(ADMIN.SUPER), canAccessTechnical);
+const canOperateSystem = anyOf(
+  Visitors.hasRole(ADMIN.SUPER),
+  canManageTechnical,
+);
 
 // ─── Health + metrics ──────────────────────────────────────────────────────
 
 systemRouter.get(
   "/health",
+  authorize(canViewSystem),
   validateQuery(
     z.object({
       fresh: z
@@ -47,6 +58,7 @@ systemRouter.get(
 
 systemRouter.get(
   "/metrics",
+  authorize(canViewSystem),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await systemHandler.metrics();
@@ -59,6 +71,7 @@ systemRouter.get(
 
 systemRouter.get(
   "/surface",
+  authorize(canViewSystem),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await systemHandler.surface();
@@ -73,6 +86,7 @@ systemRouter.get(
 
 systemRouter.post(
   "/integrations/:name/test",
+  authorize(canOperateSystem),
   validateParams(
     z.object({
       name: z.enum([
@@ -101,6 +115,7 @@ systemRouter.post(
 
 systemRouter.get(
   "/jobs/failed",
+  authorize(canViewSystem),
   validateQuery(
     z.object({ limit: z.coerce.number().int().min(1).max(100).default(20) }),
   ),
@@ -116,6 +131,7 @@ systemRouter.get(
 
 systemRouter.post(
   "/jobs/:queue/:jobId/retry",
+  authorize(canOperateSystem),
   validateParams(z.object({ queue: z.string(), jobId: z.string().uuid() })),
   audit({ action: "system.job.retry" }),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -133,6 +149,7 @@ systemRouter.post(
 
 systemRouter.post(
   "/jobs/:queue/:jobId/cancel",
+  authorize(canOperateSystem),
   validateParams(z.object({ queue: z.string(), jobId: z.string().uuid() })),
   audit({ action: "system.job.cancel" }),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -152,6 +169,7 @@ systemRouter.post(
 
 systemRouter.get(
   "/maintenance",
+  authorize(canViewSystem),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await systemHandler.getMaintenance();
@@ -164,6 +182,7 @@ systemRouter.get(
 
 systemRouter.put(
   "/maintenance",
+  authorize(canOperateSystem),
   validateBody(
     z.object({
       enabled: z.boolean(),
@@ -185,6 +204,7 @@ systemRouter.put(
 
 systemRouter.get(
   "/maintenance/committees",
+  authorize(canViewSystem),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await systemHandler.listCommitteeMaintenance();
@@ -197,6 +217,7 @@ systemRouter.get(
 
 systemRouter.put(
   "/maintenance/committees/:id",
+  authorize(canOperateSystem),
   validateParams(z.object({ id: z.string().uuid() })),
   validateBody(z.object({ message: z.string().max(500).nullable().optional() })),
   audit({ action: "system.maintenance.committee.update" }),
@@ -216,6 +237,7 @@ systemRouter.put(
 
 systemRouter.delete(
   "/maintenance/committees/:id",
+  authorize(canOperateSystem),
   validateParams(z.object({ id: z.string().uuid() })),
   audit({ action: "system.maintenance.committee.clear" }),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -232,6 +254,7 @@ systemRouter.delete(
 
 systemRouter.post(
   "/maintenance/committees/bulk",
+  authorize(canOperateSystem),
   validateBody(
     z.object({
       committeeIds: z.array(z.string().uuid()).min(1).max(100),
@@ -257,6 +280,7 @@ systemRouter.post(
 
 systemRouter.get(
   "/flags",
+  authorize(canViewSystem),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await systemHandler.getFlags();
@@ -269,6 +293,7 @@ systemRouter.get(
 
 systemRouter.put(
   "/flags/:key",
+  authorize(canOperateSystem),
   validateParams(
     z.object({
       key: z
@@ -296,6 +321,7 @@ systemRouter.put(
 
 systemRouter.delete(
   "/flags/:key",
+  authorize(canOperateSystem),
   validateParams(z.object({ key: z.string().min(1).max(64) })),
   audit({ action: "system.flag.delete" }),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -315,6 +341,7 @@ systemRouter.delete(
 
 systemRouter.get(
   "/audit",
+  authorize(canViewSystem),
   validateQuery(
     z.object({
       limit: z.coerce.number().int().min(1).max(200).default(50),
