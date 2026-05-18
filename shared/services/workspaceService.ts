@@ -14,12 +14,13 @@ import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { ApiError, type AuthenticatedUser } from "@/shared/types";
 import {
-  canAccessCommittee,
-  canManageCommittee,
+  canAccessCommitteeLive,
+  canManageCommitteeLive,
   FINANCE_ALIAS,
   getCommitteeByAlias,
   HR_ALIAS,
-  isSystemAdmin,
+  isSystemAdminLive,
+  WELFARE_ALIAS,
 } from "./workspaceAccessService";
 
 export type WorkspaceSubmissionKind = "PLAN" | "REPORT";
@@ -166,7 +167,7 @@ export async function getWorkspaceReport({
   );
 
   const submissions = await getMonthlySubmissions(committee.id, monthStart);
-  const access = getAccessDescriptor(user, committee.id);
+  const access = await getAccessDescriptor(user, committee.id);
 
   if (alias === "programs_records") {
     const reportData = await getProgramsRecordsReportData(
@@ -195,6 +196,21 @@ export async function getWorkspaceReport({
 
   if (alias === HR_ALIAS) {
     const reportData = await getHrReportData(monthStart, nextMonthStart);
+    return {
+      committee,
+      month: getMonthMeta(monthStart),
+      access,
+      submissions,
+      ...reportData,
+    };
+  }
+
+  if (alias === WELFARE_ALIAS) {
+    const reportData = await getWelfareReportData(
+      committee.id,
+      monthStart,
+      nextMonthStart,
+    );
     return {
       committee,
       month: getMonthMeta(monthStart),
@@ -313,7 +329,7 @@ export async function getAllWorkspaceReports({
   month?: string;
   user: AuthenticatedUser;
 }): Promise<WorkspaceCommitteeReportSummary[]> {
-  if (!isSystemAdmin(user)) {
+  if (!(await isSystemAdminLive(user))) {
     throw new ApiError("Only admins can view all committee workspace reports", 403);
   }
 
@@ -369,7 +385,7 @@ export async function getWorkspaceNotes({
   entityId?: string;
   user: AuthenticatedUser;
 }): Promise<WorkspaceNote[]> {
-  if (!canAccessCommittee(user, committeeId)) {
+  if (!(await canAccessCommitteeLive(user, committeeId))) {
     throw new ApiError("You don't have permission to access this workspace", 403);
   }
 
@@ -425,7 +441,7 @@ export async function createWorkspaceNote({
   body: string;
   user: AuthenticatedUser;
 }): Promise<string> {
-  if (!canAccessCommittee(user, committeeId)) {
+  if (!(await canAccessCommitteeLive(user, committeeId))) {
     throw new ApiError("You don't have permission to access this workspace", 403);
   }
 
@@ -457,8 +473,8 @@ export async function updateWorkspaceNote({
   });
   if (!note || note.deletedAt) throw new ApiError("Workspace note not found", 404);
 
-  const canManage = canManageCommittee(user, note.committeeId);
-  if (!canManage && !isSystemAdmin(user) && note.authorId !== user.constituentId) {
+  const canManage = await canManageCommitteeLive(user, note.committeeId);
+  if (!canManage && note.authorId !== user.constituentId) {
     throw new ApiError("Only the note author, a workspace chair, or an admin can update this note", 403);
   }
 
@@ -482,7 +498,7 @@ export async function deleteWorkspaceNote({
   });
   if (!note || note.deletedAt) throw new ApiError("Workspace note not found", 404);
 
-  if (!isSystemAdmin(user) && note.authorId !== user.constituentId) {
+  if (!(await isSystemAdminLive(user)) && note.authorId !== user.constituentId) {
     throw new ApiError("Only the note author or an admin can delete this note", 403);
   }
 
@@ -766,7 +782,7 @@ export async function reviewFinanceBudget({
   status: "APPROVED" | "REJECTED";
   reviewNote?: string;
 }): Promise<FinanceBudgetRequest> {
-  if (!isSystemAdmin(user)) {
+  if (!(await isSystemAdminLive(user))) {
     throw new ApiError("Only admins can review Finance budget requests", 403);
   }
 
@@ -803,7 +819,7 @@ export async function reviewFinanceBudget({
 async function requireWorkspaceAccess(alias: string, user: AuthenticatedUser) {
   const committee = await getCommitteeByAlias(alias);
   if (!committee) throw new ApiError("Workspace not found", 404);
-  if (!canAccessCommittee(user, committee.id)) {
+  if (!(await canAccessCommitteeLive(user, committee.id))) {
     throw new ApiError("You don't have permission to access this workspace", 403);
   }
   return committee;
@@ -816,7 +832,7 @@ async function requireWorkspaceManageAccess(
 ) {
   const committee = await getCommitteeByAlias(alias);
   if (!committee) throw new ApiError("Workspace not found", 404);
-  if (!canManageCommittee(user, committee.id)) {
+  if (!(await canManageCommitteeLive(user, committee.id))) {
     throw new ApiError(message, 403);
   }
   return committee;
@@ -1108,6 +1124,141 @@ async function getHrReportData(monthStart: Date, nextMonthStart: Date) {
   };
 }
 
+type WelfareWorkspaceRecord = {
+  id: string;
+  area: "cases" | "beneficiaries" | "outreach";
+  category: string;
+  title: string;
+  status: string;
+  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+  owner?: string;
+  subject?: string;
+  followUpDate?: string;
+  amountNeeded?: string;
+  handoff?: string;
+  details: string;
+  outcome?: string;
+  authorName: string;
+  createdAt: Date;
+};
+
+async function getWelfareReportData(
+  committeeId: string,
+  monthStart: Date,
+  nextMonthStart: Date,
+) {
+  const rows = await dbClient.db
+    .select({
+      id: schema.WorkspaceNotes.id,
+      body: schema.WorkspaceNotes.body,
+      createdAt: schema.WorkspaceNotes.createdAt,
+      authorFirstName: schema.Constituents.firstName,
+      authorLastName: schema.Constituents.lastName,
+    })
+    .from(schema.WorkspaceNotes)
+    .innerJoin(
+      schema.Constituents,
+      eq(schema.WorkspaceNotes.authorId, schema.Constituents.id),
+    )
+    .where(
+      and(
+        eq(schema.WorkspaceNotes.committeeId, committeeId),
+        eq(schema.WorkspaceNotes.entityType, "workspace"),
+        isNull(schema.WorkspaceNotes.deletedAt),
+      ),
+    )
+    .orderBy(desc(schema.WorkspaceNotes.createdAt));
+
+  const records = rows
+    .map((row) =>
+      parseWelfareRecord({
+        ...row,
+        authorName: `${row.authorFirstName} ${row.authorLastName}`.trim(),
+      }),
+    )
+    .filter((record): record is WelfareWorkspaceRecord => Boolean(record));
+  const monthRecords = records.filter(
+    (record) => record.createdAt >= monthStart && record.createdAt < nextMonthStart,
+  );
+  const openCases = records.filter(
+    (record) => record.area === "cases" && !isWelfareClosedStatus(record.status),
+  );
+  const urgentRecords = records.filter(
+    (record) =>
+      record.priority === "URGENT" && !isWelfareClosedStatus(record.status),
+  );
+  const activeBeneficiaries = records.filter(
+    (record) =>
+      record.area === "beneficiaries" &&
+      ["ACTIVE", "MONITORING"].includes(record.status),
+  );
+  const outreachPlans = records.filter(
+    (record) =>
+      record.area === "outreach" &&
+      !["COMPLETED", "BLOCKED"].includes(record.status),
+  );
+  const closedRecords = records.filter((record) =>
+    isWelfareClosedStatus(record.status),
+  );
+
+  return {
+    metrics: [
+      {
+        label: "Open cases",
+        value: openCases.length,
+        hint: "Welfare cases still needing care or resolution",
+      },
+      {
+        label: "Urgent welfare",
+        value: urgentRecords.length,
+        hint: "Urgent records across cases, beneficiaries, and outreach",
+      },
+      {
+        label: "Active beneficiaries",
+        value: activeBeneficiaries.length,
+        hint: "Beneficiaries still being monitored or supported",
+      },
+      {
+        label: "Outreach plans",
+        value: outreachPlans.length,
+        hint: "Care desk, distribution, and welfare outreach still active",
+      },
+    ],
+    attendance: openCases.slice(0, 8).map((record) => ({
+      id: record.id,
+      title: record.title,
+      meta: welfareMeta(record),
+      badge: record.status.toLowerCase(),
+    })),
+    outcomes: closedRecords.slice(0, 8).map((record) => ({
+      id: record.id,
+      title: record.title,
+      meta: record.outcome || welfareMeta(record),
+      badge: record.area,
+    })),
+    generatedItems: [
+      {
+        id: "month-activity",
+        title: `${monthRecords.length} welfare record${monthRecords.length === 1 ? "" : "s"} logged this month`,
+        meta: "Generated from Welfare workspace case, beneficiary, and outreach records",
+        badge: "monthly",
+      },
+      {
+        id: "handoffs",
+        title: `${records.filter((record) => record.handoff && record.handoff !== "None").length} active handoff${records.filter((record) => record.handoff && record.handoff !== "None").length === 1 ? "" : "s"}`,
+        meta: "Handoffs remain documented inside the Welfare workspace",
+        badge: "handoff",
+      },
+      {
+        id: "closed",
+        title: `${closedRecords.length} resolved or completed welfare item${closedRecords.length === 1 ? "" : "s"}`,
+        meta: "Outcome records available for monthly reporting",
+        badge: "outcome",
+      },
+    ],
+  };
+}
+
 async function getFinanceReportData(monthStart: Date, nextMonthStart: Date) {
   const monthStartDate = monthStart.toISOString().slice(0, 10);
   const nextMonthStartDate = nextMonthStart.toISOString().slice(0, 10);
@@ -1365,6 +1516,61 @@ async function getFinanceReportData(monthStart: Date, nextMonthStart: Date) {
   };
 }
 
+function parseWelfareRecord(row: {
+  id: string;
+  body: string;
+  authorName: string;
+  createdAt: Date;
+}): WelfareWorkspaceRecord | null {
+  try {
+    const parsed = JSON.parse(row.body) as Partial<WelfareWorkspaceRecord> & {
+      kind?: string;
+    };
+    if (parsed.kind !== "ypf.welfare.record.v1") return null;
+    if (!parsed.area || !parsed.category || !parsed.title || !parsed.details) {
+      return null;
+    }
+    if (!["cases", "beneficiaries", "outreach"].includes(parsed.area)) {
+      return null;
+    }
+
+    return {
+      id: row.id,
+      area: parsed.area,
+      category: parsed.category,
+      title: parsed.title,
+      status: parsed.status ?? "OPEN",
+      priority: parsed.priority ?? "MEDIUM",
+      owner: parsed.owner,
+      subject: parsed.subject,
+      followUpDate: parsed.followUpDate,
+      amountNeeded: parsed.amountNeeded,
+      handoff: parsed.handoff,
+      details: parsed.details,
+      outcome: parsed.outcome,
+      authorName: row.authorName,
+      createdAt: row.createdAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isWelfareClosedStatus(status: string) {
+  return ["RESOLVED", "CLOSED", "FULFILLED", "COMPLETED"].includes(status);
+}
+
+function welfareMeta(record: WelfareWorkspaceRecord) {
+  const chunks = [
+    record.category,
+    record.subject,
+    record.owner ? `Owner: ${record.owner}` : undefined,
+    record.followUpDate ? `Follow-up ${record.followUpDate}` : undefined,
+    record.handoff && record.handoff !== "None" ? `Handoff: ${record.handoff}` : undefined,
+  ].filter(Boolean);
+  return chunks.join(" · ") || `${record.area} · ${formatDate(record.createdAt)}`;
+}
+
 function normalizeMonth(month?: string): Date {
   if (month && /^\d{4}-\d{2}$/.test(month)) {
     const [year, monthIndex] = month.split("-").map(Number);
@@ -1441,11 +1647,12 @@ function getMonthMeta(monthStart: Date) {
   };
 }
 
-function getAccessDescriptor(user: AuthenticatedUser, committeeId: string) {
-  const canSubmit = canManageCommittee(user, committeeId);
+async function getAccessDescriptor(user: AuthenticatedUser, committeeId: string) {
+  const canSubmit = await canManageCommitteeLive(user, committeeId);
+  const isAdmin = await isSystemAdminLive(user);
   return {
     canSubmit,
-    label: isSystemAdmin(user)
+    label: isAdmin
       ? "Admin submission" as const
       : canSubmit
         ? "Chair submission" as const

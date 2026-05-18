@@ -16,7 +16,7 @@ import filesUpload from "@/shared/middlewares/multipart";
 import { rateLimit } from "@/shared/middlewares/rateLimit";
 import {
   getAccessCookieOptions,
-  getAccessCookieClearOptions,
+  getAccessCookieClearVariants,
 } from "@/shared/utils/cookies";
 
 const authRouter = Router();
@@ -33,6 +33,7 @@ authRouter.post(
       const { response, accessToken } =
         await authHandler.loginWithUsernameAndPassword(req.Body);
 
+      clearAccessTokenCookies(res);
       res.cookie("access_token", accessToken, getAccessCookieOptions());
 
       res.status(200).json(response);
@@ -65,6 +66,7 @@ authRouter.post(
         req.Body,
       );
 
+      clearAccessTokenCookies(res);
       res.cookie("access_token", accessToken, getAccessCookieOptions());
 
       res.status(200).json(response);
@@ -77,7 +79,7 @@ authRouter.post(
 authRouter.post("/logout", async (req: Request, res: Response) => {
   const { response } = await authHandler.logout();
 
-  res.clearCookie("access_token", getAccessCookieClearOptions());
+  clearAccessTokenCookies(res);
 
   res.status(200).json(response);
 });
@@ -234,3 +236,9 @@ authRouter.post(
 );
 
 export default authRouter;
+
+function clearAccessTokenCookies(res: Response) {
+  for (const options of getAccessCookieClearVariants()) {
+    res.clearCookie("access_token", options);
+  }
+}

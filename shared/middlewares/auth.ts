@@ -109,14 +109,9 @@ export const authenticateLax = async (
           const newAccessToken = encodeData(authenticatedUser, {
             expiresIn: "3d",
           });
-          res.cookie("access_token", newAccessToken, {
-            httpOnly: true,
-            secure: true,
-            sameSite: "none",
-            maxAge: 3 * 24 * 60 * 60 * 1000,
-            path: "/",
-            partitioned: true,
-          });
+        res.cookie("access_token", newAccessToken, {
+          ...getAccessCookieOptions(),
+        });
 
           req.User = authenticatedUser;
         } catch {

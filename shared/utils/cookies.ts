@@ -44,3 +44,30 @@ export function getAccessCookieClearOptions(): CookieOptions {
   delete opts.maxAge;
   return opts;
 }
+
+export function getAccessCookieClearVariants(): CookieOptions[] {
+  return [
+    getAccessCookieClearOptions(),
+    {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      path: "/",
+    },
+    {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+      path: "/",
+      partitioned: true,
+    },
+    {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+      path: "/",
+      partitioned: true,
+      domain: ".ypfafrica.org",
+    },
+  ];
+}
