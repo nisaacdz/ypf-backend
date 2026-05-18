@@ -12,7 +12,7 @@ import {
   customType,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { Constituents, citext } from "./core";
+import { Committees, Constituents, citext } from "./core";
 
 // Postgres "inet" type for storing IPv4/IPv6 source addresses on contact submissions.
 const inet = customType<{ data: string }>({
@@ -109,6 +109,65 @@ export const ContactSubmissions = app.table(
       table.status,
       table.createdAt,
     ),
+  ],
+);
+
+// Key/value store for runtime-mutable platform settings — maintenance mode,
+// feature flags, vendor toggles. Read-mostly; super admin writes via /system.
+// Value is JSONB so each key can carry its own shape (boolean, struct, etc).
+export const SystemSettings = app.table("system_settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+  description: text("description"),
+  updatedBy: uuid("updated_by").references(() => Constituents.id, {
+    onDelete: "set null",
+  }),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+// Per-committee maintenance notices. Presence of a row = maintenance ON for
+// that committee. To disable, DELETE the row. Notice-only — does NOT block
+// writes (we surface the message to members on login). Global maintenance
+// continues to live in app.system_settings as a separate, independent flag.
+export const CommitteeMaintenance = app.table("committee_maintenance", {
+  committeeId: uuid("committee_id")
+    .primaryKey()
+    .references(() => Committees.id, { onDelete: "cascade" }),
+  message: text("message"),
+  since: timestamp("since", { withTimezone: true }).defaultNow().notNull(),
+  updatedBy: uuid("updated_by").references(() => Constituents.id, {
+    onDelete: "set null",
+  }),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+// Audit trail for sensitive admin actions (system settings changes, job
+// retry/cancel, integration probe runs, etc). Append-only; never updated.
+export const AuditLogs = app.table(
+  "audit_logs",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    actorId: uuid("actor_id").references(() => Constituents.id, {
+      onDelete: "set null",
+    }),
+    actorEmail: text("actor_email"),
+    action: text("action").notNull(),
+    target: text("target"),
+    metadata: jsonb("metadata"),
+    sourceIp: inet("source_ip"),
+    userAgent: text("user_agent"),
+    statusCode: integer("status_code"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("audit_logs_actor_created_idx").on(table.actorId, table.createdAt),
+    index("audit_logs_action_created_idx").on(table.action, table.createdAt),
   ],
 );
 

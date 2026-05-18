@@ -22,8 +22,19 @@ import workspacesRouter from "./workspaces";
 import mediaRouter from "./media";
 import contactRouter from "./contact";
 import filesRouter from "./files";
+import systemRouter from "./system";
+import maintenanceRouter from "./maintenance";
+import { maintenanceGate } from "@/shared/middlewares/maintenance";
+import { authenticateLax } from "@/shared/middlewares/auth";
 
 const apiRouter = Router();
+
+// Maintenance gate runs before every route in the v1 API. It is a no-op when
+// the flag is off; when on, it returns 503 for any non-safe method unless the
+// request is from a super admin (who still needs to be able to disable it).
+// authenticateLax populates req.User if a valid cookie is present so the gate
+// can check the role; missing/invalid cookies just continue without a user.
+apiRouter.use(authenticateLax, maintenanceGate);
 
 apiRouter.use("/auth", authRouter);
 apiRouter.use("/users", usersRouter);
@@ -50,5 +61,7 @@ apiRouter.use("/files", filesRouter);
 apiRouter.use("/contact-submissions", contactRouter);
 // Plan §8.3 — alias public POST under /contact for friendly URL.
 apiRouter.use("/contact", contactRouter);
+apiRouter.use("/system", systemRouter);
+apiRouter.use("/maintenance", maintenanceRouter);
 
 export default apiRouter;
