@@ -27,6 +27,7 @@ import {
 } from "@/features/api/v1/committees/schemas";
 import { YPFMember } from "@/features/api/v1/members/dtos";
 import * as mediaUtils from "@/shared/utils/files";
+import logger from "@/configs/logger";
 import { ApiError } from "@/shared/types";
 
 export async function getCommittees(
@@ -702,4 +703,136 @@ export async function unenrollFromCommittee(
         );
     }
   });
+}
+
+// ─── Committee media (Phase 1.3) ────────────────────────────────────────────
+
+export async function fetchCommitteeMedia(
+  committeeId: string,
+  query: { page: number; pageSize: number },
+) {
+  const { page, pageSize } = query;
+
+  const [rows, total] = await Promise.all([
+    dbClient.db
+      .select({
+        id: schema.CommitteeMedia.id,
+        caption: schema.CommitteeMedia.caption,
+        isFeatured: schema.CommitteeMedia.isFeatured,
+        medium: {
+          id: schema.Media.id,
+          externalId: schema.Media.externalId,
+          type: schema.Media.type,
+          width: schema.Media.width,
+          height: schema.Media.height,
+          size: schema.Media.size,
+          uploadedAt: schema.Media.uploadedAt,
+        },
+      })
+      .from(schema.CommitteeMedia)
+      .innerJoin(
+        schema.Media,
+        eq(schema.CommitteeMedia.mediumId, schema.Media.id),
+      )
+      .where(eq(schema.CommitteeMedia.committeeId, committeeId))
+      .orderBy(desc(schema.CommitteeMedia.isFeatured))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize),
+    dbClient.db
+      .select({ count: count() })
+      .from(schema.CommitteeMedia)
+      .where(eq(schema.CommitteeMedia.committeeId, committeeId))
+      .then((res) => res[0].count),
+  ]);
+
+  const items = rows.map((m) => ({
+    id: m.id,
+    caption: m.caption ?? undefined,
+    isFeatured: m.isFeatured,
+    medium: {
+      id: m.medium.id,
+      type: m.medium.type,
+      size: m.medium.size,
+      uploadedAt: m.medium.uploadedAt,
+      url: mediaUtils.generateSignedMediaUrl(m.medium.externalId, {
+        resolution: 1080,
+        expireSeconds: 60 * 60 * 24,
+      }),
+      dimensions: { width: m.medium.width, height: m.medium.height },
+    },
+  }));
+
+  return { items, total };
+}
+
+export async function updateCommitteeMedium(
+  committeeId: string,
+  mediumId: string,
+  data: { caption?: string; isFeatured?: boolean },
+): Promise<void> {
+  if (data.isFeatured === true) {
+    await dbClient.db
+      .update(schema.CommitteeMedia)
+      .set({ isFeatured: false })
+      .where(eq(schema.CommitteeMedia.committeeId, committeeId));
+  }
+
+  const [updated] = await dbClient.db
+    .update(schema.CommitteeMedia)
+    .set(data)
+    .where(
+      and(
+        eq(schema.CommitteeMedia.committeeId, committeeId),
+        eq(schema.CommitteeMedia.id, mediumId),
+      ),
+    )
+    .returning({ id: schema.CommitteeMedia.id });
+
+  if (!updated) {
+    throw new ApiError("Committee medium not found", 404);
+  }
+}
+
+export async function removeCommitteeMedium(
+  committeeId: string,
+  mediumId: string,
+): Promise<void> {
+  const [removed] = await dbClient.db
+    .delete(schema.CommitteeMedia)
+    .where(
+      and(
+        eq(schema.CommitteeMedia.committeeId, committeeId),
+        eq(schema.CommitteeMedia.id, mediumId),
+      ),
+    )
+    .returning({ mediumId: schema.CommitteeMedia.mediumId });
+
+  if (!removed) {
+    throw new ApiError("Committee medium not found", 404);
+  }
+
+  if (removed.mediumId) {
+    try {
+      const [media] = await dbClient.db
+        .select({ externalId: schema.Media.externalId })
+        .from(schema.Media)
+        .where(eq(schema.Media.id, removed.mediumId))
+        .limit(1);
+
+      await dbClient.db
+        .delete(schema.Media)
+        .where(eq(schema.Media.id, removed.mediumId));
+
+      if (media?.externalId) {
+        mediaUtils.deleteMediumFile(media.externalId).catch((err) => {
+          logger.error(
+            err,
+            `Failed to delete external media asset ${media.externalId}`,
+          );
+        });
+      }
+    } catch (err) {
+      logger.warn(err, "Failed to remove orphan media row");
+    }
+  }
 }

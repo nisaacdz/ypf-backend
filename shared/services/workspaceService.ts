@@ -21,7 +21,10 @@ import {
   GRAPHICS_ALIAS,
   HR_ALIAS,
   isSystemAdminLive,
+  LEGAL_ALIAS,
   MEDIA_ALIAS,
+  RECORDS_MGMT_ALIAS,
+  SPONSORSHIP_ALIAS,
   WELFARE_ALIAS,
 } from "./workspaceAccessService";
 import {
@@ -262,6 +265,51 @@ export async function getWorkspaceReport({
 
   if (alias === GRAPHICS_ALIAS) {
     const reportData = await getGraphicsReportData(
+      committee.id,
+      monthStart,
+      nextMonthStart,
+    );
+    return {
+      committee,
+      month: getMonthMeta(monthStart),
+      access,
+      submissions,
+      ...reportData,
+    };
+  }
+
+  if (alias === SPONSORSHIP_ALIAS) {
+    const reportData = await getSponsorshipReportData(
+      committee.id,
+      monthStart,
+      nextMonthStart,
+    );
+    return {
+      committee,
+      month: getMonthMeta(monthStart),
+      access,
+      submissions,
+      ...reportData,
+    };
+  }
+
+  if (alias === LEGAL_ALIAS) {
+    const reportData = await getLegalReportData(
+      committee.id,
+      monthStart,
+      nextMonthStart,
+    );
+    return {
+      committee,
+      month: getMonthMeta(monthStart),
+      access,
+      submissions,
+      ...reportData,
+    };
+  }
+
+  if (alias === RECORDS_MGMT_ALIAS) {
+    const reportData = await getRecordsManagementReportData(
       committee.id,
       monthStart,
       nextMonthStart,
@@ -2250,6 +2298,865 @@ function graphicsMeta(record: GraphicsWorkspaceRecord) {
     record.owner ? `Owner: ${record.owner}` : undefined,
     record.dueDate ? `Due ${record.dueDate}` : undefined,
     record.handoff && record.handoff !== "None" ? `Handoff: ${record.handoff}` : undefined,
+  ].filter(Boolean);
+  return chunks.join(" · ") || `${record.area} · ${formatDate(record.createdAt)}`;
+}
+
+type SponsorshipWorkspaceRecord = {
+  id: string;
+  area: "pipeline" | "packages" | "commitments";
+  category: string;
+  title: string;
+  status: string;
+  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+  owner?: string;
+  partnerName?: string;
+  contactName?: string;
+  contactEmail?: string;
+  outreachChannel?: string;
+  nextAction?: string;
+  probability?: string;
+  estimatedValue?: string;
+  currency?: string;
+  followUpDate?: string;
+  activationDate?: string;
+  renewalDate?: string;
+  agreementStatus?: string;
+  financeHandoff?: string;
+  legalHandoff?: string;
+  targetProgram?: string;
+  deliverables?: string;
+  packageTier?: string;
+  approvalState?: string;
+  assetUrl?: string;
+  details: string;
+  outcome?: string;
+  authorName: string;
+  createdAt: Date;
+};
+
+async function getSponsorshipReportData(
+  committeeId: string,
+  monthStart: Date,
+  nextMonthStart: Date,
+) {
+  const rows = await dbClient.db
+    .select({
+      id: schema.WorkspaceNotes.id,
+      body: schema.WorkspaceNotes.body,
+      createdAt: schema.WorkspaceNotes.createdAt,
+      authorFirstName: schema.Constituents.firstName,
+      authorLastName: schema.Constituents.lastName,
+    })
+    .from(schema.WorkspaceNotes)
+    .innerJoin(
+      schema.Constituents,
+      eq(schema.WorkspaceNotes.authorId, schema.Constituents.id),
+    )
+    .where(
+      and(
+        eq(schema.WorkspaceNotes.committeeId, committeeId),
+        eq(schema.WorkspaceNotes.entityType, "workspace"),
+        isNull(schema.WorkspaceNotes.deletedAt),
+      ),
+    )
+    .orderBy(desc(schema.WorkspaceNotes.createdAt));
+
+  const records = rows
+    .map((row) =>
+      parseSponsorshipRecord({
+        ...row,
+        authorName: `${row.authorFirstName} ${row.authorLastName}`.trim(),
+      }),
+    )
+    .filter((record): record is SponsorshipWorkspaceRecord => Boolean(record));
+  const monthRecords = records.filter(
+    (record) => record.createdAt >= monthStart && record.createdAt < nextMonthStart,
+  );
+  const pipeline = records.filter((record) => record.area === "pipeline");
+  const openPipeline = pipeline.filter(
+    (record) => !isSponsorshipClosedStatus(record.status),
+  );
+  const packages = records.filter((record) => record.area === "packages");
+  const commitments = records.filter((record) => record.area === "commitments");
+  const closedCommitments = commitments.filter((record) =>
+    ["COMMITTED", "BOOKED", "ACTIVATED", "RENEWED", "CLOSED"].includes(record.status),
+  );
+  const legalReviews = records.filter(
+    (record) =>
+      record.legalHandoff &&
+      !["None", "NOT_REQUIRED", "CLEARED"].includes(record.legalHandoff),
+  );
+  const financeHandoffs = records.filter(
+    (record) =>
+      record.financeHandoff &&
+      !["None", "NOT_READY", "BOOKED"].includes(record.financeHandoff),
+  );
+  const upcomingActivations = records.filter(
+    (record) =>
+      !isSponsorshipClosedStatus(record.status) &&
+      Boolean(record.activationDate || record.followUpDate || record.renewalDate),
+  );
+
+  return {
+    metrics: [
+      {
+        label: "Open pipeline",
+        value: openPipeline.length,
+        hint: "Sponsor and partner opportunities still active",
+      },
+      {
+        label: "Packages",
+        value: packages.length,
+        hint: "Sponsor tiers, benefits, and proposal packages",
+      },
+      {
+        label: "Commitments",
+        value: closedCommitments.length,
+        hint: "Pledged, booked, activated, or renewed partner support",
+      },
+      {
+        label: "Legal/finance handoffs",
+        value: legalReviews.length + financeHandoffs.length,
+        hint: "Commitments needing cross-committee review",
+      },
+    ],
+    attendance: upcomingActivations.slice(0, 8).map((record) => ({
+      id: record.id,
+      title: record.title,
+      meta: sponsorshipMeta(record),
+      badge: record.status.toLowerCase(),
+    })),
+    outcomes: closedCommitments.slice(0, 8).map((record) => ({
+      id: record.id,
+      title: record.title,
+      meta: record.outcome || sponsorshipMeta(record),
+      badge: record.area,
+    })),
+    generatedItems: [
+      {
+        id: "month-activity",
+        title: `${monthRecords.length} sponsorship record${monthRecords.length === 1 ? "" : "s"} logged this month`,
+        meta: "Generated from partner pipeline, packages, commitments, and handoffs",
+        badge: "monthly",
+      },
+      {
+        id: "pipeline",
+        title: `${openPipeline.length} active partner opportunit${openPipeline.length === 1 ? "y" : "ies"}`,
+        meta: "Prospects and outreach that still need next actions",
+        badge: "pipeline",
+      },
+      {
+        id: "legal",
+        title: `${legalReviews.length} legal review${legalReviews.length === 1 ? "" : "s"}`,
+        meta: "Agreement or term checks before activation",
+        badge: "legal",
+      },
+      {
+        id: "finance",
+        title: `${financeHandoffs.length} finance handoff${financeHandoffs.length === 1 ? "" : "s"}`,
+        meta: "Pledges or commitments that should be booked or reconciled",
+        badge: "finance",
+      },
+    ],
+  };
+}
+
+function parseSponsorshipRecord(row: {
+  id: string;
+  body: string;
+  authorName: string;
+  createdAt: Date;
+}): SponsorshipWorkspaceRecord | null {
+  try {
+    const parsed = JSON.parse(row.body) as Partial<SponsorshipWorkspaceRecord> & {
+      kind?: string;
+    };
+    if (parsed.kind !== "ypf.sponsorship.record.v1") return null;
+    if (!parsed.area || !parsed.category || !parsed.title || !parsed.details) {
+      return null;
+    }
+    if (!["pipeline", "packages", "commitments"].includes(parsed.area)) {
+      return null;
+    }
+
+    return {
+      id: row.id,
+      area: parsed.area,
+      category: parsed.category,
+      title: parsed.title,
+      status: parsed.status ?? "LEAD",
+      priority: parsed.priority ?? "MEDIUM",
+      owner: parsed.owner,
+      partnerName: parsed.partnerName,
+      contactName: parsed.contactName,
+      contactEmail: parsed.contactEmail,
+      outreachChannel: parsed.outreachChannel,
+      nextAction: parsed.nextAction,
+      probability: parsed.probability,
+      estimatedValue: parsed.estimatedValue,
+      currency: parsed.currency,
+      followUpDate: parsed.followUpDate,
+      activationDate: parsed.activationDate,
+      renewalDate: parsed.renewalDate,
+      agreementStatus: parsed.agreementStatus,
+      financeHandoff: parsed.financeHandoff,
+      legalHandoff: parsed.legalHandoff,
+      targetProgram: parsed.targetProgram,
+      deliverables: parsed.deliverables,
+      packageTier: parsed.packageTier,
+      approvalState: parsed.approvalState,
+      assetUrl: parsed.assetUrl,
+      details: parsed.details,
+      outcome: parsed.outcome,
+      authorName: row.authorName,
+      createdAt: row.createdAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isSponsorshipClosedStatus(status: string) {
+  return ["DECLINED", "ARCHIVED", "COMMITTED", "BOOKED", "ACTIVATED", "RENEWED", "CLOSED"].includes(status);
+}
+
+function sponsorshipMeta(record: SponsorshipWorkspaceRecord) {
+  const chunks = [
+    record.category,
+    record.partnerName,
+    record.outreachChannel,
+    record.probability ? `Probability: ${record.probability}` : undefined,
+    record.packageTier,
+    record.estimatedValue ? `${record.currency ?? "GHS"} ${record.estimatedValue}` : undefined,
+    record.owner ? `Owner: ${record.owner}` : undefined,
+    record.nextAction ? `Next: ${record.nextAction}` : undefined,
+    record.followUpDate ? `Follow-up ${record.followUpDate}` : undefined,
+    record.activationDate ? `Activation ${record.activationDate}` : undefined,
+    record.legalHandoff && record.legalHandoff !== "None" ? `Legal: ${record.legalHandoff}` : undefined,
+    record.financeHandoff && record.financeHandoff !== "None" ? `Finance: ${record.financeHandoff}` : undefined,
+  ].filter(Boolean);
+  return chunks.join(" · ") || `${record.area} · ${formatDate(record.createdAt)}`;
+}
+
+type LegalWorkspaceRecord = {
+  id: string;
+  area: "contracts" | "policies" | "compliance" | "risks";
+  category: string;
+  title: string;
+  status: string;
+  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+  owner?: string;
+  requestedByCommittee?: string;
+  riskLevel?: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  dueDate?: string;
+  reviewDate?: string;
+  expiryDate?: string;
+  approvalState?: string;
+  counterparty?: string;
+  contractType?: string;
+  agreementStatus?: string;
+  effectiveDate?: string;
+  renewalDate?: string;
+  signatory?: string;
+  financeHandoff?: string;
+  sponsorshipHandoff?: string;
+  signedDocumentUrl?: string;
+  clauseNotes?: string;
+  policyArea?: string;
+  version?: string;
+  appliesTo?: string;
+  nextReviewDate?: string;
+  changeSummary?: string;
+  approvalBody?: string;
+  publicationState?: string;
+  obligationType?: string;
+  recurrence?: string;
+  evidenceRequired?: string;
+  evidenceStatus?: string;
+  responsibleBody?: string;
+  submissionDate?: string;
+  requestingCommittee?: string;
+  subject?: string;
+  riskType?: string;
+  mitigationPlan?: string;
+  clearanceDecision?: string;
+  clearanceDate?: string;
+  safeguardingFlag?: boolean;
+  privacyFlag?: boolean;
+  details: string;
+  outcome?: string;
+  authorName: string;
+  createdAt: Date;
+};
+
+async function getLegalReportData(
+  committeeId: string,
+  monthStart: Date,
+  nextMonthStart: Date,
+) {
+  const rows = await dbClient.db
+    .select({
+      id: schema.WorkspaceNotes.id,
+      body: schema.WorkspaceNotes.body,
+      createdAt: schema.WorkspaceNotes.createdAt,
+      authorFirstName: schema.Constituents.firstName,
+      authorLastName: schema.Constituents.lastName,
+    })
+    .from(schema.WorkspaceNotes)
+    .innerJoin(
+      schema.Constituents,
+      eq(schema.WorkspaceNotes.authorId, schema.Constituents.id),
+    )
+    .where(
+      and(
+        eq(schema.WorkspaceNotes.committeeId, committeeId),
+        eq(schema.WorkspaceNotes.entityType, "workspace"),
+        isNull(schema.WorkspaceNotes.deletedAt),
+      ),
+    )
+    .orderBy(desc(schema.WorkspaceNotes.createdAt));
+
+  const records = rows
+    .map((row) =>
+      parseLegalRecord({
+        ...row,
+        authorName: `${row.authorFirstName} ${row.authorLastName}`.trim(),
+      }),
+    )
+    .filter((record): record is LegalWorkspaceRecord => Boolean(record));
+  const monthRecords = records.filter(
+    (record) => record.createdAt >= monthStart && record.createdAt < nextMonthStart,
+  );
+  const contracts = records.filter((record) => record.area === "contracts");
+  const policies = records.filter((record) => record.area === "policies");
+  const compliance = records.filter((record) => record.area === "compliance");
+  const risks = records.filter((record) => record.area === "risks");
+  const openContracts = contracts.filter(
+    (record) => !isLegalClosedStatus(record.status),
+  );
+  const activePolicies = policies.filter(
+    (record) => !["RETIRED", "ARCHIVED"].includes(record.status),
+  );
+  const dueCompliance = compliance.filter(
+    (record) => ["OPEN", "IN_PROGRESS", "OVERDUE"].includes(record.status),
+  );
+  const pendingRisks = risks.filter(
+    (record) => !isLegalClosedStatus(record.status),
+  );
+  const queue = [...openContracts, ...dueCompliance, ...pendingRisks].sort(
+    (a, b) => priorityWeight(b.priority) - priorityWeight(a.priority),
+  );
+  const outcomes = records.filter(
+    (record) =>
+      ["CLEARED", "SIGNED", "APPROVED", "PUBLISHED", "VERIFIED", "CLEARED_WITH_CONDITIONS"].includes(record.status) ||
+      ["CLEARED", "APPROVED", "REJECTED"].includes(record.clearanceDecision ?? ""),
+  );
+  const highRisk = records.filter(
+    (record) => ["HIGH", "CRITICAL"].includes(record.riskLevel ?? ""),
+  );
+  const upcomingExpiries = records.filter(
+    (record) => record.expiryDate || record.renewalDate || record.nextReviewDate,
+  );
+
+  return {
+    metrics: [
+      {
+        label: "Open contracts",
+        value: openContracts.length,
+        hint: "Agreements still under Legal review",
+      },
+      {
+        label: "Active policies",
+        value: activePolicies.length,
+        hint: "Policies in draft, review, approved, or published states",
+      },
+      {
+        label: "Compliance due",
+        value: dueCompliance.length,
+        hint: "Obligations still open, in progress, or overdue",
+      },
+      {
+        label: "Risk reviews",
+        value: pendingRisks.length,
+        hint: "Legal risk reviews awaiting final clearance",
+      },
+    ],
+    attendance: queue.slice(0, 8).map((record) => ({
+      id: record.id,
+      title: record.title,
+      meta: legalMeta(record),
+      badge: record.status.toLowerCase(),
+    })),
+    outcomes: outcomes.slice(0, 8).map((record) => ({
+      id: record.id,
+      title: record.title,
+      meta: record.outcome || legalMeta(record),
+      badge: record.area,
+    })),
+    generatedItems: [
+      {
+        id: "month-activity",
+        title: `${monthRecords.length} legal record${monthRecords.length === 1 ? "" : "s"} logged this month`,
+        meta: "Generated from contracts, policies, compliance obligations, and risk reviews",
+        badge: "monthly",
+      },
+      {
+        id: "high-risk",
+        title: `${highRisk.length} high-risk review${highRisk.length === 1 ? "" : "s"}`,
+        meta: "Records marked high or critical risk",
+        badge: "risk",
+      },
+      {
+        id: "expiries",
+        title: `${upcomingExpiries.length} renewal/review date${upcomingExpiries.length === 1 ? "" : "s"} tracked`,
+        meta: "Contracts, policies, and obligations with expiry or review windows",
+        badge: "calendar",
+      },
+      {
+        id: "clearances",
+        title: `${outcomes.length} legal outcome${outcomes.length === 1 ? "" : "s"}`,
+        meta: "Cleared, signed, approved, published, verified, or conditionally cleared items",
+        badge: "outcomes",
+      },
+    ],
+  };
+}
+
+function parseLegalRecord(row: {
+  id: string;
+  body: string;
+  authorName: string;
+  createdAt: Date;
+}): LegalWorkspaceRecord | null {
+  try {
+    const parsed = JSON.parse(row.body) as Partial<LegalWorkspaceRecord> & {
+      kind?: string;
+    };
+    if (parsed.kind !== "ypf.legal.record.v1") return null;
+    if (!parsed.area || !parsed.category || !parsed.title || !parsed.details) {
+      return null;
+    }
+    if (!["contracts", "policies", "compliance", "risks"].includes(parsed.area)) {
+      return null;
+    }
+
+    return {
+      id: row.id,
+      area: parsed.area,
+      category: parsed.category,
+      title: parsed.title,
+      status: parsed.status ?? "REQUESTED",
+      priority: parsed.priority ?? "MEDIUM",
+      owner: parsed.owner,
+      requestedByCommittee: parsed.requestedByCommittee,
+      riskLevel: parsed.riskLevel,
+      dueDate: parsed.dueDate,
+      reviewDate: parsed.reviewDate,
+      expiryDate: parsed.expiryDate,
+      approvalState: parsed.approvalState,
+      counterparty: parsed.counterparty,
+      contractType: parsed.contractType,
+      agreementStatus: parsed.agreementStatus,
+      effectiveDate: parsed.effectiveDate,
+      renewalDate: parsed.renewalDate,
+      signatory: parsed.signatory,
+      financeHandoff: parsed.financeHandoff,
+      sponsorshipHandoff: parsed.sponsorshipHandoff,
+      signedDocumentUrl: parsed.signedDocumentUrl,
+      clauseNotes: parsed.clauseNotes,
+      policyArea: parsed.policyArea,
+      version: parsed.version,
+      appliesTo: parsed.appliesTo,
+      nextReviewDate: parsed.nextReviewDate,
+      changeSummary: parsed.changeSummary,
+      approvalBody: parsed.approvalBody,
+      publicationState: parsed.publicationState,
+      obligationType: parsed.obligationType,
+      recurrence: parsed.recurrence,
+      evidenceRequired: parsed.evidenceRequired,
+      evidenceStatus: parsed.evidenceStatus,
+      responsibleBody: parsed.responsibleBody,
+      submissionDate: parsed.submissionDate,
+      requestingCommittee: parsed.requestingCommittee,
+      subject: parsed.subject,
+      riskType: parsed.riskType,
+      mitigationPlan: parsed.mitigationPlan,
+      clearanceDecision: parsed.clearanceDecision,
+      clearanceDate: parsed.clearanceDate,
+      safeguardingFlag: parsed.safeguardingFlag,
+      privacyFlag: parsed.privacyFlag,
+      details: parsed.details,
+      outcome: parsed.outcome,
+      authorName: row.authorName,
+      createdAt: row.createdAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isLegalClosedStatus(status: string) {
+  return [
+    "CLEARED",
+    "SIGNED",
+    "EXPIRED",
+    "APPROVED",
+    "PUBLISHED",
+    "RETIRED",
+    "SUBMITTED",
+    "VERIFIED",
+    "WAIVED",
+    "CLEARED_WITH_CONDITIONS",
+    "REJECTED",
+    "ARCHIVED",
+  ].includes(status);
+}
+
+function legalMeta(record: LegalWorkspaceRecord) {
+  const chunks = [
+    record.category,
+    record.counterparty || record.subject || record.policyArea || record.obligationType,
+    record.requestedByCommittee || record.requestingCommittee,
+    record.riskLevel ? `Risk: ${record.riskLevel}` : undefined,
+    record.owner ? `Owner: ${record.owner}` : undefined,
+    record.dueDate ? `Due ${record.dueDate}` : undefined,
+    record.expiryDate ? `Expires ${record.expiryDate}` : undefined,
+    record.renewalDate ? `Renew ${record.renewalDate}` : undefined,
+    record.nextReviewDate ? `Review ${record.nextReviewDate}` : undefined,
+    record.clearanceDecision ? `Decision: ${record.clearanceDecision}` : undefined,
+  ].filter(Boolean);
+  return chunks.join(" · ") || `${record.area} · ${formatDate(record.createdAt)}`;
+}
+
+function priorityWeight(priority: string) {
+  return { LOW: 1, MEDIUM: 2, HIGH: 3, URGENT: 4 }[priority] ?? 0;
+}
+
+type RecordsManagementWorkspaceRecord = {
+  id: string;
+  area: "member_records" | "attendance" | "certificates" | "archives" | "retention";
+  category: string;
+  title: string;
+  status: string;
+  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+  owner?: string;
+  sourceCommittee?: string;
+  recordDate?: string;
+  dueDate?: string;
+  verificationStatus?: string;
+  confidentiality?: string;
+  memberName?: string;
+  publicId?: string;
+  memberEmail?: string;
+  dataIssueType?: string;
+  missingFields?: string;
+  chapterStatus?: string;
+  committeeStatus?: string;
+  titleStatus?: string;
+  duplicateRisk?: string;
+  correctionAction?: string;
+  attendanceType?: string;
+  sourceEntity?: string;
+  eventOrProgramId?: string;
+  attendanceDate?: string;
+  expectedCount?: string;
+  recordedCount?: string;
+  missingCount?: string;
+  attendanceSource?: string;
+  evidenceStatus?: string;
+  recipientName?: string;
+  recipientPublicId?: string;
+  certificateType?: string;
+  sourceProgramOrEvent?: string;
+  eligibilityBasis?: string;
+  approvalState?: string;
+  issuanceStatus?: string;
+  certificateId?: string;
+  certificateUrl?: string;
+  reissueReason?: string;
+  documentCategory?: string;
+  documentOwner?: string;
+  documentDate?: string;
+  version?: string;
+  retentionClass?: string;
+  archiveLocation?: string;
+  legalHold?: boolean;
+  privacyFlag?: boolean;
+  archiveRecord?: string;
+  retentionRule?: string;
+  reviewDate?: string;
+  sensitivityLevel?: string;
+  dispositionRecommendation?: string;
+  dispositionStatus?: string;
+  approvedBy?: string;
+  dispositionDate?: string;
+  details: string;
+  outcome?: string;
+  authorName: string;
+  createdAt: Date;
+};
+
+async function getRecordsManagementReportData(
+  committeeId: string,
+  monthStart: Date,
+  nextMonthStart: Date,
+) {
+  const rows = await dbClient.db
+    .select({
+      id: schema.WorkspaceNotes.id,
+      body: schema.WorkspaceNotes.body,
+      createdAt: schema.WorkspaceNotes.createdAt,
+      authorFirstName: schema.Constituents.firstName,
+      authorLastName: schema.Constituents.lastName,
+    })
+    .from(schema.WorkspaceNotes)
+    .innerJoin(
+      schema.Constituents,
+      eq(schema.WorkspaceNotes.authorId, schema.Constituents.id),
+    )
+    .where(
+      and(
+        eq(schema.WorkspaceNotes.committeeId, committeeId),
+        eq(schema.WorkspaceNotes.entityType, "workspace"),
+        isNull(schema.WorkspaceNotes.deletedAt),
+      ),
+    )
+    .orderBy(desc(schema.WorkspaceNotes.createdAt));
+
+  const records = rows
+    .map((row) =>
+      parseRecordsManagementRecord({
+        ...row,
+        authorName: `${row.authorFirstName} ${row.authorLastName}`.trim(),
+      }),
+    )
+    .filter((record): record is RecordsManagementWorkspaceRecord => Boolean(record));
+  const monthRecords = records.filter(
+    (record) => record.createdAt >= monthStart && record.createdAt < nextMonthStart,
+  );
+  const memberIssues = records.filter((record) => record.area === "member_records");
+  const attendance = records.filter((record) => record.area === "attendance");
+  const certificates = records.filter((record) => record.area === "certificates");
+  const archives = records.filter((record) => record.area === "archives");
+  const retention = records.filter((record) => record.area === "retention");
+  const openMemberIssues = memberIssues.filter(
+    (record) => !isRecordsClosedStatus(record.status),
+  );
+  const attendanceGaps = attendance.filter(
+    (record) => ["PENDING", "IN_PROGRESS", "MISSING_DATA", "RECONCILING"].includes(record.status),
+  );
+  const pendingCertificates = certificates.filter(
+    (record) => ["REQUESTED", "ELIGIBILITY_REVIEW", "REISSUE_REQUESTED", "BLOCKED"].includes(record.status),
+  );
+  const archiveQueue = archives.filter(
+    (record) => ["INTAKE", "CLASSIFYING", "NEEDS_METADATA", "UNDER_REVIEW"].includes(record.status),
+  );
+  const retentionQueue = retention.filter(
+    (record) => ["SCHEDULED", "UNDER_REVIEW", "LEGAL_HOLD", "BLOCKED"].includes(record.status),
+  );
+  const queue = [
+    ...openMemberIssues,
+    ...attendanceGaps,
+    ...pendingCertificates,
+    ...archiveQueue,
+    ...retentionQueue,
+  ].sort((a, b) => priorityWeight(b.priority) - priorityWeight(a.priority));
+  const verified = records.filter(
+    (record) =>
+      ["CORRECTED", "VERIFIED", "ISSUED", "ARCHIVED", "DISPOSED", "APPROVED_FOR_RETENTION", "CLOSED"].includes(record.status) ||
+      ["VERIFIED", "UPLOADED", "SUBMITTED"].includes(record.evidenceStatus ?? "") ||
+      ["APPROVED", "ISSUED"].includes(record.issuanceStatus ?? ""),
+  );
+  const sensitive = records.filter(
+    (record) =>
+      record.legalHold ||
+      record.privacyFlag ||
+      ["RESTRICTED", "CONFIDENTIAL", "SENSITIVE"].includes(record.confidentiality ?? "") ||
+      ["HIGH", "CRITICAL"].includes(record.sensitivityLevel ?? ""),
+  );
+
+  return {
+    metrics: [
+      {
+        label: "Member issues",
+        value: openMemberIssues.length,
+        hint: "Open member data quality records",
+      },
+      {
+        label: "Attendance gaps",
+        value: attendanceGaps.length,
+        hint: "Attendance records still pending, missing, or reconciling",
+      },
+      {
+        label: "Certificates pending",
+        value: pendingCertificates.length,
+        hint: "Eligibility and issuance items still open",
+      },
+      {
+        label: "Archive/retention queue",
+        value: archiveQueue.length + retentionQueue.length,
+        hint: "Archive intake and retention reviews needing action",
+      },
+    ],
+    attendance: queue.slice(0, 8).map((record) => ({
+      id: record.id,
+      title: record.title,
+      meta: recordsManagementMeta(record),
+      badge: record.status.toLowerCase(),
+    })),
+    outcomes: verified.slice(0, 8).map((record) => ({
+      id: record.id,
+      title: record.title,
+      meta: record.outcome || recordsManagementMeta(record),
+      badge: record.area,
+    })),
+    generatedItems: [
+      {
+        id: "month-activity",
+        title: `${monthRecords.length} records item${monthRecords.length === 1 ? "" : "s"} logged this month`,
+        meta: "Generated from member data issues, attendance, certificates, archives, and retention reviews",
+        badge: "monthly",
+      },
+      {
+        id: "sensitive",
+        title: `${sensitive.length} sensitive or held record${sensitive.length === 1 ? "" : "s"}`,
+        meta: "Privacy, confidentiality, restricted archive, sensitivity, or legal hold indicators",
+        badge: "sensitive",
+      },
+      {
+        id: "verified",
+        title: `${verified.length} verified/archive outcome${verified.length === 1 ? "" : "s"}`,
+        meta: "Corrected records, verified attendance, issued certificates, archived files, or retention outcomes",
+        badge: "verified",
+      },
+      {
+        id: "certificates",
+        title: `${pendingCertificates.length} certificate request${pendingCertificates.length === 1 ? "" : "s"} pending`,
+        meta: "Certificate eligibility, issuance, reissue, or blocked records",
+        badge: "certificates",
+      },
+    ],
+  };
+}
+
+function parseRecordsManagementRecord(row: {
+  id: string;
+  body: string;
+  authorName: string;
+  createdAt: Date;
+}): RecordsManagementWorkspaceRecord | null {
+  try {
+    const parsed = JSON.parse(row.body) as Partial<RecordsManagementWorkspaceRecord> & {
+      kind?: string;
+    };
+    if (parsed.kind !== "ypf.records.record.v1") return null;
+    if (!parsed.area || !parsed.category || !parsed.title || !parsed.details) {
+      return null;
+    }
+    if (!["member_records", "attendance", "certificates", "archives", "retention"].includes(parsed.area)) {
+      return null;
+    }
+
+    return {
+      id: row.id,
+      area: parsed.area,
+      category: parsed.category,
+      title: parsed.title,
+      status: parsed.status ?? "OPEN",
+      priority: parsed.priority ?? "MEDIUM",
+      owner: parsed.owner,
+      sourceCommittee: parsed.sourceCommittee,
+      recordDate: parsed.recordDate,
+      dueDate: parsed.dueDate,
+      verificationStatus: parsed.verificationStatus,
+      confidentiality: parsed.confidentiality,
+      memberName: parsed.memberName,
+      publicId: parsed.publicId,
+      memberEmail: parsed.memberEmail,
+      dataIssueType: parsed.dataIssueType,
+      missingFields: parsed.missingFields,
+      chapterStatus: parsed.chapterStatus,
+      committeeStatus: parsed.committeeStatus,
+      titleStatus: parsed.titleStatus,
+      duplicateRisk: parsed.duplicateRisk,
+      correctionAction: parsed.correctionAction,
+      attendanceType: parsed.attendanceType,
+      sourceEntity: parsed.sourceEntity,
+      eventOrProgramId: parsed.eventOrProgramId,
+      attendanceDate: parsed.attendanceDate,
+      expectedCount: parsed.expectedCount,
+      recordedCount: parsed.recordedCount,
+      missingCount: parsed.missingCount,
+      attendanceSource: parsed.attendanceSource,
+      evidenceStatus: parsed.evidenceStatus,
+      recipientName: parsed.recipientName,
+      recipientPublicId: parsed.recipientPublicId,
+      certificateType: parsed.certificateType,
+      sourceProgramOrEvent: parsed.sourceProgramOrEvent,
+      eligibilityBasis: parsed.eligibilityBasis,
+      approvalState: parsed.approvalState,
+      issuanceStatus: parsed.issuanceStatus,
+      certificateId: parsed.certificateId,
+      certificateUrl: parsed.certificateUrl,
+      reissueReason: parsed.reissueReason,
+      documentCategory: parsed.documentCategory,
+      documentOwner: parsed.documentOwner,
+      documentDate: parsed.documentDate,
+      version: parsed.version,
+      retentionClass: parsed.retentionClass,
+      archiveLocation: parsed.archiveLocation,
+      legalHold: parsed.legalHold,
+      privacyFlag: parsed.privacyFlag,
+      archiveRecord: parsed.archiveRecord,
+      retentionRule: parsed.retentionRule,
+      reviewDate: parsed.reviewDate,
+      sensitivityLevel: parsed.sensitivityLevel,
+      dispositionRecommendation: parsed.dispositionRecommendation,
+      dispositionStatus: parsed.dispositionStatus,
+      approvedBy: parsed.approvedBy,
+      dispositionDate: parsed.dispositionDate,
+      details: parsed.details,
+      outcome: parsed.outcome,
+      authorName: row.authorName,
+      createdAt: row.createdAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isRecordsClosedStatus(status: string) {
+  return [
+    "CORRECTED",
+    "VERIFIED",
+    "CLOSED",
+    "ISSUED",
+    "REJECTED",
+    "ARCHIVED",
+    "DISPOSED",
+    "APPROVED_FOR_RETENTION",
+    "APPROVED_FOR_DISPOSAL",
+  ].includes(status);
+}
+
+function recordsManagementMeta(record: RecordsManagementWorkspaceRecord) {
+  const counts =
+    record.expectedCount || record.recordedCount || record.missingCount
+      ? `${record.recordedCount ?? 0}/${record.expectedCount ?? "?"} recorded${record.missingCount ? `, ${record.missingCount} missing` : ""}`
+      : undefined;
+  const chunks = [
+    record.category,
+    record.memberName || record.recipientName || record.sourceEntity || record.documentOwner || record.archiveRecord,
+    record.publicId || record.recipientPublicId,
+    record.sourceCommittee,
+    counts,
+    record.confidentiality ? `Confidentiality: ${record.confidentiality}` : undefined,
+    record.owner ? `Owner: ${record.owner}` : undefined,
+    record.dueDate ? `Due ${record.dueDate}` : undefined,
+    record.reviewDate ? `Review ${record.reviewDate}` : undefined,
+    record.legalHold ? "Legal hold" : undefined,
+    record.privacyFlag ? "Privacy flag" : undefined,
   ].filter(Boolean);
   return chunks.join(" · ") || `${record.area} · ${formatDate(record.createdAt)}`;
 }

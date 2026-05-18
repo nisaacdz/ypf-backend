@@ -199,8 +199,8 @@ Build `/dashboard/workspaces/graphics` so the Graphics chair can manage design r
 
 # Sponsorship and Partnership Committee Workspace Plan
 
-## Next Committee Candidate
-Sponsorship should follow Graphics because public website fundraising, partner visibility, campaign visuals, and donation flows now have clear Media/Graphics/Finance ownership. Sponsorship needs a self-contained workspace for partner pipeline, sponsor packages, proposals, commitments, renewals, and Finance/Legal handoffs.
+## Status
+Implemented as the seventh committee workspace pass at `/dashboard/workspaces/sponsorship`.
 
 ## Goal
 Build `/dashboard/workspaces/sponsorship` so the chair can manage partner prospects, sponsorship packages, outreach history, commitment status, activation deliverables, and monthly partnership reporting. Members should view all tabs and update assigned outreach progress, while final commitment/close/archive actions remain chair/admin actions.
@@ -218,3 +218,904 @@ Build `/dashboard/workspaces/sponsorship` so the chair can manage partner prospe
 - Sponsorship member can view all tabs and update progress notes without final approval rights.
 - Finance and Legal handoffs remain represented as Sponsorship workspace records.
 - Reports are generated from typed sponsorship workspace activity.
+
+# Legal Committee Workspace Plan
+
+## Next Committee Candidate
+Legal should follow Sponsorship because partner commitments now surface agreement status, legal review states, and contract handoffs. Legal needs a self-contained workspace for contracts, policies, compliance obligations, risk reviews, privacy/data guidance, and sponsorship agreement clearance.
+
+## Goal
+Build `/dashboard/workspaces/legal` as the next self-contained committee workspace so the Legal chair can manage agreements, policies, compliance obligations, risk reviews, privacy/data guidance, and cross-committee legal clearances without sending users to `/dashboard/admin/*`, `/dashboard/directory/*`, or another committee workspace.
+
+Legal members should be able to view all Legal tabs, read attached documents, contribute review notes, and update non-final review progress where allowed. Final clearance, rejection, archival, official monthly submissions, and legal decision states remain chair/admin actions.
+
+## Core Tabs
+- Overview: legal workload, active contract reviews, open policy revisions, compliance due dates, risk review count, and monthly plan/report status.
+- Workbench: legal operating dashboard for contracts, policy review, compliance watch, risk queue, privacy/data issues, and Sponsorship handoffs.
+- Contracts: agreements, MOUs, sponsorship contracts, vendor terms, partnership terms, signatory status, review status, risk level, effective/expiry dates, and linked files.
+- Policies: constitution/bylaws, internal policies, code of conduct, privacy terms, data retention guidance, disciplinary procedures, review cycles, version notes, and approval status.
+- Compliance: statutory filings, regulatory obligations, governance deadlines, document renewals, board/executive obligations, owner, due date, and evidence.
+- Risk Reviews: program risk, event consent, youth/safeguarding concerns, welfare escalations, data/privacy concerns, partner risk, mitigation notes, and final legal clearance.
+- People: Legal chair and members.
+- Reports: generated legal analytics plus required beginning-of-month plan and end-of-month report submissions.
+
+## Supporting Routes
+- `/dashboard/workspaces/legal/contracts`
+- `/dashboard/workspaces/legal/policies`
+- `/dashboard/workspaces/legal/compliance`
+- `/dashboard/workspaces/legal/risks`
+- Existing:
+  - `/dashboard/workspaces/legal`
+  - `/dashboard/workspaces/legal/workbench`
+  - `/dashboard/workspaces/legal/people`
+  - `/dashboard/workspaces/legal/reports`
+
+## Workspace Divisions
+1. Contracts, Agreements & Partnerships
+   - Sponsorship contracts
+   - Partnership agreements
+   - MOUs
+   - Vendor/service agreements
+   - Signatory and renewal tracking
+   - Finance/Sponsorship clearance notes
+
+2. Policy, Governance & Internal Rules
+   - Constitution and bylaws review
+   - Code of conduct
+   - Disciplinary policy
+   - Volunteer/member policy
+   - Privacy and data handling rules
+   - Policy versioning and approval cycles
+
+3. Compliance, Risk & Safeguarding
+   - Statutory and governance obligations
+   - Public website legal/privacy review
+   - Program/event consent language
+   - Youth, welfare, safeguarding, or sensitive-data risk
+   - Risk mitigation and final clearance
+
+## Core Functionality
+- Create and track contract reviews with:
+  - counterparty/partner
+  - contract type
+  - review status
+  - risk level
+  - owner
+  - requested by committee
+  - effective date
+  - expiry/renewal date
+  - agreement status
+  - final clearance outcome
+  - attached draft/signed documents
+- Create and track policy records with:
+  - policy area
+  - current version
+  - review status
+  - approval state
+  - next review date
+  - owner
+  - policy summary
+  - change notes
+  - attached policy documents
+- Create and track compliance records with:
+  - obligation name
+  - category
+  - due date
+  - recurrence
+  - owner
+  - evidence requirement
+  - status
+  - attached evidence
+- Create and track risk reviews with:
+  - requesting committee
+  - entity/program/event/partner
+  - risk type
+  - risk level
+  - mitigation plan
+  - clearance decision
+  - deadline
+  - Legal owner
+  - final notes
+- Upload and download local files for all Legal records:
+  - draft agreements
+  - signed contracts
+  - policy PDFs/docs
+  - compliance evidence
+  - risk review attachments
+- Export CSV from every Legal tab.
+- Generate monthly Legal reports from structured workspace activity.
+- Keep Sponsorship, Finance, Programs, HR, Welfare, Media, and Technical handoffs as Legal workspace records, not external navigation.
+
+## Record Types
+Persist first pass as typed workspace notes:
+- `ypf.legal.record.v1`
+
+Shared fields:
+- `id`
+- `kind`
+- `area: "contracts" | "policies" | "compliance" | "risks"`
+- `category`
+- `title`
+- `status`
+- `priority`
+- `owner`
+- `requestedByCommittee`
+- `riskLevel`
+- `dueDate`
+- `reviewDate`
+- `expiryDate`
+- `approvalState`
+- `details`
+- `outcome`
+- `authorName`
+- `createdAt`
+
+Contracts-specific fields:
+- `counterparty`
+- `contractType`
+- `agreementStatus`
+- `effectiveDate`
+- `renewalDate`
+- `signatory`
+- `financeHandoff`
+- `sponsorshipHandoff`
+- `signedDocumentUrl`
+- `clauseNotes`
+
+Policies-specific fields:
+- `policyArea`
+- `version`
+- `appliesTo`
+- `nextReviewDate`
+- `changeSummary`
+- `approvalBody`
+- `publicationState`
+
+Compliance-specific fields:
+- `obligationType`
+- `recurrence`
+- `evidenceRequired`
+- `evidenceStatus`
+- `responsibleBody`
+- `submissionDate`
+
+Risk-specific fields:
+- `requestingCommittee`
+- `subject`
+- `riskType`
+- `mitigationPlan`
+- `clearanceDecision`
+- `clearanceDate`
+- `safeguardingFlag`
+- `privacyFlag`
+
+## Status Models
+Contracts:
+- `REQUESTED`
+- `TRIAGE`
+- `DRAFT_REVIEW`
+- `LEGAL_REVIEW`
+- `CHANGES_REQUESTED`
+- `CLEARED`
+- `SIGNED`
+- `EXPIRED`
+- `BLOCKED`
+- `ARCHIVED`
+
+Policies:
+- `DRAFT`
+- `IN_REVIEW`
+- `APPROVED`
+- `PUBLISHED`
+- `NEEDS_UPDATE`
+- `RETIRED`
+- `ARCHIVED`
+
+Compliance:
+- `OPEN`
+- `IN_PROGRESS`
+- `SUBMITTED`
+- `VERIFIED`
+- `OVERDUE`
+- `WAIVED`
+- `ARCHIVED`
+
+Risk Reviews:
+- `REQUESTED`
+- `ASSESSING`
+- `MITIGATION_REQUIRED`
+- `CLEARED`
+- `CLEARED_WITH_CONDITIONS`
+- `REJECTED`
+- `BLOCKED`
+- `ARCHIVED`
+
+## Role Behavior
+- Legal chair:
+  - create, edit, archive, export, and close Legal records
+  - upload Legal files and evidence
+  - mark contracts as cleared/signed
+  - approve/publish policy records
+  - verify compliance obligations
+  - clear or reject risk reviews
+  - submit monthly Legal plan/report
+- Legal member:
+  - view all Legal tabs
+  - open details and attachments
+  - upload supporting files where appropriate
+  - add progress/context notes
+  - update non-final draft/progress fields only if we later allow delegated editing
+  - cannot clear, approve, reject, archive, delete, or submit official monthly documents
+- Super admin:
+  - full override
+  - can view all Legal reports from admin reports
+  - can assign Legal committee roles
+- Regular admin:
+  - workspace override according to existing admin-access behavior
+- Non-member/non-chair:
+  - blocked by existing workspace authorization
+
+## Workbench Requirements
+Legal workbench cards must stay inside Legal workspace:
+- Contract reviews → `/dashboard/workspaces/legal/contracts`
+- Policy library → `/dashboard/workspaces/legal/policies`
+- Compliance watch → `/dashboard/workspaces/legal/compliance`
+- Risk review queue → `/dashboard/workspaces/legal/risks`
+- Monthly reports → `/dashboard/workspaces/legal/reports`
+
+No Legal workbench card should navigate to:
+- `/dashboard/admin/*`
+- `/dashboard/directory/*`
+- `/dashboard/me/*`
+- another committee workspace
+
+## Public Website Responsibility
+Legal does not own public content presentation, but must review legal-sensitive public website surfaces:
+- `/membership`: membership terms, declaration language, consent wording, privacy implications.
+- `/volunteer`: volunteer declarations, consent, safeguarding language, and liability wording.
+- `/donate`: donation disclaimers, restricted-fund wording, refund/legal notices with Finance.
+- `/shop` and `/checkout`: purchase/refund terms, payment notices, fulfillment terms with Finance/Technical.
+- `/contact`: privacy notice and routing consent with Media/Technical.
+- `/projects` and `/events`: consent, media release language, safeguarding disclaimers, partner obligations.
+- `/gallery`: image consent, safeguarding, and takedown procedure.
+- Public policy/privacy pages if added later: Legal owns wording; Media owns presentation; Technical owns implementation.
+
+## Cross-Committee Handoffs
+- Sponsorship → Legal:
+  - sponsorship agreement review
+  - MOU review
+  - partner obligations
+  - contract risk and signatory readiness
+- Finance → Legal:
+  - restricted funds wording
+  - expenditure/vendor agreement review
+  - donation/refund terms
+- Programs & Records → Legal:
+  - event consent
+  - program participation disclaimers
+  - partner obligations in program delivery
+- HR → Legal:
+  - disciplinary policy
+  - member conduct
+  - application declarations and privacy
+- Welfare → Legal:
+  - sensitive welfare cases
+  - safeguarding
+  - confidentiality and escalation
+- Technical → Legal:
+  - data retention
+  - privacy/security obligations
+  - public website legal pages and cookies if introduced
+- Media/Graphics → Legal:
+  - consent for publication
+  - brand/partner usage restrictions
+  - public claims that need legal review
+
+## Backend Work
+- Reuse workspace submissions, notes, and attachments.
+- Add `LEGAL_ALIAS = "legal"` if useful for named logic.
+- Add `getLegalReportData(committeeId, monthStart, nextMonthStart)`.
+- Parse `ypf.legal.record.v1` workspace-note payloads.
+- Generated report metrics:
+  - open contracts
+  - active policies
+  - compliance due/overdue
+  - risk reviews awaiting clearance
+  - cleared/signed outcomes
+  - monthly Legal activity
+- Report lists:
+  - “Legal Review Queue”: open contracts, risk reviews, overdue compliance.
+  - “Clearance Outcomes”: cleared contracts, signed agreements, published policies, verified compliance.
+  - generated summary lines for overdue obligations, upcoming expiries, Legal/Sponsorship handoffs, and high-risk reviews.
+- Keep official plan/report submissions through existing monthly submissions endpoint.
+
+## Frontend Work
+- Add `use-legal-workspace.ts`.
+- Add `components/workspaces/legal/legal-record-workspace.tsx`.
+- Add Legal routes:
+  - `contracts/page.tsx`
+  - `policies/page.tsx`
+  - `compliance/page.tsx`
+  - `risks/page.tsx`
+- Update Legal tabs in workspace layout.
+- Update `COMMITTEE_META.legal.workbench` to point to Legal workspace routes.
+- Update generic report page labels so Legal gets:
+  - Legal Review Queue
+  - Clearance Outcomes
+- Use `WorkspaceAttachments` inside Legal record detail/edit dialogs.
+- Keep members in view mode with attachment visibility.
+- Keep chair/admin actions visible and member destructive/final actions hidden.
+
+## UI Behavior By Tab
+Contracts:
+- table columns:
+  - agreement
+  - counterparty
+  - review status
+  - risk level
+  - effective/expiry date
+  - signatory/owner
+  - actions
+- chair actions:
+  - create contract review
+  - update status
+  - mark cleared/signed
+  - attach draft/signed agreement
+  - export CSV
+
+Policies:
+- table columns:
+  - policy
+  - version
+  - applies to
+  - review status
+  - approval/publication state
+  - next review
+  - actions
+- chair actions:
+  - create policy record
+  - update version notes
+  - mark approved/published/retired
+  - attach policy files
+  - export CSV
+
+Compliance:
+- table columns:
+  - obligation
+  - category
+  - due date
+  - recurrence
+  - evidence status
+  - responsible body
+  - actions
+- chair actions:
+  - create obligation
+  - mark submitted/verified/waived
+  - attach evidence
+  - export CSV
+
+Risk Reviews:
+- table columns:
+  - request
+  - requesting committee
+  - risk type
+  - risk level
+  - mitigation status
+  - clearance decision
+  - due date
+  - actions
+- chair actions:
+  - create review
+  - update mitigation
+  - mark cleared/cleared with conditions/rejected
+  - attach evidence
+  - export CSV
+
+## Test Plan
+- Legal chair can access all Legal tabs.
+- Legal member can access all Legal tabs but cannot see final/destructive actions.
+- Non-Legal committee member cannot access `/dashboard/workspaces/legal/*`.
+- Super admin can access Legal workspace and generated reports.
+- Legal chair can create a contract review, attach a document, update status, export CSV, and see the report metrics update.
+- Legal chair can create policy, compliance, and risk records.
+- Report page is not “coming soon”; it shows generated Legal metrics and lists.
+- All Legal workbench links stay under `/dashboard/workspaces/legal/*`.
+- `npx tsc --noEmit` passes in `ypf-ums`.
+- `npm run build` passes in `ypf-backend`.
+
+## Implementation Order
+1. Add Legal metadata and Legal-specific tabs/routes.
+2. Add `use-legal-workspace.ts` for typed workspace-note records.
+3. Build `LegalRecordWorkspace` with area-specific forms/tables.
+4. Wire Contracts, Policies, Compliance, and Risk pages.
+5. Add backend Legal report parsing and generated report data.
+6. Update reports page labels for Legal queue/outcomes.
+7. Verify chair/member/super-admin access and generated metrics.
+
+# Records Management Committee Workspace Plan
+
+## Next Committee Candidate
+Records Management should follow Legal because the organization now has many operating committees producing evidence, agreements, applications, attendance, monthly submissions, certificates, financial evidence, welfare records, media assets, and program outcomes. Records Management should become the committee that turns those activities into reliable institutional memory.
+
+## Organizational Role
+The Records Management Committee is the custodian of YPF Africa’s official records. Its role is not just “keeping files”; it protects the organization’s memory, credibility, audit readiness, and continuity. The committee ensures that members, programs, events, certificates, documents, archives, and evidence are complete, findable, accurate, and properly handed off across committees.
+
+Records Management should make sure that:
+- every member has a clean and complete record
+- every event/program has attendance and outcome evidence
+- every certificate has an eligibility basis and issuance trail
+- every important document is archived with owner, category, version, date, and retention status
+- every committee’s monthly plan/report can be found later
+- public website evidence such as gallery, programs, events, and impact reports are backed by real internal records
+- leadership can trust the data used in dashboards, reports, awards, certificates, audits, and historical decisions
+
+## Goal
+Build `/dashboard/workspaces/records_mgmt` as a self-contained Records Management workspace where the chair can manage member record quality, attendance/evidence capture, certificate issuance tracking, document archives, retention reviews, and monthly records reports without sending users to `/dashboard/admin/*`, `/dashboard/directory/*`, or unrelated committee workspaces.
+
+Members should view all Records Management tabs, inspect record queues, contribute notes, and upload supporting evidence. Final archive decisions, certificate issuance status, deletion/archive actions, and official monthly submissions remain chair/admin actions.
+
+## Core Tabs
+- Overview: record health, incomplete records, attendance gaps, certificate queue, archive workload, retention deadlines, and monthly plan/report status.
+- Workbench: quick operating dashboard for member record quality, attendance gaps, certificate requests, archive intake, retention reviews, and cross-committee handoffs.
+- Member Records: member profile completeness, public ID, contact data, chapter/committee/title assignment gaps, first-login/onboarding status, duplicates, and correction workflow.
+- Attendance: program/event/meeting attendance capture, source event/program, participant count, missing attendance, verification status, and evidence attachments.
+- Certificates: eligibility requests, certificate type, source program/event, recipient, attendance basis, approval status, issuance status, certificate ID/link, and reissue tracking.
+- Archives: official documents, committee evidence, monthly submissions, legal/finance/program files, category, owner, retention class, version, and archive state.
+- Retention: review dates, retention policy, expiry/disposal review, sensitive records, privacy/legal holds, and final disposition status.
+- People: Records chair and members.
+- Reports: generated records analytics plus required beginning-of-month plan and end-of-month report submissions.
+
+## Supporting Routes
+- `/dashboard/workspaces/records_mgmt/member-records`
+- `/dashboard/workspaces/records_mgmt/attendance`
+- `/dashboard/workspaces/records_mgmt/certificates`
+- `/dashboard/workspaces/records_mgmt/archives`
+- `/dashboard/workspaces/records_mgmt/retention`
+- Existing:
+  - `/dashboard/workspaces/records_mgmt`
+  - `/dashboard/workspaces/records_mgmt/workbench`
+  - `/dashboard/workspaces/records_mgmt/people`
+  - `/dashboard/workspaces/records_mgmt/reports`
+
+## Workspace Divisions
+1. Member Records & Data Quality
+   - member identity records
+   - public ID quality
+   - contact completeness
+   - chapter/committee membership verification
+   - title/role assignment integrity
+   - duplicate and missing data follow-up
+   - first-login and onboarding record readiness with HR
+
+2. Attendance, Participation & Certification
+   - event attendance records
+   - program participation records
+   - meeting attendance
+   - attendance verification evidence
+   - certificate eligibility
+   - certificate issuance and reissue tracking
+   - participation history for awards and leadership decisions
+
+3. Archives, Evidence & Retention
+   - official document archive
+   - committee monthly submissions
+   - signed agreements and policy documents from Legal
+   - budget/receipt evidence from Finance
+   - program/event outcome reports from Programs & Records
+   - media/gallery evidence from Media and Graphics
+   - retention/disposal review
+   - privacy/legal hold coordination with Legal and Technical
+
+## Core Functionality
+- Create and track member record quality items:
+  - member name/public ID
+  - missing fields
+  - duplicate suspicion
+  - chapter/committee/title gap
+  - source committee
+  - correction owner
+  - status and resolution notes
+- Create and track attendance records:
+  - event/program/meeting name
+  - source committee
+  - attendance date
+  - expected attendees
+  - recorded attendees
+  - verification status
+  - evidence files
+  - missing attendance follow-up
+- Create and track certificate records:
+  - recipient/member
+  - certificate type
+  - source program/event
+  - eligibility basis
+  - approval state
+  - issuance status
+  - certificate ID/link
+  - reissue reason
+  - evidence attachments
+- Create and track archive records:
+  - document title
+  - document category
+  - source committee
+  - owner
+  - record date
+  - version
+  - confidentiality level
+  - retention class
+  - archive status
+  - attachment files
+- Create and track retention reviews:
+  - record/archive item
+  - retention rule
+  - review date
+  - sensitivity level
+  - legal hold flag
+  - privacy flag
+  - disposition recommendation
+  - final disposition status
+- Export CSV from every Records Management tab.
+- Allow local file upload/download through workspace attachments.
+- Generate monthly records reports from typed workspace activity and existing member/program/event data.
+- Keep all cross-committee handoffs represented as Records workspace records, not navigation into another committee’s workspace.
+
+## Record Type
+Persist the first pass as typed workspace notes:
+- `ypf.records.record.v1`
+
+Shared fields:
+- `id`
+- `kind`
+- `area: "member_records" | "attendance" | "certificates" | "archives" | "retention"`
+- `category`
+- `title`
+- `status`
+- `priority`
+- `owner`
+- `sourceCommittee`
+- `recordDate`
+- `dueDate`
+- `verificationStatus`
+- `confidentiality`
+- `details`
+- `outcome`
+- `authorName`
+- `createdAt`
+
+Member Records-specific fields:
+- `memberName`
+- `publicId`
+- `memberEmail`
+- `dataIssueType`
+- `missingFields`
+- `chapterStatus`
+- `committeeStatus`
+- `titleStatus`
+- `duplicateRisk`
+- `correctionAction`
+
+Attendance-specific fields:
+- `attendanceType`
+- `sourceEntity`
+- `eventOrProgramId`
+- `attendanceDate`
+- `expectedCount`
+- `recordedCount`
+- `missingCount`
+- `attendanceSource`
+- `evidenceStatus`
+
+Certificates-specific fields:
+- `recipientName`
+- `recipientPublicId`
+- `certificateType`
+- `sourceProgramOrEvent`
+- `eligibilityBasis`
+- `approvalState`
+- `issuanceStatus`
+- `certificateId`
+- `certificateUrl`
+- `reissueReason`
+
+Archives-specific fields:
+- `documentCategory`
+- `documentOwner`
+- `documentDate`
+- `version`
+- `retentionClass`
+- `archiveLocation`
+- `legalHold`
+- `privacyFlag`
+
+Retention-specific fields:
+- `archiveRecord`
+- `retentionRule`
+- `reviewDate`
+- `sensitivityLevel`
+- `dispositionRecommendation`
+- `dispositionStatus`
+- `approvedBy`
+- `dispositionDate`
+
+## Status Models
+Member Records:
+- `OPEN`
+- `IN_REVIEW`
+- `AWAITING_SOURCE`
+- `CORRECTION_PENDING`
+- `CORRECTED`
+- `DUPLICATE_FLAGGED`
+- `BLOCKED`
+- `ARCHIVED`
+
+Attendance:
+- `PENDING`
+- `IN_PROGRESS`
+- `SUBMITTED`
+- `VERIFIED`
+- `MISSING_DATA`
+- `RECONCILING`
+- `CLOSED`
+- `ARCHIVED`
+
+Certificates:
+- `REQUESTED`
+- `ELIGIBILITY_REVIEW`
+- `APPROVED`
+- `ISSUED`
+- `REISSUE_REQUESTED`
+- `REJECTED`
+- `BLOCKED`
+- `ARCHIVED`
+
+Archives:
+- `INTAKE`
+- `CLASSIFYING`
+- `ARCHIVED`
+- `NEEDS_METADATA`
+- `UNDER_REVIEW`
+- `RESTRICTED`
+- `SUPERSEDED`
+- `DISPOSED`
+
+Retention:
+- `SCHEDULED`
+- `UNDER_REVIEW`
+- `LEGAL_HOLD`
+- `APPROVED_FOR_RETENTION`
+- `APPROVED_FOR_DISPOSAL`
+- `DISPOSED`
+- `BLOCKED`
+- `ARCHIVED`
+
+## Role Behavior
+- Records chair:
+  - create, edit, archive, export, and close records
+  - manage attendance verification workflows
+  - approve certificate issuance status
+  - classify archive records
+  - manage retention review states
+  - upload official documents and evidence
+  - submit monthly records plan/report
+- Records member:
+  - view all tabs
+  - inspect record quality queues
+  - open details and attachments
+  - upload supporting evidence
+  - add notes and follow-up context
+  - cannot delete, archive, dispose, approve certificate issuance, or submit official monthly documents
+- Super admin:
+  - full override
+  - can view all records reports from admin reports
+  - can assign Records committee roles
+- Regular admin:
+  - workspace override according to existing admin behavior
+- Non-member/non-chair:
+  - blocked by existing workspace authorization
+
+## Workbench Requirements
+Records Management workbench cards must stay inside Records workspace:
+- Member record quality → `/dashboard/workspaces/records_mgmt/member-records`
+- Attendance gaps → `/dashboard/workspaces/records_mgmt/attendance`
+- Certificate queue → `/dashboard/workspaces/records_mgmt/certificates`
+- Archive intake → `/dashboard/workspaces/records_mgmt/archives`
+- Retention review → `/dashboard/workspaces/records_mgmt/retention`
+- Monthly reports → `/dashboard/workspaces/records_mgmt/reports`
+
+No Records workbench card should navigate to:
+- `/dashboard/admin/*`
+- `/dashboard/directory/*`
+- `/dashboard/me/*`
+- another committee workspace
+
+## Public Website Responsibility
+Records Management does not own public presentation, but it owns the internal evidence behind public claims:
+- `/projects` and `/projects/:id`: program records, outcome evidence, attendance basis, completion archive.
+- `/events`: event attendance, outcome evidence, participation records.
+- `/gallery`: evidence metadata, consent/evidence archive with Media and Legal.
+- `/membership`: approved member record completeness with HR.
+- `/volunteer`: volunteer participation records with HR.
+- `/certificates` if later public verification is added: certificate ID, recipient eligibility, issuance record, revocation/reissue state.
+- Public impact statistics: Records validates source data before Media publishes claims.
+
+## Cross-Committee Handoffs
+- HR → Records:
+  - approved member data
+  - onboarding completion
+  - role/chapter assignment evidence
+  - first-login completion records
+- Programs & Records → Records Management:
+  - event attendance
+  - program outcome reports
+  - participant lists
+  - certificate eligibility source
+- Welfare → Records:
+  - welfare outreach attendance/evidence
+  - beneficiary support outcome archive with confidentiality controls
+- Finance → Records:
+  - approved budget evidence
+  - receipt/expenditure archive
+  - dues/payment record references when needed
+- Legal → Records:
+  - signed contracts
+  - approved policies
+  - compliance evidence
+  - retention/legal hold requirements
+- Media/Graphics → Records:
+  - event photos and captions as evidence
+  - approved design templates
+  - campaign assets and public gallery source metadata
+- Technical → Records:
+  - data retention implementation
+  - backup/export support
+  - certificate/public verification support if added
+- Executives/Management Board → Records:
+  - minutes
+  - decisions
+  - official directives
+  - governance approvals
+
+## Backend Work
+- Reuse workspace submissions, notes, and attachments.
+- Add `RECORDS_MGMT_ALIAS = "records_mgmt"` if useful for named logic.
+- Add `getRecordsManagementReportData(committeeId, monthStart, nextMonthStart)`.
+- Parse `ypf.records.record.v1` workspace-note payloads.
+- Report metrics:
+  - open member data issues
+  - attendance gaps
+  - certificates pending
+  - archive intake/review count
+  - retention reviews due
+  - verified/closed outcomes
+- Generated report lists:
+  - “Record Quality Queue”: open member records, missing attendance, certificate eligibility, archive metadata gaps.
+  - “Verified Records & Archives”: corrected records, verified attendance, issued certificates, archived documents, disposed/retained records.
+  - generated summary lines for high-priority issues, missing attendance, pending certificates, sensitive archives, and retention/legal-hold items.
+- Optional future direct data sources:
+  - Members table for profile completeness checks.
+  - Events/Programs tables for missing attendance detection.
+  - Certificates table for issued certificate counts.
+  - Workspace monthly submissions for committee document archive completeness.
+
+## Frontend Work
+- Add `use-records-workspace.ts`.
+- Add `components/workspaces/records/records-management-workspace.tsx`.
+- Add routes:
+  - `member-records/page.tsx`
+  - `attendance/page.tsx`
+  - `certificates/page.tsx`
+  - `archives/page.tsx`
+  - `retention/page.tsx`
+- Update Records tabs in workspace layout.
+- Update `COMMITTEE_META.records_mgmt.workbench` to point to Records workspace routes.
+- Update reports page labels so Records gets:
+  - Record Quality Queue
+  - Verified Records & Archives
+- Use `WorkspaceAttachments` inside Records detail/edit dialogs.
+- Keep members in view mode with attachment visibility.
+- Keep chair/admin actions visible and member destructive/final actions hidden.
+
+## UI Behavior By Tab
+Member Records:
+- table columns:
+  - member
+  - issue type
+  - missing fields
+  - chapter/committee/title status
+  - correction owner
+  - status
+  - actions
+- chair actions:
+  - create issue
+  - update correction state
+  - mark corrected/duplicate/block
+  - attach evidence
+  - export CSV
+
+Attendance:
+- table columns:
+  - source event/program/meeting
+  - attendance date
+  - expected count
+  - recorded count
+  - missing count
+  - verification status
+  - actions
+- chair actions:
+  - create attendance record
+  - update counts
+  - mark submitted/verified/reconciling
+  - attach attendance sheet/evidence
+  - export CSV
+
+Certificates:
+- table columns:
+  - recipient
+  - certificate type
+  - source program/event
+  - eligibility basis
+  - approval/issuance state
+  - certificate ID/link
+  - actions
+- chair actions:
+  - create certificate record
+  - update eligibility status
+  - mark approved/issued/reissue/rejected
+  - attach certificate or evidence
+  - export CSV
+
+Archives:
+- table columns:
+  - document
+  - source committee
+  - category
+  - version
+  - confidentiality
+  - retention class
+  - archive state
+  - actions
+- chair actions:
+  - create archive item
+  - classify document
+  - mark archived/restricted/superseded
+  - attach file
+  - export CSV
+
+Retention:
+- table columns:
+  - archive record
+  - retention rule
+  - review date
+  - sensitivity
+  - legal/privacy hold
+  - disposition recommendation
+  - status
+  - actions
+- chair actions:
+  - create retention review
+  - mark legal hold
+  - approve retention/disposal
+  - record final disposition
+  - attach supporting approval
+  - export CSV
+
+## Test Plan
+- Records chair can access all Records tabs.
+- Records member can access all Records tabs but cannot see destructive/final actions.
+- Non-Records committee member cannot access `/dashboard/workspaces/records_mgmt/*`.
+- Super admin can access Records workspace and generated reports.
+- Records chair can create a member record issue, attendance record, certificate record, archive item, and retention review.
+- Records chair can attach documents/evidence to each record type.
+- Report page is not “coming soon”; it shows generated Records metrics and lists.
+- Workbench links stay under `/dashboard/workspaces/records_mgmt/*`.
+- `npx tsc --noEmit` passes in `ypf-ums`.
+- `npm run build` passes in `ypf-backend`.
+
+## Implementation Order
+1. Add Records metadata and Records-specific tabs/routes.
+2. Add `use-records-workspace.ts` for typed workspace-note records.
+3. Build `RecordsManagementWorkspace` with area-specific forms/tables.
+4. Wire Member Records, Attendance, Certificates, Archives, and Retention pages.
+5. Add backend Records report parsing and generated report data.
+6. Update reports page labels for Records queue/outcomes.
+7. Verify chair/member/super-admin access and generated metrics.

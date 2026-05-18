@@ -1,4 +1,5 @@
 import z from "zod";
+import { MediumTypeEnum } from "@/db/schema/core";
 import { PaginationQuery } from "@/shared/validators";
 
 const ProductAttributesSchema = z
@@ -110,4 +111,53 @@ export const CompleteGuestOrderSchema = z.object({
 export const GetShopProductsQuerySchema = z.object({
   ...PaginationQuery.shape,
   onlyActive: z.coerce.boolean().default(true).optional(),
+});
+
+// ──────────────────────────────────────────────────────────────────────────
+// Product media — mirrors the events media flow.
+// ──────────────────────────────────────────────────────────────────────────
+
+export const UploadProductMediumOptionsSchema = z.object({
+  caption: z
+    .string()
+    .max(255, { message: "Caption must not exceed 255 characters." })
+    .optional(),
+  isFeatured: z.coerce.boolean().optional().default(false),
+});
+
+export const UploadProductFileSchema = z
+  .object({
+    size: z
+      .number()
+      .positive({ message: "File size must be a positive number." }),
+    mimeType: z.enum(["image/png", "image/jpeg", "video/mp4", "video/avi"], {
+      error: () => ({
+        message: "Invalid file type. Only PNG, JPG, MP4, or AVI are allowed.",
+      }),
+    }),
+  })
+  .refine(
+    (data) =>
+      !data.mimeType.startsWith("image/") || data.size <= 50 * 1024 * 1024,
+    { message: "Image size cannot exceed 50MB.", path: ["size"] },
+  )
+  .refine(
+    (data) =>
+      !data.mimeType.startsWith("video/") || data.size <= 250 * 1024 * 1024,
+    { message: "Video size cannot exceed 250MB.", path: ["size"] },
+  );
+
+export const UpdateProductMediumSchema = z.object({
+  caption: z
+    .string()
+    .max(255, { message: "Caption must not exceed 255 characters." })
+    .optional(),
+  isFeatured: z.coerce.boolean().optional(),
+});
+
+export const GetProductMediaQuerySchema = z.object({
+  ...PaginationQuery.shape,
+  mediaType: z
+    .enum(MediumTypeEnum.enumValues, { message: "Invalid medium type." })
+    .optional(),
 });

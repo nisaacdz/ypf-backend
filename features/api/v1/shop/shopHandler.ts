@@ -1,13 +1,17 @@
 import { ApiError, ApiResponse } from "@/shared/types";
 import * as shopService from "@/shared/services/shopService";
+import * as mediaUtils from "@/shared/utils/files";
+import * as mediaService from "@/shared/services/mediaService";
 import z from "zod";
 import {
   CreateOrderSchema,
   InitiateGuestOrderSchema,
   CompleteGuestOrderSchema,
   GetShopProductsQuerySchema,
+  GetProductMediaQuerySchema,
   CreateProductSchema,
   UpdateProductSchema,
+  UpdateProductMediumSchema,
 } from "./schemas";
 import { OrderResponse, ValidatedOrderItems } from "@/shared/dtos/shop";
 import { Paginated } from "@/shared/dtos";
@@ -244,5 +248,99 @@ export async function validateOrderItems(
     success: true,
     message: "Order items are valid",
     data: result,
+  };
+}
+
+// ─── Product media handlers (Phase 1.1) ─────────────────────────────────────
+
+export async function uploadProductMedium({
+  constituentId,
+  productId,
+  file,
+  options,
+}: {
+  constituentId: string;
+  productId: string;
+  file: Express.Multer.File;
+  options: { caption?: string; isFeatured: boolean };
+}): Promise<ApiResponse<string>> {
+  const uploadMeta = await mediaUtils.storeMediumFile(file);
+
+  try {
+    const newMediumId = await mediaService.uploadProductMedium(productId, {
+      caption: options.caption,
+      isFeatured: options.isFeatured,
+      medium: {
+        ...uploadMeta,
+        uploadedBy: constituentId,
+      },
+    });
+
+    return {
+      success: true,
+      message: "Media uploaded successfully",
+      data: newMediumId,
+    };
+  } catch (error) {
+    await mediaUtils.deleteMediumFile(uploadMeta.externalId);
+    throw error;
+  }
+}
+
+export async function getProductMedia(
+  productId: string,
+  query: z.infer<typeof GetProductMediaQuerySchema>,
+): Promise<
+  ApiResponse<
+    Paginated<{
+      id: string;
+      caption?: string;
+      isFeatured: boolean;
+      medium: {
+        id: string;
+        type: "PICTURE" | "VIDEO";
+        size: number;
+        uploadedAt: Date;
+        url: string;
+        dimensions: { width: number; height: number };
+      };
+    }>
+  >
+> {
+  const { page, pageSize } = query;
+  const { items, total } = await shopService.fetchProductMedia(productId, {
+    page,
+    pageSize,
+  });
+
+  return {
+    success: true,
+    message: "Product media fetched successfully",
+    data: { items, page, pageSize, total },
+  };
+}
+
+export async function updateProductMedium(
+  productId: string,
+  mediumId: string,
+  body: z.infer<typeof UpdateProductMediumSchema>,
+): Promise<ApiResponse<null>> {
+  await shopService.updateProductMedium(productId, mediumId, body);
+  return {
+    success: true,
+    message: "Product medium updated successfully",
+    data: null,
+  };
+}
+
+export async function deleteProductMedium(
+  productId: string,
+  mediumId: string,
+): Promise<ApiResponse<null>> {
+  await shopService.removeProductMedium(productId, mediumId);
+  return {
+    success: true,
+    message: "Product medium removed",
+    data: null,
   };
 }

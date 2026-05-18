@@ -7,6 +7,7 @@ import {
 } from "@/shared/middlewares/auth";
 import {
   validateBody,
+  validateFile,
   validateQuery,
   validateParams,
 } from "@/shared/middlewares/validate";
@@ -24,8 +25,13 @@ import {
   GetChapterLeadershipQuerySchema,
   EnrollChapterSchema,
   UnenrollChapterSchema,
+  GetChapterMediaQuerySchema,
+  UpdateChapterMediumSchema,
+  UploadChapterFileSchema,
+  UploadChapterMediumOptionsSchema,
 } from "./schemas";
 import { Visitors, MEMBER, anyOf, ADMIN } from "@/configs/authorizer";
+import filesUpload from "@/shared/middlewares/multipart";
 import z from "zod";
 
 const chaptersRouter = Router();
@@ -311,6 +317,124 @@ chaptersRouter.delete(
       );
       await redisClient.delCache(`/api/v1/chapters/${req.Params.id}`);
       await redisClient.delCache("/api/v1/chapters");
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// ────────────────────────────────────────────────────────────────────────
+// Chapter media routes (Phase 1.2). Admin or chapter lead may write; reads
+// are public so the home/public site can show chapter hero images.
+// ────────────────────────────────────────────────────────────────────────
+
+chaptersRouter.get(
+  "/:id/media",
+  authenticateLax,
+  authorize(Visitors.ALL),
+  validateParams(z.object({ id: z.uuid("Invalid chapter ID") }), 404),
+  validateQuery(GetChapterMediaQuerySchema),
+  redisCacheEarlyReturn,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await chaptersHandler.getChapterMedia(
+        req.Params.id,
+        req.Query,
+      );
+      redisClient.setResponseCache(req.CacheKey, response, 60).catch((err) => {
+        logger.error(err, `Failed to set cache for ${req.CacheKey}`);
+      });
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+chaptersRouter.post(
+  "/:id/media",
+  authenticate,
+  validateParams(z.object({ id: z.uuid("Invalid chapter ID") }), 404),
+  authorize(
+    anyOf(
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR),
+      Visitors.hasRole((req) => MEMBER.chapterLead(req.Params.id)),
+    ),
+  ),
+  filesUpload.mediaUpload.single("file"),
+  validateFile(UploadChapterFileSchema),
+  validateBody(UploadChapterMediumOptionsSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await chaptersHandler.uploadChapterMedium({
+        constituentId: req.User!.constituentId,
+        chapterId: req.Params.id,
+        file: req.File,
+        options: req.Body,
+      });
+      await redisClient.delCache(`/api/v1/chapters/${req.Params.id}`);
+      await redisClient.delCache(`/api/v1/chapters/${req.Params.id}/media`);
+      res.status(201).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+chaptersRouter.patch(
+  "/:chapterId/media/:mediumId",
+  authenticate,
+  validateParams(
+    z.object({ chapterId: z.uuid(), mediumId: z.uuid() }),
+    404,
+  ),
+  authorize(
+    anyOf(
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR),
+      Visitors.hasRole((req) => MEMBER.chapterLead(req.Params.chapterId)),
+    ),
+  ),
+  validateBody(UpdateChapterMediumSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await chaptersHandler.updateChapterMedium(
+        req.Params.chapterId,
+        req.Params.mediumId,
+        req.Body,
+      );
+      await redisClient.delCache(
+        `/api/v1/chapters/${req.Params.chapterId}/media`,
+      );
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+chaptersRouter.delete(
+  "/:chapterId/media/:mediumId",
+  authenticate,
+  validateParams(
+    z.object({ chapterId: z.uuid(), mediumId: z.uuid() }),
+    404,
+  ),
+  authorize(
+    anyOf(
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR),
+      Visitors.hasRole((req) => MEMBER.chapterLead(req.Params.chapterId)),
+    ),
+  ),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await chaptersHandler.deleteChapterMedium(
+        req.Params.chapterId,
+        req.Params.mediumId,
+      );
+      await redisClient.delCache(
+        `/api/v1/chapters/${req.Params.chapterId}/media`,
+      );
       res.status(200).json(response);
     } catch (error) {
       next(error);

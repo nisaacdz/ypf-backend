@@ -139,6 +139,194 @@ export async function uploadProjectMedium(
   }
 }
 
+export async function uploadProductMedium(
+  productId: string,
+  data: AddMediumRecord,
+): Promise<string> {
+  const product = await dbClient.db.query.Products.findFirst({
+    where: eq(schema.Products.id, productId),
+    columns: { id: true },
+  });
+
+  if (!product) {
+    throw new ApiError("Product not found", 404);
+  }
+
+  try {
+    const newMediumId = await dbClient.db.transaction(async (tx) => {
+      const [newMedium] = await tx
+        .insert(schema.Media)
+        .values(data.medium)
+        .returning({ id: schema.Media.id });
+      if (!newMedium?.id) {
+        throw new Error(
+          "Failed to create medium record, rolling back transaction.",
+        );
+      }
+
+      // Only one row per product may carry isFeatured=true. If this upload is
+      // being flagged featured, clear the flag on any existing featured row.
+      if (data.isFeatured) {
+        await tx
+          .update(schema.ProductMedia)
+          .set({ isFeatured: false })
+          .where(eq(schema.ProductMedia.productId, productId));
+      }
+
+      await tx.insert(schema.ProductMedia).values({
+        productId: productId,
+        mediumId: newMedium.id,
+        caption: data.caption,
+        isFeatured: data.isFeatured,
+      });
+      return newMedium.id;
+    });
+
+    if (data.medium.type === "VIDEO") {
+      backfillVideoMetadata(newMediumId, data.medium.externalId).catch(
+        (err) => {
+          logger.error(
+            err,
+            `Error backfilling video metadata for medium ID: ${newMediumId}`,
+          );
+        },
+      );
+    }
+
+    return newMediumId;
+  } catch (err) {
+    logger.error(err);
+    throw new ApiError(
+      "An error occurred while adding the product medium record.",
+      500,
+    );
+  }
+}
+
+export async function uploadChapterMedium(
+  chapterId: string,
+  data: AddMediumRecord,
+): Promise<string> {
+  const chapter = await dbClient.db.query.Chapters.findFirst({
+    where: eq(schema.Chapters.id, chapterId),
+    columns: { id: true },
+  });
+
+  if (!chapter) {
+    throw new ApiError("Chapter not found", 404);
+  }
+
+  try {
+    const newMediumId = await dbClient.db.transaction(async (tx) => {
+      const [newMedium] = await tx
+        .insert(schema.Media)
+        .values(data.medium)
+        .returning({ id: schema.Media.id });
+      if (!newMedium?.id) {
+        throw new Error(
+          "Failed to create medium record, rolling back transaction.",
+        );
+      }
+
+      if (data.isFeatured) {
+        await tx
+          .update(schema.ChapterMedia)
+          .set({ isFeatured: false })
+          .where(eq(schema.ChapterMedia.chapterId, chapterId));
+      }
+
+      await tx.insert(schema.ChapterMedia).values({
+        chapterId: chapterId,
+        mediumId: newMedium.id,
+        caption: data.caption,
+        isFeatured: data.isFeatured,
+      });
+      return newMedium.id;
+    });
+
+    if (data.medium.type === "VIDEO") {
+      backfillVideoMetadata(newMediumId, data.medium.externalId).catch(
+        (err) => {
+          logger.error(
+            err,
+            `Error backfilling video metadata for medium ID: ${newMediumId}`,
+          );
+        },
+      );
+    }
+
+    return newMediumId;
+  } catch (err) {
+    logger.error(err);
+    throw new ApiError(
+      "An error occurred while adding the chapter medium record.",
+      500,
+    );
+  }
+}
+
+export async function uploadCommitteeMedium(
+  committeeId: string,
+  data: AddMediumRecord,
+): Promise<string> {
+  const committee = await dbClient.db.query.Committees.findFirst({
+    where: eq(schema.Committees.id, committeeId),
+    columns: { id: true },
+  });
+
+  if (!committee) {
+    throw new ApiError("Committee not found", 404);
+  }
+
+  try {
+    const newMediumId = await dbClient.db.transaction(async (tx) => {
+      const [newMedium] = await tx
+        .insert(schema.Media)
+        .values(data.medium)
+        .returning({ id: schema.Media.id });
+      if (!newMedium?.id) {
+        throw new Error(
+          "Failed to create medium record, rolling back transaction.",
+        );
+      }
+
+      if (data.isFeatured) {
+        await tx
+          .update(schema.CommitteeMedia)
+          .set({ isFeatured: false })
+          .where(eq(schema.CommitteeMedia.committeeId, committeeId));
+      }
+
+      await tx.insert(schema.CommitteeMedia).values({
+        committeeId: committeeId,
+        mediumId: newMedium.id,
+        caption: data.caption,
+        isFeatured: data.isFeatured,
+      });
+      return newMedium.id;
+    });
+
+    if (data.medium.type === "VIDEO") {
+      backfillVideoMetadata(newMediumId, data.medium.externalId).catch(
+        (err) => {
+          logger.error(
+            err,
+            `Error backfilling video metadata for medium ID: ${newMediumId}`,
+          );
+        },
+      );
+    }
+
+    return newMediumId;
+  } catch (err) {
+    logger.error(err);
+    throw new ApiError(
+      "An error occurred while adding the committee medium record.",
+      500,
+    );
+  }
+}
+
 export async function backfillVideoMetadata(
   mediumId: string,
   externalId: string,

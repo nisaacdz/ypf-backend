@@ -1,4 +1,5 @@
 import z from "zod";
+import { MediumTypeEnum } from "@/db/schema/core";
 import { PaginationQuery } from "@/shared/validators";
 
 export const GetChaptersQuerySchema = z.object({
@@ -63,4 +64,41 @@ export const ChapterRoleParamsSchema = z.object({
 
 export const AssignChapterRoleSchema = z.object({
   constituentId: z.uuid({ message: "Invalid constituent ID." }),
+});
+
+// ──────────────────────────────────────────────────────────────────────────
+// Chapter media — mirrors events/products media flow.
+// ──────────────────────────────────────────────────────────────────────────
+
+export const UploadChapterMediumOptionsSchema = z.object({
+  caption: z.string().max(255).optional(),
+  isFeatured: z.coerce.boolean().optional().default(false),
+});
+
+export const UploadChapterFileSchema = z
+  .object({
+    size: z.number().positive(),
+    mimeType: z.enum(["image/png", "image/jpeg", "video/mp4", "video/avi"], {
+      error: () => ({
+        message: "Invalid file type. Only PNG, JPG, MP4, or AVI are allowed.",
+      }),
+    }),
+  })
+  .refine(
+    (d) => !d.mimeType.startsWith("image/") || d.size <= 50 * 1024 * 1024,
+    { message: "Image size cannot exceed 50MB.", path: ["size"] },
+  )
+  .refine(
+    (d) => !d.mimeType.startsWith("video/") || d.size <= 250 * 1024 * 1024,
+    { message: "Video size cannot exceed 250MB.", path: ["size"] },
+  );
+
+export const UpdateChapterMediumSchema = z.object({
+  caption: z.string().max(255).optional(),
+  isFeatured: z.coerce.boolean().optional(),
+});
+
+export const GetChapterMediaQuerySchema = z.object({
+  ...PaginationQuery.shape,
+  mediaType: z.enum(MediumTypeEnum.enumValues).optional(),
 });

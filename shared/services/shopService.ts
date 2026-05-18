@@ -820,3 +820,143 @@ export async function deleteProduct(id: string): Promise<void> {
     throw new ApiError("Product not found", 404);
   }
 }
+
+// ─── Product media helpers (Phase 1.1) ──────────────────────────────────────
+
+export async function fetchProductMedia(
+  productId: string,
+  query: { page: number; pageSize: number },
+) {
+  const { page, pageSize } = query;
+
+  const [productMedia, total] = await Promise.all([
+    dbClient.db
+      .select({
+        id: schema.ProductMedia.id,
+        caption: schema.ProductMedia.caption,
+        isFeatured: schema.ProductMedia.isFeatured,
+        medium: {
+          id: schema.Media.id,
+          externalId: schema.Media.externalId,
+          type: schema.Media.type,
+          width: schema.Media.width,
+          height: schema.Media.height,
+          size: schema.Media.size,
+          uploadedAt: schema.Media.uploadedAt,
+        },
+      })
+      .from(schema.ProductMedia)
+      .innerJoin(
+        schema.Media,
+        eq(schema.ProductMedia.mediumId, schema.Media.id),
+      )
+      .where(eq(schema.ProductMedia.productId, productId))
+      .orderBy(desc(schema.ProductMedia.isFeatured))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize),
+    dbClient.db
+      .select({ count: count() })
+      .from(schema.ProductMedia)
+      .where(eq(schema.ProductMedia.productId, productId))
+      .then((res) => res[0].count),
+  ]);
+
+  const items = productMedia.map((m) => ({
+    id: m.id,
+    caption: m.caption ?? undefined,
+    isFeatured: m.isFeatured,
+    medium: {
+      id: m.medium.id,
+      type: m.medium.type,
+      size: m.medium.size,
+      uploadedAt: m.medium.uploadedAt,
+      url: mediaUtils.generateSignedMediaUrl(m.medium.externalId, {
+        resolution: 1080,
+        expireSeconds: 60 * 60 * 24,
+      }),
+      dimensions: {
+        width: m.medium.width,
+        height: m.medium.height,
+      },
+    },
+  }));
+
+  return { items, total };
+}
+
+export async function updateProductMedium(
+  productId: string,
+  mediumId: string,
+  data: { caption?: string; isFeatured?: boolean },
+): Promise<void> {
+  // If flagging this row featured, clear the flag on any other row first
+  // (only one featured image per product).
+  if (data.isFeatured === true) {
+    await dbClient.db
+      .update(schema.ProductMedia)
+      .set({ isFeatured: false })
+      .where(eq(schema.ProductMedia.productId, productId));
+  }
+
+  const [updated] = await dbClient.db
+    .update(schema.ProductMedia)
+    .set(data)
+    .where(
+      and(
+        eq(schema.ProductMedia.productId, productId),
+        eq(schema.ProductMedia.id, mediumId),
+      ),
+    )
+    .returning({ id: schema.ProductMedia.id });
+
+  if (!updated) {
+    throw new ApiError("Product medium not found", 404);
+  }
+}
+
+export async function removeProductMedium(
+  productId: string,
+  mediumId: string,
+): Promise<void> {
+  const [removed] = await dbClient.db
+    .delete(schema.ProductMedia)
+    .where(
+      and(
+        eq(schema.ProductMedia.productId, productId),
+        eq(schema.ProductMedia.id, mediumId),
+      ),
+    )
+    .returning({ mediumId: schema.ProductMedia.mediumId });
+
+  if (!removed) {
+    throw new ApiError("Product medium not found", 404);
+  }
+
+  // Best-effort cleanup of the underlying media row + ImageKit asset.
+  // ProductMedia.medium_id has ON DELETE CASCADE so the row is technically
+  // orphan-safe, but we want to free storage when nothing else references it.
+  if (removed.mediumId) {
+    try {
+      const [media] = await dbClient.db
+        .select({ externalId: schema.Media.externalId })
+        .from(schema.Media)
+        .where(eq(schema.Media.id, removed.mediumId))
+        .limit(1);
+
+      await dbClient.db
+        .delete(schema.Media)
+        .where(eq(schema.Media.id, removed.mediumId));
+
+      if (media?.externalId) {
+        mediaUtils.deleteMediumFile(media.externalId).catch((err) => {
+          logger.error(
+            err,
+            `Failed to delete external media asset ${media.externalId}`,
+          );
+        });
+      }
+    } catch (err) {
+      logger.warn(err, "Failed to remove orphan media row");
+    }
+  }
+}

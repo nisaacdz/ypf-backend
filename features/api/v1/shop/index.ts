@@ -2,10 +2,12 @@ import { Request, Response, NextFunction, Router } from "express";
 import { authenticate, authorize } from "@/shared/middlewares/auth";
 import {
   validateBody,
+  validateFile,
   validateQuery,
   validateParams,
 } from "@/shared/middlewares/validate";
 import { Visitors } from "@/configs/authorizer";
+import filesUpload from "@/shared/middlewares/multipart";
 import * as shopHandler from "./shopHandler";
 import {
   CreateOrderSchema,
@@ -15,6 +17,10 @@ import {
   GetShopProductsQuerySchema,
   CreateProductSchema,
   UpdateProductSchema,
+  UploadProductFileSchema,
+  UploadProductMediumOptionsSchema,
+  UpdateProductMediumSchema,
+  GetProductMediaQuerySchema,
 } from "./schemas";
 import z from "zod";
 
@@ -194,6 +200,96 @@ shopRouter.delete(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await shopHandler.deleteProduct(req.Params.id);
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// ========================
+// PRODUCT MEDIA ROUTES (Phase 1.1)
+// ========================
+
+// Public — list media for a product (used by shop detail page).
+shopRouter.get(
+  "/products/:id/media",
+  validateParams(z.object({ id: z.uuid("Invalid product ID") })),
+  validateQuery(GetProductMediaQuerySchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await shopHandler.getProductMedia(
+        req.Params.id,
+        req.Query,
+      );
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// Admin-only — upload a new product image/video.
+shopRouter.post(
+  "/products/:id/media",
+  authenticate,
+  authorize(Visitors.hasProfile("ADMIN")),
+  validateParams(z.object({ id: z.uuid("Invalid product ID") })),
+  filesUpload.mediaUpload.single("file"),
+  validateFile(UploadProductFileSchema),
+  validateBody(UploadProductMediumOptionsSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await shopHandler.uploadProductMedium({
+        constituentId: req.User!.constituentId,
+        productId: req.Params.id,
+        file: req.File,
+        options: req.Body,
+      });
+      res.status(201).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// Admin-only — update caption / featured flag.
+shopRouter.patch(
+  "/products/:productId/media/:mediumId",
+  authenticate,
+  authorize(Visitors.hasProfile("ADMIN")),
+  validateParams(
+    z.object({ productId: z.uuid(), mediumId: z.uuid() }),
+  ),
+  validateBody(UpdateProductMediumSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await shopHandler.updateProductMedium(
+        req.Params.productId,
+        req.Params.mediumId,
+        req.Body,
+      );
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// Admin-only — remove a media row + best-effort delete underlying asset.
+shopRouter.delete(
+  "/products/:productId/media/:mediumId",
+  authenticate,
+  authorize(Visitors.hasProfile("ADMIN")),
+  validateParams(
+    z.object({ productId: z.uuid(), mediumId: z.uuid() }),
+  ),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await shopHandler.deleteProductMedium(
+        req.Params.productId,
+        req.Params.mediumId,
+      );
       res.status(200).json(response);
     } catch (error) {
       next(error);

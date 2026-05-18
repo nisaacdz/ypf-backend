@@ -1,4 +1,6 @@
 import * as chaptersService from "@/shared/services/chaptersService";
+import * as mediaUtils from "@/shared/utils/files";
+import * as mediaService from "@/shared/services/mediaService";
 import type { ChapterRoleAlias, ChapterRoleHolder } from "@/shared/services/chaptersService";
 import { ApiResponse } from "@/shared/types";
 import {
@@ -10,6 +12,8 @@ import {
   GetChapterLeadershipQuerySchema,
   EnrollChapterSchema,
   UnenrollChapterSchema,
+  GetChapterMediaQuerySchema,
+  UpdateChapterMediumSchema,
 } from "./schemas";
 import { Paginated } from "@/shared/dtos";
 import { YPFChapter, YPFChapterDetail } from "./dtos";
@@ -118,4 +122,81 @@ export async function clearChapterRole(
 ): Promise<ApiResponse<null>> {
   await chaptersService.clearChapterRole(chapterId, roleAlias);
   return { success: true, data: null };
+}
+
+// ─── Chapter media handlers (Phase 1.2) ─────────────────────────────────────
+
+export async function uploadChapterMedium({
+  constituentId,
+  chapterId,
+  file,
+  options,
+}: {
+  constituentId: string;
+  chapterId: string;
+  file: Express.Multer.File;
+  options: { caption?: string; isFeatured: boolean };
+}): Promise<ApiResponse<string>> {
+  const uploadMeta = await mediaUtils.storeMediumFile(file);
+
+  try {
+    const newMediumId = await mediaService.uploadChapterMedium(chapterId, {
+      caption: options.caption,
+      isFeatured: options.isFeatured,
+      medium: {
+        ...uploadMeta,
+        uploadedBy: constituentId,
+      },
+    });
+
+    return {
+      success: true,
+      message: "Media uploaded successfully",
+      data: newMediumId,
+    };
+  } catch (error) {
+    await mediaUtils.deleteMediumFile(uploadMeta.externalId);
+    throw error;
+  }
+}
+
+export async function getChapterMedia(
+  chapterId: string,
+  query: z.infer<typeof GetChapterMediaQuerySchema>,
+): Promise<ApiResponse<Paginated<unknown>>> {
+  const { page, pageSize } = query;
+  const { items, total } = await chaptersService.fetchChapterMedia(chapterId, {
+    page,
+    pageSize,
+  });
+  return {
+    success: true,
+    message: "Chapter media fetched successfully",
+    data: { items, page, pageSize, total },
+  };
+}
+
+export async function updateChapterMedium(
+  chapterId: string,
+  mediumId: string,
+  body: z.infer<typeof UpdateChapterMediumSchema>,
+): Promise<ApiResponse<null>> {
+  await chaptersService.updateChapterMedium(chapterId, mediumId, body);
+  return {
+    success: true,
+    message: "Chapter medium updated successfully",
+    data: null,
+  };
+}
+
+export async function deleteChapterMedium(
+  chapterId: string,
+  mediumId: string,
+): Promise<ApiResponse<null>> {
+  await chaptersService.removeChapterMedium(chapterId, mediumId);
+  return {
+    success: true,
+    message: "Chapter medium removed",
+    data: null,
+  };
 }

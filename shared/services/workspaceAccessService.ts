@@ -11,6 +11,9 @@ export const HR_ALIAS = "hr";
 export const WELFARE_ALIAS = "welfare";
 export const MEDIA_ALIAS = "media";
 export const GRAPHICS_ALIAS = "graphics";
+export const SPONSORSHIP_ALIAS = "sponsorship";
+export const LEGAL_ALIAS = "legal";
+export const RECORDS_MGMT_ALIAS = "records_mgmt";
 
 export type WorkspaceCommittee = {
   id: string;
