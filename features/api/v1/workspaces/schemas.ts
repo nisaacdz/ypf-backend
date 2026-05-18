@@ -1,4 +1,5 @@
 import z from "zod";
+import { AllowedDocumentsMimeTypes } from "@/shared/middlewares/multipart";
 
 export const WorkspaceAliasParamsSchema = z.object({
   alias: z.string().min(1),
@@ -45,6 +46,30 @@ export const CreateWorkspaceNoteSchema = z.object({
 
 export const UpdateWorkspaceNoteSchema = z.object({
   body: z.string().min(1, "Note body is required"),
+});
+
+export const WorkspaceAttachmentsQuerySchema = z.object({
+  committeeId: z.uuid("Invalid committee ID"),
+  noteId: z.uuid("Invalid workspace record ID"),
+});
+
+export const CreateWorkspaceAttachmentSchema = z.object({
+  committeeId: z.uuid("Invalid committee ID"),
+  noteId: z.uuid("Invalid workspace record ID"),
+  label: z.string().max(120, "Attachment label is too long").optional(),
+});
+
+export const UploadWorkspaceAttachmentFileSchema = z.object({
+  size: z
+    .number()
+    .max(10 * 1024 * 1024, "Workspace attachments cannot exceed 10MB")
+    .positive({ message: "File size must be a positive number." }),
+  mimeType: z.enum(Object.keys(AllowedDocumentsMimeTypes), {
+    error: () => ({
+      message:
+        "Invalid file type. Upload PDF, Word, Excel, PowerPoint, PNG, or JPG files.",
+    }),
+  }),
 });
 
 const BudgetLineSchema = z.object({

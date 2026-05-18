@@ -8,7 +8,7 @@ import {
   unique,
   index,
 } from "drizzle-orm/pg-core";
-import { Committees, Constituents } from "./core";
+import { Committees, Constituents, Documents } from "./core";
 
 export const logs = pgSchema("logs");
 
@@ -119,5 +119,33 @@ export const WorkspaceNotes = logs.table(
       table.entityType,
       table.entityId,
     ),
+  ],
+);
+
+export const WorkspaceAttachments = logs.table(
+  "workspace_attachments",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    committeeId: uuid("committee_id")
+      .notNull()
+      .references(() => Committees.id, { onDelete: "cascade" }),
+    noteId: uuid("note_id")
+      .notNull()
+      .references(() => WorkspaceNotes.id, { onDelete: "cascade" }),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => Documents.id, { onDelete: "cascade" }),
+    label: text(),
+    originalFileName: text("original_file_name").notNull(),
+    uploadedBy: uuid("uploaded_by")
+      .notNull()
+      .references(() => Constituents.id, { onDelete: "restrict" }),
+    uploadedAt: timestamp("uploaded_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("idx_workspace_attachments_note").on(table.committeeId, table.noteId),
   ],
 );

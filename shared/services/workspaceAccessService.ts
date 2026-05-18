@@ -9,6 +9,8 @@ export const PROGRAMS_RECORDS_ALIAS = "programs_records";
 export const FINANCE_ALIAS = "finance";
 export const HR_ALIAS = "hr";
 export const WELFARE_ALIAS = "welfare";
+export const MEDIA_ALIAS = "media";
+export const GRAPHICS_ALIAS = "graphics";
 
 export type WorkspaceCommittee = {
   id: string;

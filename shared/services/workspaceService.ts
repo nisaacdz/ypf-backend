@@ -18,10 +18,18 @@ import {
   canManageCommitteeLive,
   FINANCE_ALIAS,
   getCommitteeByAlias,
+  GRAPHICS_ALIAS,
   HR_ALIAS,
   isSystemAdminLive,
+  MEDIA_ALIAS,
   WELFARE_ALIAS,
 } from "./workspaceAccessService";
+import {
+  deleteDocumentFile,
+  generateSignedDocumentDownloadUrl,
+  generateSignedDocumentPreviewUrl,
+  storeDocumentFile,
+} from "@/shared/utils/files";
 
 export type WorkspaceSubmissionKind = "PLAN" | "REPORT";
 export type WorkspaceNoteEntityType = "program" | "event" | "workspace";
@@ -100,6 +108,23 @@ export type WorkspaceNote = {
   authorId: string;
   authorName: string;
   createdAt: Date;
+};
+
+export type WorkspaceAttachment = {
+  id: string;
+  committeeId: string;
+  noteId: string;
+  documentId: string;
+  label?: string;
+  originalFileName: string;
+  type: string;
+  size: number;
+  previewUrl: string;
+  downloadUrl: string;
+  uploadedBy: string;
+  uploadedByName: string;
+  uploadedAt: Date;
+  canDelete: boolean;
 };
 
 export type FinanceDonation = {
@@ -207,6 +232,36 @@ export async function getWorkspaceReport({
 
   if (alias === WELFARE_ALIAS) {
     const reportData = await getWelfareReportData(
+      committee.id,
+      monthStart,
+      nextMonthStart,
+    );
+    return {
+      committee,
+      month: getMonthMeta(monthStart),
+      access,
+      submissions,
+      ...reportData,
+    };
+  }
+
+  if (alias === MEDIA_ALIAS) {
+    const reportData = await getMediaReportData(
+      committee.id,
+      monthStart,
+      nextMonthStart,
+    );
+    return {
+      committee,
+      month: getMonthMeta(monthStart),
+      access,
+      submissions,
+      ...reportData,
+    };
+  }
+
+  if (alias === GRAPHICS_ALIAS) {
+    const reportData = await getGraphicsReportData(
       committee.id,
       monthStart,
       nextMonthStart,
@@ -506,6 +561,197 @@ export async function deleteWorkspaceNote({
     .update(schema.WorkspaceNotes)
     .set({ deletedAt: new Date() })
     .where(eq(schema.WorkspaceNotes.id, noteId));
+}
+
+export async function getWorkspaceAttachments({
+  committeeId,
+  noteId,
+  user,
+}: {
+  committeeId: string;
+  noteId: string;
+  user: AuthenticatedUser;
+}): Promise<WorkspaceAttachment[]> {
+  if (!(await canAccessCommitteeLive(user, committeeId))) {
+    throw new ApiError("You don't have permission to access this workspace", 403);
+  }
+
+  await requireLiveWorkspaceNote(committeeId, noteId);
+
+  const [isAdmin, canManage] = await Promise.all([
+    isSystemAdminLive(user),
+    canManageCommitteeLive(user, committeeId),
+  ]);
+
+  const rows = await dbClient.db
+    .select({
+      id: schema.WorkspaceAttachments.id,
+      committeeId: schema.WorkspaceAttachments.committeeId,
+      noteId: schema.WorkspaceAttachments.noteId,
+      documentId: schema.WorkspaceAttachments.documentId,
+      label: schema.WorkspaceAttachments.label,
+      originalFileName: schema.WorkspaceAttachments.originalFileName,
+      uploadedBy: schema.WorkspaceAttachments.uploadedBy,
+      uploadedFirstName: schema.Constituents.firstName,
+      uploadedLastName: schema.Constituents.lastName,
+      uploadedAt: schema.WorkspaceAttachments.uploadedAt,
+      type: schema.Documents.type,
+      size: schema.Documents.size,
+      externalId: schema.Documents.externalId,
+    })
+    .from(schema.WorkspaceAttachments)
+    .innerJoin(
+      schema.Documents,
+      eq(schema.WorkspaceAttachments.documentId, schema.Documents.id),
+    )
+    .innerJoin(
+      schema.Constituents,
+      eq(schema.WorkspaceAttachments.uploadedBy, schema.Constituents.id),
+    )
+    .where(
+      and(
+        eq(schema.WorkspaceAttachments.committeeId, committeeId),
+        eq(schema.WorkspaceAttachments.noteId, noteId),
+        isNull(schema.WorkspaceAttachments.deletedAt),
+      ),
+    )
+    .orderBy(desc(schema.WorkspaceAttachments.uploadedAt));
+
+  return Promise.all(
+    rows.map(async (row) => ({
+      id: row.id,
+      committeeId: row.committeeId,
+      noteId: row.noteId,
+      documentId: row.documentId,
+      label: row.label ?? undefined,
+      originalFileName: row.originalFileName,
+      type: row.type,
+      size: row.size,
+      previewUrl: await generateSignedDocumentPreviewUrl(row.externalId, {
+        expireSeconds: 60 * 30,
+      }),
+      downloadUrl: await generateSignedDocumentDownloadUrl(row.externalId, {
+        expireSeconds: 60 * 30,
+      }),
+      uploadedBy: row.uploadedBy,
+      uploadedByName: `${row.uploadedFirstName} ${row.uploadedLastName}`.trim(),
+      uploadedAt: row.uploadedAt,
+      canDelete: isAdmin || canManage || row.uploadedBy === user.constituentId,
+    })),
+  );
+}
+
+export async function createWorkspaceAttachment({
+  committeeId,
+  noteId,
+  label,
+  file,
+  user,
+}: {
+  committeeId: string;
+  noteId: string;
+  label?: string;
+  file: Express.Multer.File;
+  user: AuthenticatedUser;
+}): Promise<WorkspaceAttachment> {
+  if (!(await canAccessCommitteeLive(user, committeeId))) {
+    throw new ApiError("You don't have permission to access this workspace", 403);
+  }
+
+  await requireLiveWorkspaceNote(committeeId, noteId);
+
+  const documentMeta = await storeDocumentFile(file);
+  let persisted = false;
+
+  try {
+    const [row] = await dbClient.db.transaction(async (tx) => {
+      const [document] = await tx
+        .insert(schema.Documents)
+        .values({
+          ...documentMeta,
+          uploadedBy: user.constituentId,
+        })
+        .returning({ id: schema.Documents.id });
+
+      if (!document?.id) {
+        throw new Error("Failed to create document record");
+      }
+
+      return tx
+        .insert(schema.WorkspaceAttachments)
+        .values({
+          committeeId,
+          noteId,
+          documentId: document.id,
+          label: label?.trim() || null,
+          originalFileName: file.originalname,
+          uploadedBy: user.constituentId,
+        })
+        .returning({ id: schema.WorkspaceAttachments.id });
+    });
+    persisted = true;
+
+    const [attachment] = await getWorkspaceAttachments({
+      committeeId,
+      noteId,
+      user,
+    });
+    const created = attachment?.id === row.id
+      ? attachment
+      : (await getWorkspaceAttachments({ committeeId, noteId, user })).find(
+          (item) => item.id === row.id,
+        );
+
+    if (!created) throw new ApiError("Workspace attachment was not created", 500);
+    return created;
+  } catch (error) {
+    if (!persisted) await deleteDocumentFile(documentMeta.externalId);
+    throw error;
+  }
+}
+
+export async function deleteWorkspaceAttachment({
+  attachmentId,
+  user,
+}: {
+  attachmentId: string;
+  user: AuthenticatedUser;
+}): Promise<void> {
+  const [attachment] = await dbClient.db
+    .select({
+      id: schema.WorkspaceAttachments.id,
+      committeeId: schema.WorkspaceAttachments.committeeId,
+      uploadedBy: schema.WorkspaceAttachments.uploadedBy,
+      deletedAt: schema.WorkspaceAttachments.deletedAt,
+      externalId: schema.Documents.externalId,
+    })
+    .from(schema.WorkspaceAttachments)
+    .innerJoin(
+      schema.Documents,
+      eq(schema.WorkspaceAttachments.documentId, schema.Documents.id),
+    )
+    .where(eq(schema.WorkspaceAttachments.id, attachmentId))
+    .limit(1);
+
+  if (!attachment || attachment.deletedAt) {
+    throw new ApiError("Workspace attachment not found", 404);
+  }
+
+  const [isAdmin, canManage] = await Promise.all([
+    isSystemAdminLive(user),
+    canManageCommitteeLive(user, attachment.committeeId),
+  ]);
+
+  if (!isAdmin && !canManage && attachment.uploadedBy !== user.constituentId) {
+    throw new ApiError("Only the uploader, a workspace chair, or an admin can delete this attachment", 403);
+  }
+
+  await dbClient.db
+    .update(schema.WorkspaceAttachments)
+    .set({ deletedAt: new Date() })
+    .where(eq(schema.WorkspaceAttachments.id, attachmentId));
+
+  await deleteDocumentFile(attachment.externalId);
 }
 
 export async function getFinanceDonations({
@@ -836,6 +1082,18 @@ async function requireWorkspaceManageAccess(
     throw new ApiError(message, 403);
   }
   return committee;
+}
+
+async function requireLiveWorkspaceNote(committeeId: string, noteId: string) {
+  const note = await dbClient.db.query.WorkspaceNotes.findFirst({
+    where: eq(schema.WorkspaceNotes.id, noteId),
+  });
+
+  if (!note || note.deletedAt || note.committeeId !== committeeId) {
+    throw new ApiError("Workspace record not found", 404);
+  }
+
+  return note;
 }
 
 async function getMonthlySubmissions(committeeId: string, month: Date) {
@@ -1259,6 +1517,310 @@ async function getWelfareReportData(
   };
 }
 
+type GraphicsWorkspaceRecord = {
+  id: string;
+  area: "requests" | "brand" | "templates";
+  category: string;
+  title: string;
+  status: string;
+  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+  owner?: string;
+  requestingCommittee?: string;
+  assetType?: string;
+  format?: string;
+  dueDate?: string;
+  approvalState?: string;
+  handoff?: string;
+  assetUrl?: string;
+  details: string;
+  outcome?: string;
+  authorName: string;
+  createdAt: Date;
+};
+
+async function getGraphicsReportData(
+  committeeId: string,
+  monthStart: Date,
+  nextMonthStart: Date,
+) {
+  const rows = await dbClient.db
+    .select({
+      id: schema.WorkspaceNotes.id,
+      body: schema.WorkspaceNotes.body,
+      createdAt: schema.WorkspaceNotes.createdAt,
+      authorFirstName: schema.Constituents.firstName,
+      authorLastName: schema.Constituents.lastName,
+    })
+    .from(schema.WorkspaceNotes)
+    .innerJoin(
+      schema.Constituents,
+      eq(schema.WorkspaceNotes.authorId, schema.Constituents.id),
+    )
+    .where(
+      and(
+        eq(schema.WorkspaceNotes.committeeId, committeeId),
+        eq(schema.WorkspaceNotes.entityType, "workspace"),
+        isNull(schema.WorkspaceNotes.deletedAt),
+      ),
+    )
+    .orderBy(desc(schema.WorkspaceNotes.createdAt));
+
+  const records = rows
+    .map((row) =>
+      parseGraphicsRecord({
+        ...row,
+        authorName: `${row.authorFirstName} ${row.authorLastName}`.trim(),
+      }),
+    )
+    .filter((record): record is GraphicsWorkspaceRecord => Boolean(record));
+  const monthRecords = records.filter(
+    (record) => record.createdAt >= monthStart && record.createdAt < nextMonthStart,
+  );
+  const openRequests = records.filter(
+    (record) => record.area === "requests" && !isGraphicsClosedStatus(record.status),
+  );
+  const brandAssets = records.filter((record) => record.area === "brand");
+  const templates = records.filter((record) => record.area === "templates");
+  const approvedItems = records.filter(
+    (record) =>
+      record.approvalState === "APPROVED" ||
+      ["APPROVED", "DELIVERED", "PUBLISHED"].includes(record.status),
+  );
+  const urgentItems = records.filter(
+    (record) => record.priority === "URGENT" && !isGraphicsClosedStatus(record.status),
+  );
+  const handoffs = records.filter(
+    (record) => record.handoff && record.handoff !== "None",
+  );
+
+  return {
+    metrics: [
+      {
+        label: "Open requests",
+        value: openRequests.length,
+        hint: "Design briefs still needing Graphics action",
+      },
+      {
+        label: "Brand assets",
+        value: brandAssets.length,
+        hint: "Identity, logo, color, and visual-rule records",
+      },
+      {
+        label: "Templates",
+        value: templates.length,
+        hint: "Reusable design templates tracked by Graphics",
+      },
+      {
+        label: "Approved items",
+        value: approvedItems.length,
+        hint: "Approved, delivered, or published design outputs",
+      },
+    ],
+    attendance: openRequests.slice(0, 8).map((record) => ({
+      id: record.id,
+      title: record.title,
+      meta: graphicsMeta(record),
+      badge: record.status.toLowerCase(),
+    })),
+    outcomes: approvedItems.slice(0, 8).map((record) => ({
+      id: record.id,
+      title: record.title,
+      meta: record.outcome || graphicsMeta(record),
+      badge: record.area,
+    })),
+    generatedItems: [
+      {
+        id: "month-activity",
+        title: `${monthRecords.length} graphics record${monthRecords.length === 1 ? "" : "s"} logged this month`,
+        meta: "Generated from design requests, brand assets, and templates",
+        badge: "monthly",
+      },
+      {
+        id: "urgent",
+        title: `${urgentItems.length} urgent design item${urgentItems.length === 1 ? "" : "s"}`,
+        meta: "High-priority visual production requiring attention",
+        badge: "urgent",
+      },
+      {
+        id: "handoffs",
+        title: `${handoffs.length} design handoff${handoffs.length === 1 ? "" : "s"}`,
+        meta: "Cross-committee design support and final export routing",
+        badge: "handoff",
+      },
+      {
+        id: "brand-library",
+        title: `${brandAssets.length} brand library item${brandAssets.length === 1 ? "" : "s"}`,
+        meta: "Public identity, logo, color, and visual-rule records",
+        badge: "brand",
+      },
+    ],
+  };
+}
+
+type MediaWorkspaceRecord = {
+  id: string;
+  area: "requests" | "calendar" | "assets" | "website";
+  category: string;
+  title: string;
+  status: string;
+  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+  owner?: string;
+  requestingCommittee?: string;
+  route?: string;
+  channel?: string;
+  dueDate?: string;
+  publishDate?: string;
+  approvalState?: string;
+  handoff?: string;
+  assetUrl?: string;
+  details: string;
+  outcome?: string;
+  authorName: string;
+  createdAt: Date;
+};
+
+const PUBLIC_WEBSITE_SURFACES = [
+  { id: "home", title: "Home", owner: "Media & Content", route: "/" },
+  { id: "about", title: "About", owner: "Media & Content", route: "/about" },
+  { id: "services", title: "Services", owner: "Media & Content", route: "/services" },
+  { id: "membership", title: "Membership", owner: "Human Resource Management", route: "/membership" },
+  { id: "volunteer", title: "Volunteer", owner: "Human Resource Management", route: "/volunteer" },
+  { id: "projects", title: "Projects", owner: "Programs & Records", route: "/projects" },
+  { id: "project-detail", title: "Project Detail", owner: "Programs & Records", route: "/projects/:id" },
+  { id: "events", title: "Events", owner: "Programs & Records", route: "/events" },
+  { id: "gallery", title: "Gallery", owner: "Media & Content", route: "/gallery" },
+  { id: "donate", title: "Donate", owner: "Financial Committee", route: "/donate" },
+  { id: "shop", title: "Shop", owner: "Financial Committee", route: "/shop" },
+  { id: "checkout", title: "Checkout", owner: "Financial Committee", route: "/checkout" },
+  { id: "contact", title: "Contact", owner: "Media & Content", route: "/contact" },
+  { id: "brand", title: "Visual Identity", owner: "Graphics Team", route: "Public brand assets" },
+  { id: "platform", title: "Website Reliability", owner: "Technical Committee", route: "Public platform health" },
+] as const;
+
+async function getMediaReportData(
+  committeeId: string,
+  monthStart: Date,
+  nextMonthStart: Date,
+) {
+  const rows = await dbClient.db
+    .select({
+      id: schema.WorkspaceNotes.id,
+      body: schema.WorkspaceNotes.body,
+      createdAt: schema.WorkspaceNotes.createdAt,
+      authorFirstName: schema.Constituents.firstName,
+      authorLastName: schema.Constituents.lastName,
+    })
+    .from(schema.WorkspaceNotes)
+    .innerJoin(
+      schema.Constituents,
+      eq(schema.WorkspaceNotes.authorId, schema.Constituents.id),
+    )
+    .where(
+      and(
+        eq(schema.WorkspaceNotes.committeeId, committeeId),
+        eq(schema.WorkspaceNotes.entityType, "workspace"),
+        isNull(schema.WorkspaceNotes.deletedAt),
+      ),
+    )
+    .orderBy(desc(schema.WorkspaceNotes.createdAt));
+
+  const records = rows
+    .map((row) =>
+      parseMediaRecord({
+        ...row,
+        authorName: `${row.authorFirstName} ${row.authorLastName}`.trim(),
+      }),
+    )
+    .filter((record): record is MediaWorkspaceRecord => Boolean(record));
+  const monthRecords = records.filter(
+    (record) => record.createdAt >= monthStart && record.createdAt < nextMonthStart,
+  );
+  const openRequests = records.filter(
+    (record) =>
+      record.area === "requests" && !isMediaClosedStatus(record.status),
+  );
+  const dueItems = records.filter(
+    (record) =>
+      !isMediaClosedStatus(record.status) &&
+      Boolean(record.dueDate || record.publishDate),
+  );
+  const approvedItems = records.filter(
+    (record) =>
+      record.approvalState === "APPROVED" ||
+      ["APPROVED", "SCHEDULED", "PUBLISHED"].includes(record.status),
+  );
+  const assetItems = records.filter((record) => record.area === "assets");
+  const publishedItems = records.filter((record) =>
+    ["PUBLISHED", "ARCHIVED"].includes(record.status),
+  );
+  const handoffs = records.filter(
+    (record) => record.handoff && record.handoff !== "None",
+  );
+
+  return {
+    metrics: [
+      {
+        label: "Open requests",
+        value: openRequests.length,
+        hint: "Content requests still needing Media action",
+      },
+      {
+        label: "Publishing calendar",
+        value: dueItems.length,
+        hint: "Open items with due or publish dates",
+      },
+      {
+        label: "Approved items",
+        value: approvedItems.length,
+        hint: "Approved, scheduled, or published communications",
+      },
+      {
+        label: "Website surfaces",
+        value: PUBLIC_WEBSITE_SURFACES.length,
+        hint: "Public website functions distributed to committees",
+      },
+    ],
+    attendance: dueItems.slice(0, 8).map((record) => ({
+      id: record.id,
+      title: record.title,
+      meta: mediaMeta(record),
+      badge: record.status.toLowerCase(),
+    })),
+    outcomes: publishedItems.slice(0, 8).map((record) => ({
+      id: record.id,
+      title: record.title,
+      meta: record.outcome || mediaMeta(record),
+      badge: record.area,
+    })),
+    generatedItems: [
+      {
+        id: "month-activity",
+        title: `${monthRecords.length} media record${monthRecords.length === 1 ? "" : "s"} logged this month`,
+        meta: "Generated from Media requests, calendar items, assets, and website reviews",
+        badge: "monthly",
+      },
+      {
+        id: "assets",
+        title: `${assetItems.length} media asset${assetItems.length === 1 ? "" : "s"} tracked`,
+        meta: "Gallery, campaign, press, and event evidence records",
+        badge: "assets",
+      },
+      {
+        id: "handoffs",
+        title: `${handoffs.length} public handoff${handoffs.length === 1 ? "" : "s"}`,
+        meta: "Cross-committee website and publishing responsibilities",
+        badge: "handoff",
+      },
+      ...PUBLIC_WEBSITE_SURFACES.slice(0, 5).map((surface) => ({
+        id: `website-${surface.id}`,
+        title: `${surface.title} owned by ${surface.owner}`,
+        meta: surface.route,
+        badge: "website",
+      })),
+    ],
+  };
+}
+
 async function getFinanceReportData(monthStart: Date, nextMonthStart: Date) {
   const monthStartDate = monthStart.toISOString().slice(0, 10);
   const nextMonthStartDate = nextMonthStart.toISOString().slice(0, 10);
@@ -1566,6 +2128,127 @@ function welfareMeta(record: WelfareWorkspaceRecord) {
     record.subject,
     record.owner ? `Owner: ${record.owner}` : undefined,
     record.followUpDate ? `Follow-up ${record.followUpDate}` : undefined,
+    record.handoff && record.handoff !== "None" ? `Handoff: ${record.handoff}` : undefined,
+  ].filter(Boolean);
+  return chunks.join(" · ") || `${record.area} · ${formatDate(record.createdAt)}`;
+}
+
+function parseMediaRecord(row: {
+  id: string;
+  body: string;
+  authorName: string;
+  createdAt: Date;
+}): MediaWorkspaceRecord | null {
+  try {
+    const parsed = JSON.parse(row.body) as Partial<MediaWorkspaceRecord> & {
+      kind?: string;
+    };
+    if (parsed.kind !== "ypf.media.record.v1") return null;
+    if (!parsed.area || !parsed.category || !parsed.title || !parsed.details) {
+      return null;
+    }
+    if (!["requests", "calendar", "assets", "website"].includes(parsed.area)) {
+      return null;
+    }
+
+    return {
+      id: row.id,
+      area: parsed.area,
+      category: parsed.category,
+      title: parsed.title,
+      status: parsed.status ?? "DRAFT",
+      priority: parsed.priority ?? "MEDIUM",
+      owner: parsed.owner,
+      requestingCommittee: parsed.requestingCommittee,
+      route: parsed.route,
+      channel: parsed.channel,
+      dueDate: parsed.dueDate,
+      publishDate: parsed.publishDate,
+      approvalState: parsed.approvalState,
+      handoff: parsed.handoff,
+      assetUrl: parsed.assetUrl,
+      details: parsed.details,
+      outcome: parsed.outcome,
+      authorName: row.authorName,
+      createdAt: row.createdAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isMediaClosedStatus(status: string) {
+  return ["PUBLISHED", "ARCHIVED", "COMPLETED", "APPROVED"].includes(status);
+}
+
+function mediaMeta(record: MediaWorkspaceRecord) {
+  const chunks = [
+    record.category,
+    record.route,
+    record.channel,
+    record.owner ? `Owner: ${record.owner}` : undefined,
+    record.publishDate ? `Publish ${record.publishDate}` : undefined,
+    record.dueDate ? `Due ${record.dueDate}` : undefined,
+    record.handoff && record.handoff !== "None" ? `Handoff: ${record.handoff}` : undefined,
+  ].filter(Boolean);
+  return chunks.join(" · ") || `${record.area} · ${formatDate(record.createdAt)}`;
+}
+
+function parseGraphicsRecord(row: {
+  id: string;
+  body: string;
+  authorName: string;
+  createdAt: Date;
+}): GraphicsWorkspaceRecord | null {
+  try {
+    const parsed = JSON.parse(row.body) as Partial<GraphicsWorkspaceRecord> & {
+      kind?: string;
+    };
+    if (parsed.kind !== "ypf.graphics.record.v1") return null;
+    if (!parsed.area || !parsed.category || !parsed.title || !parsed.details) {
+      return null;
+    }
+    if (!["requests", "brand", "templates"].includes(parsed.area)) {
+      return null;
+    }
+
+    return {
+      id: row.id,
+      area: parsed.area,
+      category: parsed.category,
+      title: parsed.title,
+      status: parsed.status ?? "REQUESTED",
+      priority: parsed.priority ?? "MEDIUM",
+      owner: parsed.owner,
+      requestingCommittee: parsed.requestingCommittee,
+      assetType: parsed.assetType,
+      format: parsed.format,
+      dueDate: parsed.dueDate,
+      approvalState: parsed.approvalState,
+      handoff: parsed.handoff,
+      assetUrl: parsed.assetUrl,
+      details: parsed.details,
+      outcome: parsed.outcome,
+      authorName: row.authorName,
+      createdAt: row.createdAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isGraphicsClosedStatus(status: string) {
+  return ["APPROVED", "DELIVERED", "ARCHIVED", "PUBLISHED"].includes(status);
+}
+
+function graphicsMeta(record: GraphicsWorkspaceRecord) {
+  const chunks = [
+    record.category,
+    record.requestingCommittee,
+    record.assetType,
+    record.format,
+    record.owner ? `Owner: ${record.owner}` : undefined,
+    record.dueDate ? `Due ${record.dueDate}` : undefined,
     record.handoff && record.handoff !== "None" ? `Handoff: ${record.handoff}` : undefined,
   ].filter(Boolean);
   return chunks.join(" · ") || `${record.area} · ${formatDate(record.createdAt)}`;

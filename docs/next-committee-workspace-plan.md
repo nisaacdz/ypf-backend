@@ -119,10 +119,10 @@ Build the Welfare workspace at `/dashboard/workspaces/welfare` so the chair can 
 - Super admin can view generated welfare reports and monthly submissions.
 - Unauthorized committee user cannot access `/dashboard/workspaces/welfare/*`.
 
-# Media and Content Committee Workspace Plan
+# Media and Content Committee Workspace Pass
 
-## Next Committee Candidate
-Media and Content should be the next committee pass because it owns announcements, publishing, campaigns, event coverage, content calendars, and evidence capture. It also partners closely with Programs & Records, Graphics, Sponsorship, and Welfare, so it needs a self-contained workspace where handoffs are tracked without sending users into admin or directory pages.
+## Status
+Implemented as the fifth committee workspace pass at `/dashboard/workspaces/media`.
 
 ## Goal
 Build the Media workspace at `/dashboard/workspaces/media` so the chair can manage content requests, publishing schedules, coverage tasks, campaign assets, and monthly media reports. Members should be able to view assignments, update progress where allowed, and contribute notes, while final publishing, archive, and official report submissions remain chair/admin actions.
@@ -133,6 +133,8 @@ Build the Media workspace at `/dashboard/workspaces/media` so the chair can mana
 - Requests: intake for content needs from other committees, requester, priority, due date, channel, status, and approval state.
 - Calendar: planned posts, event coverage, campaign milestones, publishing channels, owners, and due dates.
 - Assets: approved captions, links, media references, campaign files, and handoffs to Graphics or Programs & Records.
+- Website: public website ownership map, route/function distribution to committees, and website review records.
+- People: Media chair and committee members.
 - Reports: generated media analytics plus required beginning-of-month plan and end-of-month report submissions.
 
 ## Core Functionality
@@ -140,12 +142,24 @@ Build the Media workspace at `/dashboard/workspaces/media` so the chair can mana
 - Chair can assign content owners, set publishing dates, and mark cross-committee handoffs.
 - Members can view all tabs and update non-final progress notes where supported.
 - Requests, calendar items, and assets remain under `/dashboard/workspaces/media/*`.
+- Public website routes are distributed to the proper operating committees while Media owns public presentation, triage, and publishing quality.
 - Reports are generated from structured workspace activity, not a coming-soon placeholder.
+
+## Public Website Responsibility Distribution
+- `/`, `/about`, `/services`: Media owns public narrative; Executives and Graphics support approvals and visuals.
+- `/membership` and `/volunteer`: HR owns submissions, decisions, and onboarding; Media supports recruitment copy.
+- `/projects`, `/projects/:id`, `/events`: Programs & Records owns public program/event data; Media supports storytelling and coverage.
+- `/gallery`: Media owns gallery readiness, captions, and public evidence; Graphics and Programs & Records support assets and event context.
+- `/donate`: Finance owns donation records and payment reconciliation; Media and Sponsorship support campaign presentation.
+- `/shop`, `/checkout`, and order success: Finance owns product/payment records; Graphics and Media support product presentation.
+- `/contact`: Media owns public triage; HR, Sponsorship, Legal, Welfare, and Technical receive routed inquiries.
+- Public brand assets: Graphics owns visual production; Media requests and publishes approved assets.
+- Public platform health: Technical owns uptime, integrations, payments, uploads, and deployment health.
 
 ## Backend Work
 - Reuse workspace notes and monthly submissions for the first pass.
-- Persist media requests, calendar items, and assets as typed workspace-note payloads.
-- Add generated media report data from request counts, due/overdue items, published items, asset handoffs, and monthly activity.
+- Persist media requests, calendar items, assets, and website reviews as typed `ypf.media.record.v1` workspace-note payloads.
+- Add generated media report data from request counts, due/publishing items, approved/published items, asset handoffs, website surfaces, and monthly activity.
 - Future: connect social/channel analytics once the real publishing integrations exist.
 
 ## Test Plan
@@ -154,3 +168,53 @@ Build the Media workspace at `/dashboard/workspaces/media` so the chair can mana
 - Workbench actions stay inside `/dashboard/workspaces/media/*`.
 - Super admin can view generated Media reports and monthly submissions.
 - Unauthorized committee user cannot access `/dashboard/workspaces/media/*`.
+
+# Graphics Team Workspace Pass
+
+## Status
+Implemented as the sixth committee workspace pass at `/dashboard/workspaces/graphics`.
+
+## Goal
+Build `/dashboard/workspaces/graphics` so the Graphics chair can manage design requests, brand assets, templates, campaign visuals, and delivery approvals without leaving the workspace. Members should view all queues and update assigned progress, while final approval/archive actions remain chair/admin actions.
+
+## Proposed Tabs
+- Overview: design workload, pending requests, brand assets, templates, and monthly plan/report status.
+- Workbench: quick actions for request intake, active designs, template library, brand review, and media handoffs.
+- Requests: committee design requests, owner, due date, priority, status, and requesting committee.
+- Brand: logos, palettes, usage notes, public-site visual rules, and approved templates.
+- Templates: social, event, certificate, merchandise, sponsorship, and campaign template records.
+- People: Graphics chair and committee members.
+- Reports: generated graphics analytics plus required beginning-of-month plan and end-of-month report submissions.
+
+## Backend Work
+- Reuse workspace submissions and notes for the first pass.
+- Persist design requests, brand assets, and templates as typed `ypf.graphics.record.v1` workspace-note payloads.
+- Generate Graphics report data from open requests, brand assets, templates, urgent items, approved outputs, handoffs, and monthly activity.
+
+## Test Plan
+- Graphics chair can create, edit, approve, archive, export, and report on design records.
+- Graphics member can view all tabs and contribute progress notes without final approval rights.
+- Media can record handoffs to Graphics without leaving Media workspace.
+- Reports are generated from typed graphics workspace activity.
+
+# Sponsorship and Partnership Committee Workspace Plan
+
+## Next Committee Candidate
+Sponsorship should follow Graphics because public website fundraising, partner visibility, campaign visuals, and donation flows now have clear Media/Graphics/Finance ownership. Sponsorship needs a self-contained workspace for partner pipeline, sponsor packages, proposals, commitments, renewals, and Finance/Legal handoffs.
+
+## Goal
+Build `/dashboard/workspaces/sponsorship` so the chair can manage partner prospects, sponsorship packages, outreach history, commitment status, activation deliverables, and monthly partnership reporting. Members should view all tabs and update assigned outreach progress, while final commitment/close/archive actions remain chair/admin actions.
+
+## Proposed Tabs
+- Overview: partner pipeline, active opportunities, commitments, upcoming activation dates, and monthly plan/report status.
+- Workbench: quick actions for partner intake, outreach, proposal drafting, legal/finance handoff, and campaign activation.
+- Pipeline: prospects, stage, owner, category, value estimate, follow-up date, and next action.
+- Packages: sponsorship tiers, benefits, target programs/events, media/graphics deliverables, and approval state.
+- Commitments: pledged support, agreement status, finance handoff, legal review, delivery obligations, and renewal date.
+- Reports: generated sponsorship analytics plus required beginning-of-month plan and end-of-month report submissions.
+
+## Test Plan
+- Sponsorship chair can create, edit, close, export, and report on partner records.
+- Sponsorship member can view all tabs and update progress notes without final approval rights.
+- Finance and Legal handoffs remain represented as Sponsorship workspace records.
+- Reports are generated from typed sponsorship workspace activity.

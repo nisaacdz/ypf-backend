@@ -4,9 +4,11 @@ import z from "zod";
 import { authorize, authenticate } from "@/shared/middlewares/auth";
 import {
   validateBody,
+  validateFile,
   validateParams,
   validateQuery,
 } from "@/shared/middlewares/validate";
+import { documentsUpload } from "@/shared/middlewares/multipart";
 import {
   canAccessWorkspaceRequest,
   canManageWorkspaceRequest,
@@ -16,12 +18,15 @@ import * as workspacesHandler from "./workspacesHandler";
 import {
   CreateFinanceBudgetSchema,
   CreateFinanceExpenditureSchema,
+  CreateWorkspaceAttachmentSchema,
   CreateWorkspaceNoteSchema,
   FinanceLedgerQuerySchema,
   ReviewFinanceBudgetSchema,
   SubmitWorkspaceDocumentSchema,
   UpdateWorkspaceNoteSchema,
+  UploadWorkspaceAttachmentFileSchema,
   WorkspaceAliasParamsSchema,
+  WorkspaceAttachmentsQuerySchema,
   WorkspaceNotesQuerySchema,
   WorkspaceReportQuerySchema,
   WorkspaceReportsQuerySchema,
@@ -113,6 +118,63 @@ workspacesRouter.delete(
     try {
       const response = await workspacesHandler.deleteWorkspaceNote({
         noteId: req.Params.id,
+        user: req.User!,
+      });
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+workspacesRouter.get(
+  "/attachments",
+  authenticate,
+  validateQuery(WorkspaceAttachmentsQuerySchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await workspacesHandler.getWorkspaceAttachments({
+        committeeId: req.Query.committeeId,
+        noteId: req.Query.noteId,
+        user: req.User!,
+      });
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+workspacesRouter.post(
+  "/attachments",
+  authenticate,
+  documentsUpload.single("file"),
+  validateFile(UploadWorkspaceAttachmentFileSchema),
+  validateBody(CreateWorkspaceAttachmentSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await workspacesHandler.createWorkspaceAttachment({
+        committeeId: req.Body.committeeId,
+        noteId: req.Body.noteId,
+        label: req.Body.label,
+        file: req.File,
+        user: req.User!,
+      });
+      res.status(201).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+workspacesRouter.delete(
+  "/attachments/:id",
+  authenticate,
+  validateParams(z.object({ id: z.uuid("Invalid attachment ID") }), 404),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await workspacesHandler.deleteWorkspaceAttachment({
+        attachmentId: req.Params.id,
         user: req.User!,
       });
       res.status(200).json(response);

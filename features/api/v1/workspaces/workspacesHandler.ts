@@ -154,6 +154,69 @@ export async function deleteWorkspaceNote({
   };
 }
 
+export async function getWorkspaceAttachments({
+  committeeId,
+  noteId,
+  user,
+}: {
+  committeeId: string;
+  noteId: string;
+  user: AuthenticatedUser;
+}): Promise<ApiResponse<workspaceService.WorkspaceAttachment[]>> {
+  const data = await workspaceService.getWorkspaceAttachments({
+    committeeId,
+    noteId,
+    user,
+  });
+  return {
+    success: true,
+    message: "Workspace attachments fetched successfully",
+    data,
+  };
+}
+
+export async function createWorkspaceAttachment({
+  committeeId,
+  noteId,
+  label,
+  file,
+  user,
+}: {
+  committeeId: string;
+  noteId: string;
+  label?: string;
+  file: Express.Multer.File;
+  user: AuthenticatedUser;
+}): Promise<ApiResponse<workspaceService.WorkspaceAttachment>> {
+  const data = await workspaceService.createWorkspaceAttachment({
+    committeeId,
+    noteId,
+    label,
+    file,
+    user,
+  });
+  return {
+    success: true,
+    message: "Workspace attachment uploaded successfully",
+    data,
+  };
+}
+
+export async function deleteWorkspaceAttachment({
+  attachmentId,
+  user,
+}: {
+  attachmentId: string;
+  user: AuthenticatedUser;
+}): Promise<ApiResponse<null>> {
+  await workspaceService.deleteWorkspaceAttachment({ attachmentId, user });
+  return {
+    success: true,
+    message: "Workspace attachment deleted successfully",
+    data: null,
+  };
+}
+
 export async function getFinanceDonations(input: {
   user: AuthenticatedUser;
   page: number;
