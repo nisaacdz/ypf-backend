@@ -122,3 +122,16 @@ export const GetEventMediaQuerySchema = z.object({
     .enum(MediumTypeEnum.enumValues, { message: "Invalid medium type." })
     .optional(),
 });
+
+// Plan §8.2 / Audit C3 — public guest registration for an event. Lighter than
+// the project version (no rich guest profile) because event attendance is
+// typically a quick RSVP rather than a multi-step volunteer application.
+export const GuestEventRegistrationSchema = z.object({
+  firstName: z.string().min(1).max(120),
+  lastName: z.string().min(1).max(120),
+  email: z.email(),
+  phone: z.string().min(1).max(50),
+  consents: z
+    .object({ termsAgreedAt: z.string().datetime() })
+    .strict(),
+});

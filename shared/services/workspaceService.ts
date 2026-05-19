@@ -16,6 +16,8 @@ import { ApiError, type AuthenticatedUser } from "@/shared/types";
 import {
   canAccessCommitteeLive,
   canManageCommitteeLive,
+  ADVISORY_BOARD_ALIAS,
+  EXECUTIVES_ALIAS,
   FINANCE_ALIAS,
   getCommitteeByAlias,
   GRAPHICS_ALIAS,
@@ -23,6 +25,7 @@ import {
   INSTITUTIONAL_ALIAS,
   isSystemAdminLive,
   LEGAL_ALIAS,
+  MANAGEMENT_BOARD_ALIAS,
   MEDIA_ALIAS,
   RECORDS_MGMT_ALIAS,
   SPONSORSHIP_ALIAS,
@@ -343,6 +346,26 @@ export async function getWorkspaceReport({
   if (alias === INSTITUTIONAL_ALIAS) {
     const reportData = await getInstitutionalReportData(
       committee.id,
+      monthStart,
+      nextMonthStart,
+    );
+    return {
+      committee,
+      month: getMonthMeta(monthStart),
+      access,
+      submissions,
+      ...reportData,
+    };
+  }
+
+  if (
+    alias === MANAGEMENT_BOARD_ALIAS ||
+    alias === EXECUTIVES_ALIAS ||
+    alias === ADVISORY_BOARD_ALIAS
+  ) {
+    const reportData = await getGovernanceReportData(
+      committee.id,
+      alias,
       monthStart,
       nextMonthStart,
     );
@@ -3190,6 +3213,308 @@ function recordsManagementMeta(record: RecordsManagementWorkspaceRecord) {
     record.reviewDate ? `Review ${record.reviewDate}` : undefined,
     record.legalHold ? "Legal hold" : undefined,
     record.privacyFlag ? "Privacy flag" : undefined,
+  ].filter(Boolean);
+  return chunks.join(" · ") || `${record.area} · ${formatDate(record.createdAt)}`;
+}
+
+type GovernanceWorkspaceRecord = {
+  id: string;
+  kind?: "ypf.governance.record.v1";
+  governanceAlias?: "management_board" | "executives" | "advisory_board";
+  area:
+    | "approvals"
+    | "committee_health"
+    | "escalations"
+    | "board_minutes"
+    | "directives"
+    | "decisions"
+    | "announcements"
+    | "executive_minutes"
+    | "advisory_notes"
+    | "strategic_reviews"
+    | "recommendations"
+    | "risk_insights";
+  category: string;
+  title: string;
+  status: string;
+  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+  owner?: string;
+  sourceCommittee?: string;
+  targetCommittee?: string;
+  requestedBy?: string;
+  decisionLevel?: string;
+  approvalType?: string;
+  meetingType?: string;
+  meetingDate?: string;
+  dueDate?: string;
+  decisionDate?: string;
+  reviewDate?: string;
+  riskLevel?: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  recommendationType?: string;
+  recommendation?: string;
+  decision?: string;
+  resolution?: string;
+  followUpAction?: string;
+  details: string;
+  outcome?: string;
+  authorName: string;
+  createdAt: Date;
+};
+
+async function getGovernanceReportData(
+  committeeId: string,
+  alias: string,
+  monthStart: Date,
+  nextMonthStart: Date,
+) {
+  const rows = await dbClient.db
+    .select({
+      id: schema.WorkspaceNotes.id,
+      body: schema.WorkspaceNotes.body,
+      createdAt: schema.WorkspaceNotes.createdAt,
+      authorFirstName: schema.Constituents.firstName,
+      authorLastName: schema.Constituents.lastName,
+    })
+    .from(schema.WorkspaceNotes)
+    .innerJoin(
+      schema.Constituents,
+      eq(schema.WorkspaceNotes.authorId, schema.Constituents.id),
+    )
+    .where(
+      and(
+        eq(schema.WorkspaceNotes.committeeId, committeeId),
+        eq(schema.WorkspaceNotes.entityType, "workspace"),
+        isNull(schema.WorkspaceNotes.deletedAt),
+      ),
+    )
+    .orderBy(desc(schema.WorkspaceNotes.createdAt));
+
+  const records = rows
+    .map((row) =>
+      parseGovernanceRecord({
+        ...row,
+        authorName: `${row.authorFirstName} ${row.authorLastName}`.trim(),
+      }),
+    )
+    .filter((record): record is GovernanceWorkspaceRecord =>
+      Boolean(record && (!record.governanceAlias || record.governanceAlias === alias)),
+    );
+  const monthRecords = records.filter(
+    (record) => record.createdAt >= monthStart && record.createdAt < nextMonthStart,
+  );
+  const openRecords = records.filter(
+    (record) => !isGovernanceClosedStatus(record.status),
+  );
+  const outcomes = records.filter(
+    (record) =>
+      isGovernanceClosedStatus(record.status) ||
+      Boolean(record.outcome || record.decision || record.resolution),
+  );
+
+  const byArea = (area: GovernanceWorkspaceRecord["area"]) =>
+    records.filter((record) => record.area === area);
+  const openByArea = (area: GovernanceWorkspaceRecord["area"]) =>
+    openRecords.filter((record) => record.area === area);
+
+  const metrics =
+    alias === MANAGEMENT_BOARD_ALIAS
+      ? [
+          {
+            label: "Pending approvals",
+            value: openByArea("approvals").length,
+            hint: "Budgets, committee plans, partnerships, and operational sign-offs",
+          },
+          {
+            label: "Open escalations",
+            value: openByArea("escalations").length,
+            hint: "Cross-committee items requiring board intervention",
+          },
+          {
+            label: "Health reviews",
+            value: openByArea("committee_health").length,
+            hint: "Committee performance, compliance, and accountability checks",
+          },
+          {
+            label: "Board minutes",
+            value: byArea("board_minutes").length,
+            hint: "Meeting records and decision trails",
+          },
+        ]
+      : alias === EXECUTIVES_ALIAS
+        ? [
+            {
+              label: "Active directives",
+              value: openByArea("directives").length,
+              hint: "Strategic instructions still in motion",
+            },
+            {
+              label: "Executive decisions",
+              value: byArea("decisions").length,
+              hint: "Final decisions and resolutions logged",
+            },
+            {
+              label: "Announcements",
+              value: byArea("announcements").length,
+              hint: "Strategic communications prepared or published",
+            },
+            {
+              label: "Executive minutes",
+              value: byArea("executive_minutes").length,
+              hint: "Leadership meetings and action trails",
+            },
+          ]
+        : [
+            {
+              label: "Advisory notes",
+              value: byArea("advisory_notes").length,
+              hint: "Guidance notes recorded for leadership",
+            },
+            {
+              label: "Strategic reviews",
+              value: byArea("strategic_reviews").length,
+              hint: "Programs, committees, risks, and org direction reviewed",
+            },
+            {
+              label: "Recommendations",
+              value: openByArea("recommendations").length,
+              hint: "Recommendations awaiting response or follow-up",
+            },
+            {
+              label: "Risk insights",
+              value: openByArea("risk_insights").length,
+              hint: "Strategic risks and opportunities being tracked",
+            },
+          ];
+
+  const queue = openRecords.sort(
+    (a, b) => priorityWeight(b.priority) - priorityWeight(a.priority),
+  );
+  const critical = records.filter(
+    (record) => record.priority === "URGENT" || record.riskLevel === "CRITICAL",
+  );
+  const dated = records.filter(
+    (record) => record.dueDate || record.meetingDate || record.reviewDate,
+  );
+
+  return {
+    metrics,
+    attendance: queue.slice(0, 8).map((record) => ({
+      id: record.id,
+      title: record.title,
+      meta: governanceMeta(record),
+      badge: record.status.toLowerCase(),
+    })),
+    outcomes: outcomes.slice(0, 8).map((record) => ({
+      id: record.id,
+      title: record.title,
+      meta: record.outcome || record.decision || record.resolution || governanceMeta(record),
+      badge: record.area.replace(/_/g, " "),
+    })),
+    generatedItems: [
+      {
+        id: "month-activity",
+        title: `${monthRecords.length} governance record${monthRecords.length === 1 ? "" : "s"} logged this month`,
+        meta: "Generated from workspace decisions, reviews, minutes, recommendations, and escalations",
+        badge: "monthly",
+      },
+      {
+        id: "open-queue",
+        title: `${openRecords.length} open governance item${openRecords.length === 1 ? "" : "s"}`,
+        meta: "Items that still need decision, review, response, or follow-up",
+        badge: "queue",
+      },
+      {
+        id: "critical",
+        title: `${critical.length} urgent or critical item${critical.length === 1 ? "" : "s"}`,
+        meta: "Records marked urgent priority or critical risk",
+        badge: "priority",
+      },
+      {
+        id: "dated",
+        title: `${dated.length} due, review, or meeting date${dated.length === 1 ? "" : "s"} tracked`,
+        meta: "Records with due dates, review windows, or meeting dates",
+        badge: "calendar",
+      },
+    ],
+  };
+}
+
+function parseGovernanceRecord(row: {
+  id: string;
+  body: string;
+  authorName: string;
+  createdAt: Date;
+}): GovernanceWorkspaceRecord | null {
+  try {
+    const parsed = JSON.parse(row.body) as Partial<GovernanceWorkspaceRecord> & {
+      kind?: string;
+    };
+    if (parsed.kind !== "ypf.governance.record.v1") return null;
+    if (!parsed.area || !parsed.category || !parsed.title || !parsed.details) {
+      return null;
+    }
+
+    return {
+      id: row.id,
+      governanceAlias: parsed.governanceAlias,
+      area: parsed.area,
+      category: parsed.category,
+      title: parsed.title,
+      status: parsed.status ?? "OPEN",
+      priority: parsed.priority ?? "MEDIUM",
+      owner: parsed.owner,
+      sourceCommittee: parsed.sourceCommittee,
+      targetCommittee: parsed.targetCommittee,
+      requestedBy: parsed.requestedBy,
+      decisionLevel: parsed.decisionLevel,
+      approvalType: parsed.approvalType,
+      meetingType: parsed.meetingType,
+      meetingDate: parsed.meetingDate,
+      dueDate: parsed.dueDate,
+      decisionDate: parsed.decisionDate,
+      reviewDate: parsed.reviewDate,
+      riskLevel: parsed.riskLevel,
+      recommendationType: parsed.recommendationType,
+      recommendation: parsed.recommendation,
+      decision: parsed.decision,
+      resolution: parsed.resolution,
+      followUpAction: parsed.followUpAction,
+      details: parsed.details,
+      outcome: parsed.outcome,
+      authorName: row.authorName,
+      createdAt: row.createdAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isGovernanceClosedStatus(status: string) {
+  return [
+    "APPROVED",
+    "REJECTED",
+    "SIGNED_OFF",
+    "RESOLVED",
+    "CLOSED",
+    "PUBLISHED",
+    "ADOPTED",
+    "ACKNOWLEDGED",
+    "ARCHIVED",
+  ].includes(status);
+}
+
+function governanceMeta(record: GovernanceWorkspaceRecord) {
+  const chunks = [
+    record.category,
+    record.sourceCommittee ? `Source: ${record.sourceCommittee}` : undefined,
+    record.targetCommittee ? `Target: ${record.targetCommittee}` : undefined,
+    record.owner ? `Owner: ${record.owner}` : undefined,
+    record.requestedBy ? `Requested by: ${record.requestedBy}` : undefined,
+    record.riskLevel ? `Risk: ${record.riskLevel}` : undefined,
+    record.decisionLevel,
+    record.dueDate ? `Due ${record.dueDate}` : undefined,
+    record.reviewDate ? `Review ${record.reviewDate}` : undefined,
+    record.meetingDate ? `Meeting ${record.meetingDate}` : undefined,
   ].filter(Boolean);
   return chunks.join(" · ") || `${record.area} · ${formatDate(record.createdAt)}`;
 }

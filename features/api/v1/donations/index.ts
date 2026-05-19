@@ -11,6 +11,7 @@ import {
 } from "@/shared/middlewares/validate";
 import { CreateDonationSchema, GetDonationsQuerySchema } from "./schemas";
 import { Visitors } from "@/configs/authorizer";
+import { rateLimit } from "@/shared/middlewares/rateLimit";
 import * as donationsHandler from "./donationsHandler";
 import z from "zod";
 
@@ -18,6 +19,11 @@ const donationsRouter = Router();
 
 donationsRouter.post(
   "/paystack",
+  // Audit I1 — public payment endpoints attracted no rate limit; an attacker
+  // could spam this to burn through our Paystack /transaction/initialize
+  // quota and pollute FinancialTransactions with PENDING rows. 10 inits per
+  // 5-min window per IP is generous for real donors, painful for bots.
+  rateLimit({ windowMs: 5 * 60 * 1000, maxRequests: 10 }),
   authenticateLax,
   validateBody(CreateDonationSchema),
   async (req: Request, res: Response, next: NextFunction) => {

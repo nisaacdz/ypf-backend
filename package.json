@@ -6,7 +6,7 @@
   "license": "ISC",
   "main": "dist/app.js",
   "scripts": {
-    "dev": "tsx watch app.ts",
+    "dev": "nodemon --watch . --ignore node_modules --ignore dist --ignore temp --ignore storage --ext ts,json --exec tsx app.ts",
     "build": "tsc && tsc-alias",
     "start": "node dist/app.js",
     "script": "tsx scripts/run.ts",
@@ -69,6 +69,7 @@
     "eslint": "^9.37.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
+    "nodemon": "^3.1.14",
     "pino-pretty": "^13.1.2",
     "supertest": "^7.1.4",
     "tsc-alias": "^1.8.16",

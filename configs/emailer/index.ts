@@ -7,8 +7,8 @@ class Emailer {
   constructor() {
     this.transporter = nodemailer.createTransport({
       host: variables.services.email.host,
-      port: 465,
-      secure: true,
+      port: variables.services.email.port,
+      secure: variables.services.email.secure,
       auth: {
         user: variables.services.email.user,
         pass: variables.services.email.pass,

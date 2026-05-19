@@ -10,6 +10,7 @@ import {
   CreateEventSchema,
   GetEventMediaQuerySchema,
   GetEventsQuerySchema,
+  GuestEventRegistrationSchema,
   UploadEventFileSchema,
   UploadEventMediumOptionsSchema,
   UpdateEventSchema,
@@ -22,6 +23,7 @@ import {
 } from "@/shared/middlewares/auth";
 import * as eventsHandler from "./eventsHandler";
 import filesUpload from "@/shared/middlewares/multipart";
+import { rateLimit } from "@/shared/middlewares/rateLimit";
 import z from "zod";
 import { ADMIN, anyOf, MEMBER, Visitors } from "@/configs/authorizer";
 import { redisCacheEarlyReturn } from "@/shared/middlewares/redisCache";
@@ -245,6 +247,28 @@ eventsRouter.patch(
       await redisClient.delCache(`/api/v1/events/${req.Params.eventId}`);
 
       res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// ─── Public guest registration (plan §8.2 / audit C3) ──────────────────────
+
+eventsRouter.post(
+  "/:id/register-guest",
+  // Same rate-limit shape as project guest reg. 10/5min/IP keeps real users
+  // happy and stops bots from spamming RSVPs.
+  rateLimit({ windowMs: 5 * 60 * 1000, maxRequests: 10 }),
+  validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
+  validateBody(GuestEventRegistrationSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await eventsHandler.registerGuestForEvent(
+        req.Params.id,
+        req.Body,
+      );
+      res.status(201).json(response);
     } catch (error) {
       next(error);
     }

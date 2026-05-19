@@ -54,33 +54,68 @@
     {
       "idx": 7,
       "version": "7",
+      "when": 1779000000000,
+      "tag": "0007_event_attendees_project_enrollments",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1779010000000,
+      "tag": "0008_certificates",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1779020000000,
+      "tag": "0009_user_preferences",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
       "when": 1779052620000,
       "tag": "0010_workspace_submissions_notes",
       "breakpoints": true
     },
     {
-      "idx": 8,
+      "idx": 11,
       "version": "7",
       "when": 1779052680000,
       "tag": "0011_workspace_submission_document_fields",
       "breakpoints": true
     },
     {
-      "idx": 9,
+      "idx": 12,
+      "version": "7",
+      "when": 1779052700000,
+      "tag": "0012_public_site_cutover",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
       "version": "7",
       "when": 1779052740000,
       "tag": "0013_finance_budget_requests",
       "breakpoints": true
     },
     {
-      "idx": 10,
+      "idx": 14,
+      "version": "7",
+      "when": 1779052760000,
+      "tag": "0014_workspace_attachments",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
       "version": "7",
       "when": 1779052800000,
       "tag": "0015_system_settings_and_audit_logs",
       "breakpoints": true
     },
     {
-      "idx": 11,
+      "idx": 16,
       "version": "7",
       "when": 1779052860000,
       "tag": "0016_committee_maintenance",

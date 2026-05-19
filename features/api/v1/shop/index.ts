@@ -8,6 +8,7 @@ import {
 } from "@/shared/middlewares/validate";
 import { Visitors } from "@/configs/authorizer";
 import filesUpload from "@/shared/middlewares/multipart";
+import { rateLimit } from "@/shared/middlewares/rateLimit";
 import * as shopHandler from "./shopHandler";
 import {
   CreateOrderSchema,
@@ -88,6 +89,9 @@ shopRouter.post(
 
 shopRouter.post(
   "/orders/guest/initiate",
+  // Audit I1 — every initiate sends an OTP email and reserves stock. Cap at
+  // 5 per 5-min window per IP to keep spammers from torching our SMTP quota.
+  rateLimit({ windowMs: 5 * 60 * 1000, maxRequests: 5 }),
   validateBody(InitiateGuestOrderSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -101,6 +105,10 @@ shopRouter.post(
 
 shopRouter.post(
   "/orders/guest/complete",
+  // Audit I1 — OTP verification + Paystack init happens here. 10 attempts
+  // per 5-min window per IP covers retry-after-typo without enabling
+  // brute-force of the 6-digit OTP.
+  rateLimit({ windowMs: 5 * 60 * 1000, maxRequests: 10 }),
   validateBody(CompleteGuestOrderSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {

@@ -1,12 +1,17 @@
 import { Request, Response, NextFunction } from "express";
 import { Router } from "express";
 import * as authHandler from "./authHandler";
-import { validateBody, validateFile } from "@/shared/middlewares/validate";
+import {
+  validateBody,
+  validateFile,
+  validateQuery,
+} from "@/shared/middlewares/validate";
 import {
   UsernameAndPasswordSchema,
   ForgotPasswordSchema,
   ResetPasswordSchema,
   OnboardSchema,
+  OnboardStatusQuerySchema,
   UpdateMeSchema,
   ChangePasswordSchema,
   UploadProfilePhotoSchema,
@@ -204,17 +209,10 @@ authRouter.patch(
 
 authRouter.get(
   "/onboard/status",
+  validateQuery(OnboardStatusQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const user = req.query.user as string;
-      if (!user) {
-        res.status(400).json({
-          success: false,
-          message: "User ID is required",
-        });
-        return;
-      }
-      const response = await authHandler.checkOnboardStatus(user);
+      const response = await authHandler.checkOnboardStatus(req.Query.user);
       res.status(200).json(response);
     } catch (error) {
       next(error);

@@ -35,11 +35,10 @@ const envSchema = z
     IMAGEKIT_PUBLIC_KEY: z.string().min(1, "IMAGEKIT_PUBLIC_KEY is required"),
     IMAGEKIT_PRIVATE_KEY: z.string().min(1, "IMAGEKIT_PRIVATE_KEY is required"),
 
-    // Paystack Configuration
-    PAYSTACK_SECRET: z
-      .string()
-      .min(1, "PAYSTACK_SECRET is required")
-      .default(""), // TODO remove default soon!
+    // Paystack Configuration. No default — the backend refuses to boot
+    // without it so we fail fast at startup instead of silently 401-ing on
+    // every payment call. Use a test key (sk_test_...) in non-prod envs.
+    PAYSTACK_SECRET: z.string().min(1, "PAYSTACK_SECRET is required"),
     // Optional Paystack subaccount that should receive funds from any UMS-
     // initiated transaction (dues, donations, shop). Format: ACCT_xxxxxxxxxxx.
     // Leave blank to keep funds on the main account.
@@ -47,6 +46,10 @@ const envSchema = z
 
     // SMTP Email Configuration
     SMTP_HOST: z.string().min(1, "SMTP_HOST is required"),
+    SMTP_PORT: z.coerce.number().int().positive().default(465),
+    // SSL on 465 vs STARTTLS on 587. Gmail uses 465/true; AWS SES + most
+    // others use 587/false. Override via env when switching providers.
+    SMTP_SECURE: z.coerce.boolean().default(true),
     SMTP_USER: z.string().min(1, "SMTP_USER is required"),
     SMTP_PASS: z.string().min(1, "SMTP_PASS is required"),
     EMAILER: z.email("A valid sender email (EMAILER) is required"),
@@ -96,6 +99,8 @@ const envSchema = z
       },
       email: {
         host: env.SMTP_HOST,
+        port: env.SMTP_PORT,
+        secure: env.SMTP_SECURE,
         user: env.SMTP_USER,
         pass: env.SMTP_PASS,
         sender: env.EMAILER,

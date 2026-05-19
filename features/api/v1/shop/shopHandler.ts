@@ -2,6 +2,7 @@ import { ApiError, ApiResponse } from "@/shared/types";
 import * as shopService from "@/shared/services/shopService";
 import * as mediaUtils from "@/shared/utils/files";
 import * as mediaService from "@/shared/services/mediaService";
+import * as transactionsService from "@/shared/services/transactionsService";
 import z from "zod";
 import {
   CreateOrderSchema,
@@ -19,6 +20,7 @@ import { ShopProduct, ShopProductDetail } from "./dtos";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { eq, count } from "drizzle-orm";
+import logger from "@/configs/logger";
 
 /**
  * Handler for getting all shop products
@@ -71,6 +73,13 @@ export async function getRelatedProducts(
 /**
  * Plan §8.8 — public order success-page polling by Paystack reference.
  * No PII; returns status + total + itemCount.
+ *
+ * Webhook-loss fallback (mirrors getDonationByRef): when status is PENDING,
+ * opportunistically call Paystack's /transaction/verify endpoint and refresh
+ * the row if Paystack reports a terminal state. This is what makes the
+ * success page work in local development (Paystack can't reach localhost)
+ * and acts as a safety net in production for the rare case where a webhook
+ * is dropped.
  */
 export async function getOrderByRef(ref: string): Promise<
   ApiResponse<{
@@ -81,30 +90,49 @@ export async function getOrderByRef(ref: string): Promise<
     itemCount: number;
   }>
 > {
-  const [row] = await dbClient.db
-    .select({
-      orderId: schema.Orders.id,
-      orderStatus: schema.Orders.status,
-      totalAmount: schema.Orders.totalAmount,
-      currency: schema.FinancialTransactions.currency,
-    })
-    .from(schema.FinancialTransactions)
-    .innerJoin(
-      schema.OrderPayments,
-      eq(
-        schema.OrderPayments.transactionId,
-        schema.FinancialTransactions.id,
-      ),
-    )
-    .innerJoin(
-      schema.Orders,
-      eq(schema.Orders.id, schema.OrderPayments.orderId),
-    )
-    .where(eq(schema.FinancialTransactions.externalRef, ref))
-    .limit(1);
+  const selectByRef = () =>
+    dbClient.db
+      .select({
+        orderId: schema.Orders.id,
+        orderStatus: schema.Orders.status,
+        totalAmount: schema.Orders.totalAmount,
+        currency: schema.FinancialTransactions.currency,
+      })
+      .from(schema.FinancialTransactions)
+      .innerJoin(
+        schema.OrderPayments,
+        eq(
+          schema.OrderPayments.transactionId,
+          schema.FinancialTransactions.id,
+        ),
+      )
+      .innerJoin(
+        schema.Orders,
+        eq(schema.Orders.id, schema.OrderPayments.orderId),
+      )
+      .where(eq(schema.FinancialTransactions.externalRef, ref))
+      .limit(1);
+
+  let [row] = await selectByRef();
 
   if (!row) {
     throw new ApiError("Order not found", 404);
+  }
+
+  if (row.orderStatus === "PENDING") {
+    try {
+      const result = await transactionsService.verifyTransaction(ref);
+      if (result.wasUpdated) {
+        [row] = await selectByRef();
+      }
+    } catch (err) {
+      // Verify failed (network, Paystack 4xx, etc.). Keep returning the
+      // current PENDING state so the client keeps polling.
+      logger.warn(
+        { err, ref },
+        "Paystack verify-on-poll failed for order; returning current status",
+      );
+    }
   }
 
   const [itemCountRow] = await dbClient.db

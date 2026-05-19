@@ -16,6 +16,9 @@ export const LEGAL_ALIAS = "legal";
 export const RECORDS_MGMT_ALIAS = "records_mgmt";
 export const TECHNICAL_ALIAS = "technical";
 export const INSTITUTIONAL_ALIAS = "institutional";
+export const EXECUTIVES_ALIAS = "executives";
+export const MANAGEMENT_BOARD_ALIAS = "management_board";
+export const ADVISORY_BOARD_ALIAS = "advisory_board";
 
 export type WorkspaceCommittee = {
   id: string;

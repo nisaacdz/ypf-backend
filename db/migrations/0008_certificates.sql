@@ -1,6 +1,13 @@
--- Certificate types
-CREATE TYPE activities.certificate_type AS ENUM ('COMPLETION', 'PARTICIPATION', 'ACHIEVEMENT', 'LEADERSHIP');
-CREATE TYPE activities.certificate_status AS ENUM ('ACTIVE', 'REVOKED', 'EXPIRED');
+-- Certificate types. Wrapped in DO blocks because Postgres has no
+-- `CREATE TYPE IF NOT EXISTS`, and this migration may run against a DB
+-- where the types were created out-of-band (see audit C7).
+DO $$ BEGIN
+  CREATE TYPE activities.certificate_type AS ENUM ('COMPLETION', 'PARTICIPATION', 'ACHIEVEMENT', 'LEADERSHIP');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE activities.certificate_status AS ENUM ('ACTIVE', 'REVOKED', 'EXPIRED');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 -- Certificates table
 CREATE TABLE IF NOT EXISTS activities.certificates (

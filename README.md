@@ -59,6 +59,7 @@ To keep our codebase consistent and easy to navigate, we follow these rules:
 
 - **Swagger UI**: Served at `/docs` endpoint when the server is running.
 - **API Documentation**: See [`swagger/README.md`](swagger/README.md) for details on the YAML-based Swagger documentation structure.
+- **Production Setup**: See [`docs/production-environment-setup.md`](docs/production-environment-setup.md) for the full production env, deployment, DNS, storage, email, payment, and verification guide.
 - **Implementation Guides**: Check the `docs/` folder for detailed implementation patterns (Transactions, Authorization, etc.).
 
 ---

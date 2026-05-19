@@ -96,3 +96,13 @@ export const OnboardSchema = z.object({
         "User ID must match the format 'YPF-YYYY-XXXXXX' (e.g., 'YPF-2024-ABC123').",
     }),
 });
+
+// Plan §I9 — public endpoint, must reject fuzzed input at the middleware
+// boundary rather than letting it through to a DB query.
+export const OnboardStatusQuerySchema = z.object({
+  user: z
+    .string()
+    .regex(/^YPF-\d{4}-[A-Za-z0-9]{6}$/, {
+      message: "Invalid user identifier.",
+    }),
+});
