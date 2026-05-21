@@ -359,4 +359,61 @@ systemRouter.get(
   },
 );
 
+// ─── Backups ──────────────────────────────────────────────────────────────
+// Super-admin only — the dump file contains every constituent's PII. Listing
+// is read-only but still SUPER-gated; downloading and triggering are
+// audited so the trail explains who pulled the data and when.
+
+const canManageBackups = Visitors.hasRole(ADMIN.SUPER);
+
+systemRouter.get(
+  "/backups",
+  authorize(canManageBackups),
+  validateQuery(
+    z.object({
+      page: z.coerce.number().int().min(1).default(1),
+      pageSize: z.coerce.number().int().min(1).max(100).default(25),
+    }),
+  ),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await systemHandler.listBackups(req.Query);
+      res.status(200).json(response);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+systemRouter.post(
+  "/backups",
+  authorize(canManageBackups),
+  audit({ action: "system.backup.trigger" }),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await systemHandler.triggerBackup(
+        req.User!.constituentId,
+      );
+      res.status(202).json(response);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+systemRouter.get(
+  "/backups/:id/download",
+  authorize(canManageBackups),
+  audit({ action: "system.backup.download" }),
+  validateParams(z.object({ id: z.string().uuid() })),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await systemHandler.getBackupDownloadUrl(req.Params.id);
+      res.status(200).json(response);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 export default systemRouter;

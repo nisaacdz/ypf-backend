@@ -187,3 +187,40 @@ export async function surface(): Promise<
   const data = systemService.getServiceSurface();
   return { success: true, data };
 }
+
+import * as backupService from "@/shared/services/backupService";
+
+export async function listBackups(
+  query: { page?: number; pageSize?: number },
+): Promise<ApiResponse<Awaited<ReturnType<typeof backupService.listBackups>>>> {
+  const data = await backupService.listBackups(query);
+  return { success: true, data };
+}
+
+export async function triggerBackup(
+  constituentId: string,
+): Promise<ApiResponse<{ id: string; status: string }>> {
+  // Kick off in the background so the admin gets a fast 202. The row flips
+  // to SUCCESS / FAILED on its own; the UI polls the list endpoint.
+  const seed = await backupService.runBackup({
+    trigger: "MANUAL",
+    triggeredBy: constituentId,
+  }).catch(() => null);
+  // runBackup is awaited here for the small-data case (faster than two
+  // round-trips) but rethrowing into the 202 swallows the error — the row
+  // already carries the FAILED status. The handler returns whichever final
+  // state we landed in.
+  return {
+    success: true,
+    data: { id: seed?.id ?? "", status: seed?.status ?? "FAILED" },
+    message: "Backup triggered",
+  };
+}
+
+export async function getBackupDownloadUrl(
+  id: string,
+): Promise<ApiResponse<{ url: string; expiresInSeconds: number }>> {
+  const expireSeconds = 60 * 60;
+  const url = await backupService.generateBackupDownloadUrl(id, expireSeconds);
+  return { success: true, data: { url, expiresInSeconds: expireSeconds } };
+}

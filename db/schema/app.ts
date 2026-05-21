@@ -171,6 +171,35 @@ export const AuditLogs = app.table(
   ],
 );
 
+// Per-backup record. We deliberately store dump files in Azure Blob, not
+// in Postgres itself — keeping backups inside the thing you're backing up
+// makes recovery impossible. `blob_path` is the dump's object key; the API
+// mints short-lived SAS download URLs on demand.
+export const SystemBackups = app.table(
+  "system_backups",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    trigger: text("trigger").notNull(), // MANUAL | SCHEDULED
+    status: text("status").notNull(), // RUNNING | SUCCESS | FAILED
+    sizeBytes: integer("size_bytes"),
+    blobContainer: text("blob_container"),
+    blobPath: text("blob_path"),
+    checksumSha256: text("checksum_sha256"),
+    startedAt: timestamp("started_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    triggeredBy: uuid("triggered_by").references(() => Constituents.id, {
+      onDelete: "set null",
+    }),
+    errorMessage: text("error_message"),
+  },
+  (table) => [
+    index("system_backups_started_idx").on(table.startedAt),
+    index("system_backups_status_idx").on(table.status, table.startedAt),
+  ],
+);
+
 // SMS delivery log. One row per send attempt (one row per recipient when
 // fanning out a bulk send). Used by the /sms admin page for analytics,
 // usage history, and credit reconciliation against the Arkesel dashboard.

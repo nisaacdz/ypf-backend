@@ -13,6 +13,13 @@ export const JobNames = {
 
   // Cleanup Jobs
   CLEANUP_EXPIRED_ANNOUNCEMENTS: "cleanup-expired-announcements",
+  AUDIT_LOG_RETENTION: "audit-log-retention",
+
+  // Birthday Jobs
+  BIRTHDAY_TICK: "birthday-tick",
+
+  // Backup Jobs
+  DATABASE_BACKUP: "database-backup",
 
   // Report Jobs
   GENERATE_MONTHLY_REPORT: "generate-monthly-report",

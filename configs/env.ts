@@ -73,6 +73,13 @@ const envSchema = z
     // to simulate without consuming credit.
     ARKESEL_SANDBOX: z.coerce.boolean().default(false),
 
+    // Database backup feature. The pg_dump binary must be available on the
+    // PATH of the runtime container (most hosts include it). Backups are
+    // written to a dedicated Azure Blob container — keeping them in
+    // Postgres itself would defeat the point.
+    BACKUP_BLOB_CONTAINER: z.string().default("backups"),
+    PG_DUMP_BIN: z.string().default("pg_dump"),
+
     // Application Metadata
     LOGO_URL: z.url("A valid LOGO_URL is required"),
     YEAR: z.string().default(new Date().getFullYear().toString()),
@@ -107,6 +114,10 @@ const envSchema = z
     services: {
       azure: {
         storageConnectionString: env.AZURE_STORAGE_CONNECTION_STRING,
+      },
+      backups: {
+        container: env.BACKUP_BLOB_CONTAINER,
+        pgDumpBin: env.PG_DUMP_BIN,
       },
       redis: {
         url: env.REDIS_URL,

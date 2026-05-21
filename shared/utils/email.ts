@@ -700,3 +700,46 @@ export async function sendMembershipApplicationAcceptanceEmail(params: {
 
   await sendEmail(params.email, subject, htmlBody, textContent);
 }
+
+/**
+ * Heads-up email to the Graphics team that someone's birthday is coming up.
+ * Includes a link to the per-person card-prep page in UMS.
+ */
+export async function sendBirthdayHeadsUpEmail(params: {
+  email: string;
+  recipientName?: string;
+  birthdayPersonName: string;
+  birthdayDate: string;
+  age: number;
+  cardPrepUrl: string;
+}): Promise<void> {
+  const subject = `🎂 ${params.birthdayPersonName}'s birthday is in 3 days`;
+
+  const content = `
+    <p>Hi ${params.recipientName ?? "Graphics team"},</p>
+    <p>Heads up — <strong>${params.birthdayPersonName}</strong> turns
+    <strong>${params.age}</strong> on <strong>${params.birthdayDate}</strong>.</p>
+    <p>Prep their birthday card here:</p>
+    <p style="margin: 24px 0;">
+      <a class="button" href="${params.cardPrepUrl}">Open card prep page</a>
+    </p>
+    <p style="font-size: 12px; color: ${colors.mutedForeground};">
+      You're receiving this because you're on the Graphics committee.
+    </p>
+    <p>— YPF Africa</p>
+  `;
+
+  const htmlBody = generateBaseHtml(subject, content);
+
+  const textContent = [
+    `Hi ${params.recipientName ?? "Graphics team"},`,
+    "",
+    `Heads up — ${params.birthdayPersonName} turns ${params.age} on ${params.birthdayDate}.`,
+    "",
+    `Prep their birthday card here: ${params.cardPrepUrl}`,
+    "",
+    "— YPF Africa",
+  ].join("\n");
+
+  await sendEmail(params.email, subject, htmlBody, textContent);
+}

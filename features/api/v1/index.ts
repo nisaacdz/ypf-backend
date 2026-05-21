@@ -26,6 +26,7 @@ import systemRouter from "./system";
 import maintenanceRouter from "./maintenance";
 import smsRouter from "./sms";
 import publicTeamRouter from "./public-team";
+import birthdaysRouter from "./birthdays";
 import { maintenanceGate } from "@/shared/middlewares/maintenance";
 import { authenticateLax } from "@/shared/middlewares/auth";
 
@@ -67,5 +68,6 @@ apiRouter.use("/system", systemRouter);
 apiRouter.use("/maintenance", maintenanceRouter);
 apiRouter.use("/sms", smsRouter);
 apiRouter.use("/public-team", publicTeamRouter);
+apiRouter.use("/birthdays", birthdaysRouter);
 
 export default apiRouter;
