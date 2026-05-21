@@ -79,7 +79,7 @@ export async function forgotPassword({
 }: z.infer<typeof ForgotPasswordSchema>): Promise<ApiResponse<null>> {
   const otp = await authService.forgotPassword(email);
 
-  await sendOtpEmail(email, otp);
+  await sendOtpEmail(email, otp, "password_reset");
 
   return {
     success: true,
@@ -100,7 +100,7 @@ export async function onboard({
 }: z.infer<typeof OnboardSchema>): Promise<ApiResponse<null>> {
   const { otp, email } = await authService.onboardUser(user);
 
-  await sendOtpEmail(email, otp);
+  await sendOtpEmail(email, otp, "onboarding");
 
   return {
     success: true,

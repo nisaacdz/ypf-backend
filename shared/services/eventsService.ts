@@ -1,4 +1,4 @@
-import { eq, count, and, ilike, or } from "drizzle-orm";
+import { eq, count, and, ilike, or, desc, isNull, isNotNull, sql } from "drizzle-orm";
 import schema from "@/db/schema";
 import dbClient from "@/configs/db";
 import z from "zod";
@@ -16,7 +16,7 @@ import { ApiError } from "@/shared/types";
 export async function fetchEvents(
   query: z.infer<typeof GetEventsQuerySchema>,
 ): Promise<Paginated<YPFEvent>> {
-  const { page, pageSize, search, projectId, filterStatus, filterType } = query;
+  const { page, pageSize, search, projectId, chapterId, filterStatus, filterType } = query;
   const offset = (page - 1) * pageSize;
 
   const conditions = [];
@@ -32,6 +32,18 @@ export async function fetchEvents(
 
   if (projectId) {
     conditions.push(eq(schema.Events.projectId, projectId));
+  }
+
+  // Match events tied to this chapter either directly (Events.chapterId) or
+  // indirectly through their parent project (Projects.chapterId). Either link
+  // can be the canonical association depending on how the event was created.
+  if (chapterId) {
+    conditions.push(
+      or(
+        eq(schema.Events.chapterId, chapterId),
+        eq(schema.Projects.chapterId, chapterId),
+      ),
+    );
   }
 
   if (filterStatus) {
@@ -59,6 +71,14 @@ export async function fetchEvents(
         projectTitle: schema.Projects.title,
         chapterName: schema.Chapters.name,
         featuredMediumExternalId: schema.Media.externalId,
+        // Real attendee count from the event_attendees table. Both guest +
+        // member attendees are counted. Subquery so it composes cleanly
+        // with the existing groupBy without pulling join cardinality issues.
+        attendeeCount: sql<number>`(
+          SELECT COUNT(*)::int
+          FROM ${schema.EventAttendees}
+          WHERE ${schema.EventAttendees.eventId} = ${schema.Events.id}
+        )`,
       })
       .from(schema.Events)
       .leftJoin(
@@ -120,6 +140,7 @@ export async function fetchEvents(
     status: event.status,
     projectTitle: event.projectTitle || undefined,
     chapterName: event.chapterName || undefined,
+    attendeeCount: Number(event.attendeeCount ?? 0),
     featuredMediumUrl: event.featuredMediumExternalId
       ? mediaUtils.generateSignedMediaUrl(event.featuredMediumExternalId, {
           resolution: 720,
@@ -446,4 +467,97 @@ export async function createEvent(
     .returning({ id: schema.Events.id });
 
   return createdEvent ?? null;
+}
+
+// ─── Event attendees roster (Audit I6) ──────────────────────────────────────
+
+export type EventAttendeeRow = {
+  id: string;
+  role: "guest" | "member";
+  status: "INVITED" | "ACCEPTED" | "DECLINED" | "ATTENDED";
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  registeredAt: Date;
+};
+
+/**
+ * Paginated list of who's RSVP'd to an event. Unifies guest attendees
+ * (constituent_id NULL, guest_* fields) with member attendees (joined to
+ * Constituents).
+ */
+export async function fetchEventAttendees(
+  eventId: string,
+  query: {
+    page?: number;
+    pageSize?: number;
+    role?: "guest" | "member" | "all";
+  },
+): Promise<Paginated<EventAttendeeRow>> {
+  const page = query.page ?? 1;
+  const pageSize = query.pageSize ?? 20;
+  const offset = (page - 1) * pageSize;
+  const role = query.role ?? "all";
+
+  const conds = [eq(schema.EventAttendees.eventId, eventId)];
+  if (role === "guest") {
+    conds.push(isNull(schema.EventAttendees.constituentId));
+  } else if (role === "member") {
+    conds.push(isNotNull(schema.EventAttendees.constituentId));
+  }
+  const whereClause = and(...conds);
+
+  const [rows, totalRow] = await Promise.all([
+    dbClient.db
+      .select({
+        id: schema.EventAttendees.id,
+        constituentId: schema.EventAttendees.constituentId,
+        status: schema.EventAttendees.status,
+        guestName: schema.EventAttendees.guestName,
+        guestEmail: schema.EventAttendees.guestEmail,
+        guestPhone: schema.EventAttendees.guestPhone,
+        registeredAt: schema.EventAttendees.registeredAt,
+        memberFirstName: schema.Constituents.firstName,
+        memberLastName: schema.Constituents.lastName,
+        memberEmail: schema.Constituents.email,
+        memberPhone: schema.Constituents.phone,
+      })
+      .from(schema.EventAttendees)
+      .leftJoin(
+        schema.Constituents,
+        eq(schema.EventAttendees.constituentId, schema.Constituents.id),
+      )
+      .where(whereClause)
+      .orderBy(desc(schema.EventAttendees.registeredAt))
+      .limit(pageSize)
+      .offset(offset),
+    dbClient.db
+      .select({ n: count() })
+      .from(schema.EventAttendees)
+      .where(whereClause)
+      .then((res) => res[0].n),
+  ]);
+
+  const items: EventAttendeeRow[] = rows.map((r) => {
+    const isGuest = r.constituentId === null;
+    return {
+      id: r.id,
+      role: isGuest ? "guest" : "member",
+      status: r.status,
+      name: isGuest
+        ? r.guestName
+        : [r.memberFirstName, r.memberLastName].filter(Boolean).join(" ") ||
+          null,
+      email: isGuest ? r.guestEmail : r.memberEmail,
+      phone: isGuest ? r.guestPhone : r.memberPhone,
+      registeredAt: r.registeredAt,
+    };
+  });
+
+  return {
+    items,
+    page,
+    pageSize,
+    total: Number(totalRow ?? 0),
+  };
 }

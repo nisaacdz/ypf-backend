@@ -9,7 +9,7 @@ import {
 } from "@/db/schema/activities";
 import { Media, Chapters } from "@/db/schema/core";
 import * as mediaUtils from "@/shared/utils/files";
-import { eq, and, ilike, count, desc, isNull, sql } from "drizzle-orm";
+import { eq, and, ilike, count, desc, isNull, isNotNull, sql } from "drizzle-orm";
 import z from "zod";
 import {
   GetProjectsQuerySchema,
@@ -378,6 +378,11 @@ export async function fetchProjectEvents(
         type: schema.Events.type,
         status: schema.Events.status,
         featuredMediumExternalId: schema.Media.externalId,
+        attendeeCount: sql<number>`(
+          SELECT COUNT(*)::int
+          FROM ${schema.EventAttendees}
+          WHERE ${schema.EventAttendees.eventId} = ${schema.Events.id}
+        )`,
       })
       .from(schema.Events)
       .leftJoin(
@@ -406,6 +411,7 @@ export async function fetchProjectEvents(
     location: event.location || undefined,
     type: event.type,
     status: event.status,
+    attendeeCount: Number(event.attendeeCount ?? 0),
     featuredMediumUrl: event.featuredMediumExternalId
       ? mediaUtils.generateSignedMediaUrl(event.featuredMediumExternalId, {
           resolution: 720,
@@ -419,5 +425,106 @@ export async function fetchProjectEvents(
     page,
     pageSize,
     total,
+  };
+}
+
+// ─── Project enrollments roster (Audit I6) ──────────────────────────────────
+
+export type ProjectEnrollmentRow = {
+  id: string;
+  role: "guest" | "member";
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  enrolledAt: Date;
+  unenrolledAt: Date | null;
+  guestProfile: unknown | null;
+};
+
+/**
+ * Paginated list of who's registered for a given project. Unifies guest
+ * enrollments (constituent_id NULL, guest_* fields populated) with
+ * authenticated-member enrollments (joined to Constituents).
+ *
+ * Filter: role=guest|member|all. Default 'all'.
+ */
+export async function fetchProjectEnrollments(
+  projectId: string,
+  query: {
+    page?: number;
+    pageSize?: number;
+    role?: "guest" | "member" | "all";
+  },
+): Promise<Paginated<ProjectEnrollmentRow>> {
+  const page = query.page ?? 1;
+  const pageSize = query.pageSize ?? 20;
+  const offset = (page - 1) * pageSize;
+  const role = query.role ?? "all";
+
+  const conds = [eq(schema.ProjectEnrollments.projectId, projectId)];
+  if (role === "guest") {
+    conds.push(isNull(schema.ProjectEnrollments.constituentId));
+  } else if (role === "member") {
+    conds.push(isNotNull(schema.ProjectEnrollments.constituentId));
+  }
+  const whereClause = and(...conds);
+
+  const [rows, totalRow] = await Promise.all([
+    dbClient.db
+      .select({
+        id: schema.ProjectEnrollments.id,
+        constituentId: schema.ProjectEnrollments.constituentId,
+        guestName: schema.ProjectEnrollments.guestName,
+        guestEmail: schema.ProjectEnrollments.guestEmail,
+        guestPhone: schema.ProjectEnrollments.guestPhone,
+        guestProfile: schema.ProjectEnrollments.guestProfile,
+        enrolledAt: schema.ProjectEnrollments.enrolledAt,
+        unenrolledAt: schema.ProjectEnrollments.unenrolledAt,
+        memberFirstName: schema.Constituents.firstName,
+        memberLastName: schema.Constituents.lastName,
+        memberEmail: schema.Constituents.email,
+        memberPhone: schema.Constituents.phone,
+      })
+      .from(schema.ProjectEnrollments)
+      .leftJoin(
+        schema.Constituents,
+        eq(
+          schema.ProjectEnrollments.constituentId,
+          schema.Constituents.id,
+        ),
+      )
+      .where(whereClause)
+      .orderBy(desc(schema.ProjectEnrollments.enrolledAt))
+      .limit(pageSize)
+      .offset(offset),
+    dbClient.db
+      .select({ n: count() })
+      .from(schema.ProjectEnrollments)
+      .where(whereClause)
+      .then((res) => res[0].n),
+  ]);
+
+  const items: ProjectEnrollmentRow[] = rows.map((r) => {
+    const isGuest = r.constituentId === null;
+    return {
+      id: r.id,
+      role: isGuest ? "guest" : "member",
+      name: isGuest
+        ? r.guestName
+        : [r.memberFirstName, r.memberLastName].filter(Boolean).join(" ") ||
+          null,
+      email: isGuest ? r.guestEmail : r.memberEmail,
+      phone: isGuest ? r.guestPhone : r.memberPhone,
+      enrolledAt: r.enrolledAt,
+      unenrolledAt: r.unenrolledAt,
+      guestProfile: isGuest ? r.guestProfile : null,
+    };
+  });
+
+  return {
+    items,
+    page,
+    pageSize,
+    total: Number(totalRow ?? 0),
   };
 }

@@ -8,6 +8,7 @@ import {
 import {
   GetProjectsQuerySchema,
   GetProjectMediaQuerySchema,
+  GetProjectEnrollmentsQuerySchema,
   UploadProjectFileSchema,
   UploadProjectMediumOptionsSchema,
   CreateProjectSchema,
@@ -245,6 +246,34 @@ projectsRouter.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await projectsHandler.getProjectEvents(
+        req.Params.id,
+        req.Query,
+      );
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// Audit I6 — admin registrants roster. Authenticated admin OR program
+// committee chair (because programs/records ownership covers this). Guest
+// PII is included in the response, so this stays admin-only.
+projectsRouter.get(
+  "/:id/enrollments",
+  authenticate,
+  authorize(
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(MEMBER.PRESIDENT),
+      canManageProgramsRecords,
+    ),
+  ),
+  validateParams(z.object({ id: z.uuid() }), 404),
+  validateQuery(GetProjectEnrollmentsQuerySchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await projectsHandler.getProjectEnrollments(
         req.Params.id,
         req.Query,
       );

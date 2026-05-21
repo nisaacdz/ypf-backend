@@ -1,6 +1,7 @@
 import { ApiResponse, ApiError } from "@/shared/types";
 import {
   CreateEventSchema,
+  GetEventAttendeesQuerySchema,
   GetEventMediaQuerySchema,
   GetEventsQuerySchema,
   GuestEventRegistrationSchema,
@@ -191,5 +192,18 @@ export async function registerGuestForEvent(
     success: true,
     message: "Registration received",
     data: { id: attendee.id, eventId },
+  };
+}
+
+// Audit I6 — admin roster.
+export async function getEventAttendees(
+  eventId: string,
+  query: z.infer<typeof GetEventAttendeesQuerySchema>,
+): Promise<ApiResponse<Paginated<eventsService.EventAttendeeRow>>> {
+  const data = await eventsService.fetchEventAttendees(eventId, query);
+  return {
+    success: true,
+    message: "Event attendees fetched successfully",
+    data,
   };
 }

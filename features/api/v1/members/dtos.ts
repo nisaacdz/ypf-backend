@@ -18,6 +18,18 @@ export type YPFMember = {
   campus?: string;
 
   startedAt?: Date; // membership start date
+
+  // Current-period dues snapshot. Computed against the latest global Dues
+  // row (chapterId IS NULL). Both fields are absent when no dues period is
+  // active (e.g. the policy hasn't generated a row for this month yet).
+  dues?: {
+    paid: boolean;
+    amount: number;
+    amountPaid: number;
+    currency: string;
+    periodStart: Date;
+    periodEnd: Date;
+  };
 };
 
 export type YPFMemberDetail = {

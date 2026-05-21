@@ -6,7 +6,7 @@ import * as mediaUtils from "@/shared/utils/files";
 import { eq, and, sql, desc, count } from "drizzle-orm";
 import { GetPublicMediaQuerySchema } from "./schemas";
 
-type PublicMediaParentKind = "PROJECT" | "EVENT" | "CHAPTER" | "COMMITTEE";
+type PublicMediaParentKind = "PROJECT" | "EVENT";
 
 export type PublicMediumItem = {
   id: string;
@@ -23,10 +23,12 @@ export type PublicMediumItem = {
 };
 
 /**
- * Plan §8.6 — public gallery union over Project/Event/Chapter/Committee media.
+ * Public gallery union over Project and Event media.
  *
- * Each branch produces the same shape via a tagged SELECT; the four are
- * UNION ALL-ed, ordered by uploaded_at desc, and paginated.
+ * Chapter and committee galleries are intentionally excluded: every image on
+ * the public site is project- or event-anchored so the gallery can be sliced
+ * by activity type (Advocacy / Mentorship / etc) rather than ownership.
+ * Internal Chapter/Committee galleries still exist on their own endpoints.
  */
 async function fetchPublicMedia(
   query: z.infer<typeof GetPublicMediaQuerySchema>,
@@ -34,13 +36,8 @@ async function fetchPublicMedia(
   const { scope, type, chapterId, page, pageSize } = query;
   const offset = (page - 1) * pageSize;
 
-  // Build per-source SELECTs as raw SQL fragments — Drizzle's UNION ALL helper
-  // wants identically-shaped subqueries which is harder to express across four
-  // different parent tables.
   const showProjects = scope === "all" || scope === "projects";
   const showEvents = scope === "all" || scope === "events";
-  const showChapters = scope === "all" || scope === "chapters";
-  const showCommittees = scope === "all" || scope === "committees";
 
   const parts: ReturnType<typeof sql>[] = [];
 
@@ -83,45 +80,6 @@ async function fetchPublicMedia(
       WHERE 1=1
       ${type ? sql`AND e.type::text = ${type}` : sql``}
       ${chapterId ? sql`AND e.chapter_id = ${chapterId}` : sql``}
-    `);
-  }
-
-  if (showChapters) {
-    parts.push(sql`
-      SELECT
-        cm.id::text                              AS id,
-        m.external_id                            AS external_id,
-        cm.caption                               AS caption,
-        m.type::text                             AS type,
-        'CHAPTER'::text                          AS parent_kind,
-        c.id::text                               AS parent_id,
-        c.name                                   AS parent_title,
-        NULL::text                               AS parent_category,
-        m.uploaded_at                            AS uploaded_at
-      FROM core.chapter_media cm
-      INNER JOIN core.media m ON cm.medium_id = m.id
-      INNER JOIN core.chapters c ON cm.chapter_id = c.id
-      WHERE 1=1
-      ${chapterId ? sql`AND c.id = ${chapterId}` : sql``}
-    `);
-  }
-
-  if (showCommittees) {
-    parts.push(sql`
-      SELECT
-        cmm.id::text                             AS id,
-        m.external_id                            AS external_id,
-        cmm.caption                              AS caption,
-        m.type::text                             AS type,
-        'COMMITTEE'::text                        AS parent_kind,
-        com.id::text                             AS parent_id,
-        com.name                                 AS parent_title,
-        NULL::text                               AS parent_category,
-        m.uploaded_at                            AS uploaded_at
-      FROM core.committee_media cmm
-      INNER JOIN core.media m ON cmm.medium_id = m.id
-      INNER JOIN core.committees com ON cmm.committee_id = com.id
-      WHERE 1=1
     `);
   }
 

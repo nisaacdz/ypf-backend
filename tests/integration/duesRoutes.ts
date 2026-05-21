@@ -6,6 +6,7 @@ import { hashSync } from "bcryptjs";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { generateTestUser, generateTestDues } from "../factories";
+import { extractAccessTokenCookie } from "../helpers";
 
 describe("Dues API", () => {
   let authTokenCookie: string;
@@ -74,14 +75,7 @@ describe("Dues API", () => {
         password: testUser.password,
       });
 
-    const setCookieHeader = loginResponse.headers["set-cookie"];
-    const cookies = Array.isArray(setCookieHeader)
-      ? setCookieHeader
-      : [setCookieHeader];
-
-    const accessToken = cookies.find((c) => c.includes("access_token"));
-
-    authTokenCookie = accessToken?.split(";")[0] || "";
+    authTokenCookie = extractAccessTokenCookie(loginResponse.headers["set-cookie"]);
   });
 
   afterAll(async () => {

@@ -1,4 +1,4 @@
-import { eq, desc, inArray, and, gte, count } from "drizzle-orm";
+import { eq, desc, inArray, and, gte, lte, count, ilike, or } from "drizzle-orm";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import variables from "@/configs/env";
@@ -288,9 +288,10 @@ export async function initiateGuestOrder(
     });
   });
 
-  // Send OTP email
+  // Send OTP email — flagged as checkout purpose so the recipient sees
+  // "checkout code" copy rather than the legacy password-reset wording.
   try {
-    await sendOtpEmail(email, otp);
+    await sendOtpEmail(email, otp, "checkout");
   } catch (emailError) {
     logger.error(emailError, "Failed to send OTP email");
     throw new ApiError("Failed to send verification code", 500);
@@ -357,16 +358,43 @@ export async function completeGuestOrder(
         .set({ usedAt: sql`now()` })
         .where(eq(schema.Otps.id, otpRecord.id));
 
-      // Create constituent
-      const [newConstituent] = await tx
-        .insert(schema.Constituents)
-        .values({
-          firstName: payload.firstName,
-          lastName: payload.lastName,
-          email: payload.email,
-          phone: payload.phone,
-        })
-        .returning();
+      // Resolve constituent — reuse an existing record if this email is
+      // already known. Constituents.email + Constituents.phone both carry
+      // unique constraints, so blindly inserting blows up on every repeat
+      // checkout (or whenever a member places a guest order with their own
+      // email). When inserting fresh, omit phone if another constituent
+      // already holds it.
+      let constituentId: string;
+      const [existingByEmail] = await tx
+        .select({ id: schema.Constituents.id })
+        .from(schema.Constituents)
+        .where(eq(schema.Constituents.email, payload.email))
+        .limit(1);
+
+      if (existingByEmail) {
+        constituentId = existingByEmail.id;
+      } else {
+        let phoneToInsert: string | undefined = payload.phone;
+        if (phoneToInsert) {
+          const [phoneTaken] = await tx
+            .select({ id: schema.Constituents.id })
+            .from(schema.Constituents)
+            .where(eq(schema.Constituents.phone, phoneToInsert))
+            .limit(1);
+          if (phoneTaken) phoneToInsert = undefined;
+        }
+
+        const [newConstituent] = await tx
+          .insert(schema.Constituents)
+          .values({
+            firstName: payload.firstName,
+            lastName: payload.lastName,
+            email: payload.email,
+            phone: phoneToInsert,
+          })
+          .returning({ id: schema.Constituents.id });
+        constituentId = newConstituent.id;
+      }
 
       // Create the financial transaction
       const [newTransaction] = await tx
@@ -384,7 +412,7 @@ export async function completeGuestOrder(
       const [newOrder] = await tx
         .insert(schema.Orders)
         .values({
-          constituentId: newConstituent.id,
+          constituentId,
           totalAmount: totalAmount.toFixed(2),
           status: "PENDING",
           deliveryAddress: payload.deliveryAddress ?? null,
@@ -958,5 +986,238 @@ export async function removeProductMedium(
     } catch (err) {
       logger.warn(err, "Failed to remove orphan media row");
     }
+  }
+}
+
+// ─── Admin order surfaces (Audit C2) ────────────────────────────────────────
+
+export type AdminOrderRow = {
+  id: string;
+  status: "PENDING" | "COMPLETED" | "CANCELLED";
+  totalAmount: string;
+  currency: string;
+  createdAt: Date;
+  itemCount: number;
+  customerName: string | null;
+  customerEmail: string | null;
+  paymentReference: string | null;
+  paymentStatus:
+    | "PENDING"
+    | "COMPLETED"
+    | "FAILED"
+    | "REFUNDED"
+    | null;
+};
+
+export type AdminOrderDetail = AdminOrderRow & {
+  deliveryAddress: unknown | null; // jsonb shape varies — pass-through
+  note: string | null;
+  items: Array<{
+    id: string;
+    productId: string;
+    productName: string | null;
+    productSku: string | null;
+    quantity: number;
+    priceAtPurchase: string;
+  }>;
+};
+
+/**
+ * Paginated admin list of orders. Joins:
+ *  - Orders → Constituents (customer name/email)
+ *  - Orders → OrderPayments → FinancialTransactions (payment ref + status,
+ *    plus currency since Orders.currency isn't stored — it's on the txn)
+ *  - Orders → OrderItems (count only)
+ *
+ * Filters: status (order status), date range. Search is omitted for v1
+ * because Constituents.email is citext and joins keep ILIKE-on-text simple
+ * when it's worth adding — flagged as a follow-up.
+ */
+export async function fetchAdminOrders(query: {
+  page?: number;
+  pageSize?: number;
+  status?: "PENDING" | "COMPLETED" | "CANCELLED";
+  startDate?: Date;
+  endDate?: Date;
+}): Promise<Paginated<AdminOrderRow>> {
+  const page = query.page ?? 1;
+  const pageSize = query.pageSize ?? 20;
+  const offset = (page - 1) * pageSize;
+
+  const conds = [];
+  if (query.status) {
+    conds.push(eq(schema.Orders.status, query.status));
+  }
+  if (query.startDate) {
+    conds.push(gte(schema.Orders.createdAt, query.startDate));
+  }
+  if (query.endDate) {
+    conds.push(lte(schema.Orders.createdAt, query.endDate));
+  }
+  const whereClause = conds.length ? and(...conds) : undefined;
+
+  const [rows, totalRow] = await Promise.all([
+    dbClient.db
+      .select({
+        id: schema.Orders.id,
+        status: schema.Orders.status,
+        totalAmount: schema.Orders.totalAmount,
+        currency: schema.FinancialTransactions.currency,
+        createdAt: schema.Orders.createdAt,
+        itemCount: sql<number>`(
+          SELECT COUNT(*)::int
+          FROM ${schema.OrderItems}
+          WHERE ${schema.OrderItems.orderId} = ${schema.Orders.id}
+        )`,
+        customerFirstName: schema.Constituents.firstName,
+        customerLastName: schema.Constituents.lastName,
+        customerEmail: schema.Constituents.email,
+        paymentReference: schema.FinancialTransactions.externalRef,
+        paymentStatus: schema.FinancialTransactions.status,
+      })
+      .from(schema.Orders)
+      .leftJoin(
+        schema.Constituents,
+        eq(schema.Orders.constituentId, schema.Constituents.id),
+      )
+      .leftJoin(
+        schema.OrderPayments,
+        eq(schema.OrderPayments.orderId, schema.Orders.id),
+      )
+      .leftJoin(
+        schema.FinancialTransactions,
+        eq(
+          schema.FinancialTransactions.id,
+          schema.OrderPayments.transactionId,
+        ),
+      )
+      .where(whereClause)
+      .orderBy(desc(schema.Orders.createdAt))
+      .limit(pageSize)
+      .offset(offset),
+    dbClient.db
+      .select({ n: count() })
+      .from(schema.Orders)
+      .where(whereClause)
+      .then((res) => res[0].n),
+  ]);
+
+  const items: AdminOrderRow[] = rows.map((r) => ({
+    id: r.id,
+    status: r.status,
+    totalAmount: r.totalAmount,
+    currency: r.currency ?? "GHS",
+    createdAt: r.createdAt,
+    itemCount: Number(r.itemCount ?? 0),
+    customerName:
+      [r.customerFirstName, r.customerLastName].filter(Boolean).join(" ") ||
+      null,
+    customerEmail: r.customerEmail ?? null,
+    paymentReference: r.paymentReference ?? null,
+    paymentStatus: r.paymentStatus ?? null,
+  }));
+
+  return {
+    items,
+    page,
+    pageSize,
+    total: Number(totalRow ?? 0),
+  };
+}
+
+export async function fetchAdminOrderById(
+  orderId: string,
+): Promise<AdminOrderDetail | null> {
+  const [order] = await dbClient.db
+    .select({
+      id: schema.Orders.id,
+      status: schema.Orders.status,
+      totalAmount: schema.Orders.totalAmount,
+      currency: schema.FinancialTransactions.currency,
+      createdAt: schema.Orders.createdAt,
+      deliveryAddress: schema.Orders.deliveryAddress,
+      note: schema.Orders.note,
+      customerFirstName: schema.Constituents.firstName,
+      customerLastName: schema.Constituents.lastName,
+      customerEmail: schema.Constituents.email,
+      paymentReference: schema.FinancialTransactions.externalRef,
+      paymentStatus: schema.FinancialTransactions.status,
+    })
+    .from(schema.Orders)
+    .leftJoin(
+      schema.Constituents,
+      eq(schema.Orders.constituentId, schema.Constituents.id),
+    )
+    .leftJoin(
+      schema.OrderPayments,
+      eq(schema.OrderPayments.orderId, schema.Orders.id),
+    )
+    .leftJoin(
+      schema.FinancialTransactions,
+      eq(
+        schema.FinancialTransactions.id,
+        schema.OrderPayments.transactionId,
+      ),
+    )
+    .where(eq(schema.Orders.id, orderId))
+    .limit(1);
+
+  if (!order) return null;
+
+  const items = await dbClient.db
+    .select({
+      id: schema.OrderItems.id,
+      productId: schema.OrderItems.productId,
+      productName: schema.Products.name,
+      productSku: schema.Products.sku,
+      quantity: schema.OrderItems.quantity,
+      priceAtPurchase: schema.OrderItems.priceAtPurchase,
+    })
+    .from(schema.OrderItems)
+    .leftJoin(
+      schema.Products,
+      eq(schema.OrderItems.productId, schema.Products.id),
+    )
+    .where(eq(schema.OrderItems.orderId, orderId));
+
+  return {
+    id: order.id,
+    status: order.status,
+    totalAmount: order.totalAmount,
+    currency: order.currency ?? "GHS",
+    createdAt: order.createdAt,
+    itemCount: items.length,
+    customerName:
+      [order.customerFirstName, order.customerLastName]
+        .filter(Boolean)
+        .join(" ") || null,
+    customerEmail: order.customerEmail ?? null,
+    paymentReference: order.paymentReference ?? null,
+    paymentStatus: order.paymentStatus ?? null,
+    deliveryAddress: order.deliveryAddress ?? null,
+    note: order.note ?? null,
+    items: items.map((i) => ({
+      id: i.id,
+      productId: i.productId,
+      productName: i.productName ?? null,
+      productSku: i.productSku ?? null,
+      quantity: i.quantity,
+      priceAtPurchase: i.priceAtPurchase,
+    })),
+  };
+}
+
+export async function updateAdminOrderStatus(
+  orderId: string,
+  status: "PENDING" | "COMPLETED" | "CANCELLED",
+): Promise<void> {
+  const [updated] = await dbClient.db
+    .update(schema.Orders)
+    .set({ status })
+    .where(eq(schema.Orders.id, orderId))
+    .returning({ id: schema.Orders.id });
+
+  if (!updated) {
+    throw new ApiError("Order not found", 404);
   }
 }

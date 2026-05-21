@@ -2,6 +2,7 @@ import { ApiError, ApiResponse } from "@/shared/types";
 import {
   GetProjectsQuerySchema,
   GetProjectMediaQuerySchema,
+  GetProjectEnrollmentsQuerySchema,
   CreateProjectSchema,
   UpdateProjectSchema,
   UpdateProjectMediumSchema,
@@ -192,6 +193,19 @@ export async function getProjectEvents(
   return {
     success: true,
     message: "Project events fetched successfully",
+    data,
+  };
+}
+
+// Audit I6 — admin roster.
+export async function getProjectEnrollments(
+  projectId: string,
+  query: z.infer<typeof GetProjectEnrollmentsQuerySchema>,
+): Promise<ApiResponse<Paginated<projectsService.ProjectEnrollmentRow>>> {
+  const data = await projectsService.fetchProjectEnrollments(projectId, query);
+  return {
+    success: true,
+    message: "Project enrollments fetched successfully",
     data,
   };
 }

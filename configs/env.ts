@@ -54,6 +54,25 @@ const envSchema = z
     SMTP_PASS: z.string().min(1, "SMTP_PASS is required"),
     EMAILER: z.email("A valid sender email (EMAILER) is required"),
 
+    // Sentry error tracking. Optional — when SENTRY_DSN is unset, the
+    // SDK init is a no-op so dev/staging/test environments don't have to
+    // configure anything. In production, leave it set; missing DSN means
+    // crashes vanish silently.
+    SENTRY_DSN: z.url().optional(),
+    SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0.1),
+
+    // Arkesel SMS Configuration. Optional — when ARKESEL_API_KEY is unset the
+    // SMS client is a no-op and notifications fall back to email only. This
+    // keeps non-prod environments and the test suite from needing real keys.
+    ARKESEL_API_KEY: z.string().optional(),
+    ARKESEL_SENDER_ID: z.string().max(11).default("YPF"),
+    ARKESEL_BASE_URL: z.url().default("https://sms.arkesel.com/api/v2"),
+    // When true, Arkesel accepts the request, returns "success", and does NOT
+    // actually deliver the SMS. Default is OFF — explicit opt-in only — so
+    // dev/staging actually exercises real delivery. Set ARKESEL_SANDBOX=true
+    // to simulate without consuming credit.
+    ARKESEL_SANDBOX: z.coerce.boolean().default(false),
+
     // Application Metadata
     LOGO_URL: z.url("A valid LOGO_URL is required"),
     YEAR: z.string().default(new Date().getFullYear().toString()),
@@ -109,6 +128,16 @@ const envSchema = z
         secretKey: env.PAYSTACK_SECRET,
         subaccountCode: env.PAYSTACK_SUBACCOUNT_CODE,
       },
+      arkesel: {
+        apiKey: env.ARKESEL_API_KEY,
+        senderId: env.ARKESEL_SENDER_ID,
+        baseUrl: env.ARKESEL_BASE_URL,
+        sandbox: env.ARKESEL_SANDBOX,
+      },
+      sentry: {
+        dsn: env.SENTRY_DSN,
+        tracesSampleRate: env.SENTRY_TRACES_SAMPLE_RATE,
+      },
     },
     jobs: {
       concurrency: env.JOB_CONCURRENCY,
@@ -130,5 +159,34 @@ if (!parsedEnv.success) {
 }
 
 const variables = parsedEnv.data;
+
+// Audit I7 — production deployments MUST use a remote DB with password + SSL.
+// A localhost / trust-auth URL slipping through to prod (e.g. via a copied
+// .env) silently bypasses every auth control. Fail fast at startup.
+if (variables.app.isProduction) {
+  const url = process.env.DATABASE_URL ?? "";
+  const looksLocal = /@(localhost|127\.0\.0\.1|::1)[:/]/.test(url);
+  const hasPassword = /:\/\/[^:@/]+:[^@/]+@/.test(url);
+  const hasSsl = /[?&]sslmode=(require|verify-(ca|full))\b/.test(url);
+
+  if (looksLocal) {
+    console.error(
+      "❌ DATABASE_URL targets localhost in production. Use a managed Postgres host with password + sslmode=require.",
+    );
+    process.exit(1);
+  }
+  if (!hasPassword) {
+    console.error(
+      "❌ DATABASE_URL has no password in production. Use postgres://user:password@host:5432/db?sslmode=require.",
+    );
+    process.exit(1);
+  }
+  if (!hasSsl) {
+    console.error(
+      "❌ DATABASE_URL has no sslmode= in production. Append `?sslmode=require` (or stronger).",
+    );
+    process.exit(1);
+  }
+}
 
 export default variables;

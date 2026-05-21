@@ -5,6 +5,7 @@ import { TargetingFilter } from "@/shared/types/targeting";
 import jobDispatcher from "@/configs/jobs/dispatcher";
 import { JobNames, JobPriority } from "@/shared/jobs/types/definitions";
 import logger from "@/configs/logger";
+import { sanitizeRichHtml } from "@/shared/utils/htmlSanitize";
 
 export type CreateAnnouncementInput = {
   title: string;
@@ -17,11 +18,16 @@ export type CreateAnnouncementInput = {
 };
 
 export async function createAnnouncement(input: CreateAnnouncementInput) {
+  // Sanitize on the way in so the stored body is already safe — both the
+  // in-app rendering and the email/SMS fan-out trust this column. Doing it
+  // here (rather than at every read site) keeps the trust boundary explicit.
+  const safeContent = sanitizeRichHtml(input.content);
+
   const [announcement] = await dbClient.db
     .insert(schema.Announcements)
     .values({
       title: input.title,
-      content: input.content,
+      content: safeContent,
       targetCriteria: input.targetCriteria,
       authorId: input.authorId,
       status: input.status || "DRAFT",
@@ -214,9 +220,15 @@ export async function updateAnnouncement(
     expiresAt: Date | null;
   }>,
 ) {
+  // Re-sanitize content on edit so updates can't smuggle script tags in.
+  const safeUpdates =
+    updates.content !== undefined
+      ? { ...updates, content: sanitizeRichHtml(updates.content) }
+      : updates;
+
   const [announcement] = await dbClient.db
     .update(schema.Announcements)
-    .set({ ...updates, updatedAt: new Date() })
+    .set({ ...safeUpdates, updatedAt: new Date() })
     .where(eq(schema.Announcements.id, announcementId))
     .returning({ id: schema.Announcements.id });
 

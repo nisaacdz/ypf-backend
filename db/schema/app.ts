@@ -171,6 +171,45 @@ export const AuditLogs = app.table(
   ],
 );
 
+// SMS delivery log. One row per send attempt (one row per recipient when
+// fanning out a bulk send). Used by the /sms admin page for analytics,
+// usage history, and credit reconciliation against the Arkesel dashboard.
+//
+// `event` tags the originating flow (dues_reminder, manual_broadcast, etc.)
+// so analytics can break usage down by purpose. `batchId` links every row
+// from the same admin-triggered send so the UI can show "batch of 73 sent
+// to chapter X" without joining on free-text.
+export const SmsMessages = app.table(
+  "sms_messages",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    batchId: uuid("batch_id").notNull(),
+    event: text("event").notNull(),
+    recipient: text("recipient").notNull(),
+    constituentId: uuid("constituent_id").references(() => Constituents.id, {
+      onDelete: "set null",
+    }),
+    message: text("message").notNull(),
+    messageLength: integer("message_length").notNull(),
+    segmentCount: integer("segment_count").notNull(),
+    status: text("status").notNull(), // QUEUED | SENT | FAILED | SKIPPED
+    provider: text("provider").notNull().default("arkesel"),
+    providerResponse: jsonb("provider_response"),
+    triggeredBy: uuid("triggered_by").references(() => Constituents.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("sms_messages_created_idx").on(table.createdAt),
+    index("sms_messages_event_created_idx").on(table.event, table.createdAt),
+    index("sms_messages_status_created_idx").on(table.status, table.createdAt),
+    index("sms_messages_batch_idx").on(table.batchId),
+  ],
+);
+
 // === RELATIONS ===
 
 export const usersRelations = relations(Users, ({ one }) => ({

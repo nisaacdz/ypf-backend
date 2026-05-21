@@ -6,6 +6,7 @@ import { hashSync } from "bcryptjs";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { generateTestUser, generateTestChapter } from "../factories";
+import { extractAccessTokenCookie } from "../helpers";
 
 describe("Chapters API", () => {
   let authTokenCookie: string;
@@ -64,14 +65,7 @@ describe("Chapters API", () => {
         password: testUser.password,
       });
 
-    const setCookieHeader = loginResponse.headers["set-cookie"];
-    const cookies = Array.isArray(setCookieHeader)
-      ? setCookieHeader
-      : [setCookieHeader];
-
-    const accessToken = cookies.find((c) => c.includes("access_token"));
-
-    authTokenCookie = accessToken?.split(";")[0] || "";
+    authTokenCookie = extractAccessTokenCookie(loginResponse.headers["set-cookie"]);
   });
 
   afterAll(async () => {

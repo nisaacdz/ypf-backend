@@ -8,6 +8,7 @@ import {
 } from "@/shared/middlewares/validate";
 import {
   CreateEventSchema,
+  GetEventAttendeesQuerySchema,
   GetEventMediaQuerySchema,
   GetEventsQuerySchema,
   GuestEventRegistrationSchema,
@@ -246,6 +247,33 @@ eventsRouter.patch(
       // Clear the detail cache
       await redisClient.delCache(`/api/v1/events/${req.Params.eventId}`);
 
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// Audit I6 — admin RSVP roster. Same authz as event CRUD: admin or program
+// committee chair. Guest PII is in the response so this stays admin-only.
+eventsRouter.get(
+  "/:id/attendees",
+  authenticate,
+  validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
+  authorize(
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.PRESIDENT),
+      canManageProgramsRecords,
+    ),
+  ),
+  validateQuery(GetEventAttendeesQuerySchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await eventsHandler.getEventAttendees(
+        req.Params.id,
+        req.Query,
+      );
       res.status(200).json(response);
     } catch (error) {
       next(error);

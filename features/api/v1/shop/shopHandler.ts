@@ -10,6 +10,8 @@ import {
   CompleteGuestOrderSchema,
   GetShopProductsQuerySchema,
   GetProductMediaQuerySchema,
+  GetAdminOrdersQuerySchema,
+  UpdateAdminOrderStatusSchema,
   CreateProductSchema,
   UpdateProductSchema,
   UpdateProductMediumSchema,
@@ -369,6 +371,43 @@ export async function deleteProductMedium(
   return {
     success: true,
     message: "Product medium removed",
+    data: null,
+  };
+}
+
+// ─── Admin order surfaces (Audit C2) ────────────────────────────────────────
+
+export async function getAdminOrders(
+  query: z.infer<typeof GetAdminOrdersQuerySchema>,
+): Promise<ApiResponse<Paginated<shopService.AdminOrderRow>>> {
+  const data = await shopService.fetchAdminOrders(query);
+  return {
+    success: true,
+    message: "Orders fetched successfully",
+    data,
+  };
+}
+
+export async function getAdminOrderById(
+  orderId: string,
+): Promise<ApiResponse<shopService.AdminOrderDetail>> {
+  const data = await shopService.fetchAdminOrderById(orderId);
+  if (!data) throw new ApiError("Order not found", 404);
+  return {
+    success: true,
+    message: "Order fetched successfully",
+    data,
+  };
+}
+
+export async function updateAdminOrderStatus(
+  orderId: string,
+  body: z.infer<typeof UpdateAdminOrderStatusSchema>,
+): Promise<ApiResponse<null>> {
+  await shopService.updateAdminOrderStatus(orderId, body.status);
+  return {
+    success: true,
+    message: "Order status updated",
     data: null,
   };
 }

@@ -26,6 +26,14 @@ export const GetProjectsQuerySchema = z.object({
   search: z.string().trim().min(1).max(200).optional(),
 });
 
+// Audit I6 — admin roster of who registered for a project. Combines guest
+// enrollments (constituent_id NULL, guest_* fields) with member enrollments
+// (constituent_id set, joined to Constituents) in a single paginated view.
+export const GetProjectEnrollmentsQuerySchema = z.object({
+  ...PaginationQuery.shape,
+  role: z.enum(["guest", "member", "all"]).default("all"),
+});
+
 export const GetProjectMediaQuerySchema = z.object({
   ...PaginationQuery.shape,
   mediaType: z

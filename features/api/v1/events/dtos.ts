@@ -14,6 +14,9 @@ export type YPFEvent = {
   projectTitle?: string;
   featuredMediumUrl?: string;
   chapterName?: string;
+  // Count of guest + member rows in event_attendees for this event.
+  // Used by the UMS Events table so admins see real registration numbers.
+  attendeeCount: number;
 };
 
 export type YPFEventDetail = {

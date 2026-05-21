@@ -17,10 +17,8 @@ import {
   generateSignedDocumentPreviewUrl,
   generateSignedMediaUrl,
 } from "@/shared/utils/files";
-import {
-  sendMembershipApplicationAcknowledgementEmail,
-  sendMembershipApplicationAcceptanceEmail,
-} from "@/shared/utils/email";
+import { sendMembershipApplicationAcknowledgementEmail } from "@/shared/utils/email";
+import { notifyMembershipAccepted } from "@/shared/utils/notify";
 import {
   GetMembershipApplicationsQuerySchema,
   GetVolunteerApplicationsQuerySchema,
@@ -578,24 +576,27 @@ export async function updateMembershipApplicationStatus(
       logger.error(err, "Failed to create or resend onboarding account for accepted member");
     });
 
-    // Fetch constituent for email
+    // Fetch constituent for email + SMS contact
     const [constituent] = await dbClient.db
       .select({
         firstName: schema.Constituents.firstName,
         lastName: schema.Constituents.lastName,
         email: schema.Constituents.email,
+        phone: schema.Constituents.phone,
+        whatsapp: schema.Constituents.whatsapp,
       })
       .from(schema.Constituents)
       .where(eq(schema.Constituents.id, result.constituentId))
       .limit(1);
 
     if (constituent && constituent.email) {
-      sendMembershipApplicationAcceptanceEmail({
+      notifyMembershipAccepted({
         email: constituent.email,
         name: `${constituent.firstName} ${constituent.lastName}`,
+        phone: constituent.phone ?? constituent.whatsapp ?? null,
         trackingNumber: result.trackingNumber,
       }).catch((err) => {
-        logger.error("Failed to send acceptance email", err);
+        logger.error("Failed to send acceptance notification", err);
       });
     }
   }

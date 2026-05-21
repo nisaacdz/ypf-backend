@@ -22,6 +22,8 @@ import {
   UploadProductMediumOptionsSchema,
   UpdateProductMediumSchema,
   GetProductMediaQuerySchema,
+  GetAdminOrdersQuerySchema,
+  UpdateAdminOrderStatusSchema,
 } from "./schemas";
 import z from "zod";
 
@@ -158,6 +160,61 @@ shopRouter.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await shopHandler.getUserOrders(req.User!);
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// ========================
+// ADMIN ORDER MANAGEMENT ROUTES (Audit C2)
+// ========================
+// Namespaced under /orders/admin/* so they don't collide with /orders (user
+// scope) or /orders/by-ref/:ref (public success-page polling). Admin-only.
+
+shopRouter.get(
+  "/orders/admin",
+  authenticate,
+  authorize(Visitors.hasProfile("ADMIN")),
+  validateQuery(GetAdminOrdersQuerySchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await shopHandler.getAdminOrders(req.Query);
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+shopRouter.get(
+  "/orders/admin/:id",
+  authenticate,
+  authorize(Visitors.hasProfile("ADMIN")),
+  validateParams(z.object({ id: z.uuid("Invalid order ID") })),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await shopHandler.getAdminOrderById(req.Params.id);
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+shopRouter.patch(
+  "/orders/admin/:id",
+  authenticate,
+  authorize(Visitors.hasProfile("ADMIN")),
+  validateParams(z.object({ id: z.uuid("Invalid order ID") })),
+  validateBody(UpdateAdminOrderStatusSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await shopHandler.updateAdminOrderStatus(
+        req.Params.id,
+        req.Body,
+      );
       res.status(200).json(response);
     } catch (error) {
       next(error);

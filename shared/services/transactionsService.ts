@@ -6,11 +6,13 @@ import logger from "@/configs/logger";
 import { transactionStatusMap, paymentMethodMap } from "../utils";
 import {
   sendDonationAcknowledgementEmail,
-  sendDuesPaymentAcknowledgementEmail,
-  sendOrderConfirmationEmail,
   sendTransactionFailureEmail,
   sendTransactionRefundEmail,
 } from "@/shared/utils/email";
+import {
+  notifyDuesPayment,
+  notifyOrderConfirmation,
+} from "@/shared/utils/notify";
 import { getPaymentProvider, TransactionStatus } from "./paymentProviders";
 
 export type PaystackWebhookPayload = {
@@ -367,6 +369,8 @@ export async function sendTransactionSuccessEmail(
 
       if (member?.constituent) {
         const email = member.constituent.email;
+        const phone =
+          member.constituent.phone ?? member.constituent.whatsapp ?? null;
         const name = `${member.constituent.firstName} ${member.constituent.lastName}`;
 
         if (email) {
@@ -374,9 +378,10 @@ export async function sendTransactionSuccessEmail(
           // Dates are stored as string in the schema (date type without mode)
           const period = `${dues.periodStart} - ${dues.periodEnd}`;
 
-          await sendDuesPaymentAcknowledgementEmail({
+          await notifyDuesPayment({
             email,
             name,
+            phone,
             payment: {
               id: duesPayment.id,
               amount: transaction.amount,
@@ -385,7 +390,7 @@ export async function sendTransactionSuccessEmail(
             },
           });
           logger.info(
-            `Sent dues payment acknowledgement email for transaction ${transactionId}`,
+            `Sent dues payment acknowledgement (email+SMS) for transaction ${transactionId}`,
           );
         } else {
           logger.warn(
@@ -399,12 +404,15 @@ export async function sendTransactionSuccessEmail(
 
       if (order?.constituent) {
         const email = order.constituent.email;
+        const phone =
+          order.constituent.phone ?? order.constituent.whatsapp ?? null;
         const name = `${order.constituent.firstName} ${order.constituent.lastName}`;
 
         if (email) {
-          await sendOrderConfirmationEmail({
+          await notifyOrderConfirmation({
             email,
             name,
+            phone,
             order: {
               id: order.id,
               amount: transaction.amount,
@@ -412,7 +420,7 @@ export async function sendTransactionSuccessEmail(
             },
           });
           logger.info(
-            `Sent order confirmation email for transaction ${transactionId}`,
+            `Sent order confirmation (email+SMS) for transaction ${transactionId}`,
           );
         } else {
           logger.warn(

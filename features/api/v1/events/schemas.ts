@@ -103,6 +103,7 @@ export const UploadEventFileSchema = z
 export const GetEventsQuerySchema = z.object({
   ...PaginationQuery.shape,
   projectId: z.uuid({ message: "Invalid project ID format." }).optional(),
+  chapterId: z.uuid({ message: "Invalid chapter ID format." }).optional(),
   filterStatus: z
     .enum(EventStatusEnum.enumValues, {
       message: "Invalid event status.",
@@ -121,6 +122,13 @@ export const GetEventMediaQuerySchema = z.object({
   mediaType: z
     .enum(MediumTypeEnum.enumValues, { message: "Invalid medium type." })
     .optional(),
+});
+
+// Audit I6 — admin roster of who's registered for an event. Mirrors the
+// project enrollments shape: guest + member rows merged via NULL coalesce.
+export const GetEventAttendeesQuerySchema = z.object({
+  ...PaginationQuery.shape,
+  role: z.enum(["guest", "member", "all"]).default("all"),
 });
 
 // Plan §8.2 / Audit C3 — public guest registration for an event. Lighter than

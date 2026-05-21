@@ -444,6 +444,45 @@ export const CommitteeMedia = core.table("committee_media", {
   isFeatured: boolean("is_featured").notNull().default(false),
 });
 
+// Public-website "Meet the team" entries. Decoupled from the internal Members
+// directory on purpose — the website needs a curated, ordered, edit-anytime
+// presentation, while Members reflects real org-chart truth. A constituentId
+// link is *optional*: admins can attach a real member (handy for photo +
+// future link-throughs) or just type a name + role for an external advisor.
+export const PublicTeamMembers = core.table(
+  "public_team_members",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    name: text("name").notNull(),
+    role: text("role").notNull(),
+    bio: text("bio"),
+    photoId: uuid("photo_id").references((): AnyPgColumn => Media.id, {
+      onDelete: "set null",
+    }),
+    // Optional link to a real constituent (e.g. the person's profile photo
+    // can fall back to constituent.profilePhoto when photoId is unset).
+    constituentId: uuid("constituent_id").references(
+      (): AnyPgColumn => Constituents.id,
+      { onDelete: "set null" },
+    ),
+    // Display order on the public site. Lowest first.
+    position: integer("position").notNull().default(0),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("public_team_members_position_idx").on(
+      table.position,
+      table.isActive,
+    ),
+  ],
+);
+
 // === RELATIONS ===
 
 export const mediaRelations = relations(Media, ({ one }) => ({

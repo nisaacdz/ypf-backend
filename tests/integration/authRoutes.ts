@@ -7,6 +7,10 @@ import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import logger from "@/configs/logger";
 import { generateTestUser } from "../factories";
+import {
+  extractAccessTokenCookie,
+  findAccessTokenSetCookie,
+} from "../helpers";
 
 describe("Authentication API", () => {
   const testUser = generateTestUser();
@@ -55,13 +59,12 @@ describe("Authentication API", () => {
 
       expect(response.headers["set-cookie"]).toBeDefined();
 
-      // Should have access_token cookie
-      const setCookieHeader = response.headers["set-cookie"];
-      const cookies = Array.isArray(setCookieHeader)
-        ? setCookieHeader
-        : [setCookieHeader];
-
-      const accessTokenCookie = cookies.find((c) => c.includes("access_token"));
+      // Should have access_token cookie. The login response also emits a
+      // batch of clear-cookies for legacy variants; `findAccessTokenSetCookie`
+      // ignores those and returns only the real one.
+      const accessTokenCookie = findAccessTokenSetCookie(
+        response.headers["set-cookie"],
+      );
 
       expect(accessTokenCookie).toBeDefined();
       expect(accessTokenCookie).toMatch(/access_token=.+/);
@@ -384,14 +387,9 @@ describe("Authentication API", () => {
           password: testUser.password,
         });
 
-      const setCookieHeader = loginResponse.headers["set-cookie"];
-      const cookies = Array.isArray(setCookieHeader)
-        ? setCookieHeader
-        : [setCookieHeader];
-
-      const accessToken = cookies.find((c) => c.includes("access_token"));
-
-      const authCookie = accessToken?.split(";")[0] || "";
+      const authCookie = extractAccessTokenCookie(
+        loginResponse.headers["set-cookie"],
+      );
 
       // Call /auth/me with cookies
       const response = await request(server)

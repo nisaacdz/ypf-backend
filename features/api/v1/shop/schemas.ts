@@ -161,3 +161,22 @@ export const GetProductMediaQuerySchema = z.object({
     .enum(MediumTypeEnum.enumValues, { message: "Invalid medium type." })
     .optional(),
 });
+
+// Audit C2 — admin order browsing. Supports status filter, free-text search
+// across customer name/email, optional date range, and pagination. The
+// existing `GET /shop/orders` is user-scoped (own orders only); this admin
+// surface joins to Constituents + FinancialTransactions for fulfillment.
+export const GetAdminOrdersQuerySchema = z.object({
+  ...PaginationQuery.shape,
+  status: z
+    .enum(["PENDING", "COMPLETED", "CANCELLED"], {
+      message: "Invalid order status.",
+    })
+    .optional(),
+  startDate: z.coerce.date().optional(),
+  endDate: z.coerce.date().optional(),
+});
+
+export const UpdateAdminOrderStatusSchema = z.object({
+  status: z.enum(["PENDING", "COMPLETED", "CANCELLED"]),
+});

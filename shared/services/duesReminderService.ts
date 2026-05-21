@@ -1,9 +1,10 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import logger from "@/configs/logger";
 import { ApiError } from "@/shared/types";
 import { ensureCurrentMonthDues } from "./duesService";
+import { notifyDuesReminder } from "@/shared/utils/notify";
 
 export type DuesDebtor = {
   memberId: string;
@@ -136,7 +137,61 @@ export async function generateRemindersForCurrentMonth(
     "Generated dues reminders for unpaid members",
   );
 
+  // Best-effort fan-out: send email + SMS to every newly-reminded constituent.
+  // This is a "fire and forget" path because the reminder DB rows are the
+  // canonical signal — the message delivery is a courtesy on top. We hydrate
+  // contact details with a single bulk lookup, then push each through the
+  // notification router. Failures are logged but do not fail the job.
+  const newConstituentIds = newReminders.map((r) => r.constituentId);
+  if (newConstituentIds.length > 0) {
+    void sendDuesReminderBlast(currentDues, newConstituentIds).catch((err) => {
+      logger.warn(
+        { err, duesId: currentDues.id },
+        "Bulk dues reminder send failed (best-effort)",
+      );
+    });
+  }
+
   return newReminders.length;
+}
+
+async function sendDuesReminderBlast(
+  dues: { id: string; amount: string; currency: string; periodEnd: Date },
+  constituentIds: string[],
+): Promise<void> {
+  const contacts = await dbClient.db
+    .select({
+      id: schema.Constituents.id,
+      firstName: schema.Constituents.firstName,
+      lastName: schema.Constituents.lastName,
+      email: schema.Constituents.email,
+      phone: schema.Constituents.phone,
+      whatsapp: schema.Constituents.whatsapp,
+    })
+    .from(schema.Constituents)
+    .where(inArray(schema.Constituents.id, constituentIds));
+
+  const dueDate = dues.periodEnd.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  const isOverdue = new Date() > dues.periodEnd;
+
+  await Promise.allSettled(
+    contacts.map((c) => {
+      if (!c.email) return Promise.resolve();
+      return notifyDuesReminder({
+        email: c.email,
+        name: `${c.firstName} ${c.lastName}`.trim(),
+        phone: c.phone ?? c.whatsapp ?? null,
+        amountOwed: dues.amount,
+        currency: dues.currency,
+        dueDate,
+        isOverdue,
+      });
+    }),
+  );
 }
 
 export async function getDuesDebtors(input?: {
@@ -270,6 +325,22 @@ export async function triggerReminderForMember(input: {
     { memberId: debtor.memberId, constituentId: debtor.constituentId, duesId: debtor.duesId },
     "Triggered dues reminder for member",
   );
+
+  // Send email + SMS notification (best-effort — the DB row is canonical).
+  void sendDuesReminderBlast(
+    {
+      id: debtor.duesId,
+      amount: debtor.amountDue,
+      currency: debtor.currency,
+      periodEnd: debtor.periodEnd,
+    },
+    [debtor.constituentId],
+  ).catch((err) => {
+    logger.warn(
+      { err, constituentId: debtor.constituentId, duesId: debtor.duesId },
+      "Single dues reminder send failed (best-effort)",
+    );
+  });
 
   return created;
 }

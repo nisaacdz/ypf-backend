@@ -17,8 +17,18 @@ import ws from "./ws";
 import { registerNotificationNamespace } from "@/features/notifications";
 import registerChatNamespace from "@/features/chat/v1";
 import { socketAuth } from "@/shared/middlewares/socket";
+import * as Sentry from "@sentry/node";
 
 const app: Express = express();
+
+// We sit behind one or more reverse proxies in every deployment target we
+// care about (Vercel, Render, fly.io, Cloudflare, Nginx). Without trust proxy
+// set, Express reports `req.ip` as the proxy's IP — which means every
+// rate-limited endpoint treats the entire internet as a single IP. Enable in
+// production only; in dev we want the literal localhost address.
+if (variables.app.isProduction) {
+  app.set("trust proxy", 1);
+}
 
 app.use(helmet());
 
@@ -77,6 +87,12 @@ registerNotificationNamespace(io);
 registerChatNamespace(io);
 
 ws.initialize(io);
+
+// Sentry must intercept errors BEFORE our errorHandler turns them into
+// well-formed responses. setupExpressErrorHandler also attaches a fall-back
+// 500 handler internally; our own errorHandler runs after and shapes the
+// JSON body. A no-op when Sentry isn't initialised.
+Sentry.setupExpressErrorHandler(app);
 
 app.use(errorHandler);
 

@@ -235,6 +235,15 @@ export function generateVideoThumbnailUrl(
   });
 }
 
+// The ImageKit SDK builds URLs as `<urlEndpoint><tr:...><path>`. When the
+// path has no leading "/" AND there are no transformations, the slash that
+// would normally come from the transformation prefix is missing — so we end
+// up with e.g. `https://ik.imagekit.io/<acct>image/uuid.jpeg`. Always prepend
+// "/" to the path so URLs are correct whether or not a transformation is set.
+function imagekitPath(externalId: string): string {
+  return externalId.startsWith("/") ? externalId : `/${externalId}`;
+}
+
 export function generatePublicMediaUrl(
   externalId: string,
   options: { resolution?: number } = {},
@@ -245,7 +254,7 @@ export function generatePublicMediaUrl(
   }
 
   return imagekit.url({
-    path: externalId,
+    path: imagekitPath(externalId),
     transformation: transformations,
   });
 }
@@ -260,7 +269,7 @@ export function generateSignedMediaUrl(
   }
 
   return imagekit.url({
-    path: externalId,
+    path: imagekitPath(externalId),
     expireSeconds: options.expireSeconds,
     transformation: transformations,
     signed: true,

@@ -120,6 +120,34 @@
       "when": 1779052860000,
       "tag": "0016_committee_maintenance",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1779200000000,
+      "tag": "0017_shop_order_payments_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1779300000000,
+      "tag": "0018_sms_messages",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1779400000000,
+      "tag": "0019_public_team_members",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1779500000000,
+      "tag": "0020_fk_indexes",
+      "breakpoints": true
     }
   ]
 }

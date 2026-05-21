@@ -24,6 +24,8 @@ import contactRouter from "./contact";
 import filesRouter from "./files";
 import systemRouter from "./system";
 import maintenanceRouter from "./maintenance";
+import smsRouter from "./sms";
+import publicTeamRouter from "./public-team";
 import { maintenanceGate } from "@/shared/middlewares/maintenance";
 import { authenticateLax } from "@/shared/middlewares/auth";
 
@@ -63,5 +65,7 @@ apiRouter.use("/contact-submissions", contactRouter);
 apiRouter.use("/contact", contactRouter);
 apiRouter.use("/system", systemRouter);
 apiRouter.use("/maintenance", maintenanceRouter);
+apiRouter.use("/sms", smsRouter);
+apiRouter.use("/public-team", publicTeamRouter);
 
 export default apiRouter;
