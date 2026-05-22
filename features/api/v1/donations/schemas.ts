@@ -18,6 +18,7 @@ export const CreateDonationSchema = z
         phone: z.string().min(1, "Phone number is required").optional(),
       })
       .optional(),
+    note: z.string().max(500).optional(),
     projectId: z.uuid("Invalid project ID").optional(),
     eventId: z.uuid("Invalid event ID").optional(),
   })

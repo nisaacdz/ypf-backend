@@ -10,6 +10,8 @@ import type {
   SendAnnouncementEmailsJobData,
 } from "../types/definitions";
 import type { Job } from "pg-boss";
+import { sendBulkSms } from "@/shared/utils/sms";
+import { NOTIFICATION_CHANNELS } from "@/shared/utils/notify";
 
 export const announcementWorker = {
   /**
@@ -136,11 +138,13 @@ export const announcementWorker = {
           "Created inbox entries",
         );
 
-        // 3. Fetch unique email addresses
+        // 3. Fetch unique email + phone contact info
         const constituents = await dbClient.db
           .select({
             id: schema.Constituents.id,
             email: schema.Constituents.email,
+            phone: schema.Constituents.phone,
+            whatsapp: schema.Constituents.whatsapp,
           })
           .from(schema.Constituents)
           .where(inArray(schema.Constituents.id, constituentIds));
@@ -154,14 +158,22 @@ export const announcementWorker = {
           ),
         ];
 
+        // Build a deduped phone list. Prefer the explicit `phone` column and
+        // fall back to `whatsapp`. Normalisation + dedup happens inside
+        // sendBulkSms, so we can pass raw values here.
+        const phoneList = constituents
+          .map((c) => c.phone ?? c.whatsapp)
+          .filter((p): p is string => typeof p === "string" && p.length > 0);
+
         logger.info(
           {
             jobId: job.id,
             announcementId,
             totalConstituents: constituents.length,
             uniqueEmails: uniqueEmails.length,
+            phoneCandidates: phoneList.length,
           },
-          "Deduplicated email addresses",
+          "Deduplicated contact addresses",
         );
 
         // 4. Spawn email sending job
@@ -176,6 +188,28 @@ export const announcementWorker = {
               priority: JobPriority.NORMAL,
             },
           );
+        }
+
+        // 5. Best-effort bulk SMS broadcast. Channel mapping lives in
+        // notify.NOTIFICATION_CHANNELS so the policy is centralised; we send
+        // SMS only when the broadcast channel includes it. Arkesel handles
+        // fan-out server-side, so no separate job queue is needed.
+        const ch: string = NOTIFICATION_CHANNELS.bulkAnnouncement;
+        if ((ch === "sms" || ch === "both") && phoneList.length > 0) {
+          // Strip markdown for SMS — keep it short.
+          const smsBody = `${announcement.title}\n\n${announcement.content
+            .replace(/<[^>]+>/g, "")
+            .replace(/[#*_>`]/g, "")
+            .replace(/\s+/g, " ")
+            .trim()}`.slice(0, 459);
+          sendBulkSms(phoneList, smsBody, {
+            event: "bulkAnnouncement",
+          }).catch((err) => {
+            logger.warn(
+              { err, announcementId },
+              "Bulk announcement SMS send failed (best-effort)",
+            );
+          });
         }
 
         // 5. Update announcement status

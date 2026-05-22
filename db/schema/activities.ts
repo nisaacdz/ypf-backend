@@ -9,7 +9,7 @@ import {
   index,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
-import { Chapters, Constituents, Documents, Media } from "./core";
+import { Chapters, Constituents, Documents, Media, citext } from "./core";
 import { TargetingFilter } from "@/shared/types/targeting";
 
 export const activities = pgSchema("activities");
@@ -57,6 +57,9 @@ export const Projects = activities.table("projects", {
   type: ProjectTypeEnum().notNull(),
   category: text(),
   description: text(),
+  location: text("location"),
+  objectives: jsonb("objectives"),
+  impact: text("impact"),
   scheduledStart: timestamp("scheduled_start", {
     withTimezone: true,
   }).notNull(),
@@ -80,6 +83,7 @@ export const Events = activities.table("events", {
   scheduledEnd: timestamp("scheduled_end", { withTimezone: true }).notNull(),
   location: text(),
   objective: text(),
+  description: text(),
   status: EventStatusEnum().default("UPCOMING").notNull(),
   projectId: uuid("project_id").references(() => Projects.id, {
     onDelete: "set null",
@@ -197,6 +201,151 @@ export const ConstituentAnnouncements = activities.table(
     // Ensure a user only gets an announcement once
     unique().on(table.announcementId, table.constituentId),
   ],
+);
+
+// === Certificates ===
+
+export const CertificateTypeEnum = activities.enum("certificate_type", [
+  "COMPLETION",
+  "PARTICIPATION",
+  "ACHIEVEMENT",
+  "LEADERSHIP",
+]);
+
+export const CertificateStatusEnum = activities.enum("certificate_status", [
+  "ACTIVE",
+  "REVOKED",
+  "EXPIRED",
+]);
+
+export const Certificates = activities.table(
+  "certificates",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    certificateNumber: text("certificate_number")
+      .default(sql`'YPFC-' || generate_alphanumeric_combination(8)`)
+      .unique()
+      .notNull(),
+    constituentId: uuid("constituent_id")
+      .notNull()
+      .references(() => Constituents.id, { onDelete: "cascade" }),
+    title: text().notNull(),
+    programName: text("program_name").notNull(),
+    projectId: uuid("project_id").references(() => Projects.id, {
+      onDelete: "set null",
+    }),
+    type: CertificateTypeEnum().notNull().default("COMPLETION"),
+    status: CertificateStatusEnum().notNull().default("ACTIVE"),
+    issuedAt: timestamp("issued_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    issuedBy: uuid("issued_by").references(() => Constituents.id, {
+      onDelete: "set null",
+    }),
+    description: text(),
+  },
+  (table) => [
+    index("idx_certificates_constituent").on(table.constituentId),
+  ],
+);
+
+// === Event Attendance (registration/RSVP) ===
+
+// Dual-mode: either constituentId (authenticated member) OR guest_* fields populated.
+// Handler enforces: coalesce(constituent_id, guest_email) is not null.
+export const EventAttendees = activities.table(
+  "event_attendees",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => Events.id, { onDelete: "cascade" }),
+    constituentId: uuid("constituent_id").references(() => Constituents.id, {
+      onDelete: "cascade",
+    }),
+    guestName: text("guest_name"),
+    guestEmail: citext("guest_email"),
+    guestPhone: text("guest_phone"),
+    status: AttendanceStatusEnum().default("ACCEPTED").notNull(),
+    registeredAt: timestamp("registered_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    unique().on(table.eventId, table.constituentId),
+    index("event_attendees_guest_email_idx").on(table.guestEmail),
+  ],
+);
+
+// === Project Enrollment (volunteer participation) ===
+
+// Dual-mode: either constituentId (authenticated member) OR guest_* fields populated.
+// Handler enforces: coalesce(constituent_id, guest_email) is not null.
+export const ProjectEnrollments = activities.table(
+  "project_enrollments",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => Projects.id, { onDelete: "cascade" }),
+    constituentId: uuid("constituent_id").references(() => Constituents.id, {
+      onDelete: "cascade",
+    }),
+    guestName: text("guest_name"),
+    guestEmail: citext("guest_email"),
+    guestPhone: text("guest_phone"),
+    guestProfile: jsonb("guest_profile"),
+    enrolledAt: timestamp("enrolled_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    unenrolledAt: timestamp("unenrolled_at", { withTimezone: true }),
+  },
+  (table) => [
+    unique().on(table.projectId, table.constituentId),
+    index("project_enrollments_guest_email_idx").on(table.guestEmail),
+  ],
+);
+
+export const certificatesRelations = relations(Certificates, ({ one }) => ({
+  constituent: one(Constituents, {
+    fields: [Certificates.constituentId],
+    references: [Constituents.id],
+  }),
+  project: one(Projects, {
+    fields: [Certificates.projectId],
+    references: [Projects.id],
+  }),
+  issuer: one(Constituents, {
+    fields: [Certificates.issuedBy],
+    references: [Constituents.id],
+    relationName: "certificateIssuer",
+  }),
+}));
+
+export const eventAttendeesRelations = relations(EventAttendees, ({ one }) => ({
+  event: one(Events, {
+    fields: [EventAttendees.eventId],
+    references: [Events.id],
+  }),
+  constituent: one(Constituents, {
+    fields: [EventAttendees.constituentId],
+    references: [Constituents.id],
+  }),
+}));
+
+export const projectEnrollmentsRelations = relations(
+  ProjectEnrollments,
+  ({ one }) => ({
+    project: one(Projects, {
+      fields: [ProjectEnrollments.projectId],
+      references: [Projects.id],
+    }),
+    constituent: one(Constituents, {
+      fields: [ProjectEnrollments.constituentId],
+      references: [Constituents.id],
+    }),
+  }),
 );
 
 // === RELATIONS ===

@@ -2,10 +2,14 @@ import { Paginated } from "@/shared/dtos";
 import { YPFProject, YPFProjectDetail } from "@/features/api/v1/projects/dtos";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
-import { Projects, ProjectMedia } from "@/db/schema/activities";
+import {
+  Projects,
+  ProjectMedia,
+  ProjectEnrollments,
+} from "@/db/schema/activities";
 import { Media, Chapters } from "@/db/schema/core";
 import * as mediaUtils from "@/shared/utils/files";
-import { eq, and, ilike, count, desc } from "drizzle-orm";
+import { eq, and, ilike, count, desc, isNull, isNotNull, sql } from "drizzle-orm";
 import z from "zod";
 import {
   GetProjectsQuerySchema,
@@ -19,7 +23,7 @@ import { YPFEvent } from "@/features/api/v1/events/dtos";
 export async function fetchProjects(
   query: z.infer<typeof GetProjectsQuerySchema>,
 ): Promise<Paginated<YPFProject>> {
-  const { page, pageSize, search, filterStatus, chapterId } = query;
+  const { page, pageSize, search, filterStatus, status, chapterId } = query;
   const offset = (page - 1) * pageSize;
 
   // Build where conditions
@@ -29,8 +33,10 @@ export async function fetchProjects(
     conditions.push(ilike(Projects.title, `%${search}%`));
   }
 
-  if (filterStatus) {
-    conditions.push(eq(Projects.status, filterStatus));
+  // Accept both `filterStatus` (admin UI) and `status` (public site, plan §5)
+  const effectiveStatus = filterStatus ?? status;
+  if (effectiveStatus) {
+    conditions.push(eq(Projects.status, effectiveStatus));
   }
 
   if (query.filterType) {
@@ -52,11 +58,16 @@ export async function fetchProjects(
         abstract: Projects.abstract,
         type: Projects.type,
         category: Projects.category,
+        location: Projects.location,
         scheduledStart: Projects.scheduledStart,
         scheduledEnd: Projects.scheduledEnd,
         status: Projects.status,
         featuredMediumExternalId: Media.externalId,
         chapterName: Chapters.name,
+        // Count active enrollments (excludes unenrolled). count(*) over a LEFT
+        // JOIN would always be >= 1; counting the joined id gives 0 when
+        // there are no matches.
+        enrollmentCount: sql<number>`count(${ProjectEnrollments.id})::int`,
       })
       .from(Projects)
       .leftJoin(Chapters, eq(Projects.chapterId, Chapters.id))
@@ -68,7 +79,15 @@ export async function fetchProjects(
         ),
       )
       .leftJoin(Media, eq(ProjectMedia.mediumId, Media.id))
+      .leftJoin(
+        ProjectEnrollments,
+        and(
+          eq(Projects.id, ProjectEnrollments.projectId),
+          isNull(ProjectEnrollments.unenrolledAt),
+        ),
+      )
       .where(whereClause)
+      .orderBy(desc(Projects.scheduledStart))
       .limit(pageSize)
       .offset(offset)
       .groupBy(
@@ -78,6 +97,7 @@ export async function fetchProjects(
         Projects.abstract,
         Projects.type,
         Projects.category,
+        Projects.location,
         Projects.scheduledStart,
         Projects.scheduledEnd,
         Projects.status,
@@ -96,8 +116,10 @@ export async function fetchProjects(
     id: project.id,
     publicId: project.publicId,
     title: project.title,
+    abstract: project.abstract || undefined,
     type: project.type,
     category: project.category || undefined,
+    location: project.location || undefined,
     scheduledStart: project.scheduledStart,
     scheduledEnd: project.scheduledEnd,
     status: project.status,
@@ -107,6 +129,7 @@ export async function fetchProjects(
           expireSeconds: 60 * 60 * 24,
         })
       : undefined,
+    enrollmentCount: Number(project.enrollmentCount ?? 0),
     chapterName: project.chapterName || undefined,
   }));
 
@@ -191,6 +214,9 @@ export async function fetchProjectById(
       category: Projects.category,
       abstract: Projects.abstract,
       description: Projects.description,
+      location: Projects.location,
+      objectives: Projects.objectives,
+      impact: Projects.impact,
       scheduledStart: Projects.scheduledStart,
       scheduledEnd: Projects.scheduledEnd,
       status: Projects.status,
@@ -205,27 +231,38 @@ export async function fetchProjectById(
     throw new ApiError("Project not found", 404);
   }
 
-  const featuredMedia = await dbClient.db
-    .select({
-      caption: ProjectMedia.caption,
-      medium: {
-        id: Media.id,
-        externalId: Media.externalId,
-        type: Media.type,
-        width: Media.width,
-        height: Media.height,
-        size: Media.size,
-        uploadedAt: Media.uploadedAt,
-      },
-    })
-    .from(ProjectMedia)
-    .innerJoin(Media, eq(ProjectMedia.mediumId, Media.id))
-    .where(
-      and(
-        eq(ProjectMedia.projectId, projectId),
-        eq(ProjectMedia.isFeatured, true),
+  const [featuredMedia, enrollmentCountRow] = await Promise.all([
+    dbClient.db
+      .select({
+        caption: ProjectMedia.caption,
+        medium: {
+          id: Media.id,
+          externalId: Media.externalId,
+          type: Media.type,
+          width: Media.width,
+          height: Media.height,
+          size: Media.size,
+          uploadedAt: Media.uploadedAt,
+        },
+      })
+      .from(ProjectMedia)
+      .innerJoin(Media, eq(ProjectMedia.mediumId, Media.id))
+      .where(
+        and(
+          eq(ProjectMedia.projectId, projectId),
+          eq(ProjectMedia.isFeatured, true),
+        ),
       ),
-    );
+    dbClient.db
+      .select({ n: count() })
+      .from(ProjectEnrollments)
+      .where(
+        and(
+          eq(ProjectEnrollments.projectId, projectId),
+          isNull(ProjectEnrollments.unenrolledAt),
+        ),
+      ),
+  ]);
 
   return {
     id: ypfProject.id,
@@ -235,6 +272,10 @@ export async function fetchProjectById(
     category: ypfProject.category || undefined,
     abstract: ypfProject.abstract || undefined,
     description: ypfProject.description || undefined,
+    location: ypfProject.location || undefined,
+    objectives:
+      (ypfProject.objectives as string[] | null | undefined) ?? undefined,
+    impact: ypfProject.impact || undefined,
     scheduledStart: ypfProject.scheduledStart,
     scheduledEnd: ypfProject.scheduledEnd,
     status: ypfProject.status,
@@ -247,7 +288,7 @@ export async function fetchProjectById(
             size: fm.medium.size,
             uploadedAt: fm.medium.uploadedAt,
             url: mediaUtils.generateSignedMediaUrl(fm.medium.externalId, {
-              resolution: 720,
+              resolution: 1080,
               expireSeconds: 60 * 60 * 24,
             }),
             dimensions: {
@@ -257,6 +298,7 @@ export async function fetchProjectById(
           },
         }))
       : undefined,
+    enrollmentCount: Number(enrollmentCountRow[0]?.n ?? 0),
     chapter:
       ypfProject.chapterId && ypfProject.chapterName
         ? {
@@ -336,6 +378,11 @@ export async function fetchProjectEvents(
         type: schema.Events.type,
         status: schema.Events.status,
         featuredMediumExternalId: schema.Media.externalId,
+        attendeeCount: sql<number>`(
+          SELECT COUNT(*)::int
+          FROM ${schema.EventAttendees}
+          WHERE ${schema.EventAttendees.eventId} = ${schema.Events.id}
+        )`,
       })
       .from(schema.Events)
       .leftJoin(
@@ -364,6 +411,7 @@ export async function fetchProjectEvents(
     location: event.location || undefined,
     type: event.type,
     status: event.status,
+    attendeeCount: Number(event.attendeeCount ?? 0),
     featuredMediumUrl: event.featuredMediumExternalId
       ? mediaUtils.generateSignedMediaUrl(event.featuredMediumExternalId, {
           resolution: 720,
@@ -377,5 +425,106 @@ export async function fetchProjectEvents(
     page,
     pageSize,
     total,
+  };
+}
+
+// ─── Project enrollments roster (Audit I6) ──────────────────────────────────
+
+export type ProjectEnrollmentRow = {
+  id: string;
+  role: "guest" | "member";
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  enrolledAt: Date;
+  unenrolledAt: Date | null;
+  guestProfile: unknown | null;
+};
+
+/**
+ * Paginated list of who's registered for a given project. Unifies guest
+ * enrollments (constituent_id NULL, guest_* fields populated) with
+ * authenticated-member enrollments (joined to Constituents).
+ *
+ * Filter: role=guest|member|all. Default 'all'.
+ */
+export async function fetchProjectEnrollments(
+  projectId: string,
+  query: {
+    page?: number;
+    pageSize?: number;
+    role?: "guest" | "member" | "all";
+  },
+): Promise<Paginated<ProjectEnrollmentRow>> {
+  const page = query.page ?? 1;
+  const pageSize = query.pageSize ?? 20;
+  const offset = (page - 1) * pageSize;
+  const role = query.role ?? "all";
+
+  const conds = [eq(schema.ProjectEnrollments.projectId, projectId)];
+  if (role === "guest") {
+    conds.push(isNull(schema.ProjectEnrollments.constituentId));
+  } else if (role === "member") {
+    conds.push(isNotNull(schema.ProjectEnrollments.constituentId));
+  }
+  const whereClause = and(...conds);
+
+  const [rows, totalRow] = await Promise.all([
+    dbClient.db
+      .select({
+        id: schema.ProjectEnrollments.id,
+        constituentId: schema.ProjectEnrollments.constituentId,
+        guestName: schema.ProjectEnrollments.guestName,
+        guestEmail: schema.ProjectEnrollments.guestEmail,
+        guestPhone: schema.ProjectEnrollments.guestPhone,
+        guestProfile: schema.ProjectEnrollments.guestProfile,
+        enrolledAt: schema.ProjectEnrollments.enrolledAt,
+        unenrolledAt: schema.ProjectEnrollments.unenrolledAt,
+        memberFirstName: schema.Constituents.firstName,
+        memberLastName: schema.Constituents.lastName,
+        memberEmail: schema.Constituents.email,
+        memberPhone: schema.Constituents.phone,
+      })
+      .from(schema.ProjectEnrollments)
+      .leftJoin(
+        schema.Constituents,
+        eq(
+          schema.ProjectEnrollments.constituentId,
+          schema.Constituents.id,
+        ),
+      )
+      .where(whereClause)
+      .orderBy(desc(schema.ProjectEnrollments.enrolledAt))
+      .limit(pageSize)
+      .offset(offset),
+    dbClient.db
+      .select({ n: count() })
+      .from(schema.ProjectEnrollments)
+      .where(whereClause)
+      .then((res) => res[0].n),
+  ]);
+
+  const items: ProjectEnrollmentRow[] = rows.map((r) => {
+    const isGuest = r.constituentId === null;
+    return {
+      id: r.id,
+      role: isGuest ? "guest" : "member",
+      name: isGuest
+        ? r.guestName
+        : [r.memberFirstName, r.memberLastName].filter(Boolean).join(" ") ||
+          null,
+      email: isGuest ? r.guestEmail : r.memberEmail,
+      phone: isGuest ? r.guestPhone : r.memberPhone,
+      enrolledAt: r.enrolledAt,
+      unenrolledAt: r.unenrolledAt,
+      guestProfile: isGuest ? r.guestProfile : null,
+    };
+  });
+
+  return {
+    items,
+    page,
+    pageSize,
+    total: Number(totalRow ?? 0),
   };
 }

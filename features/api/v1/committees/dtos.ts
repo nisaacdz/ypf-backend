@@ -3,10 +3,13 @@ import { Medium } from "@/shared/dtos";
 export type YPFCommittee = {
   id: string;
   name: string;
+  alias: string;
   description?: string;
   featuredPhotoUrl?: string;
   chapterName?: string;
   memberCount: number;
+  /** Active committeechair's `members.id`, or `null` if no chair is assigned. */
+  chairMemberId: string | null;
 };
 
 export type YPFCommitteeDetail = {

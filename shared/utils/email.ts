@@ -181,27 +181,73 @@ export async function sendWelcomeEmail(
 }
 
 /**
+ * OTP purpose. Drives the subject + intro copy so the same delivery primitive
+ * can serve password resets, onboarding, AND public-site checkout verification
+ * without the recipient seeing wrong/confusing text (e.g. a checkout OTP
+ * arriving as "Password Reset Code"). Add a new purpose here when introducing
+ * another flow rather than overloading an existing one.
+ */
+export type OtpPurpose = "password_reset" | "onboarding" | "checkout" | "generic";
+
+const OTP_COPY: Record<
+  OtpPurpose,
+  { subject: string; lead: string; outro: string }
+> = {
+  password_reset: {
+    subject: "Password Reset Code",
+    lead: "You have requested to reset your password.",
+    outro:
+      "If you did not request a password reset, please ignore this email or contact support if you have concerns.",
+  },
+  onboarding: {
+    subject: "Your YPF Africa Verification Code",
+    lead: "Welcome to YPF Africa! Use the code below to verify your email and finish setting up your account.",
+    outro:
+      "If you did not start an onboarding, you can safely ignore this email.",
+  },
+  checkout: {
+    subject: "Your YPF Africa Checkout Code",
+    lead: "Enter the code below to verify your email and complete your order.",
+    outro:
+      "If you did not start a checkout on ypfafrica.org, you can safely ignore this email.",
+  },
+  generic: {
+    subject: "Your YPF Africa Verification Code",
+    lead: "Use the code below to verify it's really you.",
+    outro: "If you did not request this code, you can safely ignore this email.",
+  },
+};
+
+/**
  * Sends an OTP (One-Time Password) email to a user.
+ *
  * @param to - The recipient's email address.
  * @param otp - The 6-digit OTP code.
+ * @param purpose - What this OTP is for. Drives the subject + body copy.
+ *   Defaults to `"generic"` so legacy callers that haven't been updated keep
+ *   producing sensible (non-password-reset) email content.
  */
-export async function sendOtpEmail(to: string, otp: string): Promise<void> {
-  const subject = "Password Reset Code";
+export async function sendOtpEmail(
+  to: string,
+  otp: string,
+  purpose: OtpPurpose = "generic",
+): Promise<void> {
+  const { subject, lead, outro } = OTP_COPY[purpose];
 
   const content = `
-    <p>You have requested to reset your password.</p>
+    <p>${lead}</p>
     <p>Your verification code is:</p>
     <div style="background-color: ${colors.muted}; padding: 24px; text-align: center; border-radius: 8px; margin: 24px 0;">
       <span style="font-size: 32px; font-weight: 700; letter-spacing: 8px; color: ${colors.primary}; font-family: monospace;">${otp}</span>
     </div>
     <p><strong>This code will expire in 6 minutes.</strong></p>
-    <p>If you did not request a password reset, please ignore this email or contact support if you have concerns.</p>
+    <p>${outro}</p>
     <p>Best regards,<br>The YPF Africa Team</p>
   `;
 
   const htmlBody = generateBaseHtml(subject, content);
 
-  const textContent = `You have requested to reset your password.\n\nYour verification code is: ${otp}\n\nThis code will expire in 6 minutes.\n\nIf you did not request a password reset, please ignore this email.\n\nBest regards,\nThe YPF Africa Team`;
+  const textContent = `${lead}\n\nYour verification code is: ${otp}\n\nThis code will expire in 6 minutes.\n\n${outro}\n\nBest regards,\nThe YPF Africa Team`;
 
   await sendEmail(to, subject, htmlBody, textContent);
 }
@@ -650,6 +696,49 @@ export async function sendMembershipApplicationAcceptanceEmail(params: {
     "",
     "Best regards,",
     "The YPF Africa Team",
+  ].join("\n");
+
+  await sendEmail(params.email, subject, htmlBody, textContent);
+}
+
+/**
+ * Heads-up email to the Graphics team that someone's birthday is coming up.
+ * Includes a link to the per-person card-prep page in UMS.
+ */
+export async function sendBirthdayHeadsUpEmail(params: {
+  email: string;
+  recipientName?: string;
+  birthdayPersonName: string;
+  birthdayDate: string;
+  age: number;
+  cardPrepUrl: string;
+}): Promise<void> {
+  const subject = `🎂 ${params.birthdayPersonName}'s birthday is in 3 days`;
+
+  const content = `
+    <p>Hi ${params.recipientName ?? "Graphics team"},</p>
+    <p>Heads up — <strong>${params.birthdayPersonName}</strong> turns
+    <strong>${params.age}</strong> on <strong>${params.birthdayDate}</strong>.</p>
+    <p>Prep their birthday card here:</p>
+    <p style="margin: 24px 0;">
+      <a class="button" href="${params.cardPrepUrl}">Open card prep page</a>
+    </p>
+    <p style="font-size: 12px; color: ${colors.mutedForeground};">
+      You're receiving this because you're on the Graphics committee.
+    </p>
+    <p>— YPF Africa</p>
+  `;
+
+  const htmlBody = generateBaseHtml(subject, content);
+
+  const textContent = [
+    `Hi ${params.recipientName ?? "Graphics team"},`,
+    "",
+    `Heads up — ${params.birthdayPersonName} turns ${params.age} on ${params.birthdayDate}.`,
+    "",
+    `Prep their birthday card here: ${params.cardPrepUrl}`,
+    "",
+    "— YPF Africa",
   ].join("\n");
 
   await sendEmail(params.email, subject, htmlBody, textContent);

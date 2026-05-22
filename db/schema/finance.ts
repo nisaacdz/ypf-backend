@@ -6,11 +6,14 @@ import {
   timestamp,
   text,
   date,
+  boolean,
   index,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import {
   Chapters,
+  Committees,
   Constituents,
   Documents,
   Members,
@@ -25,6 +28,10 @@ export const finance = pgSchema("finance");
 
 export const ExternalProviderEnum = finance.enum("external_provider", [
   "PAYSTACK",
+  // Used for admin-recorded offline payments (cash, transfer, mobile money)
+  // and any future internal-system payments that don't flow through a
+  // third-party gateway.
+  "MANUAL",
 ]);
 export const PaymentMethodEnum = finance.enum("payment_method", [
   "CREDIT_CARD",
@@ -37,6 +44,11 @@ export const TransactionStatusEnum = finance.enum("transaction_status", [
   "COMPLETED",
   "FAILED",
   "REFUNDED",
+]);
+export const BudgetRequestStatusEnum = finance.enum("budget_request_status", [
+  "SUBMITTED",
+  "APPROVED",
+  "REJECTED",
 ]);
 
 export const PartnershipTypeEnum = finance.enum("partnership_type", [
@@ -83,6 +95,8 @@ export const Donations = finance.table(
     }),
     guestName: text("guest_name"),
     guestEmail: text("guest_email"),
+    guestPhone: text("guest_phone"),
+    note: text("note"),
   },
   (table) => [
     index("donations_constituent_id_idx").on(table.constituentId),
@@ -116,6 +130,54 @@ export const DuesPayments = finance.table("dues_payments", {
     .references(() => Members.id, { onDelete: "restrict" }),
 });
 
+/**
+ * Recurring monthly dues policy set by a super admin. The active row defines
+ * the amount every member is billed for the current month. Setting a new
+ * policy ends the previous one (endedAt = now) — `effectiveFrom <= now AND
+ * (endedAt IS NULL OR endedAt > now)` identifies the active row.
+ *
+ * The scheduler / on-demand `ensureCurrentMonthDues()` reads this policy to
+ * create a `Dues` row for each month with the right amount.
+ */
+export const DuesPolicies = finance.table("dues_policies", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).notNull(),
+  effectiveFrom: timestamp("effective_from", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  endedAt: timestamp("ended_at", { withTimezone: true }),
+  createdBy: uuid("created_by").references(() => Constituents.id, {
+    onDelete: "set null",
+  }),
+});
+
+/**
+ * Dues reminders generated when a month is about to end and a user hasn't
+ * fully paid. One row per (constituent, dues period). Dismissed by the user
+ * or auto-dismissed when they complete payment.
+ */
+export const DuesReminders = finance.table(
+  "dues_reminders",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    constituentId: uuid("constituent_id")
+      .notNull()
+      .references(() => Constituents.id, { onDelete: "cascade" }),
+    duesId: uuid("dues_id")
+      .notNull()
+      .references(() => Dues.id, { onDelete: "cascade" }),
+    dismissed: boolean("dismissed").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("idx_dues_reminders_constituent").on(table.constituentId),
+    index("idx_dues_reminders_dues").on(table.duesId),
+  ],
+);
+
 export const Expenditures = finance.table("expenditures", {
   id: uuid().defaultRandom().primaryKey(),
   timestamp: timestamp({ withTimezone: true }).notNull(),
@@ -133,6 +195,51 @@ export const Expenditures = finance.table("expenditures", {
     onDelete: "restrict",
   }),
 });
+
+export type BudgetRequestLine = {
+  description: string;
+  category?: string;
+  amount: string;
+  notes?: string;
+};
+
+export const BudgetRequests = finance.table(
+  "budget_requests",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    committeeId: uuid("committee_id")
+      .notNull()
+      .references(() => Committees.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    month: date("month", { mode: "date" }).notNull(),
+    currency: varchar("currency", { length: 3 }).notNull(),
+    totalAmount: decimal("total_amount", { precision: 12, scale: 2 }).notNull(),
+    rationale: text("rationale").notNull(),
+    lines: jsonb("lines").$type<BudgetRequestLine[]>().notNull(),
+    status: BudgetRequestStatusEnum("status").default("SUBMITTED").notNull(),
+    submittedBy: uuid("submitted_by")
+      .notNull()
+      .references(() => Constituents.id, { onDelete: "restrict" }),
+    submittedAt: timestamp("submitted_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    reviewedBy: uuid("reviewed_by").references(() => Constituents.id, {
+      onDelete: "set null",
+    }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewNote: text("review_note"),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("budget_requests_committee_month_idx").on(
+      table.committeeId,
+      table.month,
+    ),
+    index("budget_requests_status_idx").on(table.status),
+  ],
+);
 
 export const Partnerships = finance.table("partnerships", {
   id: uuid().defaultRandom().primaryKey(),

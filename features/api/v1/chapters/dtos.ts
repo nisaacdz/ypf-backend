@@ -8,6 +8,16 @@ export type YPFChapter = {
   featuredPhotoUrl?: string;
   memberCount: number;
   foundingDate: Date;
+  // Currently-assigned chapter lead / head constituent ids and display
+  // names. Populated from MemberTitlesAssignments via MemberTitles where
+  // chapter_id = this chapter and alias in ('chapterlead','chapterhead').
+  // Either may be null when no one holds the role. Used by the chapters
+  // table to render an "Assigned to <name>" tag instead of "Unassigned"
+  // once leadership is set via the chapter detail page.
+  leadConstituentId?: string;
+  leadName?: string;
+  headConstituentId?: string;
+  headName?: string;
 };
 
 export type YPFChapterDetail = {

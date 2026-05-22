@@ -47,6 +47,45 @@ membersRouter.get(
   },
 );
 
+// IMPORTANT: static routes (/stats, /export.csv, /roles, /leadership) MUST
+// be declared BEFORE the catch-all /:constituentId — otherwise Express
+// matches them as a UUID param, validateParams rejects them as not-a-UUID,
+// and the request 404s. The People page's /members/stats fetch failed
+// exactly this way before the reorder.
+
+// Whole-org KPI snapshot for the People page. Drawn off the entire dataset
+// so the dashboard cards stay accurate regardless of pagination or search.
+membersRouter.get(
+  "/stats",
+  authenticate,
+  authorize(Visitors.hasProfile("MEMBER", "ADMIN")),
+  async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await membersHandler.getMemberStats();
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// CSV export of the current members list. Honors the same query filters as
+// GET /members so admins can "Export what I'm seeing." Streams direct to
+// the response — never materialises the full list in memory.
+membersRouter.get(
+  "/export.csv",
+  authenticate,
+  authorize(Visitors.hasProfile("ADMIN")),
+  validateQuery(GetMembersQuerySchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await membersHandler.exportMembersCsv(req.Query, res);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 membersRouter.get(
   "/:constituentId",
   authenticateLax,

@@ -6,6 +6,8 @@ export const GetMembersQuerySchema = z.object({
   committeeId: z.uuid({ message: "Invalid committee ID format." }).optional(),
   country: z.string().optional(),
   hasTitle: z.coerce.boolean().optional(),
+  // `search` ships via PaginationQuery.shape below and is consumed by the
+  // service layer's ILIKE clause across name + email + publicId.
   ...PaginationQuery.shape,
 });
 

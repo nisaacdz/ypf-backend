@@ -11,6 +11,7 @@ import {
   check,
   index,
   customType,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 
@@ -115,7 +116,10 @@ export const Constituents = core.table(
       () => Documents.id,
     ),
 
-    // missionPillars: text("mission_pillars").array(),
+    missionPillars: text("mission_pillars")
+      .array()
+      .default(sql`'{}'::text[]`)
+      .notNull(),
 
     emergencyContactName: text("emergency_contact_name"),
     emergencyContactPhone: text("emergency_contact_phone"),
@@ -177,6 +181,9 @@ export const MembershipApplications = core.table("membership_applications", {
   cvDocumentId: uuid("cv_document_id").references(() => Documents.id),
 
   referralSource: text("referral_source"),
+
+  // { termsAgreedAt: ISO, privacyAgreedAt: ISO, declarationAgreedAt: ISO }
+  consents: jsonb("consents"),
 });
 
 export const VolunteerApplications = core.table("volunteer_applications", {
@@ -186,6 +193,9 @@ export const VolunteerApplications = core.table("volunteer_applications", {
     .unique()
     .references(() => Applications.id, { onDelete: "cascade" }),
   reason: text("reason"), // Motivation/Reason for applying
+  experience: text("experience"),
+  availability: text("availability"), // WEEKDAYS | WEEKENDS | BOTH | FLEXIBLE
+  consents: jsonb("consents"),
   notes: text(), // Internal admin notes
 });
 
@@ -351,6 +361,7 @@ export const ChapterMemberships = core.table(
 export const Committees = core.table("committees", {
   id: uuid().defaultRandom().primaryKey(),
   name: text().notNull().unique(),
+  alias: text().notNull().unique(),
   description: text(),
   chapterId: uuid("chapter_id").references(() => Chapters.id, {
     onDelete: "cascade",
@@ -432,6 +443,45 @@ export const CommitteeMedia = core.table("committee_media", {
   caption: text(),
   isFeatured: boolean("is_featured").notNull().default(false),
 });
+
+// Public-website "Meet the team" entries. Decoupled from the internal Members
+// directory on purpose — the website needs a curated, ordered, edit-anytime
+// presentation, while Members reflects real org-chart truth. A constituentId
+// link is *optional*: admins can attach a real member (handy for photo +
+// future link-throughs) or just type a name + role for an external advisor.
+export const PublicTeamMembers = core.table(
+  "public_team_members",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    name: text("name").notNull(),
+    role: text("role").notNull(),
+    bio: text("bio"),
+    photoId: uuid("photo_id").references((): AnyPgColumn => Media.id, {
+      onDelete: "set null",
+    }),
+    // Optional link to a real constituent (e.g. the person's profile photo
+    // can fall back to constituent.profilePhoto when photoId is unset).
+    constituentId: uuid("constituent_id").references(
+      (): AnyPgColumn => Constituents.id,
+      { onDelete: "set null" },
+    ),
+    // Display order on the public site. Lowest first.
+    position: integer("position").notNull().default(0),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("public_team_members_position_idx").on(
+      table.position,
+      table.isActive,
+    ),
+  ],
+);
 
 // === RELATIONS ===
 

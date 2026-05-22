@@ -10,6 +10,7 @@ import {
   generateTestChapter,
   generateTestCommittee,
 } from "../factories";
+import { extractAccessTokenCookie } from "../helpers";
 
 describe("Committees API", () => {
   let authTokenCookie: string;
@@ -75,6 +76,7 @@ describe("Committees API", () => {
       .insert(schema.Committees)
       .values({
         name: testCommittee.name,
+        alias: "test_committee",
         description: testCommittee.description,
       })
       .returning();
@@ -86,6 +88,7 @@ describe("Committees API", () => {
       .insert(schema.Committees)
       .values({
         name: testCommitteeWithChapter.name,
+        alias: "test_committee_with_chapter",
         description: testCommitteeWithChapter.description,
         chapterId: testChapter.id,
       })
@@ -101,14 +104,7 @@ describe("Committees API", () => {
         password: testUser.password,
       });
 
-    const setCookieHeader = loginResponse.headers["set-cookie"];
-    const cookies = Array.isArray(setCookieHeader)
-      ? setCookieHeader
-      : [setCookieHeader];
-
-    const accessToken = cookies.find((c) => c.includes("access_token"));
-
-    authTokenCookie = accessToken?.split(";")[0] || "";
+    authTokenCookie = extractAccessTokenCookie(loginResponse.headers["set-cookie"]);
   });
 
   afterAll(async () => {

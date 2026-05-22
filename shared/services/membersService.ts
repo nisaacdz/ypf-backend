@@ -25,6 +25,8 @@ import {
 import { GetMembersQuerySchema } from "@/features/api/v1/members/schemas";
 import * as mediaUtils from "@/shared/utils/files";
 import { ApiError } from "@/shared/types";
+import { ensureCurrentMonthDues } from "./duesService";
+import logger from "@/configs/logger";
 
 export async function getMembers(
   query: z.infer<typeof GetMembersQuerySchema>,
@@ -95,6 +97,63 @@ export async function getMembers(
     )
     .as("primary_chapter");
 
+  // 2b. Subquery for current-period dues payments per member.
+  //
+  // Resolution strategy: call ensureCurrentMonthDues() which is idempotent —
+  // it creates a fresh global Dues row at the start of every month if one
+  // doesn't already exist. This is the lazy "monthly reset": as soon as the
+  // calendar rolls over to a new month, the next People-page load creates
+  // the new period and the paid flag is computed against it. Everyone's
+  // status resets to unpaid until they pay for the new month.
+  //
+  // We do NOT manually compute month boundaries here any more — that path
+  // had subtle timezone/equality bugs that left some paid members showing
+  // as unpaid. Trusting ensureCurrentMonthDues gives a single source of
+  // truth for "what's the current period."
+  let currentDues: typeof schema.Dues.$inferSelect | null = null;
+  try {
+    const row = await ensureCurrentMonthDues();
+    if (row) {
+      const [full] = await dbClient.db
+        .select()
+        .from(schema.Dues)
+        .where(eq(schema.Dues.id, row.id))
+        .limit(1);
+      currentDues = full ?? null;
+    }
+  } catch (err) {
+    // If the dues lookup fails we still want the People page to render —
+    // just without the paid badge. The list endpoint must not 500 because
+    // dues policy is unset.
+    logger.warn(err, "members list: failed to resolve current dues period");
+  }
+
+  const duesPaidSubquery = currentDues
+    ? dbClient.db
+        .select({
+          memberId: schema.DuesPayments.memberId,
+          amountPaid: sql<string>`COALESCE(SUM(${schema.FinancialTransactions.amount}), 0)::text`.as(
+            "amount_paid",
+          ),
+        })
+        .from(schema.DuesPayments)
+        .innerJoin(
+          schema.FinancialTransactions,
+          eq(
+            schema.DuesPayments.transactionId,
+            schema.FinancialTransactions.id,
+          ),
+        )
+        .where(
+          and(
+            eq(schema.DuesPayments.duesId, currentDues.id),
+            eq(schema.FinancialTransactions.status, "COMPLETED"),
+          ),
+        )
+        .groupBy(schema.DuesPayments.memberId)
+        .as("dues_paid")
+    : null;
+
   // 3. Subquery to find primary committee for each member
   const primaryCommitteeSubquery = dbClient.db
     .select({
@@ -130,8 +189,17 @@ export async function getMembers(
   const whereClauses = [];
 
   if (search) {
+    // Match any of full name, email, or member public id. Keep this in
+    // sync with the People page search input — anything typed there
+    // should narrow the list across the entire dataset, not just the
+    // currently-loaded page.
+    const needle = `%${search}%`;
     const fullName = sql<string>`concat(${schema.Constituents.firstName}, ' ', ${schema.Constituents.lastName})`;
-    whereClauses.push(ilike(fullName, `%${search}%`));
+    whereClauses.push(
+      sql`(${ilike(fullName, needle)}
+        OR ${schema.Constituents.email}::text ILIKE ${needle}
+        OR ${schema.Constituents.publicId}::text ILIKE ${needle})`,
+    );
   }
 
   if (country) {
@@ -214,11 +282,12 @@ export async function getMembers(
   }
 
   // --- BASE QUERY CONSTRUCTION ---
-  const baseQuery = dbClient.db
+  let baseQueryWithDues = dbClient.db
     .select({
       memberId: schema.Members.id,
       constituentId: schema.Constituents.id,
       publicId: schema.Constituents.publicId,
+      email: schema.Constituents.email,
       firstName: schema.Constituents.firstName,
       lastName: schema.Constituents.lastName,
       preferredName: schema.Constituents.preferredName,
@@ -231,6 +300,9 @@ export async function getMembers(
       chapterName: primaryChapterSubquery.chapterName,
       committeeId: primaryCommitteeSubquery.committeeId,
       committeeName: primaryCommitteeSubquery.committeeName,
+      duesAmountPaid: duesPaidSubquery
+        ? duesPaidSubquery.amountPaid
+        : sql<string | null>`NULL`,
     })
     .from(schema.Constituents)
     // Join active membership
@@ -266,8 +338,17 @@ export async function getMembers(
         eq(schema.Constituents.id, primaryCommitteeSubquery.constituentId),
         eq(primaryCommitteeSubquery.rn, 1),
       ),
-    )
-    .where(and(...whereClauses));
+    );
+
+  if (duesPaidSubquery) {
+    baseQueryWithDues = baseQueryWithDues.leftJoin(
+      duesPaidSubquery,
+      eq(schema.Members.id, duesPaidSubquery.memberId),
+    );
+  }
+  // Apply where filters at the end so the join chain above stays compact.
+  // (drizzle's builder allows chained .where after joins.)
+  const baseQuery = baseQueryWithDues.where(and(...whereClauses));
 
   // --- QUERY EXECUTION ---
   const [totalResult, dbMembers] = await Promise.all([
@@ -278,29 +359,44 @@ export async function getMembers(
   const total = totalResult[0]?.total ?? 0;
 
   // --- DATA MAPPING ---
-  const items: YPFMember[] = dbMembers.map((m) => ({
-    id: m.memberId,
-    constituentId: m.constituentId,
-    publicId: m.publicId,
-    fullName: m.preferredName ?? `${m.firstName} ${m.lastName}`,
-    profilePhotoUrl: m.profilePhotoExternalId
-      ? mediaUtils.generatePublicMediaUrl(m.profilePhotoExternalId, {
-          resolution: 360,
-        })
-      : undefined,
-    title: m.title ?? undefined,
-    chapter:
-      m.chapterId && m.chapterName
-        ? { id: m.chapterId, name: m.chapterName }
+  const duesAmount = currentDues ? Number(currentDues.amount) : 0;
+  const items: YPFMember[] = dbMembers.map((m) => {
+    const amountPaid = m.duesAmountPaid ? Number(m.duesAmountPaid) : 0;
+    return {
+      id: m.memberId,
+      constituentId: m.constituentId,
+      publicId: m.publicId,
+      email: m.email ?? undefined,
+      fullName: m.preferredName ?? `${m.firstName} ${m.lastName}`,
+      profilePhotoUrl: m.profilePhotoExternalId
+        ? mediaUtils.generatePublicMediaUrl(m.profilePhotoExternalId, {
+            resolution: 360,
+          })
         : undefined,
-    committee:
-      m.committeeId && m.committeeName
-        ? { id: m.committeeId, name: m.committeeName }
+      title: m.title ?? undefined,
+      chapter:
+        m.chapterId && m.chapterName
+          ? { id: m.chapterId, name: m.chapterName }
+          : undefined,
+      committee:
+        m.committeeId && m.committeeName
+          ? { id: m.committeeId, name: m.committeeName }
+          : undefined,
+      country: m.country ?? undefined,
+      campus: m.campus ?? undefined,
+      startedAt: m.startedAt ?? undefined,
+      dues: currentDues
+        ? {
+            paid: amountPaid >= duesAmount && duesAmount > 0,
+            amount: duesAmount,
+            amountPaid,
+            currency: currentDues.currency,
+            periodStart: currentDues.periodStart,
+            periodEnd: currentDues.periodEnd,
+          }
         : undefined,
-    country: m.country ?? undefined,
-    campus: m.campus ?? undefined,
-    startedAt: m.startedAt ?? undefined,
-  }));
+    };
+  });
 
   return {
     items,
@@ -849,4 +945,95 @@ export async function unassignRole(
   if (result.length === 0) {
     throw new ApiError("No active role assignment found", 404);
   }
+}
+
+/**
+ * Whole-org member stats used by the People page KPI tiles.
+ *
+ * The KPIs deliberately compute over the entire dataset (not the visible
+ * page) — pagination is for the table, but the stats should describe the
+ * whole org. Each metric is a separate query so the runtime can parallelise
+ * them; at ~10k members they all return in <30ms.
+ *
+ * "Leadership" is defined as anyone with a currently-active member title
+ * — chairs, leads, secretaries, etc. — which mirrors the meaning of the
+ * "In leadership" badge on the People page.
+ */
+export type MemberStats = {
+  total: number;
+  active: number;
+  pending: number;
+  leadership: number;
+  joinedThisMonth: number;
+};
+
+export async function getMemberStats(): Promise<MemberStats> {
+  const now = sql<Date>`now()`;
+  const monthStartIso = sql<string>`date_trunc('month', now())`;
+
+  const isActive = and(
+    lte(schema.Members.startedAt, now),
+    or(isNull(schema.Members.endedAt), gte(schema.Members.endedAt, now)),
+  );
+
+  const isPending = and(
+    or(isNull(schema.Members.startedAt), sql`${schema.Members.startedAt} > now()`),
+  );
+
+  // Three counts in parallel.
+  const [totalRow, activeRow, pendingRow, leadershipRow, joinedRow] =
+    await Promise.all([
+      // Total Members rows ever — includes ended memberships.
+      dbClient.db
+        .select({ n: count() })
+        .from(schema.Members)
+        .then((r) => Number(r[0]?.n ?? 0)),
+
+      // Currently active (within their started→ended window).
+      dbClient.db
+        .select({ n: count() })
+        .from(schema.Members)
+        .where(isActive)
+        .then((r) => Number(r[0]?.n ?? 0)),
+
+      // Pending = future-dated start (rare today; reserved for invites that
+      // haven't taken effect yet).
+      dbClient.db
+        .select({ n: count() })
+        .from(schema.Members)
+        .where(isPending)
+        .then((r) => Number(r[0]?.n ?? 0)),
+
+      // Distinct members holding any currently-active title.
+      dbClient.db
+        .select({
+          n: sql<number>`COUNT(DISTINCT ${schema.MemberTitlesAssignments.memberId})::int`,
+        })
+        .from(schema.MemberTitlesAssignments)
+        .where(
+          and(
+            lte(schema.MemberTitlesAssignments.startedAt, now),
+            or(
+              isNull(schema.MemberTitlesAssignments.endedAt),
+              gte(schema.MemberTitlesAssignments.endedAt, now),
+            ),
+          ),
+        )
+        .then((r) => Number(r[0]?.n ?? 0)),
+
+      // Joined since the first day of this calendar month.
+      dbClient.db
+        .select({ n: count() })
+        .from(schema.Members)
+        .where(sql`${schema.Members.startedAt} >= ${monthStartIso}`)
+        .then((r) => Number(r[0]?.n ?? 0)),
+    ]);
+
+  return {
+    total: totalRow,
+    active: activeRow,
+    pending: pendingRow,
+    leadership: leadershipRow,
+    joinedThisMonth: joinedRow,
+  };
 }

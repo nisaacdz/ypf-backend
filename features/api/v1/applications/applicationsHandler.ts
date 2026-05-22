@@ -5,6 +5,7 @@ import {
   GetMembershipApplicationsQuerySchema,
   GetVolunteerApplicationsQuerySchema,
   UpdateMembershipApplicationStatusSchema,
+  UpdateVolunteerApplicationStatusSchema,
 } from "./schemas";
 import z from "zod";
 import * as applicationsService from "@/shared/services/applicationsService";
@@ -220,6 +221,26 @@ export async function updateMembershipApplicationStatus({
   return {
     success: true,
     message: "Application status updated successfully",
+    data: null,
+  };
+}
+
+export async function updateVolunteerApplicationStatus({
+  applicationId,
+  body,
+}: {
+  applicationId: string;
+  body: z.infer<typeof UpdateVolunteerApplicationStatusSchema>;
+}): Promise<ApiResponse<null>> {
+  await applicationsService.updateVolunteerApplicationStatus(
+    applicationId,
+    body.status,
+    body.notes,
+  );
+
+  return {
+    success: true,
+    message: "Volunteer application status updated successfully",
     data: null,
   };
 }

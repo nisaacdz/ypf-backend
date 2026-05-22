@@ -5,10 +5,14 @@ import sharp from "sharp";
 import blobServiceClient, { containerNames } from "@/configs/fs";
 import { imagekit } from "@/configs/fs/cdn";
 import logger from "@/configs/logger";
+import variables from "@/configs/env";
 
 import fs from "fs/promises";
 import { AllowedDocumentsMimeTypes } from "../middlewares/multipart";
 import { BlobSASPermissions } from "@azure/storage-blob";
+
+const localDocumentPrefix = "local-docs:";
+const localDocumentsDir = path.join(process.cwd(), "storage", "docs");
 
 export type MediaMeta = {
   externalId: string;
@@ -88,6 +92,36 @@ export async function storeDocumentFile(
   const fileExtension =
     path.extname(file.originalname) || `.${file.mimetype.split("/")[1]}`;
   const fileName = `${uuidv4()}${fileExtension}`;
+  const documentType = AllowedDocumentsMimeTypes[file.mimetype];
+
+  if (shouldUseLocalDocumentStorage()) {
+    try {
+      await fs.mkdir(localDocumentsDir, { recursive: true });
+      const destination = path.join(localDocumentsDir, fileName);
+      if (file.path) {
+        await fs.copyFile(file.path, destination);
+      } else if (file.buffer) {
+        await fs.writeFile(destination, file.buffer);
+      } else {
+        throw new Error("File content missing (no path or buffer)");
+      }
+
+      return {
+        externalId: `${localDocumentPrefix}${fileName}`,
+        type: documentType,
+        size: file.size,
+      };
+    } finally {
+      if (file.path) {
+        try {
+          await fs.unlink(file.path);
+        } catch (err) {
+          logger.error(err, `Failed to delete temp file: ${file.path}`);
+        }
+      }
+    }
+  }
+
   const blobName = `${file.mimetype.split("/")[0]}/${fileName}`;
 
   const containerClient = blobServiceClient.getContainerClient(
@@ -110,7 +144,7 @@ export async function storeDocumentFile(
 
     return {
       externalId: blobName,
-      type: AllowedDocumentsMimeTypes[file.mimetype],
+      type: documentType,
       size: file.size,
     };
   } finally {
@@ -146,6 +180,18 @@ export async function deleteMediumFile(externalId: string): Promise<boolean> {
 }
 
 export async function deleteDocumentFile(externalId: string): Promise<boolean> {
+  if (isLocalDocumentExternalId(externalId)) {
+    try {
+      await fs.unlink(resolveLocalDocumentPath(externalId));
+      return true;
+    } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((error as any)?.code === "ENOENT") return true;
+      logger.error(error, `Failed to delete local document: ${externalId}`);
+      return false;
+    }
+  }
+
   try {
     const containerClient = blobServiceClient.getContainerClient(
       containerNames.docs,
@@ -189,6 +235,15 @@ export function generateVideoThumbnailUrl(
   });
 }
 
+// The ImageKit SDK builds URLs as `<urlEndpoint><tr:...><path>`. When the
+// path has no leading "/" AND there are no transformations, the slash that
+// would normally come from the transformation prefix is missing — so we end
+// up with e.g. `https://ik.imagekit.io/<acct>image/uuid.jpeg`. Always prepend
+// "/" to the path so URLs are correct whether or not a transformation is set.
+function imagekitPath(externalId: string): string {
+  return externalId.startsWith("/") ? externalId : `/${externalId}`;
+}
+
 export function generatePublicMediaUrl(
   externalId: string,
   options: { resolution?: number } = {},
@@ -199,7 +254,7 @@ export function generatePublicMediaUrl(
   }
 
   return imagekit.url({
-    path: externalId,
+    path: imagekitPath(externalId),
     transformation: transformations,
   });
 }
@@ -214,7 +269,7 @@ export function generateSignedMediaUrl(
   }
 
   return imagekit.url({
-    path: externalId,
+    path: imagekitPath(externalId),
     expireSeconds: options.expireSeconds,
     transformation: transformations,
     signed: true,
@@ -225,6 +280,10 @@ export async function generateSignedDocumentPreviewUrl(
   externalId: string,
   options: { expireSeconds: number },
 ) {
+  if (isLocalDocumentExternalId(externalId)) {
+    return generateLocalDocumentUrl(externalId);
+  }
+
   const containerClient = blobServiceClient.getContainerClient(
     containerNames.docs,
   );
@@ -245,6 +304,10 @@ export async function generateSignedDocumentDownloadUrl(
   externalId: string,
   options: { expireSeconds: number },
 ) {
+  if (isLocalDocumentExternalId(externalId)) {
+    return `${generateLocalDocumentUrl(externalId)}?download=1`;
+  }
+
   const containerClient = blobServiceClient.getContainerClient(
     containerNames.docs,
   );
@@ -260,4 +323,33 @@ export async function generateSignedDocumentDownloadUrl(
   });
 
   return url;
+}
+
+export function isLocalDocumentExternalId(externalId: string): boolean {
+  return externalId.startsWith(localDocumentPrefix);
+}
+
+export function resolveLocalDocumentPath(externalId: string): string {
+  if (!isLocalDocumentExternalId(externalId)) {
+    throw new Error("Not a local document external ID");
+  }
+
+  const fileName = externalId.slice(localDocumentPrefix.length);
+  if (!fileName || fileName.includes("/") || fileName.includes("\\")) {
+    throw new Error("Invalid local document external ID");
+  }
+
+  return path.join(localDocumentsDir, fileName);
+}
+
+function shouldUseLocalDocumentStorage(): boolean {
+  return (
+    !variables.app.isProduction &&
+    variables.services.azure.storageConnectionString.toLowerCase().includes("stub")
+  );
+}
+
+function generateLocalDocumentUrl(externalId: string): string {
+  const host = variables.app.host === "0.0.0.0" ? "localhost" : variables.app.host;
+  return `http://${host}:${variables.app.port}/api/v1/files/documents/${encodeURIComponent(externalId)}`;
 }

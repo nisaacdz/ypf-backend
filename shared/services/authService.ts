@@ -227,6 +227,40 @@ export async function resetPassword(
   });
 }
 
+export async function changePassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  const [user] = await dbClient.db
+    .select({
+      id: schema.Users.id,
+      password: schema.Users.password,
+    })
+    .from(schema.Users)
+    .where(eq(schema.Users.id, userId));
+
+  if (!user || !user.password) {
+    throw new ApiError("User not found", 404);
+  }
+
+  const isCurrentPasswordValid = await bcrypt.compare(
+    currentPassword,
+    user.password,
+  );
+
+  if (!isCurrentPasswordValid) {
+    throw new ApiError("Current password is incorrect", 400);
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+  await dbClient.db
+    .update(schema.Users)
+    .set({ password: hashedPassword, updatedAt: new Date() })
+    .where(eq(schema.Users.id, userId));
+}
+
 /**
  * Onboards a user by sending an OTP if they exist but have no auth method set.
  *

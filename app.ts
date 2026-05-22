@@ -1,3 +1,9 @@
+import { initSentry } from "@/configs/sentry";
+
+// Sentry must be initialised before any other import that opens HTTP or
+// boots Express, so the SDK can wrap the right modules.
+initSentry();
+
 import variables from "@/configs/env";
 import emailer from "@/configs/emailer";
 import dbClient from "./configs/db";

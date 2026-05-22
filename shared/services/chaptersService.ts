@@ -17,12 +17,14 @@ import schema from "@/db/schema";
 import { Paginated } from "@/shared/dtos";
 import { YPFChapter, YPFChapterDetail } from "@/features/api/v1/chapters/dtos";
 import {
+  CreateChapterSchema,
   GetChaptersQuerySchema,
   GetConstituentChaptersQuerySchema,
   UpdateChapterSchema,
 } from "@/features/api/v1/chapters/schemas";
 import { YPFMember } from "@/features/api/v1/members/dtos";
 import * as mediaUtils from "@/shared/utils/files";
+import logger from "@/configs/logger";
 import { ApiError } from "@/shared/types";
 
 export async function getChapters(
@@ -53,6 +55,46 @@ export async function getChapters(
     .groupBy(schema.ChapterMemberships.chapterId)
     .as("member_counts");
 
+  // --- SUBQUERY FOR CHAPTER ROLE HOLDERS ---
+  // Resolves the currently-active chapterlead / chapterhead assignment for
+  // each chapter via MemberTitles + MemberTitlesAssignments. row_number()
+  // keeps the latest assignment when more than one ends up active (defensive
+  // — the DB-level constraint should already prevent this).
+  const roleHoldersSubquery = dbClient.db
+    .select({
+      chapterId: schema.MemberTitles.chapterId,
+      alias: schema.MemberTitles.alias,
+      constituentId: schema.Members.constituentId,
+      firstName: schema.Constituents.firstName,
+      lastName: schema.Constituents.lastName,
+      rn: sql<number>`row_number() OVER (
+        PARTITION BY ${schema.MemberTitles.chapterId}, ${schema.MemberTitles.alias}
+        ORDER BY ${schema.MemberTitlesAssignments.startedAt} DESC
+      )`.as("role_rn"),
+    })
+    .from(schema.MemberTitlesAssignments)
+    .innerJoin(
+      schema.MemberTitles,
+      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
+    )
+    .innerJoin(
+      schema.Members,
+      eq(schema.MemberTitlesAssignments.memberId, schema.Members.id),
+    )
+    .innerJoin(
+      schema.Constituents,
+      eq(schema.Members.constituentId, schema.Constituents.id),
+    )
+    .where(
+      and(
+        sql`${schema.MemberTitles.chapterId} IS NOT NULL`,
+        sql`${schema.MemberTitles.alias} IN ('chapterlead', 'chapterhead')`,
+        sql`${schema.MemberTitlesAssignments.startedAt} <= now()`,
+        sql`(${schema.MemberTitlesAssignments.endedAt} IS NULL OR ${schema.MemberTitlesAssignments.endedAt} >= now())`,
+      ),
+    )
+    .as("chapter_role_holders");
+
   // --- SUBQUERY FOR FEATURED PHOTO ---
   const featuredPhotoSubquery = dbClient.db
     .select({
@@ -79,6 +121,12 @@ export async function getChapters(
     whereClauses.push(ilike(schema.Chapters.name, `%${search}%`));
   }
 
+  // Two aliased copies of the role-holders subquery — one per alias, joined
+  // separately so the row carries both the lead and the head names side-by-
+  // side. row_number() = 1 selects only the latest active assignment.
+  const leadHolder = roleHoldersSubquery;
+  const headHolder = roleHoldersSubquery;
+
   // --- BASE QUERY ---
   const baseQuery = dbClient.db
     .select({
@@ -88,6 +136,60 @@ export async function getChapters(
       featuredPhotoExternalId: featuredPhotoSubquery.externalId,
       memberCount: memberCountSubquery.memberCount,
       foundingDate: schema.Chapters.foundingDate,
+      leadConstituentId: sql<string | null>`(
+        SELECT crh.constituent_id::text
+        FROM (
+          SELECT mt.chapter_id, m.constituent_id,
+            row_number() OVER (PARTITION BY mt.chapter_id ORDER BY mta.started_at DESC) AS rn
+          FROM core.member_titles_assignments mta
+          INNER JOIN core.member_titles mt ON mta.title_id = mt.id
+          INNER JOIN core.members m ON mta.member_id = m.id
+          WHERE mt.chapter_id IS NOT NULL
+            AND mt.alias = 'chapterlead'
+            AND mta.started_at <= now()
+            AND (mta.ended_at IS NULL OR mta.ended_at >= now())
+        ) crh
+        WHERE crh.chapter_id = ${schema.Chapters.id} AND crh.rn = 1
+        LIMIT 1
+      )`,
+      leadName: sql<string | null>`(
+        SELECT TRIM(c.first_name || ' ' || c.last_name)
+        FROM core.member_titles_assignments mta
+        INNER JOIN core.member_titles mt ON mta.title_id = mt.id
+        INNER JOIN core.members m ON mta.member_id = m.id
+        INNER JOIN core.constituents c ON m.constituent_id = c.id
+        WHERE mt.chapter_id = ${schema.Chapters.id}
+          AND mt.alias = 'chapterlead'
+          AND mta.started_at <= now()
+          AND (mta.ended_at IS NULL OR mta.ended_at >= now())
+        ORDER BY mta.started_at DESC
+        LIMIT 1
+      )`,
+      headConstituentId: sql<string | null>`(
+        SELECT m.constituent_id::text
+        FROM core.member_titles_assignments mta
+        INNER JOIN core.member_titles mt ON mta.title_id = mt.id
+        INNER JOIN core.members m ON mta.member_id = m.id
+        WHERE mt.chapter_id = ${schema.Chapters.id}
+          AND mt.alias = 'chapterhead'
+          AND mta.started_at <= now()
+          AND (mta.ended_at IS NULL OR mta.ended_at >= now())
+        ORDER BY mta.started_at DESC
+        LIMIT 1
+      )`,
+      headName: sql<string | null>`(
+        SELECT TRIM(c.first_name || ' ' || c.last_name)
+        FROM core.member_titles_assignments mta
+        INNER JOIN core.member_titles mt ON mta.title_id = mt.id
+        INNER JOIN core.members m ON mta.member_id = m.id
+        INNER JOIN core.constituents c ON m.constituent_id = c.id
+        WHERE mt.chapter_id = ${schema.Chapters.id}
+          AND mt.alias = 'chapterhead'
+          AND mta.started_at <= now()
+          AND (mta.ended_at IS NULL OR mta.ended_at >= now())
+        ORDER BY mta.started_at DESC
+        LIMIT 1
+      )`,
     })
     .from(schema.Chapters)
     .leftJoin(
@@ -103,6 +205,13 @@ export async function getChapters(
     )
     .where(and(...whereClauses));
 
+  // `leadHolder` / `headHolder` aliases are kept above for symmetry with the
+  // earlier subquery definition; the actual lookups use correlated SQL
+  // expressions in the SELECT for simplicity.
+  void leadHolder;
+  void headHolder;
+  void roleHoldersSubquery;
+
   // --- QUERY EXECUTION ---
   const [totalResult, dbChapters] = await Promise.all([
     dbClient.db.select({ total: count() }).from(baseQuery.as("sub")),
@@ -112,6 +221,9 @@ export async function getChapters(
   const total = totalResult[0]?.total ?? 0;
 
   // --- DATA MAPPING ---
+  // `leadConstituentId` / `headConstituentId` / lead+head names land via
+  // SQL-typed columns. The non-list query path (getChaptersByConstituentId)
+  // doesn't populate them — those rows fall through `?? undefined`.
   const items: YPFChapter[] = dbChapters.map((c) => ({
     id: c.id,
     name: c.name,
@@ -123,6 +235,14 @@ export async function getChapters(
       : undefined,
     memberCount: c.memberCount ?? 0,
     foundingDate: c.foundingDate,
+    leadConstituentId:
+      (c as { leadConstituentId?: string | null }).leadConstituentId ??
+      undefined,
+    leadName: (c as { leadName?: string | null }).leadName ?? undefined,
+    headConstituentId:
+      (c as { headConstituentId?: string | null }).headConstituentId ??
+      undefined,
+    headName: (c as { headName?: string | null }).headName ?? undefined,
   }));
 
   return {
@@ -231,6 +351,23 @@ export async function getChapterById(
   return detailedChapter;
 }
 
+export async function createChapter(
+  input: z.infer<typeof CreateChapterSchema>,
+): Promise<{ id: string }> {
+  const [chapter] = await dbClient.db
+    .insert(schema.Chapters)
+    .values({
+      name: input.name,
+      country: input.country,
+      description: input.description,
+      foundingDate: input.foundingDate,
+      parentId: input.parentId,
+    })
+    .returning({ id: schema.Chapters.id });
+
+  return chapter;
+}
+
 export async function updateChapter(
   chapterId: string,
   updates: z.infer<typeof UpdateChapterSchema>,
@@ -246,6 +383,18 @@ export async function updateChapter(
   }
 
   return updatedChapter;
+}
+
+export async function archiveChapter(chapterId: string): Promise<void> {
+  const [chapter] = await dbClient.db
+    .update(schema.Chapters)
+    .set({ archivedAt: new Date() })
+    .where(eq(schema.Chapters.id, chapterId))
+    .returning({ id: schema.Chapters.id });
+
+  if (!chapter) {
+    throw new ApiError("Chapter not found", 404);
+  }
 }
 
 export async function getChaptersByConstituentId(
@@ -354,6 +503,9 @@ export async function getChaptersByConstituentId(
   const total = totalResult[0]?.total ?? 0;
 
   // --- DATA MAPPING ---
+  // `leadConstituentId` / `headConstituentId` / lead+head names land via
+  // SQL-typed columns. The non-list query path (getChaptersByConstituentId)
+  // doesn't populate them — those rows fall through `?? undefined`.
   const items: YPFChapter[] = dbChapters.map((c) => ({
     id: c.id,
     name: c.name,
@@ -365,6 +517,14 @@ export async function getChaptersByConstituentId(
       : undefined,
     memberCount: c.memberCount ?? 0,
     foundingDate: c.foundingDate,
+    leadConstituentId:
+      (c as { leadConstituentId?: string | null }).leadConstituentId ??
+      undefined,
+    leadName: (c as { leadName?: string | null }).leadName ?? undefined,
+    headConstituentId:
+      (c as { headConstituentId?: string | null }).headConstituentId ??
+      undefined,
+    headName: (c as { headName?: string | null }).headName ?? undefined,
   }));
 
   return {
@@ -536,5 +696,451 @@ export async function unenrollFromChapter(
 
   if (result.length === 0) {
     throw new ApiError("No active chapter membership found", 404);
+  }
+}
+
+/**
+ * Canonical chapter-scoped role aliases. Matches the convention documented in
+ * `constituents/dtos.ts` and the authorizer's `MEMBER.chapterlead.<id>` /
+ * `MEMBER.chapterhead.<id>` role-string format. The remaining slots use
+ * `chapter_*` underscore form so they never collide with existing
+ * global / committee titles.
+ */
+export const CHAPTER_ROLE_ALIASES = [
+  "chapterlead",
+  "chapterhead",
+  "chapter_secretary",
+  "chapter_finance",
+  "chapter_programs",
+  "chapter_welfare",
+  "chapter_media",
+  "chapter_records",
+] as const;
+
+export type ChapterRoleAlias = (typeof CHAPTER_ROLE_ALIASES)[number];
+
+const CHAPTER_ROLE_TITLES: Record<ChapterRoleAlias, string> = {
+  chapterlead: "Chapter Lead",
+  chapterhead: "Chapter Head",
+  chapter_secretary: "Chapter Secretary",
+  chapter_finance: "Finance Coordinator",
+  chapter_programs: "Programs Coordinator",
+  chapter_welfare: "Welfare Coordinator",
+  chapter_media: "Media Liaison",
+  chapter_records: "Records Officer",
+};
+
+const CHAPTER_ROLE_LEVELS: Record<ChapterRoleAlias, number> = {
+  chapterlead: 10,
+  chapterhead: 15,
+  chapter_secretary: 30,
+  chapter_finance: 30,
+  chapter_programs: 30,
+  chapter_welfare: 30,
+  chapter_media: 30,
+  chapter_records: 30,
+};
+
+export type ChapterRoleHolder = {
+  alias: ChapterRoleAlias;
+  title: string;
+  member?: {
+    memberId: string;
+    constituentId: string;
+    publicId: string;
+    fullName: string;
+    email?: string;
+    profilePhotoUrl?: string;
+    startedAt: Date;
+  };
+};
+
+/**
+ * Fetches all eight canonical chapter role slots for `chapterId`. Slots that
+ * have an active assignment include the holder; empty slots are returned
+ * without a `member`. Always returns 8 entries in the alias declaration order
+ * so the frontend can render the full list without filling in gaps itself.
+ */
+export async function getChapterRoles(
+  chapterId: string,
+): Promise<ChapterRoleHolder[]> {
+  const db = dbClient.db;
+
+  // Pull the active holder for every chapter-scoped title in one shot.
+  const rows = await db
+    .select({
+      alias: schema.MemberTitles.alias,
+      title: schema.MemberTitles.title,
+      memberId: schema.Members.id,
+      constituentId: schema.Constituents.id,
+      publicId: schema.Constituents.publicId,
+      firstName: schema.Constituents.firstName,
+      lastName: schema.Constituents.lastName,
+      preferredName: schema.Constituents.preferredName,
+      email: schema.Constituents.email,
+      profilePhotoExternalId: schema.Media.externalId,
+      startedAt: schema.MemberTitlesAssignments.startedAt,
+    })
+    .from(schema.MemberTitles)
+    .innerJoin(
+      schema.MemberTitlesAssignments,
+      eq(schema.MemberTitles.id, schema.MemberTitlesAssignments.titleId),
+    )
+    .innerJoin(
+      schema.Members,
+      eq(schema.MemberTitlesAssignments.memberId, schema.Members.id),
+    )
+    .innerJoin(
+      schema.Constituents,
+      eq(schema.Members.constituentId, schema.Constituents.id),
+    )
+    .leftJoin(
+      schema.Media,
+      eq(schema.Constituents.profilePhotoId, schema.Media.id),
+    )
+    .where(
+      and(
+        eq(schema.MemberTitles.chapterId, chapterId),
+        sql`${schema.MemberTitlesAssignments.startedAt} <= now()`,
+        sql`(${schema.MemberTitlesAssignments.endedAt} IS NULL OR ${schema.MemberTitlesAssignments.endedAt} >= now())`,
+        sql`${schema.Members.startedAt} <= now()`,
+        sql`(${schema.Members.endedAt} IS NULL OR ${schema.Members.endedAt} >= now())`,
+      ),
+    );
+
+  const byAlias = new Map<string, (typeof rows)[number]>();
+  for (const row of rows) {
+    // First active row wins per alias — should be unique under normal use
+    // but a defensive filter avoids surprising "double role" displays.
+    if (!byAlias.has(row.alias)) byAlias.set(row.alias, row);
+  }
+
+  return CHAPTER_ROLE_ALIASES.map((alias) => {
+    const row = byAlias.get(alias);
+    if (!row) {
+      return { alias, title: CHAPTER_ROLE_TITLES[alias] };
+    }
+    return {
+      alias,
+      title: row.title || CHAPTER_ROLE_TITLES[alias],
+      member: {
+        memberId: row.memberId,
+        constituentId: row.constituentId,
+        publicId: row.publicId,
+        fullName: row.preferredName ?? `${row.firstName} ${row.lastName}`,
+        email: row.email ?? undefined,
+        profilePhotoUrl: row.profilePhotoExternalId
+          ? mediaUtils.generatePublicMediaUrl(row.profilePhotoExternalId, {
+              resolution: 360,
+            })
+          : undefined,
+        startedAt: row.startedAt,
+      },
+    };
+  });
+}
+
+/**
+ * Finds the chapter-scoped MemberTitle for `alias`, creating it on demand if
+ * the row hasn't been provisioned yet. Idempotent — repeated calls return the
+ * same row.
+ */
+async function ensureChapterRoleTitle(
+  tx: typeof dbClient.db,
+  chapterId: string,
+  alias: ChapterRoleAlias,
+): Promise<{ id: string }> {
+  const existing = await tx.query.MemberTitles.findFirst({
+    where: and(
+      eq(schema.MemberTitles.chapterId, chapterId),
+      eq(schema.MemberTitles.alias, alias),
+    ),
+    columns: { id: true },
+  });
+  if (existing) return existing;
+
+  const [created] = await tx
+    .insert(schema.MemberTitles)
+    .values({
+      title: CHAPTER_ROLE_TITLES[alias],
+      alias,
+      _level: CHAPTER_ROLE_LEVELS[alias],
+      chapterId,
+    })
+    .returning({ id: schema.MemberTitles.id });
+
+  return created;
+}
+
+/**
+ * Assigns a chapter role to a constituent. The constituent must already have
+ * an active `Members` record. If a different person currently holds the role,
+ * their assignment is closed out (`endedAt = now`) before the new one is
+ * inserted, so each slot has at most one active holder.
+ *
+ * Returns the holder snapshot for the new assignment.
+ */
+export async function assignChapterRole(
+  chapterId: string,
+  alias: ChapterRoleAlias,
+  constituentId: string,
+): Promise<ChapterRoleHolder> {
+  // Verify chapter exists and isn't archived first — cheap check, friendlier 404.
+  const [chapter] = await dbClient.db
+    .select({ id: schema.Chapters.id })
+    .from(schema.Chapters)
+    .where(and(eq(schema.Chapters.id, chapterId), isNull(schema.Chapters.archivedAt)))
+    .limit(1);
+  if (!chapter) {
+    throw new ApiError("Chapter not found", 404);
+  }
+
+  await dbClient.db.transaction(async (tx) => {
+    const now = new Date();
+
+    const [member] = await tx
+      .select({ id: schema.Members.id })
+      .from(schema.Members)
+      .where(
+        and(
+          eq(schema.Members.constituentId, constituentId),
+          lte(schema.Members.startedAt, now),
+          or(
+            isNull(schema.Members.endedAt),
+            gte(schema.Members.endedAt, now),
+          ),
+        ),
+      )
+      .limit(1);
+
+    if (!member) {
+      throw new ApiError(
+        "Constituent has no active member record — invite them as a member first.",
+        400,
+      );
+    }
+
+    const title = await ensureChapterRoleTitle(
+      tx as typeof dbClient.db,
+      chapterId,
+      alias,
+    );
+
+    // Close out any active holders of this role (might be the same member —
+    // we still end + reinsert so startedAt reflects the latest assignment).
+    await tx
+      .update(schema.MemberTitlesAssignments)
+      .set({ endedAt: now })
+      .where(
+        and(
+          eq(schema.MemberTitlesAssignments.titleId, title.id),
+          isNull(schema.MemberTitlesAssignments.endedAt),
+        ),
+      );
+
+    await tx.insert(schema.MemberTitlesAssignments).values({
+      memberId: member.id,
+      titleId: title.id,
+      startedAt: now,
+    });
+
+    // Ensure the member is enrolled in the chapter — feels surprising for a
+    // chapter role-holder to not also appear in the chapter roster.
+    const [existingMembership] = await tx
+      .select({ id: schema.ChapterMemberships.id })
+      .from(schema.ChapterMemberships)
+      .where(
+        and(
+          eq(schema.ChapterMemberships.memberId, member.id),
+          eq(schema.ChapterMemberships.chapterId, chapterId),
+          isNull(schema.ChapterMemberships.endedAt),
+        ),
+      )
+      .limit(1);
+
+    if (!existingMembership) {
+      await tx.insert(schema.ChapterMemberships).values({
+        memberId: member.id,
+        chapterId,
+        startedAt: now,
+      });
+    }
+  });
+
+  const roles = await getChapterRoles(chapterId);
+  const holder = roles.find((r) => r.alias === alias);
+  if (!holder) {
+    // Practically unreachable — we just inserted the assignment.
+    throw new ApiError("Failed to reload role after assignment", 500);
+  }
+  return holder;
+}
+
+/**
+ * Ends the active assignment for a chapter role slot. The role title row is
+ * kept so the next assignment reuses the same id (and the seeded level).
+ */
+export async function clearChapterRole(
+  chapterId: string,
+  alias: ChapterRoleAlias,
+): Promise<void> {
+  const now = new Date();
+
+  const title = await dbClient.db.query.MemberTitles.findFirst({
+    where: and(
+      eq(schema.MemberTitles.chapterId, chapterId),
+      eq(schema.MemberTitles.alias, alias),
+    ),
+    columns: { id: true },
+  });
+
+  if (!title) {
+    // Nothing to clear — slot was never assigned. Treat as success.
+    return;
+  }
+
+  await dbClient.db
+    .update(schema.MemberTitlesAssignments)
+    .set({ endedAt: now })
+    .where(
+      and(
+        eq(schema.MemberTitlesAssignments.titleId, title.id),
+        isNull(schema.MemberTitlesAssignments.endedAt),
+      ),
+    );
+}
+
+// ─── Chapter media (Phase 1.2) ──────────────────────────────────────────────
+
+export async function fetchChapterMedia(
+  chapterId: string,
+  query: { page: number; pageSize: number },
+) {
+  const { page, pageSize } = query;
+
+  const [rows, total] = await Promise.all([
+    dbClient.db
+      .select({
+        id: schema.ChapterMedia.id,
+        caption: schema.ChapterMedia.caption,
+        isFeatured: schema.ChapterMedia.isFeatured,
+        medium: {
+          id: schema.Media.id,
+          externalId: schema.Media.externalId,
+          type: schema.Media.type,
+          width: schema.Media.width,
+          height: schema.Media.height,
+          size: schema.Media.size,
+          uploadedAt: schema.Media.uploadedAt,
+        },
+      })
+      .from(schema.ChapterMedia)
+      .innerJoin(
+        schema.Media,
+        eq(schema.ChapterMedia.mediumId, schema.Media.id),
+      )
+      .where(eq(schema.ChapterMedia.chapterId, chapterId))
+      .orderBy(desc(schema.ChapterMedia.isFeatured))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize),
+    dbClient.db
+      .select({ count: count() })
+      .from(schema.ChapterMedia)
+      .where(eq(schema.ChapterMedia.chapterId, chapterId))
+      .then((res) => res[0].count),
+  ]);
+
+  const items = rows.map((m) => ({
+    id: m.id,
+    caption: m.caption ?? undefined,
+    isFeatured: m.isFeatured,
+    medium: {
+      id: m.medium.id,
+      type: m.medium.type,
+      size: m.medium.size,
+      uploadedAt: m.medium.uploadedAt,
+      url: mediaUtils.generateSignedMediaUrl(m.medium.externalId, {
+        resolution: 1080,
+        expireSeconds: 60 * 60 * 24,
+      }),
+      dimensions: {
+        width: m.medium.width,
+        height: m.medium.height,
+      },
+    },
+  }));
+
+  return { items, total };
+}
+
+export async function updateChapterMedium(
+  chapterId: string,
+  mediumId: string,
+  data: { caption?: string; isFeatured?: boolean },
+): Promise<void> {
+  if (data.isFeatured === true) {
+    await dbClient.db
+      .update(schema.ChapterMedia)
+      .set({ isFeatured: false })
+      .where(eq(schema.ChapterMedia.chapterId, chapterId));
+  }
+
+  const [updated] = await dbClient.db
+    .update(schema.ChapterMedia)
+    .set(data)
+    .where(
+      and(
+        eq(schema.ChapterMedia.chapterId, chapterId),
+        eq(schema.ChapterMedia.id, mediumId),
+      ),
+    )
+    .returning({ id: schema.ChapterMedia.id });
+
+  if (!updated) {
+    throw new ApiError("Chapter medium not found", 404);
+  }
+}
+
+export async function removeChapterMedium(
+  chapterId: string,
+  mediumId: string,
+): Promise<void> {
+  const [removed] = await dbClient.db
+    .delete(schema.ChapterMedia)
+    .where(
+      and(
+        eq(schema.ChapterMedia.chapterId, chapterId),
+        eq(schema.ChapterMedia.id, mediumId),
+      ),
+    )
+    .returning({ mediumId: schema.ChapterMedia.mediumId });
+
+  if (!removed) {
+    throw new ApiError("Chapter medium not found", 404);
+  }
+
+  if (removed.mediumId) {
+    try {
+      const [media] = await dbClient.db
+        .select({ externalId: schema.Media.externalId })
+        .from(schema.Media)
+        .where(eq(schema.Media.id, removed.mediumId))
+        .limit(1);
+
+      await dbClient.db
+        .delete(schema.Media)
+        .where(eq(schema.Media.id, removed.mediumId));
+
+      if (media?.externalId) {
+        mediaUtils.deleteMediumFile(media.externalId).catch((err) => {
+          logger.error(
+            err,
+            `Failed to delete external media asset ${media.externalId}`,
+          );
+        });
+      }
+    } catch (err) {
+      logger.warn(err, "Failed to remove orphan media row");
+    }
   }
 }

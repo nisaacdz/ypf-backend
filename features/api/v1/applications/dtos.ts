@@ -7,6 +7,7 @@ export type YPFMembershipApplication = {
   trackingNumber: string;
   applicant: {
     id: string;
+    publicId?: string;
     fullName: string;
     email?: string;
     phone?: string;
@@ -16,6 +17,11 @@ export type YPFMembershipApplication = {
   };
   preferredChapterName?: string;
   preferredCommitteeName?: string;
+  onboarding?: {
+    userId?: string;
+    hasAccount: boolean;
+    completed: boolean;
+  };
 };
 
 export type YPFMembershipApplicationDetail = {
@@ -30,6 +36,7 @@ export type YPFMembershipApplicationDetail = {
   approvedAt?: Date;
   applicant: {
     id: string;
+    publicId?: string;
     firstName: string;
     lastName: string;
     email?: string;
@@ -68,6 +75,11 @@ export type YPFMembershipApplicationDetail = {
     url: string;
     downloadUrl: string;
   };
+  onboarding?: {
+    userId?: string;
+    hasAccount: boolean;
+    completed: boolean;
+  };
 };
 
 export type YPFVolunteerApplication = {
@@ -77,6 +89,7 @@ export type YPFVolunteerApplication = {
   createdAt: Date;
   applicant: {
     id: string;
+    publicId?: string;
     fullName: string;
     email?: string;
     phone?: string;
@@ -95,6 +108,7 @@ export type YPFVolunteerApplicationDetail = {
   updatedAt: Date;
   applicant: {
     id: string;
+    publicId?: string;
     firstName: string;
     lastName: string;
     email?: string;

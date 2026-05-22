@@ -1,8 +1,16 @@
 import { Client } from "pg";
 
+// DEPRECATED (2026-05-13): The committee names below are out of date — they
+// don't match the 14-body org structure confirmed by YPF Africa. Use
+// `npm run script seed-org-structure` instead, which is idempotent and uses
+// Drizzle ORM. This script remains only for historical reference and will
+// be removed once we're confident nothing depends on it.
 async function seedStarter() {
   if (!process.argv.includes("--confirm")) {
     console.error("❌ You must explicitly pass --confirm to do starter seed.");
+    console.error(
+      "❌ Also note: this script is DEPRECATED. Use 'npm run script seed-org-structure' instead.",
+    );
     process.exit(1);
   }
 

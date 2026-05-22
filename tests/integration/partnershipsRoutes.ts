@@ -10,6 +10,7 @@ import {
   generateTestOrganization,
   generateTestPartnership,
 } from "../factories";
+import { extractAccessTokenCookie } from "../helpers";
 
 describe("Partnerships API", () => {
   let memberAuthTokenCookie: string;
@@ -103,16 +104,9 @@ describe("Partnerships API", () => {
         password: memberUser.password,
       });
 
-    const memberCookieHeader = memberLoginResponse.headers["set-cookie"];
-    const memberCookies = Array.isArray(memberCookieHeader)
-      ? memberCookieHeader
-      : [memberCookieHeader];
-
-    const memberAccessToken = memberCookies.find((c) =>
-      c.includes("access_token"),
+    memberAuthTokenCookie = extractAccessTokenCookie(
+      memberLoginResponse.headers["set-cookie"],
     );
-
-    memberAuthTokenCookie = memberAccessToken?.split(";")[0] || "";
 
     // Login as admin to get auth token
     const adminLoginResponse = await request(server)
@@ -122,16 +116,9 @@ describe("Partnerships API", () => {
         password: adminUser.password,
       });
 
-    const adminCookieHeader = adminLoginResponse.headers["set-cookie"];
-    const adminCookies = Array.isArray(adminCookieHeader)
-      ? adminCookieHeader
-      : [adminCookieHeader];
-
-    const adminAccessToken = adminCookies.find((c) =>
-      c.includes("access_token"),
+    adminAuthTokenCookie = extractAccessTokenCookie(
+      adminLoginResponse.headers["set-cookie"],
     );
-
-    adminAuthTokenCookie = adminAccessToken?.split(";")[0] || "";
   });
 
   afterAll(async () => {

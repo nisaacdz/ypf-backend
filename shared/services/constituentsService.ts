@@ -1,8 +1,9 @@
 import { eq, and, lte, gte, isNull, or, sql, count, ilike } from "drizzle-orm";
 import z from "zod";
 import dbClient from "@/configs/db";
+import logger from "@/configs/logger";
 import schema from "@/db/schema";
-import { Profile } from "@/shared/types";
+import { ApiError, Profile } from "@/shared/types";
 import {
   YPFConstituent,
   YPFConstituentDetail,
@@ -10,6 +11,9 @@ import {
 import { generatePublicMediaUrl } from "@/shared/utils/files";
 import { Paginated } from "@/shared/dtos";
 import { GetConstituentsQuerySchema } from "@/features/api/v1/constituents/schemas";
+import { InviteConstituentSchema } from "@/features/api/v1/constituents/schemas";
+import * as membersService from "@/shared/services/membersService";
+import * as chaptersService from "@/shared/services/chaptersService";
 
 interface ProfilePeriod {
   name: Profile;
@@ -43,6 +47,18 @@ export async function getDetailedConstituent(
       firstName: true,
       lastName: true,
       preferredName: true,
+      email: true,
+      phone: true,
+      whatsapp: true,
+      occupation: true,
+      skills: true,
+      country: true,
+      region: true,
+      city: true,
+      campus: true,
+      linkedinProfile: true,
+      twitterHandle: true,
+      previousVolunteerExperience: true,
     },
     with: {
       profilePhoto: true,
@@ -82,6 +98,19 @@ export async function getDetailedConstituent(
     firstName: constituent.firstName,
     lastName: constituent.lastName,
     preferredName: constituent.preferredName ?? undefined,
+    email: constituent.email ?? undefined,
+    phone: constituent.phone ?? undefined,
+    whatsapp: constituent.whatsapp ?? undefined,
+    occupation: constituent.occupation ?? undefined,
+    skills: constituent.skills ?? undefined,
+    country: constituent.country ?? undefined,
+    region: constituent.region ?? undefined,
+    city: constituent.city ?? undefined,
+    campus: constituent.campus ?? undefined,
+    linkedinProfile: constituent.linkedinProfile ?? undefined,
+    twitterHandle: constituent.twitterHandle ?? undefined,
+    previousVolunteerExperience:
+      constituent.previousVolunteerExperience ?? undefined,
     profiles: profilePeriods,
     roles,
     committees,
@@ -214,63 +243,101 @@ async function fetchRoles(constituentId: string): Promise<RolePeriod[]> {
 }
 
 /**
- * Fetches all current committee memberships for a constituent.
+ * Fetches all current committee involvements for a constituent.
+ *
+ * Source of truth is `MemberTitlesAssignments` joined through `MemberTitles`
+ * scoped to a committee — every committee involvement (chair OR member) has
+ * a title assignment, so this captures both. Each returned row includes the
+ * committee's stable `alias` and the user's `titleAlias` so the frontend can
+ * route to `/dashboard/workspaces/<alias>` and gate UI on `committeechair`
+ * vs `committeemember`.
  */
 async function fetchCommittees(constituentId: string) {
   const db = dbClient.db;
   const now = new Date();
 
-  return await db
+  const rows = await db
     .select({
       id: schema.Committees.id,
       name: schema.Committees.name,
+      alias: schema.Committees.alias,
+      titleAlias: schema.MemberTitles.alias,
       chapterName: schema.Chapters.name,
-      // Get the photo externalId directly here
       photoExternalId: schema.Media.externalId,
     })
     .from(schema.Members)
     .innerJoin(
-      schema.CommitteeMemberships,
-      eq(schema.Members.id, schema.CommitteeMemberships.memberId),
+      schema.MemberTitlesAssignments,
+      eq(schema.Members.id, schema.MemberTitlesAssignments.memberId),
+    )
+    .innerJoin(
+      schema.MemberTitles,
+      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
     )
     .innerJoin(
       schema.Committees,
-      eq(schema.CommitteeMemberships.committeeId, schema.Committees.id),
+      eq(schema.MemberTitles.committeeId, schema.Committees.id),
     )
     .leftJoin(
       schema.Chapters,
       eq(schema.Committees.chapterId, schema.Chapters.id),
     )
-    // Join Media via CommitteeMedia directly
     .leftJoin(
       schema.CommitteeMedia,
       and(
         eq(schema.CommitteeMedia.committeeId, schema.Committees.id),
-        eq(schema.CommitteeMedia.isFeatured, true), // Only get featured
+        eq(schema.CommitteeMedia.isFeatured, true),
       ),
     )
-    .leftJoin(schema.Media, eq(schema.CommitteeMedia.mediumId, schema.Media.id))
+    .leftJoin(
+      schema.Media,
+      eq(schema.CommitteeMedia.mediumId, schema.Media.id),
+    )
     .where(
       and(
         eq(schema.Members.constituentId, constituentId),
-        lte(schema.CommitteeMemberships.startedAt, now),
+        lte(schema.Members.startedAt, now),
         or(
-          isNull(schema.CommitteeMemberships.endedAt),
-          gte(schema.CommitteeMemberships.endedAt, now),
+          isNull(schema.Members.endedAt),
+          gte(schema.Members.endedAt, now),
+        ),
+        lte(schema.MemberTitlesAssignments.startedAt, now),
+        or(
+          isNull(schema.MemberTitlesAssignments.endedAt),
+          gte(schema.MemberTitlesAssignments.endedAt, now),
         ),
       ),
-    )
-    .then((rows) =>
-      // Simple transformation at the end, no Maps
-      rows.map((row) => ({
-        id: row.id,
-        name: row.name,
-        chapterName: row.chapterName ?? undefined,
-        featuredPhotoUrl: row.photoExternalId
-          ? generatePublicMediaUrl(row.photoExternalId)
-          : undefined,
-      })),
     );
+
+  // Dedupe by (committeeId, titleAlias) — same person could have multiple
+  // assignments to the same title across overlapping periods (shouldn't, but
+  // the DB-level exclusion constraint covers a different shape).
+  const seen = new Map<
+    string,
+    {
+      id: string;
+      name: string;
+      alias?: string;
+      titleAlias?: string;
+      chapterName?: string;
+      featuredPhotoUrl?: string;
+    }
+  >();
+  for (const row of rows) {
+    const key = `${row.id}::${row.titleAlias}`;
+    if (seen.has(key)) continue;
+    seen.set(key, {
+      id: row.id,
+      name: row.name,
+      alias: row.alias ?? undefined,
+      titleAlias: row.titleAlias ?? undefined,
+      chapterName: row.chapterName ?? undefined,
+      featuredPhotoUrl: row.photoExternalId
+        ? generatePublicMediaUrl(row.photoExternalId)
+        : undefined,
+    });
+  }
+  return Array.from(seen.values());
 }
 
 /**
@@ -467,11 +534,40 @@ export async function onboardConstituent(
 
   const existingUser = await dbClient.db.query.Users.findFirst({
     where: eq(schema.Users.constituentId, constituentId),
-    columns: { id: true },
+    columns: {
+      id: true,
+      password: true,
+      googleId: true,
+      appleId: true,
+      facebookId: true,
+    },
   });
 
   if (existingUser) {
-    throw new Error("Constituent already has a User account");
+    const hasAuthMethod = Boolean(
+      existingUser.password ||
+        existingUser.googleId ||
+        existingUser.appleId ||
+        existingUser.facebookId,
+    );
+    if (hasAuthMethod) return { id: existingUser.id };
+
+    const name =
+      constituent.preferredName ??
+      `${constituent.firstName} ${constituent.lastName}`;
+    const onboardingUrl = `${dashboardUrl}/auth/onboard?user=${encodeURIComponent(
+      constituent.publicId,
+    )}`;
+
+    sendOnboardingInvitationEmail({
+      email: constituent.email,
+      name,
+      onboardingUrl,
+    }).catch((error) => {
+      logger.error(error, "Failed to send onboarding invitation email");
+    });
+
+    return { id: existingUser.id };
   }
 
   const [newUser] = await dbClient.db
@@ -500,7 +596,116 @@ export async function onboardConstituent(
     email: constituent.email,
     name,
     onboardingUrl,
+  }).catch((error) => {
+    logger.error(error, "Failed to send onboarding invitation email");
   });
 
   return newUser;
+}
+
+export async function inviteConstituent(
+  input: z.infer<typeof InviteConstituentSchema>,
+  dashboardUrl: string,
+): Promise<{ constituentId: string; userId: string }> {
+  const email = input.email.trim().toLowerCase();
+
+  const existingConstituent = await dbClient.db.query.Constituents.findFirst({
+    where: eq(schema.Constituents.email, email),
+    columns: { id: true },
+  });
+
+  if (existingConstituent) {
+    throw new ApiError("A constituent with this email already exists", 409);
+  }
+
+  const [constituent] = await dbClient.db
+    .insert(schema.Constituents)
+    .values({
+      firstName: input.firstName.trim(),
+      lastName: input.lastName.trim(),
+      preferredName: input.preferredName?.trim() || null,
+      email,
+      phone: input.phone?.trim() || null,
+      whatsapp: input.whatsapp?.trim() || null,
+      country: input.country?.trim() || null,
+      region: input.region?.trim() || null,
+      city: input.city?.trim() || null,
+      campus: input.campus?.trim() || null,
+      occupation: input.occupation?.trim() || null,
+    })
+    .returning({ id: schema.Constituents.id });
+
+  await membersService.enrollGlobal(constituent.id);
+
+  if (input.chapterId) {
+    await chaptersService.enrollToChapter(input.chapterId, constituent.id);
+  }
+
+  const user = await onboardConstituent(constituent.id, dashboardUrl);
+
+  return {
+    constituentId: constituent.id,
+    userId: user.id,
+  };
+}
+
+export async function updateConstituent(
+  constituentId: string,
+  updates: Partial<{
+    firstName: string;
+    lastName: string;
+    preferredName: string | null;
+    email: string | null;
+    phone: string | null;
+    whatsapp: string | null;
+    country: string | null;
+    region: string | null;
+    city: string | null;
+    campus: string | null;
+    occupation: string | null;
+    linkedinProfile: string | null;
+    twitterHandle: string | null;
+    skills: string[];
+    previousVolunteerExperience: string | null;
+  }>,
+): Promise<string> {
+  const [updated] = await dbClient.db
+    .update(schema.Constituents)
+    .set({
+      ...updates,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.Constituents.id, constituentId))
+    .returning({ id: schema.Constituents.id });
+
+  if (!updated) {
+    throw new Error("Constituent not found");
+  }
+
+  if (updates.email) {
+    await dbClient.db
+      .update(schema.Users)
+      .set({ email: updates.email, username: updates.email, updatedAt: new Date() })
+      .where(eq(schema.Users.constituentId, constituentId));
+  }
+
+  return updated.id;
+}
+
+export async function updateConstituentProfilePhoto(
+  constituentId: string,
+  profilePhotoId: string,
+): Promise<void> {
+  const [updated] = await dbClient.db
+    .update(schema.Constituents)
+    .set({
+      profilePhotoId,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.Constituents.id, constituentId))
+    .returning({ id: schema.Constituents.id });
+
+  if (!updated) {
+    throw new Error("Constituent not found");
+  }
 }

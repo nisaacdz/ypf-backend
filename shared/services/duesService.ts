@@ -1,10 +1,11 @@
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, or, gt, isNull, desc, sql } from "drizzle-orm";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import variables from "@/configs/env";
 import { ApiError, AuthenticatedUser } from "@/shared/types";
 import logger from "@/configs/logger";
 import { v4 as uuidv4 } from "uuid";
+import { paystackSplitFields } from "./paymentProviders";
 
 type PaystackInitializeResponse = {
   status: boolean;
@@ -25,6 +26,21 @@ export async function getAvailableDues(query: {
 }) {
   const { page, pageSize } = query;
   const offset = (page - 1) * pageSize;
+
+  // Idempotent: make sure the current month has a Dues row before reading.
+  // Cheap (one indexed SELECT) when the row already exists. We swallow errors
+  // so an unset policy never blocks the existing catalogue read.
+  try {
+    await ensureCurrentMonthDues();
+  } catch (err) {
+    logger.warn(err, "ensureCurrentMonthDues failed during GET /dues");
+  }
+
+  // Fire-and-forget: generate reminders for unpaid users in the last 7 days
+  // of the month. Idempotent and non-blocking.
+  import("./duesReminderService")
+    .then((svc) => svc.generateRemindersForCurrentMonth())
+    .catch(() => {});
 
   const [dues, countResult] = await Promise.all([
     dbClient.db
@@ -186,13 +202,36 @@ export async function getActiveMember(constituentId: string) {
     .where(
       and(
         eq(schema.Members.constituentId, constituentId),
-        sql`${schema.Members.endedAt} IS NULL OR ${schema.Members.endedAt} > now()`,
+        or(
+          isNull(schema.Members.endedAt),
+          gt(schema.Members.endedAt, sql`now()`),
+        ),
       ),
     )
     .orderBy(desc(schema.Members.startedAt))
     .limit(1);
 
   return member ?? null;
+}
+
+/**
+ * Returns an active member record, creating one if none exists.
+ * Dues payment is open to everyone — paying dues enrolls you as a member.
+ */
+export async function getOrCreateActiveMember(constituentId: string) {
+  const existing = await getActiveMember(constituentId);
+  if (existing) return existing;
+
+  const [created] = await dbClient.db
+    .insert(schema.Members)
+    .values({ constituentId, startedAt: new Date() })
+    .returning();
+
+  logger.info(
+    { constituentId, memberId: created.id },
+    "Auto-created Members row for dues payment",
+  );
+  return created;
 }
 
 /**
@@ -204,10 +243,7 @@ export async function initiateDuesPayment(
 ) {
   const { duesId, amount, currency } = input;
 
-  const member = await getActiveMember(user.constituentId);
-  if (!member) {
-    throw new ApiError("You must be an active member to pay dues", 403);
-  }
+  const member = await getOrCreateActiveMember(user.constituentId);
 
   const [dues] = await dbClient.db
     .select()
@@ -293,6 +329,29 @@ export async function initiateDuesPayment(
 
   let paymentUrl: string;
   try {
+    const paystackBody = {
+      amount: Math.round(amount * 100),
+      currency,
+      reference: paymentReference,
+      ...paystackSplitFields(),
+      callback_url:
+        (variables.app.dashboardUrl?.replace(/\/$/, "") ??
+          `http://${variables.app.host}:${variables.app.port}`) +
+        "/dashboard/me/dues/callback",
+      email: user.email,
+      metadata: {
+        type: "dues_payment",
+        duesId,
+        memberId: member.id,
+        period: `${dues.periodStart} - ${dues.periodEnd}`,
+      },
+    };
+
+    logger.info(
+      { paystackBody: { ...paystackBody, email: user.email } },
+      "Calling Paystack /transaction/initialize",
+    );
+
     const paystackResponse = await fetch(
       "https://api.paystack.co/transaction/initialize",
       {
@@ -301,19 +360,7 @@ export async function initiateDuesPayment(
           Authorization: `Bearer ${variables.services.paystack.secretKey}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          amount: Math.round(amount * 100),
-          currency,
-          reference: paymentReference,
-          callback_url: `${variables.app.host}/dues/callback`,
-          email: user.email,
-          metadata: {
-            type: "dues_payment",
-            duesId,
-            memberId: member.id,
-            period: `${dues.periodStart} - ${dues.periodEnd}`,
-          },
-        }),
+        body: JSON.stringify(paystackBody),
       },
     );
 
@@ -330,8 +377,9 @@ export async function initiateDuesPayment(
       (await paystackResponse.json()) as PaystackInitializeResponse;
     paymentUrl = paystackData.data.authorization_url;
   } catch (apiError) {
-    logger.warn(
-      `Compensating transaction for dues payment [${duesPaymentId}] due to API failure.`,
+    logger.error(
+      { err: apiError, duesPaymentId, transactionId, currency },
+      `Paystack API call failed for dues payment`,
     );
     try {
       await dbClient.db
@@ -344,11 +392,275 @@ export async function initiateDuesPayment(
         `CRITICAL: Failed to compensate (mark as FAILED) transaction [${transactionId}].`,
       );
     }
-    throw apiError;
+    if (apiError instanceof ApiError) throw apiError;
+    throw new ApiError(
+      "Payment provider unavailable — please check your internet connection and try again",
+      502,
+    );
   }
 
   return {
     paymentId: duesPaymentId,
     paymentUrl,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Dues policy (super-admin-configured monthly amount) + month auto-ensure
+// ---------------------------------------------------------------------------
+
+export type DuesPolicy = {
+  id: string;
+  amount: string;
+  currency: string;
+  effectiveFrom: Date;
+  endedAt: Date | null;
+  createdBy: string | null;
+};
+
+/**
+ * Returns the currently active dues policy (singleton — only one row has
+ * `endedAt IS NULL`). Null if no policy has ever been set.
+ */
+export async function getActiveDuesPolicy(): Promise<DuesPolicy | null> {
+  const [policy] = await dbClient.db
+    .select()
+    .from(schema.DuesPolicies)
+    .where(sql`${schema.DuesPolicies.endedAt} IS NULL`)
+    .orderBy(desc(schema.DuesPolicies.effectiveFrom))
+    .limit(1);
+  return policy ?? null;
+}
+
+/**
+ * Replaces the active dues policy in a transaction: ends the previous active
+ * row (sets `endedAt = now`) and inserts a new one. Subsequent dues rows
+ * created via `ensureCurrentMonthDues()` will use the new amount/currency.
+ */
+export async function setDuesPolicy(input: {
+  amount: number;
+  currency: string;
+  createdBy?: string;
+}): Promise<DuesPolicy> {
+  const { amount, currency, createdBy } = input;
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new ApiError("Amount must be a positive number", 400);
+  }
+  const normalisedCurrency = currency.toUpperCase();
+  if (normalisedCurrency.length !== 3) {
+    throw new ApiError("Currency must be a 3-letter ISO code", 400);
+  }
+
+  return await dbClient.db.transaction(async (tx) => {
+    const now = new Date();
+    await tx
+      .update(schema.DuesPolicies)
+      .set({ endedAt: now })
+      .where(sql`${schema.DuesPolicies.endedAt} IS NULL`);
+
+    const [created] = await tx
+      .insert(schema.DuesPolicies)
+      .values({
+        amount: amount.toFixed(2),
+        currency: normalisedCurrency,
+        createdBy: createdBy ?? null,
+      })
+      .returning();
+    return created;
+  });
+}
+
+/**
+ * Returns first/last day of the calendar month containing `date`. The dues
+ * period for each month is identified by these timestamps.
+ */
+function currentMonthBounds(date = new Date()): { start: Date; end: Date } {
+  const start = new Date(date.getFullYear(), date.getMonth(), 1);
+  const end = new Date(
+    date.getFullYear(),
+    date.getMonth() + 1,
+    0, // day 0 of next month = last day of this month
+  );
+  return { start, end };
+}
+
+/**
+ * Idempotent: makes sure a global `Dues` row exists for the current calendar
+ * month using the active policy's amount + currency. No-op if no active
+ * policy is set. Called from `GET /dues` so the catalogue stays in sync
+ * without needing an external scheduler.
+ */
+export async function ensureCurrentMonthDues(): Promise<{ id: string } | null> {
+  const policy = await getActiveDuesPolicy();
+  if (!policy) return null;
+
+  const { start, end } = currentMonthBounds();
+
+  // Use the start-of-month timestamp as the natural unique key for "this
+  // month's dues" (chapterId IS NULL = global). If a row already exists, we
+  // do nothing — the periodStart match also protects against duplicates if
+  // this function fires concurrently.
+  const [existing] = await dbClient.db
+    .select({ id: schema.Dues.id })
+    .from(schema.Dues)
+    .where(
+      and(
+        sql`${schema.Dues.chapterId} IS NULL`,
+        eq(schema.Dues.periodStart, start),
+      ),
+    )
+    .limit(1);
+
+  if (existing) return existing;
+
+  try {
+    const [created] = await dbClient.db
+      .insert(schema.Dues)
+      .values({
+        amount: policy.amount,
+        currency: policy.currency,
+        periodStart: start,
+        periodEnd: end,
+      })
+      .returning({ id: schema.Dues.id });
+    return created;
+  } catch (err) {
+    // If a concurrent call beat us to it, just fetch and return.
+    logger.warn(err, "ensureCurrentMonthDues insert failed — refetching");
+    const [retry] = await dbClient.db
+      .select({ id: schema.Dues.id })
+      .from(schema.Dues)
+      .where(
+        and(
+          sql`${schema.Dues.chapterId} IS NULL`,
+          eq(schema.Dues.periodStart, start),
+        ),
+      )
+      .limit(1);
+    if (!retry) throw err;
+    return retry;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Admin-recorded offline dues payment
+// ---------------------------------------------------------------------------
+
+export type OfflinePaymentMethod = "CASH" | "BANK_TRANSFER" | "MOBILE_MONEY";
+
+/**
+ * Admin path to record a dues payment that happened outside Paystack — cash
+ * handed in at a meeting, a bank transfer the treasurer manually verified,
+ * etc. Creates a COMPLETED `FinancialTransactions` row with
+ * `externalProvider = MANUAL` and links it via `DuesPayments`. No Paystack
+ * call is made.
+ */
+export async function recordOfflineDuesPayment(input: {
+  memberId: string;
+  duesId: string;
+  amount: number;
+  currency: string;
+  paymentMethod: OfflinePaymentMethod;
+  note?: string;
+  recordedBy: string;
+}): Promise<{ paymentId: string; transactionId: string }> {
+  const { memberId, duesId, amount, currency, paymentMethod, note, recordedBy } = input;
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new ApiError("Amount must be a positive number", 400);
+  }
+
+  // Verify the member + dues both exist before writing anything.
+  const [member] = await dbClient.db
+    .select({ id: schema.Members.id })
+    .from(schema.Members)
+    .where(eq(schema.Members.id, memberId))
+    .limit(1);
+  if (!member) {
+    throw new ApiError("Member not found", 404);
+  }
+
+  const [dues] = await dbClient.db
+    .select({
+      id: schema.Dues.id,
+      currency: schema.Dues.currency,
+      amount: schema.Dues.amount,
+    })
+    .from(schema.Dues)
+    .where(eq(schema.Dues.id, duesId))
+    .limit(1);
+  if (!dues) {
+    throw new ApiError("Dues period not found", 404);
+  }
+
+  const normalisedCurrency = currency.toUpperCase();
+  if (normalisedCurrency !== dues.currency) {
+    throw new ApiError(
+      `Payment currency (${normalisedCurrency}) must match the dues currency (${dues.currency}).`,
+      400,
+    );
+  }
+
+  // Sum existing completed payments and reject if this push would overpay.
+  const paidResult = await dbClient.db
+    .select({
+      totalPaid: sql<string>`COALESCE(SUM(${schema.FinancialTransactions.amount}), 0)`,
+    })
+    .from(schema.DuesPayments)
+    .innerJoin(
+      schema.FinancialTransactions,
+      eq(schema.DuesPayments.transactionId, schema.FinancialTransactions.id),
+    )
+    .where(
+      and(
+        eq(schema.DuesPayments.memberId, memberId),
+        eq(schema.DuesPayments.duesId, duesId),
+        eq(schema.FinancialTransactions.status, "COMPLETED"),
+      ),
+    );
+
+  const totalPaid = parseFloat(paidResult[0]?.totalPaid ?? "0");
+  const remaining = parseFloat(dues.amount) - totalPaid;
+  if (remaining <= 0) {
+    throw new ApiError("This dues has already been fully paid", 400);
+  }
+  if (amount > remaining + 0.001) {
+    throw new ApiError(
+      `Payment exceeds remaining balance of ${remaining.toFixed(2)} ${dues.currency}`,
+      400,
+    );
+  }
+
+  const externalRef = `manual_${uuidv4()}`;
+  const notePrefix = note ? ` — ${note}` : "";
+
+  return await dbClient.db.transaction(async (tx) => {
+    const [transaction] = await tx
+      .insert(schema.FinancialTransactions)
+      .values({
+        amount: amount.toFixed(2),
+        currency: normalisedCurrency,
+        status: "COMPLETED",
+        paymentMethod,
+        externalProvider: "MANUAL",
+        externalRef: `${externalRef}${notePrefix}`.slice(0, 1024),
+      })
+      .returning({ id: schema.FinancialTransactions.id });
+
+    const [payment] = await tx
+      .insert(schema.DuesPayments)
+      .values({
+        transactionId: transaction.id,
+        duesId,
+        memberId,
+      })
+      .returning({ id: schema.DuesPayments.id });
+
+    logger.info(
+      { paymentId: payment.id, recordedBy, memberId, duesId, amount, paymentMethod },
+      "Offline dues payment recorded",
+    );
+
+    return { paymentId: payment.id, transactionId: transaction.id };
+  });
 }

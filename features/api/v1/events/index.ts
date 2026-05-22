@@ -8,8 +8,10 @@ import {
 } from "@/shared/middlewares/validate";
 import {
   CreateEventSchema,
+  GetEventAttendeesQuerySchema,
   GetEventMediaQuerySchema,
   GetEventsQuerySchema,
+  GuestEventRegistrationSchema,
   UploadEventFileSchema,
   UploadEventMediumOptionsSchema,
   UpdateEventSchema,
@@ -22,11 +24,13 @@ import {
 } from "@/shared/middlewares/auth";
 import * as eventsHandler from "./eventsHandler";
 import filesUpload from "@/shared/middlewares/multipart";
+import { rateLimit } from "@/shared/middlewares/rateLimit";
 import z from "zod";
-import { anyOf, MEMBER, Visitors } from "@/configs/authorizer";
+import { ADMIN, anyOf, MEMBER, Visitors } from "@/configs/authorizer";
 import { redisCacheEarlyReturn } from "@/shared/middlewares/redisCache";
 import redisClient from "@/configs/redis";
 import logger from "@/configs/logger";
+import { canManageProgramsRecords } from "@/shared/services/workspaceAccessService";
 
 const eventsRouter = Router();
 
@@ -54,7 +58,11 @@ eventsRouter.post(
   "/",
   authenticate,
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.PRESIDENT),
+      canManageProgramsRecords,
+    ),
   ),
   validateBody(CreateEventSchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -67,12 +75,37 @@ eventsRouter.post(
   },
 );
 
+eventsRouter.get(
+  "/my-registrations",
+  authenticate,
+  authorize(Visitors.AUTHENTICATED),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { getMyEventRegistrations } = await import(
+        "@/shared/services/enrollmentService"
+      );
+      const eventIds = await getMyEventRegistrations(req.User!.constituentId);
+      res.status(200).json({
+        success: true,
+        message: "My event registrations",
+        data: eventIds,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 eventsRouter.post(
   "/:id/media",
   authenticate,
   validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.PRESIDENT),
+      canManageProgramsRecords,
+    ),
   ),
   filesUpload.mediaUpload.single("file"),
   validateFile(UploadEventFileSchema),
@@ -145,7 +178,11 @@ eventsRouter.put(
   authenticate,
   validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.PRESIDENT),
+      canManageProgramsRecords,
+    ),
   ),
   validateBody(UpdateEventSchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -162,12 +199,41 @@ eventsRouter.put(
   },
 );
 
+eventsRouter.delete(
+  "/:id",
+  authenticate,
+  validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
+  authorize(
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.PRESIDENT),
+      canManageProgramsRecords,
+    ),
+  ),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await eventsHandler.deleteEvent(req.Params.id);
+
+      // Clear caches that reference this event
+      await redisClient.delCache(`/api/v1/events/${req.Params.id}`);
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 eventsRouter.patch(
   "/:eventId/media/:eventMediumId",
   authenticate,
   validateParams(z.object({ eventId: z.uuid(), eventMediumId: z.uuid() }), 404),
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.PRESIDENT),
+      canManageProgramsRecords,
+    ),
   ),
   validateBody(UpdateEventMediumSchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -182,6 +248,104 @@ eventsRouter.patch(
       await redisClient.delCache(`/api/v1/events/${req.Params.eventId}`);
 
       res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// Audit I6 — admin RSVP roster. Same authz as event CRUD: admin or program
+// committee chair. Guest PII is in the response so this stays admin-only.
+eventsRouter.get(
+  "/:id/attendees",
+  authenticate,
+  validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
+  authorize(
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(ADMIN.SUPER, ADMIN.REGULAR, MEMBER.PRESIDENT),
+      canManageProgramsRecords,
+    ),
+  ),
+  validateQuery(GetEventAttendeesQuerySchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await eventsHandler.getEventAttendees(
+        req.Params.id,
+        req.Query,
+      );
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// ─── Public guest registration (plan §8.2 / audit C3) ──────────────────────
+
+eventsRouter.post(
+  "/:id/register-guest",
+  // Same rate-limit shape as project guest reg. 10/5min/IP keeps real users
+  // happy and stops bots from spamming RSVPs.
+  rateLimit({ windowMs: 5 * 60 * 1000, maxRequests: 10 }),
+  validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
+  validateBody(GuestEventRegistrationSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await eventsHandler.registerGuestForEvent(
+        req.Params.id,
+        req.Body,
+      );
+      res.status(201).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// ─── Event Registration (self-service for authenticated members) ────────────
+
+eventsRouter.post(
+  "/:id/register",
+  authenticate,
+  authorize(Visitors.AUTHENTICATED),
+  validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { registerForEvent } = await import(
+        "@/shared/services/enrollmentService"
+      );
+      const attendeeId = await registerForEvent(
+        req.Params.id,
+        req.User!.constituentId,
+      );
+      res.status(200).json({
+        success: true,
+        message: "Registered for event",
+        data: { attendeeId },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+eventsRouter.post(
+  "/:id/unregister",
+  authenticate,
+  authorize(Visitors.AUTHENTICATED),
+  validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { unregisterFromEvent } = await import(
+        "@/shared/services/enrollmentService"
+      );
+      await unregisterFromEvent(req.Params.id, req.User!.constituentId);
+      res.status(200).json({
+        success: true,
+        message: "Unregistered from event",
+        data: null,
+      });
     } catch (error) {
       next(error);
     }

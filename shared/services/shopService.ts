@@ -1,4 +1,4 @@
-import { eq, desc, inArray, and, gte, count } from "drizzle-orm";
+import { eq, desc, inArray, and, gte, lte, count, ilike, or } from "drizzle-orm";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import variables from "@/configs/env";
@@ -13,6 +13,7 @@ import { sendOrderPlacementEmail } from "@/shared/utils/email";
 import z from "zod";
 import { GetShopProductsQuerySchema } from "@/features/api/v1/shop/schemas";
 import { ShopProduct, ShopProductDetail } from "@/features/api/v1/shop/dtos";
+import { paystackSplitFields } from "./paymentProviders";
 import { Paginated } from "../dtos";
 import * as mediaUtils from "@/shared/utils/files";
 
@@ -33,6 +34,8 @@ type GuestOrderInput = {
   phone?: string;
   items: OrderItem[];
   currency: string;
+  deliveryAddress?: { raw: string };
+  note?: string;
 };
 
 /**
@@ -194,8 +197,9 @@ export async function createAuthenticatedOrder(
           amount: Math.round(totalAmount * 100),
           currency,
           reference: paymentReference,
-          callback_url: `${variables.app.host}/shop/callback`,
+          callback_url: `${variables.app.websiteUrl ?? variables.app.host}/orders/success`,
           email: user.email,
+          ...paystackSplitFields(),
         }),
       },
     );
@@ -284,9 +288,10 @@ export async function initiateGuestOrder(
     });
   });
 
-  // Send OTP email
+  // Send OTP email — flagged as checkout purpose so the recipient sees
+  // "checkout code" copy rather than the legacy password-reset wording.
   try {
-    await sendOtpEmail(email, otp);
+    await sendOtpEmail(email, otp, "checkout");
   } catch (emailError) {
     logger.error(emailError, "Failed to send OTP email");
     throw new ApiError("Failed to send verification code", 500);
@@ -353,16 +358,43 @@ export async function completeGuestOrder(
         .set({ usedAt: sql`now()` })
         .where(eq(schema.Otps.id, otpRecord.id));
 
-      // Create constituent
-      const [newConstituent] = await tx
-        .insert(schema.Constituents)
-        .values({
-          firstName: payload.firstName,
-          lastName: payload.lastName,
-          email: payload.email,
-          phone: payload.phone,
-        })
-        .returning();
+      // Resolve constituent — reuse an existing record if this email is
+      // already known. Constituents.email + Constituents.phone both carry
+      // unique constraints, so blindly inserting blows up on every repeat
+      // checkout (or whenever a member places a guest order with their own
+      // email). When inserting fresh, omit phone if another constituent
+      // already holds it.
+      let constituentId: string;
+      const [existingByEmail] = await tx
+        .select({ id: schema.Constituents.id })
+        .from(schema.Constituents)
+        .where(eq(schema.Constituents.email, payload.email))
+        .limit(1);
+
+      if (existingByEmail) {
+        constituentId = existingByEmail.id;
+      } else {
+        let phoneToInsert: string | undefined = payload.phone;
+        if (phoneToInsert) {
+          const [phoneTaken] = await tx
+            .select({ id: schema.Constituents.id })
+            .from(schema.Constituents)
+            .where(eq(schema.Constituents.phone, phoneToInsert))
+            .limit(1);
+          if (phoneTaken) phoneToInsert = undefined;
+        }
+
+        const [newConstituent] = await tx
+          .insert(schema.Constituents)
+          .values({
+            firstName: payload.firstName,
+            lastName: payload.lastName,
+            email: payload.email,
+            phone: phoneToInsert,
+          })
+          .returning({ id: schema.Constituents.id });
+        constituentId = newConstituent.id;
+      }
 
       // Create the financial transaction
       const [newTransaction] = await tx
@@ -380,10 +412,11 @@ export async function completeGuestOrder(
       const [newOrder] = await tx
         .insert(schema.Orders)
         .values({
-          constituentId: newConstituent.id,
+          constituentId,
           totalAmount: totalAmount.toFixed(2),
           status: "PENDING",
-          deliveryAddress: null,
+          deliveryAddress: payload.deliveryAddress ?? null,
+          note: payload.note ?? null,
         })
         .returning();
 
@@ -443,8 +476,9 @@ export async function completeGuestOrder(
           amount: Math.round(totalAmount * 100),
           currency: payload.currency,
           reference: paymentReference,
-          callback_url: `${variables.app.host}/shop/callback`,
+          callback_url: `${variables.app.websiteUrl ?? variables.app.host}/orders/success`,
           email: payload.email,
+          ...paystackSplitFields(),
         }),
       },
     );
@@ -561,6 +595,8 @@ export async function fetchShopProducts(
         sku: schema.Products.sku,
         price: schema.Products.price,
         stockQuantity: schema.Products.stockQuantity,
+        description: schema.Products.description,
+        category: schema.Products.category,
         featuredMediumExternalId: schema.Media.externalId,
       })
       .from(schema.Products)
@@ -582,6 +618,8 @@ export async function fetchShopProducts(
         schema.Products.sku,
         schema.Products.price,
         schema.Products.stockQuantity,
+        schema.Products.description,
+        schema.Products.category,
         schema.Products.createdAt,
         schema.Media.externalId,
       ),
@@ -599,6 +637,8 @@ export async function fetchShopProducts(
     sku: p.sku,
     price: parseFloat(p.price),
     stockQuantity: p.stockQuantity,
+    description: p.description ?? undefined,
+    category: p.category ?? undefined,
     previewUrl: p.featuredMediumExternalId
       ? mediaUtils.generateSignedMediaUrl(p.featuredMediumExternalId, {
           resolution: 720,
@@ -615,6 +655,69 @@ export async function fetchShopProducts(
   };
 }
 
+/**
+ * Fetches up to `limit` active products in the same category as `:id`,
+ * excluding the product itself. Returns empty array if the product has
+ * no category set.
+ */
+export async function fetchRelatedShopProducts(
+  productId: string,
+  limit = 3,
+): Promise<ShopProduct[]> {
+  const product = await dbClient.db.query.Products.findFirst({
+    where: eq(schema.Products.id, productId),
+    columns: { id: true, category: true },
+  });
+
+  if (!product || !product.category) return [];
+
+  const rows = await dbClient.db
+    .select({
+      id: schema.Products.id,
+      name: schema.Products.name,
+      sku: schema.Products.sku,
+      price: schema.Products.price,
+      stockQuantity: schema.Products.stockQuantity,
+      description: schema.Products.description,
+      category: schema.Products.category,
+      featuredMediumExternalId: schema.Media.externalId,
+    })
+    .from(schema.Products)
+    .leftJoin(
+      schema.ProductMedia,
+      and(
+        eq(schema.Products.id, schema.ProductMedia.productId),
+        eq(schema.ProductMedia.isFeatured, true),
+      ),
+    )
+    .leftJoin(schema.Media, eq(schema.ProductMedia.mediumId, schema.Media.id))
+    .where(
+      and(
+        eq(schema.Products.isActive, true),
+        eq(schema.Products.category, product.category),
+        sql`${schema.Products.id} != ${productId}`,
+      ),
+    )
+    .orderBy(desc(schema.Products.createdAt))
+    .limit(limit);
+
+  return rows.map((p) => ({
+    id: p.id,
+    name: p.name,
+    sku: p.sku,
+    price: parseFloat(p.price),
+    stockQuantity: p.stockQuantity,
+    description: p.description ?? undefined,
+    category: p.category ?? undefined,
+    previewUrl: p.featuredMediumExternalId
+      ? mediaUtils.generateSignedMediaUrl(p.featuredMediumExternalId, {
+          resolution: 720,
+          expireSeconds: 60 * 60 * 24,
+        })
+      : undefined,
+  }));
+}
+
 export async function fetchShopProductById(
   id: string,
 ): Promise<ShopProductDetail | null> {
@@ -626,38 +729,34 @@ export async function fetchShopProductById(
     return null;
   }
 
-  // Get product media
   const productMedia = await dbClient.db
     .select({
       id: schema.ProductMedia.id,
       caption: schema.ProductMedia.caption,
       isFeatured: schema.ProductMedia.isFeatured,
       medium: {
-        id: schema.Media.id,
         externalId: schema.Media.externalId,
         type: schema.Media.type,
         width: schema.Media.width,
         height: schema.Media.height,
-        size: schema.Media.size,
-        uploadedAt: schema.Media.uploadedAt,
       },
     })
     .from(schema.ProductMedia)
     .innerJoin(schema.Media, eq(schema.ProductMedia.mediumId, schema.Media.id))
-    .where(eq(schema.ProductMedia.productId, id));
+    .where(eq(schema.ProductMedia.productId, id))
+    // Featured-first so frontends can take the first item as the hero image.
+    .orderBy(desc(schema.ProductMedia.isFeatured));
 
-  const gallery = productMedia.map((pm) => ({
+  const media = productMedia.map((pm) => ({
     url: mediaUtils.generateSignedMediaUrl(pm.medium.externalId, {
-      resolution: 720,
+      resolution: 1080,
       expireSeconds: 60 * 60 * 24,
     }),
+    caption: pm.caption ?? undefined,
+    isFeatured: pm.isFeatured,
     type: pm.medium.type as "PICTURE" | "VIDEO",
-    dimensions: {
-      width: pm.medium.width,
-      height: pm.medium.height,
-    },
-    size: pm.medium.size,
-    uploadedAt: pm.medium.uploadedAt,
+    width: pm.medium.width,
+    height: pm.medium.height,
   }));
 
   return {
@@ -665,17 +764,30 @@ export async function fetchShopProductById(
     name: product.name,
     sku: product.sku,
     description: product.description ?? undefined,
+    longDescription: product.longDescription ?? undefined,
+    category: product.category ?? undefined,
+    attributes:
+      (product.attributes as ShopProductDetail["attributes"]) ?? undefined,
     stockQuantity: product.stockQuantity,
     price: parseFloat(product.price),
-    gallery,
+    media,
     createdAt: product.createdAt,
   };
 }
+
+type ProductAttributes = {
+  features?: string[];
+  sizes?: string[];
+  colors?: string[];
+};
 
 export async function createProduct(data: {
   name: string;
   sku: string;
   description?: string;
+  longDescription?: string;
+  category?: string;
+  attributes?: ProductAttributes;
   price: string;
   stockQuantity: number;
   isActive?: boolean;
@@ -686,6 +798,9 @@ export async function createProduct(data: {
       name: data.name,
       sku: data.sku,
       description: data.description,
+      longDescription: data.longDescription,
+      category: data.category,
+      attributes: data.attributes,
       price: data.price,
       stockQuantity: data.stockQuantity,
       isActive: data.isActive ?? true,
@@ -701,6 +816,9 @@ export async function updateProduct(
     name?: string;
     sku?: string;
     description?: string;
+    longDescription?: string;
+    category?: string;
+    attributes?: ProductAttributes;
     price?: string;
     stockQuantity?: number;
     isActive?: boolean;
@@ -728,5 +846,395 @@ export async function deleteProduct(id: string): Promise<void> {
 
   if (result.length === 0) {
     throw new ApiError("Product not found", 404);
+  }
+}
+
+// ─── Product media helpers (Phase 1.1) ──────────────────────────────────────
+
+export async function fetchProductMedia(
+  productId: string,
+  query: { page: number; pageSize: number },
+) {
+  const { page, pageSize } = query;
+
+  const [productMedia, total] = await Promise.all([
+    dbClient.db
+      .select({
+        id: schema.ProductMedia.id,
+        caption: schema.ProductMedia.caption,
+        isFeatured: schema.ProductMedia.isFeatured,
+        medium: {
+          id: schema.Media.id,
+          externalId: schema.Media.externalId,
+          type: schema.Media.type,
+          width: schema.Media.width,
+          height: schema.Media.height,
+          size: schema.Media.size,
+          uploadedAt: schema.Media.uploadedAt,
+        },
+      })
+      .from(schema.ProductMedia)
+      .innerJoin(
+        schema.Media,
+        eq(schema.ProductMedia.mediumId, schema.Media.id),
+      )
+      .where(eq(schema.ProductMedia.productId, productId))
+      .orderBy(desc(schema.ProductMedia.isFeatured))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize),
+    dbClient.db
+      .select({ count: count() })
+      .from(schema.ProductMedia)
+      .where(eq(schema.ProductMedia.productId, productId))
+      .then((res) => res[0].count),
+  ]);
+
+  const items = productMedia.map((m) => ({
+    id: m.id,
+    caption: m.caption ?? undefined,
+    isFeatured: m.isFeatured,
+    medium: {
+      id: m.medium.id,
+      type: m.medium.type,
+      size: m.medium.size,
+      uploadedAt: m.medium.uploadedAt,
+      url: mediaUtils.generateSignedMediaUrl(m.medium.externalId, {
+        resolution: 1080,
+        expireSeconds: 60 * 60 * 24,
+      }),
+      dimensions: {
+        width: m.medium.width,
+        height: m.medium.height,
+      },
+    },
+  }));
+
+  return { items, total };
+}
+
+export async function updateProductMedium(
+  productId: string,
+  mediumId: string,
+  data: { caption?: string; isFeatured?: boolean },
+): Promise<void> {
+  // If flagging this row featured, clear the flag on any other row first
+  // (only one featured image per product).
+  if (data.isFeatured === true) {
+    await dbClient.db
+      .update(schema.ProductMedia)
+      .set({ isFeatured: false })
+      .where(eq(schema.ProductMedia.productId, productId));
+  }
+
+  const [updated] = await dbClient.db
+    .update(schema.ProductMedia)
+    .set(data)
+    .where(
+      and(
+        eq(schema.ProductMedia.productId, productId),
+        eq(schema.ProductMedia.id, mediumId),
+      ),
+    )
+    .returning({ id: schema.ProductMedia.id });
+
+  if (!updated) {
+    throw new ApiError("Product medium not found", 404);
+  }
+}
+
+export async function removeProductMedium(
+  productId: string,
+  mediumId: string,
+): Promise<void> {
+  const [removed] = await dbClient.db
+    .delete(schema.ProductMedia)
+    .where(
+      and(
+        eq(schema.ProductMedia.productId, productId),
+        eq(schema.ProductMedia.id, mediumId),
+      ),
+    )
+    .returning({ mediumId: schema.ProductMedia.mediumId });
+
+  if (!removed) {
+    throw new ApiError("Product medium not found", 404);
+  }
+
+  // Best-effort cleanup of the underlying media row + ImageKit asset.
+  // ProductMedia.medium_id has ON DELETE CASCADE so the row is technically
+  // orphan-safe, but we want to free storage when nothing else references it.
+  if (removed.mediumId) {
+    try {
+      const [media] = await dbClient.db
+        .select({ externalId: schema.Media.externalId })
+        .from(schema.Media)
+        .where(eq(schema.Media.id, removed.mediumId))
+        .limit(1);
+
+      await dbClient.db
+        .delete(schema.Media)
+        .where(eq(schema.Media.id, removed.mediumId));
+
+      if (media?.externalId) {
+        mediaUtils.deleteMediumFile(media.externalId).catch((err) => {
+          logger.error(
+            err,
+            `Failed to delete external media asset ${media.externalId}`,
+          );
+        });
+      }
+    } catch (err) {
+      logger.warn(err, "Failed to remove orphan media row");
+    }
+  }
+}
+
+// ─── Admin order surfaces (Audit C2) ────────────────────────────────────────
+
+export type AdminOrderRow = {
+  id: string;
+  status: "PENDING" | "COMPLETED" | "CANCELLED";
+  totalAmount: string;
+  currency: string;
+  createdAt: Date;
+  itemCount: number;
+  customerName: string | null;
+  customerEmail: string | null;
+  paymentReference: string | null;
+  paymentStatus:
+    | "PENDING"
+    | "COMPLETED"
+    | "FAILED"
+    | "REFUNDED"
+    | null;
+};
+
+export type AdminOrderDetail = AdminOrderRow & {
+  deliveryAddress: unknown | null; // jsonb shape varies — pass-through
+  note: string | null;
+  items: Array<{
+    id: string;
+    productId: string;
+    productName: string | null;
+    productSku: string | null;
+    quantity: number;
+    priceAtPurchase: string;
+  }>;
+};
+
+/**
+ * Paginated admin list of orders. Joins:
+ *  - Orders → Constituents (customer name/email)
+ *  - Orders → OrderPayments → FinancialTransactions (payment ref + status,
+ *    plus currency since Orders.currency isn't stored — it's on the txn)
+ *  - Orders → OrderItems (count only)
+ *
+ * Filters: status (order status), date range. Search is omitted for v1
+ * because Constituents.email is citext and joins keep ILIKE-on-text simple
+ * when it's worth adding — flagged as a follow-up.
+ */
+export async function fetchAdminOrders(query: {
+  page?: number;
+  pageSize?: number;
+  status?: "PENDING" | "COMPLETED" | "CANCELLED";
+  startDate?: Date;
+  endDate?: Date;
+  search?: string;
+}): Promise<Paginated<AdminOrderRow>> {
+  const page = query.page ?? 1;
+  const pageSize = query.pageSize ?? 20;
+  const offset = (page - 1) * pageSize;
+
+  const conds = [];
+  if (query.status) {
+    conds.push(eq(schema.Orders.status, query.status));
+  }
+  if (query.startDate) {
+    conds.push(gte(schema.Orders.createdAt, query.startDate));
+  }
+  if (query.endDate) {
+    conds.push(lte(schema.Orders.createdAt, query.endDate));
+  }
+  if (query.search) {
+    // Full-text-ish search across the fields an admin actually types:
+    // customer first/last/email, Order ID prefix (UUID), and the Paystack
+    // payment reference. ILIKE keeps it case-insensitive; the existing
+    // joins to Constituents + FinancialTransactions make this cheap.
+    const needle = `%${query.search}%`;
+    conds.push(
+      or(
+        ilike(schema.Constituents.firstName, needle),
+        ilike(schema.Constituents.lastName, needle),
+        ilike(schema.Constituents.email, needle),
+        sql`${schema.Orders.id}::text ILIKE ${needle}`,
+        ilike(schema.FinancialTransactions.externalRef, needle),
+      ),
+    );
+  }
+  const whereClause = conds.length ? and(...conds) : undefined;
+
+  const [rows, totalRow] = await Promise.all([
+    dbClient.db
+      .select({
+        id: schema.Orders.id,
+        status: schema.Orders.status,
+        totalAmount: schema.Orders.totalAmount,
+        currency: schema.FinancialTransactions.currency,
+        createdAt: schema.Orders.createdAt,
+        itemCount: sql<number>`(
+          SELECT COUNT(*)::int
+          FROM ${schema.OrderItems}
+          WHERE ${schema.OrderItems.orderId} = ${schema.Orders.id}
+        )`,
+        customerFirstName: schema.Constituents.firstName,
+        customerLastName: schema.Constituents.lastName,
+        customerEmail: schema.Constituents.email,
+        paymentReference: schema.FinancialTransactions.externalRef,
+        paymentStatus: schema.FinancialTransactions.status,
+      })
+      .from(schema.Orders)
+      .leftJoin(
+        schema.Constituents,
+        eq(schema.Orders.constituentId, schema.Constituents.id),
+      )
+      .leftJoin(
+        schema.OrderPayments,
+        eq(schema.OrderPayments.orderId, schema.Orders.id),
+      )
+      .leftJoin(
+        schema.FinancialTransactions,
+        eq(
+          schema.FinancialTransactions.id,
+          schema.OrderPayments.transactionId,
+        ),
+      )
+      .where(whereClause)
+      .orderBy(desc(schema.Orders.createdAt))
+      .limit(pageSize)
+      .offset(offset),
+    dbClient.db
+      .select({ n: count() })
+      .from(schema.Orders)
+      .where(whereClause)
+      .then((res) => res[0].n),
+  ]);
+
+  const items: AdminOrderRow[] = rows.map((r) => ({
+    id: r.id,
+    status: r.status,
+    totalAmount: r.totalAmount,
+    currency: r.currency ?? "GHS",
+    createdAt: r.createdAt,
+    itemCount: Number(r.itemCount ?? 0),
+    customerName:
+      [r.customerFirstName, r.customerLastName].filter(Boolean).join(" ") ||
+      null,
+    customerEmail: r.customerEmail ?? null,
+    paymentReference: r.paymentReference ?? null,
+    paymentStatus: r.paymentStatus ?? null,
+  }));
+
+  return {
+    items,
+    page,
+    pageSize,
+    total: Number(totalRow ?? 0),
+  };
+}
+
+export async function fetchAdminOrderById(
+  orderId: string,
+): Promise<AdminOrderDetail | null> {
+  const [order] = await dbClient.db
+    .select({
+      id: schema.Orders.id,
+      status: schema.Orders.status,
+      totalAmount: schema.Orders.totalAmount,
+      currency: schema.FinancialTransactions.currency,
+      createdAt: schema.Orders.createdAt,
+      deliveryAddress: schema.Orders.deliveryAddress,
+      note: schema.Orders.note,
+      customerFirstName: schema.Constituents.firstName,
+      customerLastName: schema.Constituents.lastName,
+      customerEmail: schema.Constituents.email,
+      paymentReference: schema.FinancialTransactions.externalRef,
+      paymentStatus: schema.FinancialTransactions.status,
+    })
+    .from(schema.Orders)
+    .leftJoin(
+      schema.Constituents,
+      eq(schema.Orders.constituentId, schema.Constituents.id),
+    )
+    .leftJoin(
+      schema.OrderPayments,
+      eq(schema.OrderPayments.orderId, schema.Orders.id),
+    )
+    .leftJoin(
+      schema.FinancialTransactions,
+      eq(
+        schema.FinancialTransactions.id,
+        schema.OrderPayments.transactionId,
+      ),
+    )
+    .where(eq(schema.Orders.id, orderId))
+    .limit(1);
+
+  if (!order) return null;
+
+  const items = await dbClient.db
+    .select({
+      id: schema.OrderItems.id,
+      productId: schema.OrderItems.productId,
+      productName: schema.Products.name,
+      productSku: schema.Products.sku,
+      quantity: schema.OrderItems.quantity,
+      priceAtPurchase: schema.OrderItems.priceAtPurchase,
+    })
+    .from(schema.OrderItems)
+    .leftJoin(
+      schema.Products,
+      eq(schema.OrderItems.productId, schema.Products.id),
+    )
+    .where(eq(schema.OrderItems.orderId, orderId));
+
+  return {
+    id: order.id,
+    status: order.status,
+    totalAmount: order.totalAmount,
+    currency: order.currency ?? "GHS",
+    createdAt: order.createdAt,
+    itemCount: items.length,
+    customerName:
+      [order.customerFirstName, order.customerLastName]
+        .filter(Boolean)
+        .join(" ") || null,
+    customerEmail: order.customerEmail ?? null,
+    paymentReference: order.paymentReference ?? null,
+    paymentStatus: order.paymentStatus ?? null,
+    deliveryAddress: order.deliveryAddress ?? null,
+    note: order.note ?? null,
+    items: items.map((i) => ({
+      id: i.id,
+      productId: i.productId,
+      productName: i.productName ?? null,
+      productSku: i.productSku ?? null,
+      quantity: i.quantity,
+      priceAtPurchase: i.priceAtPurchase,
+    })),
+  };
+}
+
+export async function updateAdminOrderStatus(
+  orderId: string,
+  status: "PENDING" | "COMPLETED" | "CANCELLED",
+): Promise<void> {
+  const [updated] = await dbClient.db
+    .update(schema.Orders)
+    .set({ status })
+    .where(eq(schema.Orders.id, orderId))
+    .returning({ id: schema.Orders.id });
+
+  if (!updated) {
+    throw new ApiError("Order not found", 404);
   }
 }

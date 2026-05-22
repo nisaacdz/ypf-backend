@@ -4,7 +4,11 @@ import {
   timestamp,
   decimal,
   integer,
+  text,
+  unique,
+  index,
 } from "drizzle-orm/pg-core";
+import { Committees, Constituents, Documents } from "./core";
 
 export const logs = pgSchema("logs");
 
@@ -49,3 +53,99 @@ export const MonthlyReports = logs.table("monthly_reports", {
     .defaultNow()
     .notNull(),
 });
+
+export const WorkspaceSubmissionKindEnum = logs.enum(
+  "workspace_submission_kind",
+  ["PLAN", "REPORT"],
+);
+
+export const WorkspaceNoteEntityTypeEnum = logs.enum(
+  "workspace_note_entity_type",
+  ["program", "event", "workspace"],
+);
+
+export const WorkspaceMonthlySubmissions = logs.table(
+  "workspace_monthly_submissions",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    committeeId: uuid("committee_id")
+      .notNull()
+      .references(() => Committees.id, { onDelete: "cascade" }),
+    month: timestamp("month", { withTimezone: true }).notNull(),
+    kind: WorkspaceSubmissionKindEnum().notNull(),
+    body: text().notNull(),
+    documentName: text("document_name"),
+    documentUrl: text("document_url"),
+    submittedBy: uuid("submitted_by")
+      .notNull()
+      .references(() => Constituents.id, { onDelete: "restrict" }),
+    submittedAt: timestamp("submitted_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    unique().on(table.committeeId, table.month, table.kind),
+    index("idx_workspace_submissions_committee_month").on(
+      table.committeeId,
+      table.month,
+    ),
+  ],
+);
+
+export const WorkspaceNotes = logs.table(
+  "workspace_notes",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    committeeId: uuid("committee_id")
+      .notNull()
+      .references(() => Committees.id, { onDelete: "cascade" }),
+    entityType: WorkspaceNoteEntityTypeEnum("entity_type").notNull(),
+    entityId: uuid("entity_id"),
+    body: text().notNull(),
+    authorId: uuid("author_id")
+      .notNull()
+      .references(() => Constituents.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("idx_workspace_notes_entity").on(
+      table.committeeId,
+      table.entityType,
+      table.entityId,
+    ),
+  ],
+);
+
+export const WorkspaceAttachments = logs.table(
+  "workspace_attachments",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    committeeId: uuid("committee_id")
+      .notNull()
+      .references(() => Committees.id, { onDelete: "cascade" }),
+    noteId: uuid("note_id")
+      .notNull()
+      .references(() => WorkspaceNotes.id, { onDelete: "cascade" }),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => Documents.id, { onDelete: "cascade" }),
+    label: text(),
+    originalFileName: text("original_file_name").notNull(),
+    uploadedBy: uuid("uploaded_by")
+      .notNull()
+      .references(() => Constituents.id, { onDelete: "restrict" }),
+    uploadedAt: timestamp("uploaded_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("idx_workspace_attachments_note").on(table.committeeId, table.noteId),
+  ],
+);

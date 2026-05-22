@@ -9,6 +9,7 @@ export const UpdateEventSchema = z.object({
     .min(3, { message: "Event name must be at least 3 characters." })
     .max(100, { message: "Event name must not exceed 100 characters." })
     .optional(),
+  description: z.string().optional(),
   objective: z.string().optional(),
   location: z.string().optional(),
   scheduledStart: z.coerce
@@ -39,6 +40,7 @@ export const CreateEventSchema = z.object({
     .string({ message: "Event name is required." })
     .min(3, { message: "Event name must be at least 3 characters." })
     .max(100, { message: "Event name must not exceed 100 characters." }),
+  description: z.string().optional(),
   objective: z.string().optional(),
   type: z.enum(EventTypeEnum.enumValues, {
     message: "Invalid event type.",
@@ -101,6 +103,7 @@ export const UploadEventFileSchema = z
 export const GetEventsQuerySchema = z.object({
   ...PaginationQuery.shape,
   projectId: z.uuid({ message: "Invalid project ID format." }).optional(),
+  chapterId: z.uuid({ message: "Invalid chapter ID format." }).optional(),
   filterStatus: z
     .enum(EventStatusEnum.enumValues, {
       message: "Invalid event status.",
@@ -119,4 +122,24 @@ export const GetEventMediaQuerySchema = z.object({
   mediaType: z
     .enum(MediumTypeEnum.enumValues, { message: "Invalid medium type." })
     .optional(),
+});
+
+// Audit I6 — admin roster of who's registered for an event. Mirrors the
+// project enrollments shape: guest + member rows merged via NULL coalesce.
+export const GetEventAttendeesQuerySchema = z.object({
+  ...PaginationQuery.shape,
+  role: z.enum(["guest", "member", "all"]).default("all"),
+});
+
+// Plan §8.2 / Audit C3 — public guest registration for an event. Lighter than
+// the project version (no rich guest profile) because event attendance is
+// typically a quick RSVP rather than a multi-step volunteer application.
+export const GuestEventRegistrationSchema = z.object({
+  firstName: z.string().min(1).max(120),
+  lastName: z.string().min(1).max(120),
+  email: z.email(),
+  phone: z.string().min(1).max(50),
+  consents: z
+    .object({ termsAgreedAt: z.string().datetime() })
+    .strict(),
 });

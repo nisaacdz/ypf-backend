@@ -31,6 +31,36 @@ const ApplicantData = z.object({
   twitterHandle: z.string().optional(),
 });
 
+// Mission pillars use stable string-enum values (plan §11 #6). New pillars
+// added later just extend this list.
+export const MissionPillarValues = [
+  "COMMUNITY_IMPACT",
+  "MENTORSHIP_NETWORKING",
+  "ADVOCACY_AWARENESS",
+] as const;
+
+const ConsentsObject = z
+  .object({
+    termsAgreedAt: z.string().datetime().optional(),
+    privacyAgreedAt: z.string().datetime().optional(),
+    declarationAgreedAt: z.string().datetime().optional(),
+  })
+  .strict();
+
+// Multipart submissions can't carry nested JSON, so the client stringifies the
+// consents object before append-ing. JSON callers can still send it as an
+// object directly.
+const ConsentsSchema = z.preprocess((val) => {
+  if (typeof val === "string" && val.trim().length > 0) {
+    try {
+      return JSON.parse(val);
+    } catch {
+      return val; // let the inner schema fail with a clear error
+    }
+  }
+  return val;
+}, ConsentsObject);
+
 // Define the flat input schema
 const FlatApplicationInput = z.object({
   firstName: z.string().min(1),
@@ -57,7 +87,7 @@ const FlatApplicationInput = z.object({
   twitterHandle: z.string().optional(),
 
   // Profile fields
-  //missionPillars: z.array(z.string()).optional(),
+  missionPillars: z.array(z.enum(MissionPillarValues)).optional(),
   referralSource: z.string().optional(),
   // referralOther: z.string().optional(),
   previousVolunteerExperience: z.string().optional(),
@@ -68,6 +98,7 @@ const FlatApplicationInput = z.object({
   willingToServe: z.coerce.boolean().refine((val) => val === true, {
     message: "You must agree to be willing to serve.",
   }),
+  consents: ConsentsSchema.optional(),
 });
 
 export const PostMembershipApplicationBody = FlatApplicationInput.transform(
@@ -92,6 +123,8 @@ export const PostMembershipApplicationBody = FlatApplicationInput.transform(
       skills,
       linkedinProfile,
       twitterHandle,
+      missionPillars,
+      previousVolunteerExperience,
       ...rest
     } = data;
 
@@ -116,6 +149,8 @@ export const PostMembershipApplicationBody = FlatApplicationInput.transform(
         skills,
         linkedinProfile,
         twitterHandle,
+        missionPillars,
+        previousVolunteerExperience,
       },
       ...rest,
     };
@@ -156,6 +191,11 @@ const FlatVolunteerApplicationInput = z.object({
   reason: z
     .string()
     .min(10, "Please provide a reason for volunteering (min 10 chars)."),
+  experience: z.string().max(2000).optional(),
+  availability: z
+    .enum(["WEEKDAYS", "WEEKENDS", "BOTH", "FLEXIBLE"])
+    .optional(),
+  consents: ConsentsSchema.optional(),
 });
 
 export const PostVolunteerApplicationBody =

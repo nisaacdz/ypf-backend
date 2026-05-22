@@ -8,11 +8,13 @@ import {
 import {
   GetProjectsQuerySchema,
   GetProjectMediaQuerySchema,
+  GetProjectEnrollmentsQuerySchema,
   UploadProjectFileSchema,
   UploadProjectMediumOptionsSchema,
   CreateProjectSchema,
   UpdateProjectSchema,
   UpdateProjectMediumSchema,
+  GuestProjectRegistrationSchema,
 } from "./schemas";
 import {
   validateQuery,
@@ -27,6 +29,7 @@ import filesUpload from "@/shared/middlewares/multipart";
 import { redisCacheEarlyReturn } from "@/shared/middlewares/redisCache";
 import redisClient from "@/configs/redis";
 import logger from "@/configs/logger";
+import { canManageProgramsRecords } from "@/shared/services/workspaceAccessService";
 
 const projectsRouter = Router();
 
@@ -53,13 +56,41 @@ projectsRouter.post(
   "/",
   authenticate,
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(MEMBER.PRESIDENT),
+      canManageProgramsRecords,
+    ),
   ),
   validateBody(CreateProjectSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await projectsHandler.createProject(req.Body);
+      await redisClient.delCache("/api/v1/projects");
       res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+projectsRouter.get(
+  "/my-enrollments",
+  authenticate,
+  authorize(Visitors.AUTHENTICATED),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { getMyProjectEnrollments } = await import(
+        "@/shared/services/enrollmentService"
+      );
+      const projectIds = await getMyProjectEnrollments(
+        req.User!.constituentId,
+      );
+      res.status(200).json({
+        success: true,
+        message: "My project enrollments",
+        data: projectIds,
+      });
     } catch (error) {
       next(error);
     }
@@ -91,7 +122,11 @@ projectsRouter.put(
   authenticate,
   validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(MEMBER.PRESIDENT),
+      canManageProgramsRecords,
+    ),
   ),
   validateBody(UpdateProjectSchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -103,6 +138,7 @@ projectsRouter.put(
 
       // Clear the detail cache
       await redisClient.delCache(`/api/v1/projects/${req.Params.id}`);
+      await redisClient.delCache("/api/v1/projects");
 
       res.status(200).json(response);
     } catch (error) {
@@ -140,7 +176,11 @@ projectsRouter.post(
   authenticate,
   validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(MEMBER.PRESIDENT),
+      canManageProgramsRecords,
+    ),
   ),
   filesUpload.mediaUpload.single("file"),
   validateFile(UploadProjectFileSchema),
@@ -169,7 +209,11 @@ projectsRouter.patch(
   authenticate,
   validateParams(z.object({ projectId: z.uuid(), mediumId: z.uuid() }), 404),
   authorize(
-    anyOf(Visitors.hasProfile("ADMIN"), Visitors.hasRole(MEMBER.PRESIDENT)),
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(MEMBER.PRESIDENT),
+      canManageProgramsRecords,
+    ),
   ),
   validateBody(UpdateProjectMediumSchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -206,6 +250,102 @@ projectsRouter.get(
         req.Query,
       );
       res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// Audit I6 — admin registrants roster. Authenticated admin OR program
+// committee chair (because programs/records ownership covers this). Guest
+// PII is included in the response, so this stays admin-only.
+projectsRouter.get(
+  "/:id/enrollments",
+  authenticate,
+  authorize(
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(MEMBER.PRESIDENT),
+      canManageProgramsRecords,
+    ),
+  ),
+  validateParams(z.object({ id: z.uuid() }), 404),
+  validateQuery(GetProjectEnrollmentsQuerySchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await projectsHandler.getProjectEnrollments(
+        req.Params.id,
+        req.Query,
+      );
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// ─── Public guest registration (plan §8.1) ───────────────────────────────────
+
+projectsRouter.post(
+  "/:id/register-guest",
+  validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
+  validateBody(GuestProjectRegistrationSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await projectsHandler.registerGuestForProject(
+        req.Params.id,
+        req.Body,
+      );
+      res.status(201).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// ─── Project Enrollment (self-service for authenticated members) ─────────────
+
+projectsRouter.post(
+  "/:id/enroll",
+  authenticate,
+  authorize(Visitors.AUTHENTICATED),
+  validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { enrollInProject } = await import(
+        "@/shared/services/enrollmentService"
+      );
+      const enrollmentId = await enrollInProject(
+        req.Params.id,
+        req.User!.constituentId,
+      );
+      res.status(200).json({
+        success: true,
+        message: "Enrolled in project",
+        data: { enrollmentId },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+projectsRouter.post(
+  "/:id/unenroll",
+  authenticate,
+  authorize(Visitors.AUTHENTICATED),
+  validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { unenrollFromProject } = await import(
+        "@/shared/services/enrollmentService"
+      );
+      await unenrollFromProject(req.Params.id, req.User!.constituentId);
+      res.status(200).json({
+        success: true,
+        message: "Unenrolled from project",
+        data: null,
+      });
     } catch (error) {
       next(error);
     }

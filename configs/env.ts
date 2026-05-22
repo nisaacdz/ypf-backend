@@ -35,17 +35,50 @@ const envSchema = z
     IMAGEKIT_PUBLIC_KEY: z.string().min(1, "IMAGEKIT_PUBLIC_KEY is required"),
     IMAGEKIT_PRIVATE_KEY: z.string().min(1, "IMAGEKIT_PRIVATE_KEY is required"),
 
-    // Paystack Configuration
-    PAYSTACK_SECRET: z
-      .string()
-      .min(1, "PAYSTACK_SECRET is required")
-      .default(""), // TODO remove default soon!
+    // Paystack Configuration. No default — the backend refuses to boot
+    // without it so we fail fast at startup instead of silently 401-ing on
+    // every payment call. Use a test key (sk_test_...) in non-prod envs.
+    PAYSTACK_SECRET: z.string().min(1, "PAYSTACK_SECRET is required"),
+    // Optional Paystack subaccount that should receive funds from any UMS-
+    // initiated transaction (dues, donations, shop). Format: ACCT_xxxxxxxxxxx.
+    // Leave blank to keep funds on the main account.
+    PAYSTACK_SUBACCOUNT_CODE: z.string().optional(),
 
     // SMTP Email Configuration
     SMTP_HOST: z.string().min(1, "SMTP_HOST is required"),
+    SMTP_PORT: z.coerce.number().int().positive().default(465),
+    // SSL on 465 vs STARTTLS on 587. Gmail uses 465/true; AWS SES + most
+    // others use 587/false. Override via env when switching providers.
+    SMTP_SECURE: z.coerce.boolean().default(true),
     SMTP_USER: z.string().min(1, "SMTP_USER is required"),
     SMTP_PASS: z.string().min(1, "SMTP_PASS is required"),
     EMAILER: z.email("A valid sender email (EMAILER) is required"),
+
+    // Sentry error tracking. Optional — when SENTRY_DSN is unset, the
+    // SDK init is a no-op so dev/staging/test environments don't have to
+    // configure anything. In production, leave it set; missing DSN means
+    // crashes vanish silently.
+    SENTRY_DSN: z.url().optional(),
+    SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0.1),
+
+    // Arkesel SMS Configuration. Optional — when ARKESEL_API_KEY is unset the
+    // SMS client is a no-op and notifications fall back to email only. This
+    // keeps non-prod environments and the test suite from needing real keys.
+    ARKESEL_API_KEY: z.string().optional(),
+    ARKESEL_SENDER_ID: z.string().max(11).default("YPF"),
+    ARKESEL_BASE_URL: z.url().default("https://sms.arkesel.com/api/v2"),
+    // When true, Arkesel accepts the request, returns "success", and does NOT
+    // actually deliver the SMS. Default is OFF — explicit opt-in only — so
+    // dev/staging actually exercises real delivery. Set ARKESEL_SANDBOX=true
+    // to simulate without consuming credit.
+    ARKESEL_SANDBOX: z.coerce.boolean().default(false),
+
+    // Database backup feature. The pg_dump binary must be available on the
+    // PATH of the runtime container (most hosts include it). Backups are
+    // written to a dedicated Azure Blob container — keeping them in
+    // Postgres itself would defeat the point.
+    BACKUP_BLOB_CONTAINER: z.string().default("backups"),
+    PG_DUMP_BIN: z.string().default("pg_dump"),
 
     // Application Metadata
     LOGO_URL: z.url("A valid LOGO_URL is required"),
@@ -82,6 +115,10 @@ const envSchema = z
       azure: {
         storageConnectionString: env.AZURE_STORAGE_CONNECTION_STRING,
       },
+      backups: {
+        container: env.BACKUP_BLOB_CONTAINER,
+        pgDumpBin: env.PG_DUMP_BIN,
+      },
       redis: {
         url: env.REDIS_URL,
       },
@@ -92,12 +129,25 @@ const envSchema = z
       },
       email: {
         host: env.SMTP_HOST,
+        port: env.SMTP_PORT,
+        secure: env.SMTP_SECURE,
         user: env.SMTP_USER,
         pass: env.SMTP_PASS,
         sender: env.EMAILER,
       },
       paystack: {
         secretKey: env.PAYSTACK_SECRET,
+        subaccountCode: env.PAYSTACK_SUBACCOUNT_CODE,
+      },
+      arkesel: {
+        apiKey: env.ARKESEL_API_KEY,
+        senderId: env.ARKESEL_SENDER_ID,
+        baseUrl: env.ARKESEL_BASE_URL,
+        sandbox: env.ARKESEL_SANDBOX,
+      },
+      sentry: {
+        dsn: env.SENTRY_DSN,
+        tracesSampleRate: env.SENTRY_TRACES_SAMPLE_RATE,
       },
     },
     jobs: {
@@ -120,5 +170,34 @@ if (!parsedEnv.success) {
 }
 
 const variables = parsedEnv.data;
+
+// Audit I7 — production deployments MUST use a remote DB with password + SSL.
+// A localhost / trust-auth URL slipping through to prod (e.g. via a copied
+// .env) silently bypasses every auth control. Fail fast at startup.
+if (variables.app.isProduction) {
+  const url = process.env.DATABASE_URL ?? "";
+  const looksLocal = /@(localhost|127\.0\.0\.1|::1)[:/]/.test(url);
+  const hasPassword = /:\/\/[^:@/]+:[^@/]+@/.test(url);
+  const hasSsl = /[?&]sslmode=(require|verify-(ca|full))\b/.test(url);
+
+  if (looksLocal) {
+    console.error(
+      "❌ DATABASE_URL targets localhost in production. Use a managed Postgres host with password + sslmode=require.",
+    );
+    process.exit(1);
+  }
+  if (!hasPassword) {
+    console.error(
+      "❌ DATABASE_URL has no password in production. Use postgres://user:password@host:5432/db?sslmode=require.",
+    );
+    process.exit(1);
+  }
+  if (!hasSsl) {
+    console.error(
+      "❌ DATABASE_URL has no sslmode= in production. Append `?sslmode=require` (or stronger).",
+    );
+    process.exit(1);
+  }
+}
 
 export default variables;

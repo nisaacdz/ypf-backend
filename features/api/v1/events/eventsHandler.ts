@@ -1,14 +1,18 @@
 import { ApiResponse, ApiError } from "@/shared/types";
 import {
   CreateEventSchema,
+  GetEventAttendeesQuerySchema,
   GetEventMediaQuerySchema,
   GetEventsQuerySchema,
+  GuestEventRegistrationSchema,
   UpdateEventSchema,
   UpdateEventMediumSchema,
 } from "./schemas";
-import { Events } from "@/db/schema/activities";
+import { Events, EventAttendees } from "@/db/schema/activities";
+import { eq } from "drizzle-orm";
 import z from "zod";
 import dbClient from "@/configs/db";
+import schema from "@/db/schema";
 import * as mediaUtils from "@/shared/utils/files";
 import * as mediaService from "@/shared/services/mediaService";
 import * as eventsService from "@/shared/services/eventsService";
@@ -122,6 +126,18 @@ export async function updateEvent(
   };
 }
 
+export async function deleteEvent(
+  eventId: string,
+): Promise<ApiResponse<null>> {
+  await eventsService.deleteEvent(eventId);
+
+  return {
+    success: true,
+    message: "Event deleted successfully",
+    data: null,
+  };
+}
+
 export async function updateEventMedium(
   eventId: string,
   eventMediumId: string,
@@ -133,5 +149,61 @@ export async function updateEventMedium(
     success: true,
     message: "Event medium updated successfully",
     data: null,
+  };
+}
+
+/**
+ * Plan §8.2 / Audit C3 — public guest registration for an event. Mirrors
+ * registerGuestForProject but with a lighter body (no rich profile). Inserts
+ * into event_attendees with constituent_id NULL and guest_* fields populated.
+ * Event must be UPCOMING or ONGOING.
+ */
+export async function registerGuestForEvent(
+  eventId: string,
+  body: z.infer<typeof GuestEventRegistrationSchema>,
+): Promise<ApiResponse<{ id: string; eventId: string }>> {
+  const event = await dbClient.db.query.Events.findFirst({
+    where: eq(Events.id, eventId),
+    columns: { id: true, status: true, name: true },
+  });
+
+  if (!event) {
+    throw new ApiError("Event not found", 404);
+  }
+  if (event.status !== "UPCOMING" && event.status !== "ONGOING") {
+    throw new ApiError("This event is no longer accepting registrations", 400);
+  }
+
+  const [attendee] = await dbClient.db
+    .insert(schema.EventAttendees)
+    .values({
+      eventId,
+      constituentId: null,
+      guestName: `${body.firstName} ${body.lastName}`.trim(),
+      guestEmail: body.email,
+      guestPhone: body.phone,
+      // status defaults to ACCEPTED for guest RSVPs.
+    })
+    .returning({ id: schema.EventAttendees.id });
+
+  // TODO: queue confirmation + admin notification emails via pg-boss.
+
+  return {
+    success: true,
+    message: "Registration received",
+    data: { id: attendee.id, eventId },
+  };
+}
+
+// Audit I6 — admin roster.
+export async function getEventAttendees(
+  eventId: string,
+  query: z.infer<typeof GetEventAttendeesQuerySchema>,
+): Promise<ApiResponse<Paginated<eventsService.EventAttendeeRow>>> {
+  const data = await eventsService.fetchEventAttendees(eventId, query);
+  return {
+    success: true,
+    message: "Event attendees fetched successfully",
+    data,
   };
 }

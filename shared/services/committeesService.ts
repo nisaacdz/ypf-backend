@@ -9,6 +9,8 @@ import {
   or,
   lte,
   gte,
+  inArray,
+  ne,
 } from "drizzle-orm";
 import z from "zod";
 
@@ -25,12 +27,17 @@ import {
 } from "@/features/api/v1/committees/schemas";
 import { YPFMember } from "@/features/api/v1/members/dtos";
 import * as mediaUtils from "@/shared/utils/files";
+import logger from "@/configs/logger";
 import { ApiError } from "@/shared/types";
 
 export async function getCommittees(
   query: z.infer<typeof GetCommitteesQuerySchema>,
 ): Promise<Paginated<YPFCommittee>> {
   const { page, pageSize, search, chapterId } = query;
+  // Note: this function constructs three subqueries — member count, chair,
+  // featured photo — and left-joins them to the committees table. The
+  // alternate getCommitteesByConstituentId below shares the member_count
+  // subquery name but is a separate query graph.
 
   // --- SUBQUERY FOR MEMBER COUNT ---
   const memberCountSubquery = dbClient.db
@@ -54,6 +61,37 @@ export async function getCommittees(
     )
     .groupBy(schema.CommitteeMemberships.committeeId)
     .as("member_counts");
+
+  // --- SUBQUERY FOR ACTIVE CHAIR ---
+  // Returns one row per (committee, member) where the member currently holds
+  // the committeechair title. The window function ranks active chairs so we
+  // can pick the most recently-assigned one if the data ever has dupes.
+  const chairSubquery = dbClient.db
+    .select({
+      committeeId: schema.MemberTitles.committeeId,
+      memberId: schema.Members.id,
+      rn: sql<number>`row_number() OVER (PARTITION BY ${schema.MemberTitles.committeeId} ORDER BY ${schema.MemberTitlesAssignments.startedAt} DESC)`.as(
+        "chair_rn",
+      ),
+    })
+    .from(schema.MemberTitlesAssignments)
+    .innerJoin(
+      schema.MemberTitles,
+      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
+    )
+    .innerJoin(
+      schema.Members,
+      eq(schema.MemberTitlesAssignments.memberId, schema.Members.id),
+    )
+    .where(
+      and(
+        eq(schema.MemberTitles.alias, "committeechair"),
+        sql`${schema.MemberTitles.committeeId} IS NOT NULL`,
+        sql`${schema.MemberTitlesAssignments.startedAt} <= now()`,
+        sql`(${schema.MemberTitlesAssignments.endedAt} IS NULL OR ${schema.MemberTitlesAssignments.endedAt} >= now())`,
+      ),
+    )
+    .as("active_chairs");
 
   // --- SUBQUERY FOR FEATURED PHOTO ---
   const featuredPhotoSubquery = dbClient.db
@@ -96,10 +134,12 @@ export async function getCommittees(
     .select({
       id: schema.Committees.id,
       name: schema.Committees.name,
+      alias: schema.Committees.alias,
       description: schema.Committees.description,
       featuredPhotoExternalId: featuredPhotoSubquery.externalId,
       chapterName: schema.Chapters.name,
       memberCount: memberCountSubquery.memberCount,
+      chairMemberId: chairSubquery.memberId,
     })
     .from(schema.Committees)
     .leftJoin(
@@ -109,6 +149,13 @@ export async function getCommittees(
     .leftJoin(
       memberCountSubquery,
       eq(schema.Committees.id, memberCountSubquery.committeeId),
+    )
+    .leftJoin(
+      chairSubquery,
+      and(
+        eq(schema.Committees.id, chairSubquery.committeeId),
+        eq(chairSubquery.rn, 1),
+      ),
     )
     .leftJoin(
       featuredPhotoSubquery,
@@ -131,6 +178,7 @@ export async function getCommittees(
   const items: YPFCommittee[] = dbCommittees.map((c) => ({
     id: c.id,
     name: c.name,
+    alias: c.alias,
     description: c.description ?? undefined,
     featuredPhotoUrl: c.featuredPhotoExternalId
       ? mediaUtils.generatePublicMediaUrl(c.featuredPhotoExternalId, {
@@ -139,6 +187,7 @@ export async function getCommittees(
       : undefined,
     chapterName: c.chapterName ?? undefined,
     memberCount: c.memberCount ?? 0,
+    chairMemberId: c.chairMemberId ?? null,
   }));
 
   return {
@@ -311,6 +360,7 @@ export async function getCommitteesByConstituentId(
     .select({
       id: schema.Committees.id,
       name: schema.Committees.name,
+      alias: schema.Committees.alias,
       description: schema.Committees.description,
       featuredPhotoExternalId: featuredPhotoSubquery.externalId,
       chapterName: schema.Chapters.name,
@@ -364,6 +414,7 @@ export async function getCommitteesByConstituentId(
   const items: YPFCommittee[] = dbCommittees.map((c) => ({
     id: c.id,
     name: c.name,
+    alias: c.alias,
     description: c.description ?? undefined,
     featuredPhotoUrl: c.featuredPhotoExternalId
       ? mediaUtils.generatePublicMediaUrl(c.featuredPhotoExternalId, {
@@ -372,6 +423,10 @@ export async function getCommitteesByConstituentId(
       : undefined,
     chapterName: c.chapterName ?? undefined,
     memberCount: c.memberCount ?? 0,
+    // This endpoint is scoped to a single constituent's committees; chair
+    // info isn't surfaced here. Callers that need chair use the main
+    // GET /committees list which joins the chair subquery.
+    chairMemberId: null,
   }));
 
   return {
@@ -470,6 +525,7 @@ export async function enrollToCommittee(
   committeeId: string,
   constituentId: string,
   startedAt?: Date,
+  titleAlias: "committeemember" | "committeechair" = "committeemember",
 ): Promise<string> {
   const now = new Date();
 
@@ -490,16 +546,131 @@ export async function enrollToCommittee(
     throw new ApiError("No active membership found for constituent", 404);
   }
 
-  const [membership] = await dbClient.db
-    .insert(schema.CommitteeMemberships)
-    .values({
-      memberId: member.id,
-      committeeId,
-      startedAt: startedAt ?? now,
-    })
-    .returning({ id: schema.CommitteeMemberships.id });
+  const [title] = await dbClient.db
+    .select({ id: schema.MemberTitles.id })
+    .from(schema.MemberTitles)
+    .where(
+      and(
+        eq(schema.MemberTitles.committeeId, committeeId),
+        eq(schema.MemberTitles.alias, titleAlias),
+      ),
+    )
+    .limit(1);
 
-  return membership.id;
+  if (!title) {
+    throw new ApiError("Committee role title was not found", 404);
+  }
+
+  return await dbClient.db.transaction(async (tx) => {
+    const [existingMembership] = await tx
+      .select({ id: schema.CommitteeMemberships.id })
+      .from(schema.CommitteeMemberships)
+      .where(
+        and(
+          eq(schema.CommitteeMemberships.memberId, member.id),
+          eq(schema.CommitteeMemberships.committeeId, committeeId),
+          lte(schema.CommitteeMemberships.startedAt, now),
+          or(
+            isNull(schema.CommitteeMemberships.endedAt),
+            gte(schema.CommitteeMemberships.endedAt, now),
+          ),
+        ),
+      )
+      .limit(1);
+
+    const membershipId =
+      existingMembership?.id ??
+      (
+        await tx
+          .insert(schema.CommitteeMemberships)
+          .values({
+            memberId: member.id,
+            committeeId,
+            startedAt: startedAt ?? now,
+          })
+          .returning({ id: schema.CommitteeMemberships.id })
+      )[0].id;
+
+    const activeAssignments = await tx
+      .select({
+        id: schema.MemberTitlesAssignments.id,
+        alias: schema.MemberTitles.alias,
+      })
+      .from(schema.MemberTitlesAssignments)
+      .innerJoin(
+        schema.MemberTitles,
+        eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
+      )
+      .where(
+        and(
+          eq(schema.MemberTitlesAssignments.memberId, member.id),
+          eq(schema.MemberTitles.committeeId, committeeId),
+          lte(schema.MemberTitlesAssignments.startedAt, now),
+          or(
+            isNull(schema.MemberTitlesAssignments.endedAt),
+            gte(schema.MemberTitlesAssignments.endedAt, now),
+          ),
+        ),
+      );
+
+    const existingTitle = activeAssignments.find(
+      (assignment) => assignment.alias === titleAlias,
+    );
+    const assignmentsToEnd = activeAssignments
+      .filter((assignment) => assignment.alias !== titleAlias)
+      .map((assignment) => assignment.id);
+
+    if (assignmentsToEnd.length > 0) {
+      await tx
+        .update(schema.MemberTitlesAssignments)
+        .set({ endedAt: now })
+        .where(inArray(schema.MemberTitlesAssignments.id, assignmentsToEnd));
+    }
+
+    if (titleAlias === "committeechair") {
+      const otherActiveChairAssignments = await tx
+        .select({ id: schema.MemberTitlesAssignments.id })
+        .from(schema.MemberTitlesAssignments)
+        .innerJoin(
+          schema.MemberTitles,
+          eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
+        )
+        .where(
+          and(
+            eq(schema.MemberTitles.committeeId, committeeId),
+            eq(schema.MemberTitles.alias, "committeechair"),
+            ne(schema.MemberTitlesAssignments.memberId, member.id),
+            lte(schema.MemberTitlesAssignments.startedAt, now),
+            or(
+              isNull(schema.MemberTitlesAssignments.endedAt),
+              gte(schema.MemberTitlesAssignments.endedAt, now),
+            ),
+          ),
+        );
+
+      if (otherActiveChairAssignments.length > 0) {
+        await tx
+          .update(schema.MemberTitlesAssignments)
+          .set({ endedAt: now })
+          .where(
+            inArray(
+              schema.MemberTitlesAssignments.id,
+              otherActiveChairAssignments.map((assignment) => assignment.id),
+            ),
+          );
+      }
+    }
+
+    if (!existingTitle) {
+      await tx.insert(schema.MemberTitlesAssignments).values({
+        memberId: member.id,
+        titleId: title.id,
+        startedAt: startedAt ?? now,
+      });
+    }
+
+    return membershipId;
+  });
 }
 
 /**
@@ -528,20 +699,188 @@ export async function unenrollFromCommittee(
     throw new ApiError("No active membership found for constituent", 404);
   }
 
-  const result = await dbClient.db
-    .update(schema.CommitteeMemberships)
-    .set({ endedAt: now })
+  await dbClient.db.transaction(async (tx) => {
+    const result = await tx
+      .update(schema.CommitteeMemberships)
+      .set({ endedAt: now })
+      .where(
+        and(
+          eq(schema.CommitteeMemberships.memberId, member.id),
+          eq(schema.CommitteeMemberships.committeeId, committeeId),
+          lte(schema.CommitteeMemberships.startedAt, now),
+          or(
+            isNull(schema.CommitteeMemberships.endedAt),
+            gte(schema.CommitteeMemberships.endedAt, now),
+          ),
+        ),
+      )
+      .returning({ id: schema.CommitteeMemberships.id });
+
+    if (result.length === 0) {
+      throw new ApiError("No active committee membership found", 404);
+    }
+
+    const activeTitleAssignments = await tx
+      .select({ id: schema.MemberTitlesAssignments.id })
+      .from(schema.MemberTitlesAssignments)
+      .innerJoin(
+        schema.MemberTitles,
+        eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
+      )
+      .where(
+        and(
+          eq(schema.MemberTitlesAssignments.memberId, member.id),
+          eq(schema.MemberTitles.committeeId, committeeId),
+          lte(schema.MemberTitlesAssignments.startedAt, now),
+          or(
+            isNull(schema.MemberTitlesAssignments.endedAt),
+            gte(schema.MemberTitlesAssignments.endedAt, now),
+          ),
+        ),
+      );
+
+    if (activeTitleAssignments.length > 0) {
+      await tx
+        .update(schema.MemberTitlesAssignments)
+        .set({ endedAt: now })
+        .where(
+          inArray(
+            schema.MemberTitlesAssignments.id,
+            activeTitleAssignments.map((assignment) => assignment.id),
+          ),
+        );
+    }
+  });
+}
+
+// ─── Committee media (Phase 1.3) ────────────────────────────────────────────
+
+export async function fetchCommitteeMedia(
+  committeeId: string,
+  query: { page: number; pageSize: number },
+) {
+  const { page, pageSize } = query;
+
+  const [rows, total] = await Promise.all([
+    dbClient.db
+      .select({
+        id: schema.CommitteeMedia.id,
+        caption: schema.CommitteeMedia.caption,
+        isFeatured: schema.CommitteeMedia.isFeatured,
+        medium: {
+          id: schema.Media.id,
+          externalId: schema.Media.externalId,
+          type: schema.Media.type,
+          width: schema.Media.width,
+          height: schema.Media.height,
+          size: schema.Media.size,
+          uploadedAt: schema.Media.uploadedAt,
+        },
+      })
+      .from(schema.CommitteeMedia)
+      .innerJoin(
+        schema.Media,
+        eq(schema.CommitteeMedia.mediumId, schema.Media.id),
+      )
+      .where(eq(schema.CommitteeMedia.committeeId, committeeId))
+      .orderBy(desc(schema.CommitteeMedia.isFeatured))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize),
+    dbClient.db
+      .select({ count: count() })
+      .from(schema.CommitteeMedia)
+      .where(eq(schema.CommitteeMedia.committeeId, committeeId))
+      .then((res) => res[0].count),
+  ]);
+
+  const items = rows.map((m) => ({
+    id: m.id,
+    caption: m.caption ?? undefined,
+    isFeatured: m.isFeatured,
+    medium: {
+      id: m.medium.id,
+      type: m.medium.type,
+      size: m.medium.size,
+      uploadedAt: m.medium.uploadedAt,
+      url: mediaUtils.generateSignedMediaUrl(m.medium.externalId, {
+        resolution: 1080,
+        expireSeconds: 60 * 60 * 24,
+      }),
+      dimensions: { width: m.medium.width, height: m.medium.height },
+    },
+  }));
+
+  return { items, total };
+}
+
+export async function updateCommitteeMedium(
+  committeeId: string,
+  mediumId: string,
+  data: { caption?: string; isFeatured?: boolean },
+): Promise<void> {
+  if (data.isFeatured === true) {
+    await dbClient.db
+      .update(schema.CommitteeMedia)
+      .set({ isFeatured: false })
+      .where(eq(schema.CommitteeMedia.committeeId, committeeId));
+  }
+
+  const [updated] = await dbClient.db
+    .update(schema.CommitteeMedia)
+    .set(data)
     .where(
       and(
-        eq(schema.CommitteeMemberships.memberId, member.id),
-        eq(schema.CommitteeMemberships.committeeId, committeeId),
-        isNull(schema.CommitteeMemberships.endedAt),
-        lte(schema.CommitteeMemberships.startedAt, now),
+        eq(schema.CommitteeMedia.committeeId, committeeId),
+        eq(schema.CommitteeMedia.id, mediumId),
       ),
     )
-    .returning({ id: schema.CommitteeMemberships.id });
+    .returning({ id: schema.CommitteeMedia.id });
 
-  if (result.length === 0) {
-    throw new ApiError("No active committee membership found", 404);
+  if (!updated) {
+    throw new ApiError("Committee medium not found", 404);
+  }
+}
+
+export async function removeCommitteeMedium(
+  committeeId: string,
+  mediumId: string,
+): Promise<void> {
+  const [removed] = await dbClient.db
+    .delete(schema.CommitteeMedia)
+    .where(
+      and(
+        eq(schema.CommitteeMedia.committeeId, committeeId),
+        eq(schema.CommitteeMedia.id, mediumId),
+      ),
+    )
+    .returning({ mediumId: schema.CommitteeMedia.mediumId });
+
+  if (!removed) {
+    throw new ApiError("Committee medium not found", 404);
+  }
+
+  if (removed.mediumId) {
+    try {
+      const [media] = await dbClient.db
+        .select({ externalId: schema.Media.externalId })
+        .from(schema.Media)
+        .where(eq(schema.Media.id, removed.mediumId))
+        .limit(1);
+
+      await dbClient.db
+        .delete(schema.Media)
+        .where(eq(schema.Media.id, removed.mediumId));
+
+      if (media?.externalId) {
+        mediaUtils.deleteMediumFile(media.externalId).catch((err) => {
+          logger.error(
+            err,
+            `Failed to delete external media asset ${media.externalId}`,
+          );
+        });
+      }
+    } catch (err) {
+      logger.warn(err, "Failed to remove orphan media row");
+    }
   }
 }

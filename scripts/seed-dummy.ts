@@ -84,14 +84,14 @@ async function seed(
 
   const committeesData = [
     // Lagos
-    { name: "Lagos Finance", chapterId: chapters[0].id },
-    { name: "Lagos Tech", chapterId: chapters[0].id },
+    { name: "Lagos Finance", alias: "lagos_finance", chapterId: chapters[0].id },
+    { name: "Lagos Tech", alias: "lagos_tech", chapterId: chapters[0].id },
     // Accra
-    { name: "Accra Outreach", chapterId: chapters[1].id },
+    { name: "Accra Outreach", alias: "accra_outreach", chapterId: chapters[1].id },
     // Nairobi
-    { name: "Nairobi Events", chapterId: chapters[2].id },
+    { name: "Nairobi Events", alias: "nairobi_events", chapterId: chapters[2].id },
     // Global/No Chapter specific? Or just more chapters
-    { name: "Global Strategy", description: "Oversight committee" },
+    { name: "Global Strategy", alias: "global_strategy", description: "Oversight committee" },
   ];
   const committees = await tx
     .insert(schema.Committees)
@@ -358,7 +358,7 @@ async function seed(
       chapters.map((c) => ({
         chapterId: c.id,
         amount: "50.00",
-        currency: "USD",
+        currency: "GHS",
         periodStart: new Date("2024-01-01"),
         periodEnd: new Date("2024-12-31"),
       })),
@@ -373,7 +373,7 @@ async function seed(
     .values(
       payingMembers.map(() => ({
         amount: "50.00",
-        currency: "USD",
+        currency: "GHS",
         paymentMethod: "BANK_TRANSFER" as const,
         status: "COMPLETED" as const,
         externalProvider: "PAYSTACK" as const,
@@ -402,7 +402,7 @@ async function seed(
     .values(
       Array.from({ length: 10 }, () => ({
         amount: faker.finance.amount({ min: 100, max: 1000, dec: 2 }),
-        currency: "USD",
+        currency: "GHS",
         paymentMethod: "CREDIT_CARD" as const,
         status: "COMPLETED" as const,
         externalProvider: "PAYSTACK" as const,
@@ -443,7 +443,7 @@ async function seed(
     {
       timestamp: new Date(),
       amount: "1500.00",
-      currency: "USD",
+      currency: "GHS",
       description: "Venue Deposit",
       vendorId: organizations[4].id,
       eventId: events[1].id,
@@ -451,7 +451,7 @@ async function seed(
     {
       timestamp: new Date(),
       amount: "500.00",
-      currency: "USD",
+      currency: "GHS",
       description: "Hospital Bill Payment",
       vendorId: organizations[2].id,
       projectId: projects[0].id,

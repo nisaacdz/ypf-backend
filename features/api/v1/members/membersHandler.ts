@@ -1,5 +1,7 @@
+import { Response } from "express";
 import * as membersService from "@/shared/services/membersService";
 import { ApiResponse } from "@/shared/types";
+import { streamCsv } from "@/shared/utils/csv";
 import {
   GetMembersQuerySchema,
   EnrollMemberSchema,
@@ -76,4 +78,79 @@ export async function unenrollRole(
 ): Promise<ApiResponse<null>> {
   await membersService.unassignRole(body.constituentId, titleId);
   return { success: true, data: null };
+}
+
+/**
+ * CSV export — re-uses `getMembers` but bumps pageSize way up. Streams via
+ * `streamCsv` so a 50k-row dump doesn't materialise in memory.
+ *
+ * We don't paginate on export: the admin asked for "everything matching
+ * the current filter". For lists that genuinely exceed memory, swap the
+ * fetch for a generator that pages internally.
+ */
+export async function exportMembersCsv(
+  query: z.infer<typeof GetMembersQuerySchema>,
+  res: Response,
+): Promise<void> {
+  const PAGE_SIZE = 500;
+  async function* iterator() {
+    let page = 1;
+    while (true) {
+      const result = await membersService.getMembers({
+        ...query,
+        page,
+        pageSize: PAGE_SIZE,
+      });
+      for (const m of result.items) {
+        yield {
+          publicId: m.publicId,
+          fullName: m.fullName,
+          email: m.email ?? "",
+          title: m.title ?? "",
+          chapter: m.chapter?.name ?? "",
+          committee: m.committee?.name ?? "",
+          country: m.country ?? "",
+          campus: m.campus ?? "",
+          startedAt: m.startedAt ?? "",
+          duesPaid: m.dues?.paid ? "yes" : "no",
+          duesAmount: m.dues?.amount ?? "",
+          duesCurrency: m.dues?.currency ?? "",
+        };
+      }
+      if (result.items.length < PAGE_SIZE) break;
+      page += 1;
+    }
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  await streamCsv(res, {
+    filename: `ypf-people-${today}.csv`,
+    columns: [
+      { key: "publicId", label: "Member ID" },
+      { key: "fullName", label: "Full Name" },
+      { key: "email", label: "Email" },
+      { key: "title", label: "Title" },
+      { key: "chapter", label: "Chapter" },
+      { key: "committee", label: "Committee" },
+      { key: "country", label: "Country" },
+      { key: "campus", label: "Campus" },
+      { key: "startedAt", label: "Joined" },
+      { key: "duesPaid", label: "Dues Paid (Current Month)" },
+      { key: "duesAmount", label: "Dues Amount" },
+      { key: "duesCurrency", label: "Currency" },
+    ],
+    rows: iterator(),
+  });
+}
+
+/**
+ * Whole-org KPI snapshot for the People page.
+ * Always returns totals over the entire dataset — not the current page or
+ * the current search filter — so the cards describe the org, not the view.
+ */
+export async function getMemberStats(): Promise<
+  ApiResponse<membersService.MemberStats>
+> {
+  const data = await membersService.getMemberStats();
+  return { success: true, data };
 }

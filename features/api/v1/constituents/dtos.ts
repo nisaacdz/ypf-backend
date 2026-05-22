@@ -18,6 +18,18 @@ export type YPFConstituentDetail = {
   firstName: string;
   lastName: string;
   preferredName?: string;
+  email?: string;
+  phone?: string;
+  whatsapp?: string;
+  occupation?: string;
+  skills?: string[];
+  country?: string;
+  region?: string;
+  city?: string;
+  campus?: string;
+  linkedinProfile?: string;
+  twitterHandle?: string;
+  previousVolunteerExperience?: string;
   profiles: {
     name: Profile;
     startedAt: Date;
@@ -32,6 +44,9 @@ export type YPFConstituentDetail = {
   committees: {
     id: string;
     name: string;
+    alias?: string;
+    /** alias of the title the user holds in this committee, e.g. "committeechair" */
+    titleAlias?: string;
     featuredPhotoUrl?: string;
     chapterName?: string;
   }[];
@@ -39,6 +54,8 @@ export type YPFConstituentDetail = {
     id: string;
     name: string;
     country: string;
+    /** alias of the title the user holds in this chapter, e.g. "chapterlead" */
+    titleAlias?: string;
     featuredPhotoUrl?: string;
   }[];
 };

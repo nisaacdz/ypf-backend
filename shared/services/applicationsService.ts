@@ -1,5 +1,6 @@
-import { aliasedTable, eq, desc, count, and, ilike, or } from "drizzle-orm";
+import { aliasedTable, eq, desc, count, and, ilike, or, isNull, gt } from "drizzle-orm";
 import dbClient from "@/configs/db";
+import variables from "@/configs/env";
 import schema from "@/db/schema";
 import logger from "@/configs/logger";
 import { ApiError } from "@/shared/types";
@@ -16,15 +17,16 @@ import {
   generateSignedDocumentPreviewUrl,
   generateSignedMediaUrl,
 } from "@/shared/utils/files";
-import {
-  sendMembershipApplicationAcknowledgementEmail,
-  sendMembershipApplicationAcceptanceEmail,
-} from "@/shared/utils/email";
+import { sendMembershipApplicationAcknowledgementEmail } from "@/shared/utils/email";
+import { notifyMembershipAccepted } from "@/shared/utils/notify";
 import {
   GetMembershipApplicationsQuerySchema,
   GetVolunteerApplicationsQuerySchema,
 } from "@/features/api/v1/applications/schemas";
 import z from "zod";
+import { onboardConstituent } from "./constituentsService";
+
+type Consents = Record<string, string>; // ISO timestamps keyed by consent name
 
 type CreateVolunteerApplication = {
   constituent: {
@@ -40,6 +42,9 @@ type CreateVolunteerApplication = {
     skills?: string[];
   };
   reason: string;
+  experience?: string;
+  availability?: string;
+  consents?: Consents;
 };
 
 type CreateMembershipApplication = {
@@ -52,12 +57,14 @@ type CreateMembershipApplication = {
     nationalIdType: NationalIdType;
     nationalIdDocumentId: string;
     profilePhotoId: string;
+    missionPillars?: string[];
   };
   cvDocumentId?: string;
   willingToServe: boolean;
   commitmentStatement: string;
   preferredChapterId?: string;
   preferredCommitteeId?: string;
+  consents?: Consents;
 };
 
 export async function createMembershipApplication(
@@ -92,6 +99,7 @@ export async function createMembershipApplication(
         preferredChapterId: remApplicationData.preferredChapterId,
         preferredCommitteeId: remApplicationData.preferredCommitteeId,
         cvDocumentId: remApplicationData.cvDocumentId,
+        consents: remApplicationData.consents,
       })
       .returning({
         id: schema.MembershipApplications.id,
@@ -132,6 +140,7 @@ export async function getMembershipApplications(
       createdAt: schema.Applications.createdAt,
       constituent: {
         id: schema.Constituents.id,
+        publicId: schema.Constituents.publicId,
         firstName: schema.Constituents.firstName,
         lastName: schema.Constituents.lastName,
         email: schema.Constituents.email,
@@ -147,6 +156,13 @@ export async function getMembershipApplications(
       },
       preferredCommittee: {
         name: schema.Committees.name,
+      },
+      user: {
+        id: schema.Users.id,
+        password: schema.Users.password,
+        googleId: schema.Users.googleId,
+        appleId: schema.Users.appleId,
+        facebookId: schema.Users.facebookId,
       },
     })
     .from(schema.MembershipApplications)
@@ -172,6 +188,10 @@ export async function getMembershipApplications(
         schema.MembershipApplications.preferredCommitteeId,
         schema.Committees.id,
       ),
+    )
+    .leftJoin(
+      schema.Users,
+      eq(schema.Users.constituentId, schema.Constituents.id),
     );
 
   if (search) {
@@ -216,6 +236,7 @@ export async function getMembershipApplications(
         status: it.status,
         applicant: {
           id: it.constituent.id,
+          publicId: it.constituent.publicId,
           fullName: `${it.constituent.firstName} ${it.constituent.lastName}`,
           email: it.constituent.email ?? undefined,
           phone: it.constituent.phone ?? undefined,
@@ -229,6 +250,16 @@ export async function getMembershipApplications(
         },
         preferredChapterName: it.preferredChapter?.name,
         preferredCommitteeName: it.preferredCommittee?.name,
+        onboarding: {
+          userId: it.user?.id ?? undefined,
+          hasAccount: Boolean(it.user?.id),
+          completed: Boolean(
+            it.user?.password ||
+              it.user?.googleId ||
+              it.user?.appleId ||
+              it.user?.facebookId,
+          ),
+        },
       };
     }),
     total: Number(totalResult[0]?.count || 0),
@@ -256,6 +287,7 @@ export async function getMembershipApplicationById(
       approvedAt: schema.MembershipApplications.approvedAt,
       constituent: {
         id: schema.Constituents.id,
+        publicId: schema.Constituents.publicId,
         firstName: schema.Constituents.firstName,
         lastName: schema.Constituents.lastName,
         email: schema.Constituents.email,
@@ -295,6 +327,13 @@ export async function getMembershipApplicationById(
         id: NationalIdDocs.id,
         externalId: NationalIdDocs.externalId,
       },
+      user: {
+        id: schema.Users.id,
+        password: schema.Users.password,
+        googleId: schema.Users.googleId,
+        appleId: schema.Users.appleId,
+        facebookId: schema.Users.facebookId,
+      },
     })
     .from(schema.MembershipApplications)
     .innerJoin(
@@ -331,6 +370,10 @@ export async function getMembershipApplicationById(
       schema.Media,
       eq(schema.Constituents.profilePhotoId, schema.Media.id),
     )
+    .leftJoin(
+      schema.Users,
+      eq(schema.Users.constituentId, schema.Constituents.id),
+    )
     .where(eq(schema.MembershipApplications.id, id))
     .limit(1);
 
@@ -348,6 +391,7 @@ export async function getMembershipApplicationById(
     approvedAt: application.approvedAt ?? undefined,
     applicant: {
       id: application.constituent.id,
+      publicId: application.constituent.publicId,
       firstName: application.constituent.firstName,
       lastName: application.constituent.lastName,
       email: application.constituent.email ?? undefined,
@@ -417,8 +461,18 @@ export async function getMembershipApplicationById(
               expireSeconds: 60 * 60,
             },
           ),
-        }
+      }
       : undefined,
+    onboarding: {
+      userId: application.user?.id ?? undefined,
+      hasAccount: Boolean(application.user?.id),
+      completed: Boolean(
+        application.user?.password ||
+          application.user?.googleId ||
+          application.user?.appleId ||
+          application.user?.facebookId,
+      ),
+    },
   };
 
   return detail;
@@ -460,22 +514,56 @@ export async function updateMembershipApplicationStatus(
       throw new ApiError("Failed to update application status", 500);
     }
 
+    const [reviewerAdmin] =
+      newStatus === "ACCEPTED"
+        ? await tx
+            .select({ id: schema.Admins.id })
+            .from(schema.Admins)
+            .innerJoin(
+              schema.Users,
+              eq(schema.Admins.constituentId, schema.Users.constituentId),
+            )
+            .where(
+              and(
+                eq(schema.Users.id, adminId),
+                or(
+                  isNull(schema.Admins.endedAt),
+                  gt(schema.Admins.endedAt, new Date()),
+                ),
+              ),
+            )
+            .limit(1)
+        : [];
+
     // Update membership-specific fields
     await tx
       .update(schema.MembershipApplications)
       .set({
         declinedReason: newStatus === "REJECTED" ? declinedReason : null,
         approvedAt: newStatus === "ACCEPTED" ? new Date() : null,
-        approvedBy: newStatus === "ACCEPTED" ? adminId : null,
+        approvedBy: newStatus === "ACCEPTED" ? reviewerAdmin?.id ?? null : null,
       })
       .where(eq(schema.MembershipApplications.id, id));
 
     // If accepted, create membership record for the constituent
     if (newStatus === "ACCEPTED") {
-      await tx.insert(schema.Members).values({
-        constituentId: updatedBase.constituentId,
-        startedAt: new Date(),
-      });
+      const [activeMember] = await tx
+        .select({ id: schema.Members.id })
+        .from(schema.Members)
+        .where(
+          and(
+            eq(schema.Members.constituentId, updatedBase.constituentId),
+            or(isNull(schema.Members.endedAt), gt(schema.Members.endedAt, new Date())),
+          ),
+        )
+        .limit(1);
+
+      if (!activeMember) {
+        await tx.insert(schema.Members).values({
+          constituentId: updatedBase.constituentId,
+          startedAt: new Date(),
+        });
+      }
     }
 
     return updatedBase;
@@ -483,24 +571,32 @@ export async function updateMembershipApplicationStatus(
 
   // Send acceptance email after transaction commits
   if (newStatus === "ACCEPTED") {
-    // Fetch constituent for email
+    const dashboardUrl = variables.app.dashboardUrl ?? "http://localhost:3000";
+    onboardConstituent(result.constituentId, dashboardUrl).catch((err) => {
+      logger.error(err, "Failed to create or resend onboarding account for accepted member");
+    });
+
+    // Fetch constituent for email + SMS contact
     const [constituent] = await dbClient.db
       .select({
         firstName: schema.Constituents.firstName,
         lastName: schema.Constituents.lastName,
         email: schema.Constituents.email,
+        phone: schema.Constituents.phone,
+        whatsapp: schema.Constituents.whatsapp,
       })
       .from(schema.Constituents)
       .where(eq(schema.Constituents.id, result.constituentId))
       .limit(1);
 
     if (constituent && constituent.email) {
-      sendMembershipApplicationAcceptanceEmail({
+      notifyMembershipAccepted({
         email: constituent.email,
         name: `${constituent.firstName} ${constituent.lastName}`,
+        phone: constituent.phone ?? constituent.whatsapp ?? null,
         trackingNumber: result.trackingNumber,
       }).catch((err) => {
-        logger.error("Failed to send acceptance email", err);
+        logger.error("Failed to send acceptance notification", err);
       });
     }
   }
@@ -570,6 +666,9 @@ export async function createVolunteerApplication(
       .values({
         applicationId: baseApplication.id,
         reason: remApplicationData.reason,
+        experience: remApplicationData.experience,
+        availability: remApplicationData.availability,
+        consents: remApplicationData.consents,
       })
       .returning({
         id: schema.VolunteerApplications.id,
@@ -601,6 +700,7 @@ export async function getVolunteerApplications(
       createdAt: schema.Applications.createdAt,
       constituent: {
         id: schema.Constituents.id,
+        publicId: schema.Constituents.publicId,
         firstName: schema.Constituents.firstName,
         lastName: schema.Constituents.lastName,
         email: schema.Constituents.email,
@@ -644,6 +744,10 @@ export async function getVolunteerApplications(
         schema.Applications,
         eq(schema.VolunteerApplications.applicationId, schema.Applications.id),
       )
+      .innerJoin(
+        schema.Constituents,
+        eq(schema.Applications.constituentId, schema.Constituents.id),
+      )
       .where(whereClause),
   ]);
 
@@ -655,6 +759,7 @@ export async function getVolunteerApplications(
       createdAt: it.createdAt,
       applicant: {
         id: it.constituent.id,
+        publicId: it.constituent.publicId,
         fullName: `${it.constituent.firstName} ${it.constituent.lastName}`,
         email: it.constituent.email ?? undefined,
         phone: it.constituent.phone ?? undefined,
@@ -682,6 +787,7 @@ export async function getVolunteerApplicationById(
       updatedAt: schema.Applications.updatedAt,
       constituent: {
         id: schema.Constituents.id,
+        publicId: schema.Constituents.publicId,
         firstName: schema.Constituents.firstName,
         lastName: schema.Constituents.lastName,
         email: schema.Constituents.email,
@@ -718,6 +824,7 @@ export async function getVolunteerApplicationById(
     updatedAt: application.updatedAt,
     applicant: {
       id: application.constituent.id,
+      publicId: application.constituent.publicId,
       firstName: application.constituent.firstName,
       lastName: application.constituent.lastName,
       email: application.constituent.email ?? undefined,
@@ -730,4 +837,60 @@ export async function getVolunteerApplicationById(
       skills: application.constituent.skills ?? undefined,
     },
   };
+}
+
+export async function updateVolunteerApplicationStatus(
+  id: string,
+  newStatus: ApplicationStatus,
+  notes?: string,
+) {
+  const result = await dbClient.db.transaction(async (tx) => {
+    const [volunteerApp] = await tx
+      .select({ applicationId: schema.VolunteerApplications.applicationId })
+      .from(schema.VolunteerApplications)
+      .where(eq(schema.VolunteerApplications.id, id))
+      .limit(1);
+
+    if (!volunteerApp) throw new ApiError("Volunteer application not found", 404);
+
+    const [updatedBase] = await tx
+      .update(schema.Applications)
+      .set({ status: newStatus, updatedAt: new Date() })
+      .where(eq(schema.Applications.id, volunteerApp.applicationId))
+      .returning({ constituentId: schema.Applications.constituentId });
+
+    if (!updatedBase) throw new ApiError("Failed to update application status", 500);
+
+    await tx
+      .update(schema.VolunteerApplications)
+      .set({ notes })
+      .where(eq(schema.VolunteerApplications.id, id));
+
+    if (newStatus === "ACCEPTED") {
+      const [activeVolunteer] = await tx
+        .select({ id: schema.Volunteers.id })
+        .from(schema.Volunteers)
+        .where(
+          and(
+            eq(schema.Volunteers.constituentId, updatedBase.constituentId),
+            or(
+              isNull(schema.Volunteers.endedAt),
+              gt(schema.Volunteers.endedAt, new Date()),
+            ),
+          ),
+        )
+        .limit(1);
+
+      if (!activeVolunteer) {
+        await tx.insert(schema.Volunteers).values({
+          constituentId: updatedBase.constituentId,
+          startedAt: new Date(),
+        });
+      }
+    }
+
+    return updatedBase;
+  });
+
+  return { id, status: newStatus, constituentId: result.constituentId };
 }
