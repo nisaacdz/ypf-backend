@@ -188,6 +188,22 @@ shopRouter.get(
   },
 );
 
+// CSV export of every order matching the same filters as /orders/admin.
+// Same auth as the list. Streams to keep memory bounded on large dumps.
+shopRouter.get(
+  "/orders/admin/export.csv",
+  authenticate,
+  authorize(Visitors.hasProfile("ADMIN")),
+  validateQuery(GetAdminOrdersQuerySchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await shopHandler.exportAdminOrdersCsv(req.Query, res);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 shopRouter.get(
   "/orders/admin/:id",
   authenticate,

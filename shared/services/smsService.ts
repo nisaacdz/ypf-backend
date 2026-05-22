@@ -174,6 +174,7 @@ export async function fetchSmsHistory(query: {
   event?: string;
   status?: string;
   batchId?: string;
+  search?: string;
 }): Promise<{ items: SmsHistoryRow[]; total: number; page: number; pageSize: number }> {
   const page = query.page ?? 1;
   const pageSize = Math.min(query.pageSize ?? 25, 100);
@@ -183,6 +184,18 @@ export async function fetchSmsHistory(query: {
   if (query.event) conds.push(eq(schema.SmsMessages.event, query.event));
   if (query.status) conds.push(eq(schema.SmsMessages.status, query.status));
   if (query.batchId) conds.push(eq(schema.SmsMessages.batchId, query.batchId));
+  if (query.search) {
+    // Search across recipient phone, message body, and constituent name —
+    // the three fields a support person types into the search box. ILIKE
+    // is fine at our scale; if we ever cross 1M rows, switch to pg_trgm.
+    const needle = `%${query.search}%`;
+    conds.push(
+      sql`(${schema.SmsMessages.recipient} ILIKE ${needle}
+        OR ${schema.SmsMessages.message} ILIKE ${needle}
+        OR ${schema.Constituents.firstName} ILIKE ${needle}
+        OR ${schema.Constituents.lastName} ILIKE ${needle})`,
+    );
+  }
   const whereClause = conds.length ? and(...conds) : undefined;
 
   const [rows, totalRow] = await Promise.all([

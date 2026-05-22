@@ -99,3 +99,57 @@ export async function getDonationByRef(
     },
   };
 }
+
+import { Response } from "express";
+import { streamCsv } from "@/shared/utils/csv";
+
+export async function exportDonationsCsv(
+  query: z.infer<typeof GetDonationsQuerySchema>,
+  res: Response,
+): Promise<void> {
+  const PAGE_SIZE = 500;
+  async function* iterator() {
+    let page = 1;
+    while (true) {
+      const result = await donationsService.getDonations({
+        ...query,
+        page,
+        pageSize: PAGE_SIZE,
+      });
+      for (const d of result.items as Array<Record<string, unknown>>) {
+        yield {
+          id: d.id,
+          status: d.status ?? "",
+          amount: d.amount ?? "",
+          currency: d.currency ?? "",
+          donorName: d.donorName ?? d.fullName ?? "",
+          donorEmail: d.donorEmail ?? d.email ?? "",
+          projectTitle: d.projectTitle ?? "",
+          eventName: d.eventName ?? "",
+          paymentReference: d.paymentReference ?? d.externalRef ?? "",
+          createdAt: d.createdAt ?? "",
+        };
+      }
+      if (result.items.length < PAGE_SIZE) break;
+      page += 1;
+    }
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  await streamCsv(res, {
+    filename: `ypf-donations-${today}.csv`,
+    columns: [
+      { key: "id", label: "Donation ID" },
+      { key: "status", label: "Status" },
+      { key: "amount", label: "Amount" },
+      { key: "currency", label: "Currency" },
+      { key: "donorName", label: "Donor" },
+      { key: "donorEmail", label: "Donor Email" },
+      { key: "projectTitle", label: "Project" },
+      { key: "eventName", label: "Event" },
+      { key: "paymentReference", label: "Payment Ref" },
+      { key: "createdAt", label: "When" },
+    ],
+    rows: iterator(),
+  });
+}

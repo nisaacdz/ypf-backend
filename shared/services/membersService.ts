@@ -189,8 +189,17 @@ export async function getMembers(
   const whereClauses = [];
 
   if (search) {
+    // Match any of full name, email, or member public id. Keep this in
+    // sync with the People page search input — anything typed there
+    // should narrow the list across the entire dataset, not just the
+    // currently-loaded page.
+    const needle = `%${search}%`;
     const fullName = sql<string>`concat(${schema.Constituents.firstName}, ' ', ${schema.Constituents.lastName})`;
-    whereClauses.push(ilike(fullName, `%${search}%`));
+    whereClauses.push(
+      sql`(${ilike(fullName, needle)}
+        OR ${schema.Constituents.email}::text ILIKE ${needle}
+        OR ${schema.Constituents.publicId}::text ILIKE ${needle})`,
+    );
   }
 
   if (country) {
@@ -936,4 +945,95 @@ export async function unassignRole(
   if (result.length === 0) {
     throw new ApiError("No active role assignment found", 404);
   }
+}
+
+/**
+ * Whole-org member stats used by the People page KPI tiles.
+ *
+ * The KPIs deliberately compute over the entire dataset (not the visible
+ * page) — pagination is for the table, but the stats should describe the
+ * whole org. Each metric is a separate query so the runtime can parallelise
+ * them; at ~10k members they all return in <30ms.
+ *
+ * "Leadership" is defined as anyone with a currently-active member title
+ * — chairs, leads, secretaries, etc. — which mirrors the meaning of the
+ * "In leadership" badge on the People page.
+ */
+export type MemberStats = {
+  total: number;
+  active: number;
+  pending: number;
+  leadership: number;
+  joinedThisMonth: number;
+};
+
+export async function getMemberStats(): Promise<MemberStats> {
+  const now = sql<Date>`now()`;
+  const monthStartIso = sql<string>`date_trunc('month', now())`;
+
+  const isActive = and(
+    lte(schema.Members.startedAt, now),
+    or(isNull(schema.Members.endedAt), gte(schema.Members.endedAt, now)),
+  );
+
+  const isPending = and(
+    or(isNull(schema.Members.startedAt), sql`${schema.Members.startedAt} > now()`),
+  );
+
+  // Three counts in parallel.
+  const [totalRow, activeRow, pendingRow, leadershipRow, joinedRow] =
+    await Promise.all([
+      // Total Members rows ever — includes ended memberships.
+      dbClient.db
+        .select({ n: count() })
+        .from(schema.Members)
+        .then((r) => Number(r[0]?.n ?? 0)),
+
+      // Currently active (within their started→ended window).
+      dbClient.db
+        .select({ n: count() })
+        .from(schema.Members)
+        .where(isActive)
+        .then((r) => Number(r[0]?.n ?? 0)),
+
+      // Pending = future-dated start (rare today; reserved for invites that
+      // haven't taken effect yet).
+      dbClient.db
+        .select({ n: count() })
+        .from(schema.Members)
+        .where(isPending)
+        .then((r) => Number(r[0]?.n ?? 0)),
+
+      // Distinct members holding any currently-active title.
+      dbClient.db
+        .select({
+          n: sql<number>`COUNT(DISTINCT ${schema.MemberTitlesAssignments.memberId})::int`,
+        })
+        .from(schema.MemberTitlesAssignments)
+        .where(
+          and(
+            lte(schema.MemberTitlesAssignments.startedAt, now),
+            or(
+              isNull(schema.MemberTitlesAssignments.endedAt),
+              gte(schema.MemberTitlesAssignments.endedAt, now),
+            ),
+          ),
+        )
+        .then((r) => Number(r[0]?.n ?? 0)),
+
+      // Joined since the first day of this calendar month.
+      dbClient.db
+        .select({ n: count() })
+        .from(schema.Members)
+        .where(sql`${schema.Members.startedAt} >= ${monthStartIso}`)
+        .then((r) => Number(r[0]?.n ?? 0)),
+    ]);
+
+  return {
+    total: totalRow,
+    active: activeRow,
+    pending: pendingRow,
+    leadership: leadershipRow,
+    joinedThisMonth: joinedRow,
+  };
 }

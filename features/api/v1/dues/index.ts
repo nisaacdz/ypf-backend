@@ -20,6 +20,7 @@ import {
   canAccessFinance,
   canManageFinance,
 } from "@/shared/services/workspaceAccessService";
+import { Visitors } from "@/configs/authorizer";
 import z from "zod";
 
 const duesRouter = Router();
@@ -241,6 +242,21 @@ duesRouter.post(
       });
     } catch (error) {
       next(error);
+    }
+  },
+);
+
+// CSV export of current dues debtors — everyone with an outstanding balance
+// for the active period. Admin only.
+duesRouter.get(
+  "/debtors/export.csv",
+  authenticate,
+  authorize(Visitors.hasProfile("ADMIN")),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await duesHandler.exportDuesDebtorsCsv(res);
+    } catch (err) {
+      next(err);
     }
   },
 );

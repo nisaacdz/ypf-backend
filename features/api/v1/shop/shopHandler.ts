@@ -411,3 +411,61 @@ export async function updateAdminOrderStatus(
     data: null,
   };
 }
+
+import { Response } from "express";
+import { streamCsv } from "@/shared/utils/csv";
+
+/**
+ * CSV export of admin orders. Same filter contract as getAdminOrders; we
+ * page internally so a 10k-order export doesn't load everything at once.
+ */
+export async function exportAdminOrdersCsv(
+  query: z.infer<typeof GetAdminOrdersQuerySchema>,
+  res: Response,
+): Promise<void> {
+  const PAGE_SIZE = 500;
+  async function* iterator() {
+    let page = 1;
+    while (true) {
+      const result = await shopService.fetchAdminOrders({
+        ...query,
+        page,
+        pageSize: PAGE_SIZE,
+      });
+      for (const o of result.items) {
+        yield {
+          id: o.id,
+          status: o.status,
+          paymentStatus: o.paymentStatus ?? "",
+          customerName: o.customerName ?? "",
+          customerEmail: o.customerEmail ?? "",
+          itemCount: o.itemCount,
+          totalAmount: o.totalAmount,
+          currency: o.currency,
+          paymentReference: o.paymentReference ?? "",
+          createdAt: o.createdAt,
+        };
+      }
+      if (result.items.length < PAGE_SIZE) break;
+      page += 1;
+    }
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  await streamCsv(res, {
+    filename: `ypf-orders-${today}.csv`,
+    columns: [
+      { key: "id", label: "Order ID" },
+      { key: "status", label: "Order Status" },
+      { key: "paymentStatus", label: "Payment Status" },
+      { key: "customerName", label: "Customer" },
+      { key: "customerEmail", label: "Customer Email" },
+      { key: "itemCount", label: "Items" },
+      { key: "totalAmount", label: "Total" },
+      { key: "currency", label: "Currency" },
+      { key: "paymentReference", label: "Payment Ref" },
+      { key: "createdAt", label: "Placed" },
+    ],
+    rows: iterator(),
+  });
+}

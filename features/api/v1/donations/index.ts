@@ -54,6 +54,21 @@ donationsRouter.get(
   },
 );
 
+// CSV export of donations matching the current filters.
+donationsRouter.get(
+  "/export.csv",
+  authenticate,
+  authorize(Visitors.hasProfile("ADMIN")),
+  validateQuery(GetDonationsQuerySchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await donationsHandler.exportDonationsCsv(req.Query, res);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 // Plan §8.9 — public success-page polling. No PII; just status + amount.
 donationsRouter.get(
   "/by-ref/:ref",

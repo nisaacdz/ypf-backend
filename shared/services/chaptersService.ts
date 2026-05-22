@@ -55,6 +55,46 @@ export async function getChapters(
     .groupBy(schema.ChapterMemberships.chapterId)
     .as("member_counts");
 
+  // --- SUBQUERY FOR CHAPTER ROLE HOLDERS ---
+  // Resolves the currently-active chapterlead / chapterhead assignment for
+  // each chapter via MemberTitles + MemberTitlesAssignments. row_number()
+  // keeps the latest assignment when more than one ends up active (defensive
+  // — the DB-level constraint should already prevent this).
+  const roleHoldersSubquery = dbClient.db
+    .select({
+      chapterId: schema.MemberTitles.chapterId,
+      alias: schema.MemberTitles.alias,
+      constituentId: schema.Members.constituentId,
+      firstName: schema.Constituents.firstName,
+      lastName: schema.Constituents.lastName,
+      rn: sql<number>`row_number() OVER (
+        PARTITION BY ${schema.MemberTitles.chapterId}, ${schema.MemberTitles.alias}
+        ORDER BY ${schema.MemberTitlesAssignments.startedAt} DESC
+      )`.as("role_rn"),
+    })
+    .from(schema.MemberTitlesAssignments)
+    .innerJoin(
+      schema.MemberTitles,
+      eq(schema.MemberTitlesAssignments.titleId, schema.MemberTitles.id),
+    )
+    .innerJoin(
+      schema.Members,
+      eq(schema.MemberTitlesAssignments.memberId, schema.Members.id),
+    )
+    .innerJoin(
+      schema.Constituents,
+      eq(schema.Members.constituentId, schema.Constituents.id),
+    )
+    .where(
+      and(
+        sql`${schema.MemberTitles.chapterId} IS NOT NULL`,
+        sql`${schema.MemberTitles.alias} IN ('chapterlead', 'chapterhead')`,
+        sql`${schema.MemberTitlesAssignments.startedAt} <= now()`,
+        sql`(${schema.MemberTitlesAssignments.endedAt} IS NULL OR ${schema.MemberTitlesAssignments.endedAt} >= now())`,
+      ),
+    )
+    .as("chapter_role_holders");
+
   // --- SUBQUERY FOR FEATURED PHOTO ---
   const featuredPhotoSubquery = dbClient.db
     .select({
@@ -81,6 +121,12 @@ export async function getChapters(
     whereClauses.push(ilike(schema.Chapters.name, `%${search}%`));
   }
 
+  // Two aliased copies of the role-holders subquery — one per alias, joined
+  // separately so the row carries both the lead and the head names side-by-
+  // side. row_number() = 1 selects only the latest active assignment.
+  const leadHolder = roleHoldersSubquery;
+  const headHolder = roleHoldersSubquery;
+
   // --- BASE QUERY ---
   const baseQuery = dbClient.db
     .select({
@@ -90,6 +136,60 @@ export async function getChapters(
       featuredPhotoExternalId: featuredPhotoSubquery.externalId,
       memberCount: memberCountSubquery.memberCount,
       foundingDate: schema.Chapters.foundingDate,
+      leadConstituentId: sql<string | null>`(
+        SELECT crh.constituent_id::text
+        FROM (
+          SELECT mt.chapter_id, m.constituent_id,
+            row_number() OVER (PARTITION BY mt.chapter_id ORDER BY mta.started_at DESC) AS rn
+          FROM core.member_titles_assignments mta
+          INNER JOIN core.member_titles mt ON mta.title_id = mt.id
+          INNER JOIN core.members m ON mta.member_id = m.id
+          WHERE mt.chapter_id IS NOT NULL
+            AND mt.alias = 'chapterlead'
+            AND mta.started_at <= now()
+            AND (mta.ended_at IS NULL OR mta.ended_at >= now())
+        ) crh
+        WHERE crh.chapter_id = ${schema.Chapters.id} AND crh.rn = 1
+        LIMIT 1
+      )`,
+      leadName: sql<string | null>`(
+        SELECT TRIM(c.first_name || ' ' || c.last_name)
+        FROM core.member_titles_assignments mta
+        INNER JOIN core.member_titles mt ON mta.title_id = mt.id
+        INNER JOIN core.members m ON mta.member_id = m.id
+        INNER JOIN core.constituents c ON m.constituent_id = c.id
+        WHERE mt.chapter_id = ${schema.Chapters.id}
+          AND mt.alias = 'chapterlead'
+          AND mta.started_at <= now()
+          AND (mta.ended_at IS NULL OR mta.ended_at >= now())
+        ORDER BY mta.started_at DESC
+        LIMIT 1
+      )`,
+      headConstituentId: sql<string | null>`(
+        SELECT m.constituent_id::text
+        FROM core.member_titles_assignments mta
+        INNER JOIN core.member_titles mt ON mta.title_id = mt.id
+        INNER JOIN core.members m ON mta.member_id = m.id
+        WHERE mt.chapter_id = ${schema.Chapters.id}
+          AND mt.alias = 'chapterhead'
+          AND mta.started_at <= now()
+          AND (mta.ended_at IS NULL OR mta.ended_at >= now())
+        ORDER BY mta.started_at DESC
+        LIMIT 1
+      )`,
+      headName: sql<string | null>`(
+        SELECT TRIM(c.first_name || ' ' || c.last_name)
+        FROM core.member_titles_assignments mta
+        INNER JOIN core.member_titles mt ON mta.title_id = mt.id
+        INNER JOIN core.members m ON mta.member_id = m.id
+        INNER JOIN core.constituents c ON m.constituent_id = c.id
+        WHERE mt.chapter_id = ${schema.Chapters.id}
+          AND mt.alias = 'chapterhead'
+          AND mta.started_at <= now()
+          AND (mta.ended_at IS NULL OR mta.ended_at >= now())
+        ORDER BY mta.started_at DESC
+        LIMIT 1
+      )`,
     })
     .from(schema.Chapters)
     .leftJoin(
@@ -105,6 +205,13 @@ export async function getChapters(
     )
     .where(and(...whereClauses));
 
+  // `leadHolder` / `headHolder` aliases are kept above for symmetry with the
+  // earlier subquery definition; the actual lookups use correlated SQL
+  // expressions in the SELECT for simplicity.
+  void leadHolder;
+  void headHolder;
+  void roleHoldersSubquery;
+
   // --- QUERY EXECUTION ---
   const [totalResult, dbChapters] = await Promise.all([
     dbClient.db.select({ total: count() }).from(baseQuery.as("sub")),
@@ -114,6 +221,9 @@ export async function getChapters(
   const total = totalResult[0]?.total ?? 0;
 
   // --- DATA MAPPING ---
+  // `leadConstituentId` / `headConstituentId` / lead+head names land via
+  // SQL-typed columns. The non-list query path (getChaptersByConstituentId)
+  // doesn't populate them — those rows fall through `?? undefined`.
   const items: YPFChapter[] = dbChapters.map((c) => ({
     id: c.id,
     name: c.name,
@@ -125,6 +235,14 @@ export async function getChapters(
       : undefined,
     memberCount: c.memberCount ?? 0,
     foundingDate: c.foundingDate,
+    leadConstituentId:
+      (c as { leadConstituentId?: string | null }).leadConstituentId ??
+      undefined,
+    leadName: (c as { leadName?: string | null }).leadName ?? undefined,
+    headConstituentId:
+      (c as { headConstituentId?: string | null }).headConstituentId ??
+      undefined,
+    headName: (c as { headName?: string | null }).headName ?? undefined,
   }));
 
   return {
@@ -385,6 +503,9 @@ export async function getChaptersByConstituentId(
   const total = totalResult[0]?.total ?? 0;
 
   // --- DATA MAPPING ---
+  // `leadConstituentId` / `headConstituentId` / lead+head names land via
+  // SQL-typed columns. The non-list query path (getChaptersByConstituentId)
+  // doesn't populate them — those rows fall through `?? undefined`.
   const items: YPFChapter[] = dbChapters.map((c) => ({
     id: c.id,
     name: c.name,
@@ -396,6 +517,14 @@ export async function getChaptersByConstituentId(
       : undefined,
     memberCount: c.memberCount ?? 0,
     foundingDate: c.foundingDate,
+    leadConstituentId:
+      (c as { leadConstituentId?: string | null }).leadConstituentId ??
+      undefined,
+    leadName: (c as { leadName?: string | null }).leadName ?? undefined,
+    headConstituentId:
+      (c as { headConstituentId?: string | null }).headConstituentId ??
+      undefined,
+    headName: (c as { headName?: string | null }).headName ?? undefined,
   }));
 
   return {

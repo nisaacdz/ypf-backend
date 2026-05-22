@@ -17,4 +17,5 @@ export const GetHistoryQuerySchema = z.object({
   event: z.string().optional(),
   status: z.enum(["SENT", "FAILED", "SKIPPED"]).optional(),
   batchId: z.uuid().optional(),
+  search: z.string().trim().min(1).max(120).optional(),
 });

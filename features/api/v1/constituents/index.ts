@@ -11,6 +11,7 @@ import {
   GetConstituentsQuerySchema,
   InviteConstituentSchema,
   OnboardConstituentSchema,
+  UpdateConstituentSchema,
 } from "./schemas";
 import { Visitors, MEMBER, ADMIN, anyOf } from "@/configs/authorizer";
 import z from "zod";
@@ -93,6 +94,32 @@ constituentsRouter.get(
           .json({ success: false, error: "Constituent not found" });
         return;
       }
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/**
+ * Edit direct constituent fields (name, contact, location). Admin-only.
+ * Cache for `/members` is invalidated on success so the People list shows
+ * the new values immediately. The People drawer in UMS hits this endpoint.
+ */
+constituentsRouter.put(
+  "/:constituentId",
+  authenticate,
+  authorize(Visitors.hasProfile("ADMIN")),
+  validateParams(z.object({ constituentId: z.uuid("Invalid constituent ID") })),
+  validateBody(UpdateConstituentSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await constituentsHandler.updateConstituent(
+        req.Params.constituentId,
+        req.Body,
+      );
+      await redisClient.delCache("/api/v1/members");
+      await redisClient.delCache("/api/v1/members/leadership");
       res.status(200).json(response);
     } catch (error) {
       next(error);

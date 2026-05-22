@@ -175,6 +175,7 @@ export const GetAdminOrdersQuerySchema = z.object({
     .optional(),
   startDate: z.coerce.date().optional(),
   endDate: z.coerce.date().optional(),
+  search: z.string().trim().min(1).max(120).optional(),
 });
 
 export const UpdateAdminOrderStatusSchema = z.object({

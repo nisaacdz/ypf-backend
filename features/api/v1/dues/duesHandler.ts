@@ -142,3 +142,49 @@ export async function triggerDuesReminder(
     data: { reminderId: reminder.id },
   };
 }
+
+import { Response } from "express";
+import { streamCsv } from "@/shared/utils/csv";
+
+/**
+ * CSV export of every active member who hasn't fully paid the current
+ * dues period. Joins members + payments via the existing debtor query —
+ * exactly what shows up on the "send reminders" admin screen.
+ */
+export async function exportDuesDebtorsCsv(res: Response): Promise<void> {
+  const rows = await duesReminderService.getDuesDebtors();
+  async function* iterator() {
+    for (const d of rows) {
+      yield {
+        membershipId: d.publicId,
+        fullName: d.fullName,
+        email: d.email ?? "",
+        amountDue: d.amountDue,
+        amountPaid: d.amountPaid,
+        balance: d.balance,
+        currency: d.currency,
+        periodStart: d.periodStart,
+        periodEnd: d.periodEnd,
+        reminderSent: d.reminderSent ? "yes" : "no",
+      };
+    }
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  await streamCsv(res, {
+    filename: `ypf-dues-debtors-${today}.csv`,
+    columns: [
+      { key: "membershipId", label: "Member ID" },
+      { key: "fullName", label: "Full Name" },
+      { key: "email", label: "Email" },
+      { key: "balance", label: "Outstanding" },
+      { key: "amountDue", label: "Total Due" },
+      { key: "amountPaid", label: "Paid So Far" },
+      { key: "currency", label: "Currency" },
+      { key: "periodStart", label: "Period Start" },
+      { key: "periodEnd", label: "Period End" },
+      { key: "reminderSent", label: "Reminder Sent" },
+    ],
+    rows: iterator(),
+  });
+}

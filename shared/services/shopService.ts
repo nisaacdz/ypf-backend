@@ -1039,6 +1039,7 @@ export async function fetchAdminOrders(query: {
   status?: "PENDING" | "COMPLETED" | "CANCELLED";
   startDate?: Date;
   endDate?: Date;
+  search?: string;
 }): Promise<Paginated<AdminOrderRow>> {
   const page = query.page ?? 1;
   const pageSize = query.pageSize ?? 20;
@@ -1053,6 +1054,22 @@ export async function fetchAdminOrders(query: {
   }
   if (query.endDate) {
     conds.push(lte(schema.Orders.createdAt, query.endDate));
+  }
+  if (query.search) {
+    // Full-text-ish search across the fields an admin actually types:
+    // customer first/last/email, Order ID prefix (UUID), and the Paystack
+    // payment reference. ILIKE keeps it case-insensitive; the existing
+    // joins to Constituents + FinancialTransactions make this cheap.
+    const needle = `%${query.search}%`;
+    conds.push(
+      or(
+        ilike(schema.Constituents.firstName, needle),
+        ilike(schema.Constituents.lastName, needle),
+        ilike(schema.Constituents.email, needle),
+        sql`${schema.Orders.id}::text ILIKE ${needle}`,
+        ilike(schema.FinancialTransactions.externalRef, needle),
+      ),
+    );
   }
   const whereClause = conds.length ? and(...conds) : undefined;
 
