@@ -9,7 +9,11 @@ const envSchema = z
     NODE_ENV: z
       .enum(["development", "production", "test"])
       .default("development"),
-    HOST: z.string().default("localhost"),
+    // Default to 0.0.0.0 (not localhost) so containers / App Service /
+    // any reverse-proxied environment can reach the listener without the
+    // operator having to remember to set HOST explicitly. Dev still works
+    // because 0.0.0.0 binds to all interfaces, including loopback.
+    HOST: z.string().default("0.0.0.0"),
     PORT: z.coerce.number().positive().default(3000),
 
     // Security and Authentication
