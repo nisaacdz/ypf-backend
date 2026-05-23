@@ -56,50 +56,13 @@ jobs:
       - name: Run tests
         run: npm run test
 
-      # This step is crucial: save the build output for the deploy job
-      - name: Upload artifact for deployment
-        uses: actions/upload-artifact@v4
-        with:
-          name: node-app
-          path:
-            . # This uploads the entire directory.
-            # Consider changing this to just your build output,
-            # e.g., 'dist', 'package.json', 'package-lock.json', etc.
-
-  # -----------------------------------------------
-  # JOB 2: Deploy to Development (Conditional)
-  # -----------------------------------------------
-  deploy-to-dev:
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write # Required for Azure federated login
-      contents: read
-
-    # --- THIS IS THE KEY PART ---
-    # 1. 'needs': Ensures this job only runs if 'build-and-test' succeeds.
-    # 2. 'if': Ensures this job only runs on a PUSH to the 'dev' branch.
-    needs: build-and-test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
-    # --- END KEY PART ---
-
-    steps:
-      - name: Download artifact from build job
-        uses: actions/download-artifact@v4
-        with:
-          name: node-app
-
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_5A0760B01D33498D944233E7D848BCF2 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_26A92A0436064449BBB1B452CC81CD79 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_57EC1087A4F2472C9ECF8E1E8FA97826 }}
-
-      - name: "Deploy to Azure Web App (Dev)"
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: "ypf-backend"
-          # Note: You're deploying to "Production" slot.
-          # You might want a "development" slot or a separate dev app.
-          slot-name: "Production"
-          package: .
+  # The previous version of this file had a `deploy-to-dev` job that fired
+  # on push to the `dev` branch and deployed to an Azure App Service named
+  # `ypf-backend`. That App Service was provisioned by the original repo
+  # author and does NOT exist in this fork's Azure subscription, so the
+  # job's `azure/login@v2` step always failed with "client-id and tenant-id
+  # not supplied". It's been removed — `dev` pushes still get full CI
+  # coverage via the `build-and-test` job above; deploys happen only on
+  # push to `prod` via `prod_ypfafrica-backend.yml`. If/when you stand up
+  # a real dev App Service, re-add a deploy-to-dev job here that uses the
+  # publish-profile pattern from the prod workflow.
