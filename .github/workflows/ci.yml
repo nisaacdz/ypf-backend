@@ -33,6 +33,7 @@ jobs:
       EMAILER: ${{ secrets.EMAILER }}
       ALLOWED_ORIGINS: ${{ secrets.ALLOWED_ORIGINS }}
       LOGO_URL: ${{ vars.LOGO_URL }}
+      PAYSTACK_SECRET: ${{ secrets.PAYSTACK_SECRET }}
 
     steps:
       - name: Checkout repository
@@ -41,7 +42,9 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20" # Using the version from your test file
+          # Node 22 LTS — matches the App Service runtime the deploy
+          # workflow targets, so what CI tests is what production runs.
+          node-version: "22"
           cache: "npm"
 
       - name: Install dependencies
