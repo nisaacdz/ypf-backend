@@ -282,6 +282,7 @@ export async function getMembershipApplicationById(
       commitmentStatement: schema.MembershipApplications.commitmentStatement,
       referralSource: schema.MembershipApplications.referralSource,
       declinedReason: schema.MembershipApplications.declinedReason,
+      consents: schema.MembershipApplications.consents,
       createdAt: schema.Applications.createdAt,
       updatedAt: schema.Applications.updatedAt,
       approvedAt: schema.MembershipApplications.approvedAt,
@@ -302,6 +303,19 @@ export async function getMembershipApplicationById(
         previousVolunteerExperience:
           schema.Constituents.previousVolunteerExperience,
         nationalIdDocumentId: schema.Constituents.nationalIdDocumentId,
+        // Additional fields the admin needs at approval time. All of
+        // these are collected by the public membership form, stored on
+        // the constituent row, but were never surfaced to the admin
+        // review screen — so admins were approving people without ever
+        // seeing their DOB, gender, mission pillars, etc.
+        dateOfBirth: schema.Constituents.dateOfBirth,
+        gender: schema.Constituents.gender,
+        nationalIdType: schema.Constituents.nationalIdType,
+        linkedinProfile: schema.Constituents.linkedinProfile,
+        twitterHandle: schema.Constituents.twitterHandle,
+        emergencyContactName: schema.Constituents.emergencyContactName,
+        emergencyContactPhone: schema.Constituents.emergencyContactPhone,
+        missionPillars: schema.Constituents.missionPillars,
       },
       profilePhoto: {
         externalId: schema.Media.externalId,
@@ -389,6 +403,19 @@ export async function getMembershipApplicationById(
     createdAt: application.createdAt,
     updatedAt: application.updatedAt,
     approvedAt: application.approvedAt ?? undefined,
+    consents: application.consents
+      ? {
+          termsAgreedAt:
+            (application.consents as Record<string, string>).termsAgreedAt ??
+            undefined,
+          privacyAgreedAt:
+            (application.consents as Record<string, string>).privacyAgreedAt ??
+            undefined,
+          declarationAgreedAt:
+            (application.consents as Record<string, string>)
+              .declarationAgreedAt ?? undefined,
+        }
+      : undefined,
     applicant: {
       id: application.constituent.id,
       publicId: application.constituent.publicId,
@@ -396,6 +423,7 @@ export async function getMembershipApplicationById(
       lastName: application.constituent.lastName,
       email: application.constituent.email ?? undefined,
       phone: application.constituent.phone ?? undefined,
+      whatsapp: application.constituent.whatsapp ?? undefined,
       occupation: application.constituent.occupation ?? undefined,
       country: application.constituent.country ?? undefined,
       region: application.constituent.region ?? undefined,
@@ -404,6 +432,23 @@ export async function getMembershipApplicationById(
       skills: application.constituent.skills ?? undefined,
       previousVolunteerExperience:
         application.constituent.previousVolunteerExperience ?? undefined,
+      // Demographics + identity context the admin reviewer needs.
+      // `dateOfBirth` is a Date in the DB; serialise as ISO so the
+      // wire format is consistent with every other timestamp field.
+      dateOfBirth: application.constituent.dateOfBirth
+        ? application.constituent.dateOfBirth instanceof Date
+          ? application.constituent.dateOfBirth.toISOString().slice(0, 10)
+          : String(application.constituent.dateOfBirth)
+        : undefined,
+      gender: application.constituent.gender ?? undefined,
+      nationalIdType: application.constituent.nationalIdType ?? undefined,
+      linkedinProfile: application.constituent.linkedinProfile ?? undefined,
+      twitterHandle: application.constituent.twitterHandle ?? undefined,
+      emergencyContactName:
+        application.constituent.emergencyContactName ?? undefined,
+      emergencyContactPhone:
+        application.constituent.emergencyContactPhone ?? undefined,
+      missionPillars: application.constituent.missionPillars ?? undefined,
       profilePhoto: application.profilePhoto?.externalId
         ? {
             url: generateSignedMediaUrl(application.profilePhoto.externalId, {
