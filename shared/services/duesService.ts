@@ -193,6 +193,76 @@ export async function getMemberDuesPayments(
 }
 
 /**
+ * Aggregate dues summary for one member — what the dashboard "Dues Status"
+ * KPI needs to draw the right label.
+ *
+ * Returns enough to distinguish three cases that the old `outstandingCount`
+ * shortcut collapsed into one:
+ *   1. `hasAnyDues === false`  → never been billed yet (new member, current
+ *                                month not yet rolled). UI should NOT show
+ *                                "Paid" — show "—" / "No dues" instead.
+ *   2. `outstanding > 0`        → at least one billed dues isn't fully paid.
+ *                                UI should show "Owing".
+ *   3. `hasAnyDues && outstanding === 0` → fully up to date. Show "Paid".
+ *
+ * Calculation:
+ *   - Pulls every global Dues row (chapterId IS NULL) — the per-member
+ *     monthly bills are global; chapter-specific dues are a future feature.
+ *   - LEFT JOINs each member's COMPLETED dues_payments → financial_transactions.
+ *   - Sums per dues row, then aggregates totals.
+ */
+export async function getMemberDuesSummary(memberId: string) {
+  const rows = await dbClient.db
+    .select({
+      duesId: schema.Dues.id,
+      amount: schema.Dues.amount,
+      currency: schema.Dues.currency,
+      paid: sql<string>`coalesce(sum(case when ${schema.FinancialTransactions.status} = 'COMPLETED' then ${schema.FinancialTransactions.amount} else 0 end), 0)::text`,
+    })
+    .from(schema.Dues)
+    .leftJoin(
+      schema.DuesPayments,
+      and(
+        eq(schema.DuesPayments.duesId, schema.Dues.id),
+        eq(schema.DuesPayments.memberId, memberId),
+      ),
+    )
+    .leftJoin(
+      schema.FinancialTransactions,
+      eq(schema.FinancialTransactions.id, schema.DuesPayments.transactionId),
+    )
+    .where(isNull(schema.Dues.chapterId))
+    .groupBy(schema.Dues.id, schema.Dues.amount, schema.Dues.currency);
+
+  let totalBilled = 0;
+  let totalPaid = 0;
+  let outstanding = 0;
+  let unpaidDuesCount = 0;
+  let currency = "GHS";
+
+  for (const r of rows) {
+    const billed = parseFloat(r.amount);
+    const paid = parseFloat(r.paid);
+    totalBilled += billed;
+    totalPaid += paid;
+    const remaining = Math.max(0, billed - paid);
+    outstanding += remaining;
+    if (remaining > 0) unpaidDuesCount += 1;
+    currency = r.currency;
+  }
+
+  return {
+    hasAnyDues: rows.length > 0,
+    totalBilled: totalBilled.toFixed(2),
+    totalPaid: totalPaid.toFixed(2),
+    outstanding: outstanding.toFixed(2),
+    unpaidDuesCount,
+    duesCount: rows.length,
+    currency,
+  };
+}
+
+/**
  * Get active member record for a constituent
  */
 export async function getActiveMember(constituentId: string) {

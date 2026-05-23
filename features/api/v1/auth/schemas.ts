@@ -50,11 +50,18 @@ export const ResetPasswordSchema = z.object({
     .max(55, { message: "Password must not exceed 55 characters." }),
 });
 
+// `email` is intentionally NOT in this schema. The user's email is their
+// sign-in credential and changing it requires an OTP-verified flow
+// (re-prove ownership of both the old and new mailbox) — not a regular
+// profile field. The UMS profile screen disables the email input and
+// strips it from the save payload; this server-side check is the final
+// belt-and-suspenders layer so a crafted PATCH /auth/me can't sneak an
+// email change through. Add a dedicated `/auth/me/email-change` endpoint
+// the day this feature actually needs to ship.
 export const UpdateMeSchema = z.object({
   firstName: z.string().min(1).max(100).optional(),
   lastName: z.string().min(1).max(100).optional(),
   preferredName: z.string().max(150).nullable().optional(),
-  email: z.email().nullable().optional(),
   phone: z.string().max(40).nullable().optional(),
   whatsapp: z.string().max(40).nullable().optional(),
   country: z.string().max(100).nullable().optional(),
