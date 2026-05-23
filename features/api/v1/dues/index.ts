@@ -60,6 +60,28 @@ duesRouter.get(
   },
 );
 
+// Aggregate "am I paid up?" view used by the dashboard KPI. Cross-references
+// every global Dues bill with this member's COMPLETED payments so the UI
+// can distinguish "never billed" (new member) from "fully paid" (real
+// member, all caught up). The previous KPI looked only at pending
+// payments and labelled brand-new members as "Paid" even though they'd
+// never paid anything.
+duesRouter.get(
+  "/me/summary",
+  authenticate,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const member = await duesService.getOrCreateActiveMember(
+        req.User!.constituentId,
+      );
+      const summary = await duesService.getMemberDuesSummary(member.id);
+      res.status(200).json(summary);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 duesRouter.get(
   "/payments",
   authenticate,
