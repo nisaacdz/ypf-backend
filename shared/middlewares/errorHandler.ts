@@ -60,10 +60,102 @@ export const errorHandler = (
     });
   }
 
-  logger.error(err.stack);
+  // Postgres errors (from the `postgres` driver) carry the real diagnostic
+  // info — table, column, constraint name, severity — outside the basic
+  // stack trace. The previous handler only logged `err.stack`, which
+  // produced log entries like "Failed query: insert into..." with no
+  // hint *why*. Surface the cause chain so future 500s aren't black-box.
+  // Standard PostgresError shape: { code, severity, table_name,
+  // column_name, constraint_name, detail, hint }.
+  if (isPostgresError(err) || isPostgresError(err.cause)) {
+    const pg = (isPostgresError(err) ? err : err.cause) as PostgresError;
+    logger.error(
+      {
+        code: pg.code,
+        severity: pg.severity,
+        table: pg.table_name,
+        column: pg.column_name,
+        constraint: pg.constraint_name,
+        detail: pg.detail,
+        hint: pg.hint,
+        message: pg.message,
+        stack: err.stack,
+      },
+      "Postgres query failed",
+    );
+
+    // Translate common user-recoverable Postgres errors into clean 4xx
+    // responses so the UMS shows a useful message instead of a
+    // generic "Internal Server Error".
+    if (pg.code === "23514") {
+      // check_violation — invalid combination of values (e.g. dates
+      // out of order, amount negative, etc.)
+      return res.status(400).json({
+        success: false,
+        message: friendlyCheckViolation(pg.constraint_name),
+      });
+    }
+    if (pg.code === "23505") {
+      // unique_violation
+      return res.status(409).json({
+        success: false,
+        message: "A record with these values already exists.",
+      });
+    }
+    if (pg.code === "23503") {
+      // foreign_key_violation
+      return res.status(400).json({
+        success: false,
+        message: "Referenced record was not found.",
+      });
+    }
+    if (pg.code === "23502") {
+      // not_null_violation
+      return res.status(400).json({
+        success: false,
+        message: `Missing required field${pg.column_name ? `: ${pg.column_name}` : ""}.`,
+      });
+    }
+  }
+
+  logger.error({ err, stack: err.stack }, "Unhandled error");
 
   return res.status(500).json({
     success: false,
     message: "An unexpected error occurred.",
   });
 };
+
+type PostgresError = {
+  code?: string;
+  severity?: string;
+  table_name?: string;
+  column_name?: string;
+  constraint_name?: string;
+  detail?: string;
+  hint?: string;
+  message?: string;
+};
+
+function isPostgresError(err: unknown): err is PostgresError {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    typeof (err as { code?: unknown }).code === "string" &&
+    /^\d{5}$/.test((err as { code: string }).code)
+  );
+}
+
+// Map well-known constraint names to user-facing messages. Falls back to a
+// generic "value out of allowed range" when the constraint name is new.
+function friendlyCheckViolation(name?: string): string {
+  switch (name) {
+    case "projects_schedule_valid":
+    case "events_schedule_valid":
+      return "End date must be on or after the start date.";
+    case "dues_policies_period_valid":
+      return "Dues policy period end must be after the start.";
+    default:
+      return `One or more values are invalid${name ? ` (${name})` : ""}.`;
+  }
+}
