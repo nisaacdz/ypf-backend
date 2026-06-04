@@ -68,12 +68,11 @@ export async function fetchEvents(
         objective: schema.Events.objective,
         type: schema.Events.type,
         status: schema.Events.status,
+        maxCapacity: schema.Events.maxCapacity,
         projectTitle: schema.Projects.title,
         chapterName: schema.Chapters.name,
-        featuredMediumExternalId: schema.Media.externalId,
-        // Real attendee count from the event_attendees table. Both guest +
-        // member attendees are counted. Subquery so it composes cleanly
-        // with the existing groupBy without pulling join cardinality issues.
+        // min() so multiple isFeatured rows never produce duplicate event rows
+        featuredMediumExternalId: sql<string | null>`min(${schema.Media.externalId})`,
         attendeeCount: sql<number>`(
           SELECT COUNT(*)::int
           FROM ${schema.EventAttendees}
@@ -114,7 +113,7 @@ export async function fetchEvents(
         schema.Projects.id,
         schema.Chapters.name,
         schema.Chapters.id,
-        schema.Media.externalId,
+        schema.Events.maxCapacity,
       ),
 
     dbClient.db
@@ -141,6 +140,7 @@ export async function fetchEvents(
     projectTitle: event.projectTitle || undefined,
     chapterName: event.chapterName || undefined,
     attendeeCount: Number(event.attendeeCount ?? 0),
+    maxCapacity: event.maxCapacity ?? undefined,
     featuredMediumUrl: event.featuredMediumExternalId
       ? mediaUtils.generateSignedMediaUrl(event.featuredMediumExternalId, {
           resolution: 720,

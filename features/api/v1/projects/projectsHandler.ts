@@ -16,7 +16,8 @@ import * as mediaUtils from "@/shared/utils/files";
 import * as mediaService from "@/shared/services/mediaService";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, count, sql } from "drizzle-orm";
+import { Projects, ProjectMedia, ProjectEnrollments } from "@/db/schema/activities";
 
 export async function getProjects(
   query: z.infer<typeof GetProjectsQuerySchema>,
@@ -122,6 +123,18 @@ export async function updateProject(
   };
 }
 
+export async function deleteProject(
+  projectId: string,
+): Promise<ApiResponse<null>> {
+  await projectsService.deleteProject(projectId);
+
+  return {
+    success: true,
+    message: "Project deleted successfully",
+    data: null,
+  };
+}
+
 export async function updateProjectMedium(
   projectId: string,
   mediumId: string,
@@ -207,5 +220,125 @@ export async function getProjectEnrollments(
     success: true,
     message: "Project enrollments fetched successfully",
     data,
+  };
+}
+
+type DedupeResult = {
+  kept: { id: string; title: string };
+  deleted: { id: string; media: number; enrollments: number }[];
+};
+
+export async function checkDuplicateProjects(): Promise<
+  ApiResponse<{
+    totalProjects: number;
+    duplicateGroups: { key: string; count: number; ids: string[] }[];
+  }>
+> {
+  // Use DB-native lower() so hidden unicode/whitespace differences are handled
+  // the same way PostgreSQL handles them — no JS normalisation needed.
+  const rawGroups = (await dbClient.db.execute(sql`
+    SELECT
+      lower(trim(title))          AS key,
+      string_agg(id::text, ',')   AS ids,
+      count(*)::int               AS cnt
+    FROM activities.projects
+    GROUP BY lower(trim(title))
+    HAVING count(*) > 1
+  `)) as unknown as Array<{ key: string; ids: string; cnt: number }>;
+
+  const [[{ total }]] = await Promise.all([
+    dbClient.db.select({ total: count() }).from(Projects),
+  ]);
+
+  const duplicateGroups = rawGroups.map((r) => ({
+    key: r.key,
+    count: r.cnt,
+    ids: r.ids.split(","),
+  }));
+
+  return {
+    success: true,
+    message: `Found ${duplicateGroups.length} duplicate group(s) out of ${total} total projects.`,
+    data: { totalProjects: Number(total), duplicateGroups },
+  };
+}
+
+export async function deduplicateProjects(): Promise<
+  ApiResponse<{ groups: DedupeResult[]; totalDeleted: number }>
+> {
+  // Group by lower(trim(title)) in the database — immune to JS normalisation quirks
+  const rawGroups = (await dbClient.db.execute(sql`
+    SELECT
+      lower(trim(title))          AS key,
+      string_agg(id::text, ',')   AS ids,
+      count(*)::int               AS cnt
+    FROM activities.projects
+    GROUP BY lower(trim(title))
+    HAVING count(*) > 1
+  `)) as unknown as Array<{ key: string; ids: string; cnt: number }>;
+
+  const results: DedupeResult[] = [];
+  let totalDeleted = 0;
+
+  for (const row of rawGroups) {
+    const ids = row.ids.split(",");
+
+    const stats = await Promise.all(
+      ids.map(async (id) => {
+        const [[mediaRow], [enrollRow], [proj]] = await Promise.all([
+          dbClient.db
+            .select({ n: count() })
+            .from(ProjectMedia)
+            .where(eq(ProjectMedia.projectId, id)),
+          dbClient.db
+            .select({ n: count() })
+            .from(ProjectEnrollments)
+            .where(eq(ProjectEnrollments.projectId, id)),
+          dbClient.db
+            .select({ title: Projects.title })
+            .from(Projects)
+            .where(eq(Projects.id, id)),
+        ]);
+        return {
+          id,
+          title: proj?.title ?? row.key,
+          media: Number(mediaRow?.n ?? 0),
+          enrollments: Number(enrollRow?.n ?? 0),
+        };
+      }),
+    );
+
+    // Keep the project with the most data; ties → first UUID alphabetically
+    const sorted = [...stats].sort((a, b) => {
+      if (b.media !== a.media) return b.media - a.media;
+      if (b.enrollments !== a.enrollments) return b.enrollments - a.enrollments;
+      return a.id.localeCompare(b.id);
+    });
+
+    const keep = sorted[0];
+    const toDelete = sorted.slice(1);
+
+    for (const d of toDelete) {
+      await dbClient.db.delete(Projects).where(eq(Projects.id, d.id));
+      totalDeleted++;
+    }
+
+    results.push({
+      kept: { id: keep.id, title: keep.title },
+      deleted: toDelete.map((d) => ({
+        id: d.id,
+        media: d.media,
+        enrollments: d.enrollments,
+      })),
+    });
+  }
+
+  return {
+    success: true,
+    message:
+      totalDeleted === 0
+        ? "No duplicates found."
+        : `Deduplication complete. ${totalDeleted} duplicate(s) removed across ${results.length} group(s).`,
+    data: { groups: results, totalDeleted },
   };
 }

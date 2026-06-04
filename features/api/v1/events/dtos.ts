@@ -17,6 +17,7 @@ export type YPFEvent = {
   // Count of guest + member rows in event_attendees for this event.
   // Used by the UMS Events table so admins see real registration numbers.
   attendeeCount: number;
+  maxCapacity?: number;
 };
 
 export type YPFEventDetail = {

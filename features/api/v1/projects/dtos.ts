@@ -15,6 +15,8 @@ export type YPFProject = {
   featuredMediumUrl?: string;
   enrollmentCount: number;
   chapterName?: string;
+  budget?: number;
+  targetVolunteers?: number;
 };
 
 export type YPFProjectDetail = {

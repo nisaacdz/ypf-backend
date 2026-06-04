@@ -62,12 +62,13 @@ export async function fetchProjects(
         scheduledStart: Projects.scheduledStart,
         scheduledEnd: Projects.scheduledEnd,
         status: Projects.status,
-        featuredMediumExternalId: Media.externalId,
+        budget: Projects.budget,
+        targetVolunteers: Projects.targetVolunteers,
+        // Use min() so multiple isFeatured rows (gallery bug) never produce
+        // duplicate project rows — one project always = one result row.
+        featuredMediumExternalId: sql<string | null>`min(${Media.externalId})`,
         chapterName: Chapters.name,
-        // Count active enrollments (excludes unenrolled). count(*) over a LEFT
-        // JOIN would always be >= 1; counting the joined id gives 0 when
-        // there are no matches.
-        enrollmentCount: sql<number>`count(${ProjectEnrollments.id})::int`,
+        enrollmentCount: sql<number>`count(distinct ${ProjectEnrollments.id})::int`,
       })
       .from(Projects)
       .leftJoin(Chapters, eq(Projects.chapterId, Chapters.id))
@@ -101,7 +102,8 @@ export async function fetchProjects(
         Projects.scheduledStart,
         Projects.scheduledEnd,
         Projects.status,
-        Media.externalId,
+        Projects.budget,
+        Projects.targetVolunteers,
         Chapters.name,
         Chapters.id,
       ),
@@ -131,6 +133,8 @@ export async function fetchProjects(
       : undefined,
     enrollmentCount: Number(project.enrollmentCount ?? 0),
     chapterName: project.chapterName || undefined,
+    budget: project.budget != null ? Number(project.budget) : undefined,
+    targetVolunteers: project.targetVolunteers ?? undefined,
   }));
 
   return {
@@ -335,6 +339,17 @@ export async function updateProject(
     .returning({ id: Projects.id });
 
   if (!updatedProject) {
+    throw new ApiError("Project not found", 404);
+  }
+}
+
+export async function deleteProject(projectId: string): Promise<void> {
+  const [deletedProject] = await dbClient.db
+    .delete(Projects)
+    .where(eq(Projects.id, projectId))
+    .returning({ id: Projects.id });
+
+  if (!deletedProject) {
     throw new ApiError("Project not found", 404);
   }
 }

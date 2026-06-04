@@ -108,6 +108,8 @@ export const CreateProjectSchema = z.object({
       message: "Invalid project status.",
     })
     .default("UPCOMING"),
+  budget: z.coerce.number().nonnegative().optional(),
+  targetVolunteers: z.coerce.number().int().positive().optional(),
   chapterId: z.uuid({ message: "Invalid chapter ID format." }).optional(),
 });
 
@@ -135,6 +137,8 @@ export const UpdateProjectSchema = z.object({
       message: "Invalid project status.",
     })
     .optional(),
+  budget: z.coerce.number().nonnegative().optional(),
+  targetVolunteers: z.coerce.number().int().positive().optional(),
 });
 
 export const UpdateProjectMediumSchema = z.object({

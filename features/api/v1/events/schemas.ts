@@ -25,6 +25,7 @@ export const UpdateEventSchema = z.object({
       message: "Invalid event status.",
     })
     .optional(),
+  maxCapacity: z.coerce.number().int().positive().optional(),
 });
 
 export const UpdateEventMediumSchema = z.object({
@@ -53,6 +54,7 @@ export const CreateEventSchema = z.object({
   status: z.enum(EventStatusEnum.enumValues, {
     message: "Invalid event status.",
   }),
+  maxCapacity: z.coerce.number().int().positive().optional(),
   projectId: z.uuid({ message: "Invalid project ID format." }).optional(),
 });
 

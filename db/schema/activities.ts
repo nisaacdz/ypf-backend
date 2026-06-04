@@ -1,5 +1,7 @@
 import {
   boolean,
+  integer,
+  numeric,
   pgSchema,
   uuid,
   text,
@@ -65,6 +67,8 @@ export const Projects = activities.table("projects", {
   }).notNull(),
   scheduledEnd: timestamp("scheduled_end", { withTimezone: true }).notNull(),
   status: ProjectStatusEnum().default("UPCOMING").notNull(),
+  budget: numeric("budget", { precision: 12, scale: 2 }),
+  targetVolunteers: integer("target_volunteers"),
   chapterId: uuid("chapter_id").references(() => Chapters.id, {
     onDelete: "set null",
   }),
@@ -85,6 +89,7 @@ export const Events = activities.table("events", {
   objective: text(),
   description: text(),
   status: EventStatusEnum().default("UPCOMING").notNull(),
+  maxCapacity: integer("max_capacity"),
   projectId: uuid("project_id").references(() => Projects.id, {
     onDelete: "set null",
   }),

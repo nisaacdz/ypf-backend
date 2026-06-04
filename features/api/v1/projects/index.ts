@@ -26,9 +26,7 @@ import * as projectsHandler from "./projectsHandler";
 import { Visitors, MEMBER, anyOf } from "@/configs/authorizer";
 import z from "zod";
 import filesUpload from "@/shared/middlewares/multipart";
-import { redisCacheEarlyReturn } from "@/shared/middlewares/redisCache";
 import redisClient from "@/configs/redis";
-import logger from "@/configs/logger";
 import { canManageProgramsRecords } from "@/shared/services/workspaceAccessService";
 
 const projectsRouter = Router();
@@ -37,14 +35,38 @@ projectsRouter.get(
   "/",
   authorize(Visitors.ALL),
   validateQuery(GetProjectsQuerySchema),
-  redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await projectsHandler.getProjects(req.Query);
-      // Cache for 60 seconds
-      redisClient.setResponseCache(req.CacheKey, response, 60).catch((err) => {
-        logger.error(err, `Failed to set cache for ${req.CacheKey}`);
-      });
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+projectsRouter.get(
+  "/duplicates-check",
+  authenticate,
+  authorize(Visitors.hasProfile("ADMIN")),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await projectsHandler.checkDuplicateProjects();
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+projectsRouter.post(
+  "/deduplicate",
+  authenticate,
+  authorize(Visitors.hasProfile("ADMIN")),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await projectsHandler.deduplicateProjects();
+      await redisClient.delCache("/api/v1/projects");
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -102,14 +124,9 @@ projectsRouter.get(
   authenticateLax,
   authorize(Visitors.ALL),
   validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
-  redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await projectsHandler.getProject(req.Params.id);
-      // Cache for 60 seconds
-      redisClient.setResponseCache(req.CacheKey, response, 60).catch((err) => {
-        logger.error(err, `Failed to set cache for ${req.CacheKey}`);
-      });
       res.status(200).json(response);
     } catch (error) {
       next(error);
@@ -147,23 +164,41 @@ projectsRouter.put(
   },
 );
 
+projectsRouter.delete(
+  "/:id",
+  authenticate,
+  validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
+  authorize(
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(MEMBER.PRESIDENT),
+      canManageProgramsRecords,
+    ),
+  ),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await projectsHandler.deleteProject(req.Params.id);
+      await redisClient.delCache(`/api/v1/projects/${req.Params.id}`);
+      await redisClient.delCache("/api/v1/projects");
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 projectsRouter.get(
   "/:id/media",
   authenticateLax,
   authorize(Visitors.ALL),
   validateParams(z.object({ id: z.uuid("Invalid Request") }), 404),
   validateQuery(GetProjectMediaQuerySchema),
-  redisCacheEarlyReturn,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await projectsHandler.getProjectMedia(
         req.Params.id,
         req.Query,
       );
-      // Cache for 60 seconds
-      redisClient.setResponseCache(req.CacheKey, response, 60).catch((err) => {
-        logger.error(err, `Failed to set cache for ${req.CacheKey}`);
-      });
       res.status(200).json(response);
     } catch (error) {
       next(error);
