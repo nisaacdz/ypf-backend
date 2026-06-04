@@ -261,7 +261,11 @@ export async function startPaystackDonation(
           currency,
           reference: paymentReference,
           callback_url: `${variables.app.websiteUrl ?? variables.app.host}/donations/callback`,
-          email: guestEmail ?? user?.email,
+          // Paystack mandates an email to initialize a transaction. Anonymous
+          // donations (and guests who didn't provide one) have no donor email,
+          // so fall back to the org sender address — the donation still stays
+          // anonymous in our DB; this only satisfies Paystack's receipt field.
+          email: guestEmail ?? user?.email ?? variables.services.email.sender,
           ...paystackSplitFields(),
         }),
       },

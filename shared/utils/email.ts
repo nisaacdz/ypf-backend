@@ -190,14 +190,14 @@ export async function sendWelcomeEmail(
     </ul>
     <p>If you have any questions, feel free to reach out. We're excited to see the impact you'll make!</p>
     <br>
-    <a href="https://dashboard.ypfafrica.live" class="button">Go to Your Dashboard</a>
+    <a href="https://ums.ypfafrica.org" class="button">Go to Your Dashboard</a>
     <br><br>
     <p>Best regards,<br>The YPF Africa Team</p>
   `;
 
   const htmlBody = generateBaseHtml(subject, content);
 
-  const textContent = `Hi ${name},\n\nWelcome to YPF Africa! We are thrilled to have you join our community.\n\nVisit your dashboard to get started: https://dashboard.ypfafrica.live\n\nBest regards,\nThe YPF Africa Team`;
+  const textContent = `Hi ${name},\n\nWelcome to YPF Africa! We are thrilled to have you join our community.\n\nVisit your dashboard to get started: https://ums.ypfafrica.org\n\nBest regards,\nThe YPF Africa Team`;
 
   await sendEmail(to, subject, htmlBody, textContent);
 }
