@@ -36,6 +36,7 @@ export const NOTIFICATION_CHANNELS = {
   duesReminder: "both",
   orderConfirmation: "both",
   membershipAccepted: "both",
+  volunteerAccepted: "both",
   bulkAnnouncement: "both",
   birthday: "both",
 } as const satisfies Record<string, Channel>;
@@ -199,6 +200,26 @@ export async function notifyMembershipAccepted(params: {
   if (ch === "sms" || ch === "both") {
     const text = `YPF Africa: Congrats ${params.name.split(" ")[0]}! Your membership application has been accepted. Tracking: ${params.trackingNumber}. Check your email for next steps.`;
     await smsBestEffort("membershipAccepted", params.phone, text);
+  }
+}
+
+export async function notifyVolunteerAccepted(params: {
+  email: string;
+  name: string;
+  phone?: string | null;
+  trackingNumber?: string;
+}): Promise<void> {
+  const ch = channelFor("volunteerAccepted");
+  if (ch === "email" || ch === "both") {
+    await email.sendVolunteerApplicationAcceptanceEmail({
+      email: params.email,
+      name: params.name,
+      trackingNumber: params.trackingNumber,
+    });
+  }
+  if (ch === "sms" || ch === "both") {
+    const text = `YPF Africa: Congrats ${params.name.split(" ")[0]}! Your volunteer application has been accepted. Check your email for your WhatsApp group invite and next steps.`;
+    await smsBestEffort("volunteerAccepted", params.phone, text);
   }
 }
 

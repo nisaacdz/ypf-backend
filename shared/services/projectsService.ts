@@ -224,6 +224,8 @@ export async function fetchProjectById(
       scheduledStart: Projects.scheduledStart,
       scheduledEnd: Projects.scheduledEnd,
       status: Projects.status,
+      budget: Projects.budget,
+      targetVolunteers: Projects.targetVolunteers,
       chapterId: Chapters.id,
       chapterName: Chapters.name,
     })
@@ -303,6 +305,8 @@ export async function fetchProjectById(
         }))
       : undefined,
     enrollmentCount: Number(enrollmentCountRow[0]?.n ?? 0),
+    budget: ypfProject.budget != null ? Number(ypfProject.budget) : undefined,
+    targetVolunteers: ypfProject.targetVolunteers ?? undefined,
     chapter:
       ypfProject.chapterId && ypfProject.chapterName
         ? {
@@ -316,9 +320,11 @@ export async function fetchProjectById(
 export async function createProject(
   data: z.infer<typeof CreateProjectSchema>,
 ): Promise<string> {
+  // `budget` is a numeric column — Drizzle expects it as a string.
+  const { budget, ...rest } = data;
   const [project] = await dbClient.db
     .insert(Projects)
-    .values(data)
+    .values({ ...rest, ...(budget != null ? { budget: String(budget) } : {}) })
     .returning({ id: Projects.id });
 
   if (!project) {
@@ -332,9 +338,10 @@ export async function updateProject(
   projectId: string,
   data: z.infer<typeof UpdateProjectSchema>,
 ): Promise<void> {
+  const { budget, ...rest } = data;
   const [updatedProject] = await dbClient.db
     .update(Projects)
-    .set(data)
+    .set({ ...rest, ...(budget != null ? { budget: String(budget) } : {}) })
     .where(eq(Projects.id, projectId))
     .returning({ id: Projects.id });
 

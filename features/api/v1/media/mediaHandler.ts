@@ -1,10 +1,12 @@
 import z from "zod";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
-import { ApiResponse } from "@/shared/types";
+import { ApiError, ApiResponse } from "@/shared/types";
 import * as mediaUtils from "@/shared/utils/files";
 import { eq, and, sql, desc, count } from "drizzle-orm";
 import { GetPublicMediaQuerySchema } from "./schemas";
+
+type GalleryKind = "projects" | "events";
 
 type PublicMediaParentKind = "PROJECT" | "EVENT";
 
@@ -163,6 +165,99 @@ export async function getPublicMedia(
       total,
     },
   };
+}
+
+/**
+ * Gallery media management — operates directly on the junction-row id that
+ * `/media/public` returns (project_media.id or event_media.id), so the UMS
+ * gallery can update/delete an image without first resolving its parent.
+ */
+export async function updateGalleryMedium(
+  kind: GalleryKind,
+  junctionId: string,
+  data: { caption?: string; isFeatured?: boolean },
+): Promise<ApiResponse<null>> {
+  if (kind === "projects") {
+    // When marking featured, clear any other featured image on the same project.
+    if (data.isFeatured) {
+      const [row] = await dbClient.db
+        .select({ projectId: schema.ProjectMedia.projectId })
+        .from(schema.ProjectMedia)
+        .where(eq(schema.ProjectMedia.id, junctionId));
+      if (row?.projectId) {
+        await dbClient.db
+          .update(schema.ProjectMedia)
+          .set({ isFeatured: false })
+          .where(eq(schema.ProjectMedia.projectId, row.projectId));
+      }
+    }
+    const [updated] = await dbClient.db
+      .update(schema.ProjectMedia)
+      .set(data)
+      .where(eq(schema.ProjectMedia.id, junctionId))
+      .returning({ id: schema.ProjectMedia.id });
+    if (!updated) throw new ApiError("Gallery image not found", 404);
+  } else {
+    if (data.isFeatured) {
+      const [row] = await dbClient.db
+        .select({ eventId: schema.EventMedia.eventId })
+        .from(schema.EventMedia)
+        .where(eq(schema.EventMedia.id, junctionId));
+      if (row?.eventId) {
+        await dbClient.db
+          .update(schema.EventMedia)
+          .set({ isFeatured: false })
+          .where(eq(schema.EventMedia.eventId, row.eventId));
+      }
+    }
+    const [updated] = await dbClient.db
+      .update(schema.EventMedia)
+      .set(data)
+      .where(eq(schema.EventMedia.id, junctionId))
+      .returning({ id: schema.EventMedia.id });
+    if (!updated) throw new ApiError("Gallery image not found", 404);
+  }
+
+  return { success: true, message: "Gallery image updated", data: null };
+}
+
+export async function deleteGalleryMedium(
+  kind: GalleryKind,
+  junctionId: string,
+): Promise<ApiResponse<null>> {
+  // Resolve the underlying Media row so we can drop both the DB row and the file.
+  let mediumId: string | null = null;
+  let externalId: string | null = null;
+
+  if (kind === "projects") {
+    const [row] = await dbClient.db
+      .select({ mediumId: schema.ProjectMedia.mediumId, externalId: schema.Media.externalId })
+      .from(schema.ProjectMedia)
+      .innerJoin(schema.Media, eq(schema.ProjectMedia.mediumId, schema.Media.id))
+      .where(eq(schema.ProjectMedia.id, junctionId));
+    mediumId = row?.mediumId ?? null;
+    externalId = row?.externalId ?? null;
+  } else {
+    const [row] = await dbClient.db
+      .select({ mediumId: schema.EventMedia.mediumId, externalId: schema.Media.externalId })
+      .from(schema.EventMedia)
+      .innerJoin(schema.Media, eq(schema.EventMedia.mediumId, schema.Media.id))
+      .where(eq(schema.EventMedia.id, junctionId));
+    mediumId = row?.mediumId ?? null;
+    externalId = row?.externalId ?? null;
+  }
+
+  if (!mediumId) throw new ApiError("Gallery image not found", 404);
+
+  // Deleting the Media row cascades the junction row (FK onDelete: cascade).
+  await dbClient.db.delete(schema.Media).where(eq(schema.Media.id, mediumId));
+
+  // Best-effort file cleanup — don't fail the request if storage delete errors.
+  if (externalId) {
+    await mediaUtils.deleteMediumFile(externalId).catch(() => {});
+  }
+
+  return { success: true, message: "Gallery image deleted", data: null };
 }
 
 // keep the unused-import warnings quiet for symbols we may use later

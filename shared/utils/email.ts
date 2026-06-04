@@ -14,6 +14,28 @@ const colors = {
   border: "#E4E4E7",
 };
 
+/**
+ * WhatsApp community group invite links included in the acceptance emails so
+ * newly-approved members and volunteers can join their respective groups.
+ */
+const WHATSAPP_GROUPS = {
+  member: "https://chat.whatsapp.com/I1vTHLNqWcMFMqh5ussQ63?s=cl&p=i&ilr=2",
+  volunteer: "https://chat.whatsapp.com/EBUyorNds4262EneOus8rf?s=cl&p=i&ilr=2",
+};
+
+// WhatsApp brand green for the CTA button in acceptance emails.
+const WHATSAPP_GREEN = "#25D366";
+
+function whatsappButtonHtml(link: string, label: string): string {
+  return `
+    <div style="margin: 24px 0;">
+      <a href="${link}" target="_blank" rel="noopener noreferrer"
+         style="display: inline-block; background-color: ${WHATSAPP_GREEN}; color: #ffffff !important; padding: 12px 24px; border-radius: 6px; font-weight: 600; text-decoration: none;">
+        ${label}
+      </a>
+    </div>`;
+}
+
 const generateBaseHtml = (subject: string, contentHtml: string): string => {
   const year = variables.app.year;
   const logoUrl = variables.app.logoUrl;
@@ -678,6 +700,9 @@ export async function sendMembershipApplicationAcceptanceEmail(params: {
       <p style="margin: 0 0 8px 0; font-size: 14px; color: ${colors.mutedForeground}; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Application Details</p>
       <p style="margin: 0; font-size: 16px; color: ${colors.foreground}; font-family: monospace;">Tracking Number: ${params.trackingNumber}</p>
     </div>
+    <p>As an approved member, please join our official members' WhatsApp group to connect with the community and stay up to date:</p>
+    ${whatsappButtonHtml(WHATSAPP_GROUPS.member, "Join the Members' WhatsApp Group")}
+    <p style="font-size: 13px; color: ${colors.mutedForeground};">If the button doesn't work, copy this link into your browser:<br>${WHATSAPP_GROUPS.member}</p>
     <p>We will be in touch shortly with next steps regarding your onboarding and induction.</p>
     <br>
     <p>Best regards,<br>The YPF Africa Team</p>
@@ -692,7 +717,60 @@ export async function sendMembershipApplicationAcceptanceEmail(params: {
     "",
     `Tracking Number: ${params.trackingNumber}`,
     "",
+    "Join our official members' WhatsApp group:",
+    WHATSAPP_GROUPS.member,
+    "",
     "We will be in touch shortly with next steps regarding your onboarding and induction.",
+    "",
+    "Best regards,",
+    "The YPF Africa Team",
+  ].join("\n");
+
+  await sendEmail(params.email, subject, htmlBody, textContent);
+}
+
+/**
+ * Sent when a volunteer application is accepted. Mirrors the membership
+ * acceptance email but points to the volunteers' WhatsApp group.
+ */
+export async function sendVolunteerApplicationAcceptanceEmail(params: {
+  email: string;
+  name: string;
+  trackingNumber?: string;
+}): Promise<void> {
+  const subject = "Volunteer Application Accepted - YPF Africa";
+
+  const content = `
+    <p>Dear ${params.name},</p>
+    <p>Congratulations! We are delighted to let you know that your volunteer application to YPF Africa has been accepted.</p>
+    ${
+      params.trackingNumber
+        ? `<div style="background-color: ${colors.muted}; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid ${colors.border};">
+      <p style="margin: 0 0 8px 0; font-size: 14px; color: ${colors.mutedForeground}; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Application Details</p>
+      <p style="margin: 0; font-size: 16px; color: ${colors.foreground}; font-family: monospace;">Tracking Number: ${params.trackingNumber}</p>
+    </div>`
+        : ""
+    }
+    <p>Please join our official volunteers' WhatsApp group to get started and coordinate with the team:</p>
+    ${whatsappButtonHtml(WHATSAPP_GROUPS.volunteer, "Join the Volunteers' WhatsApp Group")}
+    <p style="font-size: 13px; color: ${colors.mutedForeground};">If the button doesn't work, copy this link into your browser:<br>${WHATSAPP_GROUPS.volunteer}</p>
+    <p>We look forward to working with you.</p>
+    <br>
+    <p>Best regards,<br>The YPF Africa Team</p>
+  `;
+
+  const htmlBody = generateBaseHtml(subject, content);
+
+  const textContent = [
+    `Dear ${params.name},`,
+    "",
+    "Congratulations! Your volunteer application to YPF Africa has been accepted.",
+    ...(params.trackingNumber ? ["", `Tracking Number: ${params.trackingNumber}`] : []),
+    "",
+    "Join our official volunteers' WhatsApp group:",
+    WHATSAPP_GROUPS.volunteer,
+    "",
+    "We look forward to working with you.",
     "",
     "Best regards,",
     "The YPF Africa Team",

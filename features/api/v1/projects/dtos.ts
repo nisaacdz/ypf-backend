@@ -38,6 +38,8 @@ export type YPFProjectDetail = {
     medium: Medium;
   }[];
   enrollmentCount: number;
+  budget?: number;
+  targetVolunteers?: number;
   chapter?: {
     id: string;
     name: string;

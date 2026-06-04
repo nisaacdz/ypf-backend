@@ -18,7 +18,10 @@ import {
   generateSignedMediaUrl,
 } from "@/shared/utils/files";
 import { sendMembershipApplicationAcknowledgementEmail } from "@/shared/utils/email";
-import { notifyMembershipAccepted } from "@/shared/utils/notify";
+import {
+  notifyMembershipAccepted,
+  notifyVolunteerAccepted,
+} from "@/shared/utils/notify";
 import {
   GetMembershipApplicationsQuerySchema,
   GetVolunteerApplicationsQuerySchema,
@@ -902,7 +905,10 @@ export async function updateVolunteerApplicationStatus(
       .update(schema.Applications)
       .set({ status: newStatus, updatedAt: new Date() })
       .where(eq(schema.Applications.id, volunteerApp.applicationId))
-      .returning({ constituentId: schema.Applications.constituentId });
+      .returning({
+        constituentId: schema.Applications.constituentId,
+        trackingNumber: schema.Applications.trackingNumber,
+      });
 
     if (!updatedBase) throw new ApiError("Failed to update application status", 500);
 
@@ -936,6 +942,33 @@ export async function updateVolunteerApplicationStatus(
 
     return updatedBase;
   });
+
+  // Send acceptance email (with the volunteers' WhatsApp group link) after the
+  // transaction commits. Best-effort — a mail failure must not fail the approval.
+  if (newStatus === "ACCEPTED") {
+    const [constituent] = await dbClient.db
+      .select({
+        firstName: schema.Constituents.firstName,
+        lastName: schema.Constituents.lastName,
+        email: schema.Constituents.email,
+        phone: schema.Constituents.phone,
+        whatsapp: schema.Constituents.whatsapp,
+      })
+      .from(schema.Constituents)
+      .where(eq(schema.Constituents.id, result.constituentId))
+      .limit(1);
+
+    if (constituent && constituent.email) {
+      notifyVolunteerAccepted({
+        email: constituent.email,
+        name: `${constituent.firstName} ${constituent.lastName}`,
+        phone: constituent.phone ?? constituent.whatsapp ?? null,
+        trackingNumber: result.trackingNumber,
+      }).catch((err) => {
+        logger.error(err, "Failed to send volunteer acceptance notification");
+      });
+    }
+  }
 
   return { id, status: newStatus, constituentId: result.constituentId };
 }

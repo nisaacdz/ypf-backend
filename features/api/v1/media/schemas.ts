@@ -16,3 +16,14 @@ export const GetPublicMediaQuerySchema = z.object({
   // one request. Public callers can stay at the default 24.
   pageSize: z.coerce.number().int().min(1).max(200).default(24),
 });
+
+// Gallery management — operate on the junction-row id `/media/public` returns.
+export const GalleryMediumParamsSchema = z.object({
+  kind: z.enum(["projects", "events"]),
+  id: z.uuid({ message: "Invalid media id" }),
+});
+
+export const UpdateGalleryMediumSchema = z.object({
+  caption: z.string().max(255).optional(),
+  isFeatured: z.coerce.boolean().optional(),
+});
