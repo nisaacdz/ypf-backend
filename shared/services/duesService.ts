@@ -6,6 +6,7 @@ import { ApiError, AuthenticatedUser } from "@/shared/types";
 import logger from "@/configs/logger";
 import { v4 as uuidv4 } from "uuid";
 import { paystackSplitFields } from "./paymentProviders";
+import { getDashboardUrl } from "@/shared/utils/appUrls";
 
 type PaystackInitializeResponse = {
   status: boolean;
@@ -404,10 +405,7 @@ export async function initiateDuesPayment(
       currency,
       reference: paymentReference,
       ...paystackSplitFields(),
-      callback_url:
-        (variables.app.dashboardUrl?.replace(/\/$/, "") ??
-          `http://${variables.app.host}:${variables.app.port}`) +
-        "/dashboard/me/dues/callback",
+      callback_url: `${getDashboardUrl()}/dashboard/me/dues/callback`,
       email: user.email,
       metadata: {
         type: "dues_payment",

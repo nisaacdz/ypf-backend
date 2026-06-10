@@ -274,12 +274,13 @@ export async function notifyBirthday(params: {
 
   if (ch === "email" || ch === "both") {
     const subject = `Happy Birthday, ${firstName}!`;
-    const html = `<p>Dear ${firstName},</p><p>The YPF Africa team wishes you a wonderful birthday. May this new chapter be full of impact, growth, and celebration.</p><p>With warm wishes,<br>The YPF Africa Team</p>`;
-    await email.sendEmail(params.email, subject, html);
+    const html = `<p>Dear ${firstName},</p><p>Today, all of us at YPF Africa celebrate you. Thank you for the energy, ideas, and heart you bring to this community.</p><p>May this new year open bold doors for growth, impact, leadership, and joy.</p><p>Have a beautiful birthday!</p><p>With warm wishes,<br>The YPF Africa Team</p>`;
+    const text = `Dear ${firstName},\n\nToday, all of us at YPF Africa celebrate you. Thank you for the energy, ideas, and heart you bring to this community.\n\nMay this new year open bold doors for growth, impact, leadership, and joy.\n\nHave a beautiful birthday!\n\nWith warm wishes,\nThe YPF Africa Team`;
+    await email.sendEmail(params.email, subject, html, text);
   }
 
   if (ch === "sms" || ch === "both") {
-    const text = `YPF Africa: Happy Birthday, ${firstName}! Wishing you an incredible year ahead. 🎉`;
+    const text = `YPF Africa: Happy Birthday, ${firstName}! Today we celebrate you and the light you bring to our community. Keep growing, leading, and shining.`;
     await smsBestEffort("birthday", params.phone, text);
   }
 }

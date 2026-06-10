@@ -1,5 +1,4 @@
 import logger from "@/configs/logger";
-import variables from "@/configs/env";
 import type { Job } from "pg-boss";
 
 import {
@@ -11,6 +10,7 @@ import { notifyBirthday } from "@/shared/utils/notify";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { inArray } from "drizzle-orm";
+import { getDashboardUrl } from "@/shared/utils/appUrls";
 
 const HEADS_UP_DAYS = 3;
 
@@ -24,9 +24,7 @@ function formatDate(d: Date): string {
 }
 
 function buildCardPrepUrl(constituentId: string): string {
-  const base =
-    variables.app.dashboardUrl ??
-    `http://${variables.app.host}:${variables.app.port}`;
+  const base = getDashboardUrl();
   return `${base.replace(/\/+$/, "")}/dashboard/workspaces/graphics/birthdays/${constituentId}`;
 }
 

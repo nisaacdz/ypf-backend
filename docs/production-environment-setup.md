@@ -87,7 +87,7 @@ YEAR=2026
 # Public URLs
 DASHBOARD_URL=https://ums.ypfafrica.org
 WEBSITE_URL=https://ypfafrica.org
-LOGO_URL=https://ypfafrica.org/logo.png
+LOGO_URL=https://ums.ypfafrica.org/logo.png
 
 # Browser origins allowed to call the API
 ALLOWED_ORIGINS=https://ypfafrica.org,https://www.ypfafrica.org,https://ums.ypfafrica.org

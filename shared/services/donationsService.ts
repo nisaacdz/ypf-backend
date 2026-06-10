@@ -13,6 +13,7 @@ import { Paginated } from "@/shared/dtos";
 import { YPFDonation } from "@/features/api/v1/donations/dtos";
 import { z } from "zod";
 import { GetDonationsQuerySchema } from "@/features/api/v1/donations/schemas";
+import { getWebsiteUrl } from "@/shared/utils/appUrls";
 
 export async function getDonations(
   query: z.infer<typeof GetDonationsQuerySchema>,
@@ -260,7 +261,7 @@ export async function startPaystackDonation(
           amount: Math.round(amount * 100),
           currency,
           reference: paymentReference,
-          callback_url: `${variables.app.websiteUrl ?? variables.app.host}/donations/callback`,
+          callback_url: `${getWebsiteUrl()}/donations/callback`,
           // Paystack mandates an email to initialize a transaction. Anonymous
           // donations (and guests who didn't provide one) have no donor email,
           // so fall back to the org sender address — the donation still stays

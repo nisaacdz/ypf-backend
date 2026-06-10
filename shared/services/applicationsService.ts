@@ -1,6 +1,5 @@
 import { aliasedTable, eq, desc, count, and, ilike, or, isNull, gt } from "drizzle-orm";
 import dbClient from "@/configs/db";
-import variables from "@/configs/env";
 import schema from "@/db/schema";
 import logger from "@/configs/logger";
 import { ApiError } from "@/shared/types";
@@ -17,6 +16,7 @@ import {
   generateSignedDocumentPreviewUrl,
   generateSignedMediaUrl,
 } from "@/shared/utils/files";
+import { getDashboardUrl } from "@/shared/utils/appUrls";
 import { sendMembershipApplicationAcknowledgementEmail } from "@/shared/utils/email";
 import {
   notifyMembershipAccepted,
@@ -619,7 +619,7 @@ export async function updateMembershipApplicationStatus(
 
   // Send acceptance email after transaction commits
   if (newStatus === "ACCEPTED") {
-    const dashboardUrl = variables.app.dashboardUrl ?? "http://localhost:3000";
+    const dashboardUrl = getDashboardUrl();
     onboardConstituent(result.constituentId, dashboardUrl).catch((err) => {
       logger.error(err, "Failed to create or resend onboarding account for accepted member");
     });

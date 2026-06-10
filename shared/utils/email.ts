@@ -3,6 +3,7 @@ import variables from "@/configs/env";
 import emailer from "@/configs/emailer";
 import logger from "@/configs/logger";
 import { marked } from "marked";
+import { getDashboardUrl, getEmailLogoUrl } from "./appUrls";
 
 const colors = {
   primary: "#301F6E",
@@ -38,7 +39,7 @@ function whatsappButtonHtml(link: string, label: string): string {
 
 const generateBaseHtml = (subject: string, contentHtml: string): string => {
   const year = variables.app.year;
-  const logoUrl = variables.app.logoUrl;
+  const logoUrl = getEmailLogoUrl();
 
   return `
     <!DOCTYPE html>
@@ -112,10 +113,14 @@ export const sendEmail = async (
     return;
   }
 
+  const htmlBody = /<!doctype html|<html[\s>]/i.test(html)
+    ? html
+    : generateBaseHtml(subject, html);
+
   const mailOptions: nodemailer.SendMailOptions = {
     from: `"YPF Africa" <${variables.services.email.sender}>`,
     subject,
-    html,
+    html: htmlBody,
     text,
   };
 
@@ -178,6 +183,7 @@ export async function sendWelcomeEmail(
   name: string,
 ): Promise<void> {
   const subject = "Welcome to YPF Africa!";
+  const dashboardUrl = getDashboardUrl();
 
   const content = `
     <p>Hi ${name},</p>
@@ -190,14 +196,14 @@ export async function sendWelcomeEmail(
     </ul>
     <p>If you have any questions, feel free to reach out. We're excited to see the impact you'll make!</p>
     <br>
-    <a href="https://ums.ypfafrica.org" class="button">Go to Your Dashboard</a>
+    <a href="${dashboardUrl}" class="button">Go to Your Dashboard</a>
     <br><br>
     <p>Best regards,<br>The YPF Africa Team</p>
   `;
 
   const htmlBody = generateBaseHtml(subject, content);
 
-  const textContent = `Hi ${name},\n\nWelcome to YPF Africa! We are thrilled to have you join our community.\n\nVisit your dashboard to get started: https://ums.ypfafrica.org\n\nBest regards,\nThe YPF Africa Team`;
+  const textContent = `Hi ${name},\n\nWelcome to YPF Africa! We are thrilled to have you join our community.\n\nVisit your dashboard to get started: ${dashboardUrl}\n\nBest regards,\nThe YPF Africa Team`;
 
   await sendEmail(to, subject, htmlBody, textContent);
 }

@@ -15,11 +15,11 @@ import {
 } from "./schemas";
 import { Visitors, MEMBER, ADMIN, anyOf } from "@/configs/authorizer";
 import z from "zod";
-import variables from "@/configs/env";
 import redisClient from "@/configs/redis";
+import { getDashboardUrl } from "@/shared/utils/appUrls";
 
 const constituentsRouter = Router();
-const dashboardUrl = variables.app.dashboardUrl ?? "http://localhost:3000";
+const dashboardUrl = getDashboardUrl();
 
 constituentsRouter.get(
   "/",

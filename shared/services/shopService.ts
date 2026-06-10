@@ -16,6 +16,7 @@ import { ShopProduct, ShopProductDetail } from "@/features/api/v1/shop/dtos";
 import { paystackSplitFields } from "./paymentProviders";
 import { Paginated } from "../dtos";
 import * as mediaUtils from "@/shared/utils/files";
+import { getWebsiteUrl } from "@/shared/utils/appUrls";
 
 type OrderItem = {
   productId: string;
@@ -197,7 +198,7 @@ export async function createAuthenticatedOrder(
           amount: Math.round(totalAmount * 100),
           currency,
           reference: paymentReference,
-          callback_url: `${variables.app.websiteUrl ?? variables.app.host}/orders/success`,
+          callback_url: `${getWebsiteUrl()}/orders/success`,
           email: user.email,
           ...paystackSplitFields(),
         }),
@@ -476,7 +477,7 @@ export async function completeGuestOrder(
           amount: Math.round(totalAmount * 100),
           currency: payload.currency,
           reference: paymentReference,
-          callback_url: `${variables.app.websiteUrl ?? variables.app.host}/orders/success`,
+          callback_url: `${getWebsiteUrl()}/orders/success`,
           email: payload.email,
           ...paystackSplitFields(),
         }),
