@@ -57,8 +57,8 @@ type CreateMembershipApplication = {
     middleName?: string;
     email: string;
     phone: string;
-    nationalIdType: NationalIdType;
-    nationalIdDocumentId: string;
+    nationalIdType?: NationalIdType;
+    nationalIdDocumentId?: string;
     profilePhotoId: string;
     missionPillars?: string[];
   };

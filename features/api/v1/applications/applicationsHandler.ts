@@ -66,7 +66,7 @@ export async function createMembershipApplication({
   files: {
     passportPhoto: Express.Multer.File;
     resume: Express.Multer.File | null;
-    nationalId: Express.Multer.File;
+    nationalId: Express.Multer.File | null;
   };
 }): Promise<ApiResponse<string>> {
   const existingUser = await dbClient.db.query.Constituents.findFirst({
@@ -98,9 +98,11 @@ export async function createMembershipApplication({
           .storeDocumentFile(files.resume)
           .then(documentsService.uploadDocument)
       : null,
-    fileUtils
-      .storeDocumentFile(files.nationalId)
-      .then(documentsService.uploadDocument),
+    files.nationalId
+      ? fileUtils
+          .storeDocumentFile(files.nationalId)
+          .then(documentsService.uploadDocument)
+      : null,
   ]);
 
   let { applicantData, ...applicationData } = data;
@@ -110,7 +112,7 @@ export async function createMembershipApplication({
     constituent: {
       ...applicantData,
       profilePhotoId: passportPhoto.id,
-      nationalIdDocumentId: nationalId.id,
+      nationalIdDocumentId: nationalId?.id,
     },
     cvDocumentId: resume?.id,
     willingToServe: applicationData.willingToServe,

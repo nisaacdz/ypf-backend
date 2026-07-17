@@ -108,7 +108,7 @@ applicationsRouter.post(
   ]),
   validateFiles({
     passportPhoto: UploadRegistrationFileSchema,
-    nationalId: UploadRegistrationFileSchema,
+    nationalId: UploadRegistrationFileSchema.optional(),
     resume: UploadRegistrationFileSchema.optional(),
   }),
   validateBody(PostMembershipApplicationBody),

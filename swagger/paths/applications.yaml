@@ -90,7 +90,6 @@
               - phone
               - commitmentStatement
               - willingToServe
-              - nationalIdType
               - dateOfBirth
             properties:
               firstName:
@@ -125,6 +124,7 @@
               nationalIdType:
                 type: string
                 enum: [ECOWASIDCARD]
+                description: Optional — national ID collection was removed from the public registration form
               emergencyContactName:
                 type: string
               emergencyContactPhone:
@@ -162,7 +162,7 @@
               nationalId:
                 type: string
                 format: binary
-                description: National ID document (PDF or image, max 10MB)
+                description: Optional national ID document (PDF or image, max 10MB)
               resume:
                 type: string
                 format: binary
