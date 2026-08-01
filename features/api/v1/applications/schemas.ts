@@ -6,11 +6,18 @@ import {
 import { z } from "zod";
 import { AllowedDocumentsMimeTypes } from "@/shared/middlewares/multipart";
 
+// The email is how we recognise a returning applicant, and `constituents.email`
+// is a case-sensitive text column — so "Ama@x.com" and "ama@x.com" would be two
+// different people. Normalise on the way in, the way admin invites already do.
+// Normalising before validating also stops a pasted address with a trailing
+// space from being rejected outright as "Invalid email address".
+const ApplicantEmail = z.string().trim().toLowerCase().pipe(z.email());
+
 const ApplicantData = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
   preferredName: z.string().optional(),
-  email: z.email(),
+  email: ApplicantEmail,
   phone: z.string().min(1),
   whatsapp: z.string().optional(),
   // salutation: z.string().optional(),
@@ -39,6 +46,19 @@ export const MissionPillarValues = [
   "ADVOCACY_AWARENESS",
 ] as const;
 
+/**
+ * Multipart has no notion of an array: a field repeated twice arrives as
+ * ["a", "b"], but selecting a single option arrives as the bare string "a",
+ * which `z.array()` rejects. Wrap the lone value so picking one skill isn't a
+ * 400 while picking two is fine.
+ */
+function MultipartArray<T extends z.ZodTypeAny>(item: T) {
+  return z.preprocess(
+    (val) => (val === undefined || Array.isArray(val) ? val : [val]),
+    z.array(item),
+  );
+}
+
 const ConsentsObject = z
   .object({
     termsAgreedAt: z.string().datetime().optional(),
@@ -66,7 +86,7 @@ const FlatApplicationInput = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
   preferredName: z.string().optional(),
-  email: z.email(),
+  email: ApplicantEmail,
   phone: z.string().min(1),
   whatsapp: z.string().optional(),
   // salutation: z.string().optional(),
@@ -82,12 +102,12 @@ const FlatApplicationInput = z.object({
   emergencyContactName: z.string().optional(),
   emergencyContactPhone: z.string().optional(),
   // emergencyContactRelationship: z.string().optional(),
-  skills: z.array(z.string()).optional(), // Note: validation of array format in multipart might need handle json parsing if sent as string, but assuming middleware handles it or client sends duplicates
+  skills: MultipartArray(z.string()).optional(),
   linkedinProfile: z.string().optional(),
   twitterHandle: z.string().optional(),
 
   // Profile fields
-  missionPillars: z.array(z.enum(MissionPillarValues)).optional(),
+  missionPillars: MultipartArray(z.enum(MissionPillarValues)).optional(),
   referralSource: z.string().optional(),
   // referralOther: z.string().optional(),
   previousVolunteerExperience: z.string().optional(),
@@ -180,14 +200,14 @@ export const GetMembershipApplicationsQuerySchema = z.object({
 const FlatVolunteerApplicationInput = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
-  email: z.email(),
+  email: ApplicantEmail,
   phone: z.string().min(1),
   whatsapp: z.string().optional(),
   country: z.string().optional(),
   region: z.string().optional(),
   city: z.string().optional(),
   occupation: z.string().optional(),
-  skills: z.array(z.string()).optional(),
+  skills: MultipartArray(z.string()).optional(),
   reason: z
     .string()
     .min(10, "Please provide a reason for volunteering (min 10 chars)."),

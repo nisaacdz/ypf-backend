@@ -170,6 +170,9 @@ export const MembershipApplications = core.table("membership_applications", {
 
   // Application specific preferences
   commitmentStatement: text("commitment_statement"),
+  // Nullable on purpose: applications submitted before this column existed
+  // were never asked to record an answer, and "we don't know" is not "no".
+  willingToServe: boolean("willing_to_serve"),
   preferredChapterId: uuid("preferred_chapter_id").references(
     () => Chapters.id,
   ),

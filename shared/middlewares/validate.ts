@@ -52,6 +52,41 @@ export function validateParams<T>(
   };
 }
 
+/**
+ * Sniffing the bytes catches a .exe renamed to .pdf, but demanding the sniffed
+ * mime *string-match* the browser's rejects legitimate files: Word 97-2003
+ * documents are OLE2 containers (application/x-cfb), OOXML files are ZIP
+ * containers, and some platforms label JPEGs "image/jpg". Those uploads were
+ * failing with "Invalid file content". Accept the known-equivalent pairs.
+ */
+const EQUIVALENT_MIME_TYPES: Record<string, string[]> = {
+  "application/msword": ["application/x-cfb"],
+  "application/vnd.ms-excel": ["application/x-cfb"],
+  "application/vnd.ms-powerpoint": ["application/x-cfb"],
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [
+    "application/zip",
+  ],
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
+    "application/zip",
+  ],
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": [
+    "application/zip",
+  ],
+  "image/jpg": ["image/jpeg"],
+  "image/jpeg": ["image/jpg"],
+};
+
+function contentMatchesDeclaredType(
+  declaredMimeType: string,
+  sniffedMimeType: string | undefined,
+): boolean {
+  if (!sniffedMimeType) return false;
+  if (sniffedMimeType === declaredMimeType) return true;
+  return (
+    EQUIVALENT_MIME_TYPES[declaredMimeType]?.includes(sniffedMimeType) ?? false
+  );
+}
+
 export function validateFile<T>(schema: z.ZodType<T>) {
   return async (req: Request, res: Response, next: NextFunction) => {
     if (!req.file && schema.safeParse(undefined).success) {
@@ -72,8 +107,13 @@ export function validateFile<T>(schema: z.ZodType<T>) {
       actualMimeType = await fileTypeFromBuffer(req.file.buffer);
     }
 
-    if (!actualMimeType || actualMimeType.mime !== req.file.mimetype) {
-      return next(new ApiError("Invalid file content", 400));
+    if (!contentMatchesDeclaredType(req.file.mimetype, actualMimeType?.mime)) {
+      return next(
+        new ApiError(
+          "The file's contents don't match its type. Please re-save it as a PDF, DOCX, PNG or JPG and try again.",
+          400,
+        ),
+      );
     }
 
     const result = schema.safeParse(meta);
@@ -119,8 +159,13 @@ export function validateFiles<T>(schemas: Record<string, z.ZodType<T>>) {
         actualMimeType = await fileTypeFromBuffer(file.buffer);
       }
 
-      if (!actualMimeType || actualMimeType.mime !== file.mimetype) {
-        return next(new ApiError("Invalid file content", 400));
+      if (!contentMatchesDeclaredType(file.mimetype, actualMimeType?.mime)) {
+        return next(
+          new ApiError(
+            `The file uploaded for "${fileName}" doesn't match its type. Please re-save it as a PDF, DOCX, PNG or JPG and try again.`,
+            400,
+          ),
+        );
       }
 
       const result = schema.safeParse(meta);

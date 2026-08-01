@@ -4,6 +4,7 @@ import { Request, Response, NextFunction } from "express";
 import { ApiError } from "../types";
 import logger from "@/configs/logger";
 import fs from "fs/promises";
+import multer from "multer";
 
 // Helper to cleanup temp files
 const cleanupFiles = async (req: Request) => {
@@ -58,6 +59,19 @@ export const errorHandler = (
       data: undefined,
       message: err.message,
     });
+  }
+
+  // Upload problems are the client's to fix. Left unclassified they fell
+  // through to the generic 500 below, so a too-large headshot told the
+  // applicant "An unexpected error occurred" and nothing else.
+  if (err instanceof multer.MulterError) {
+    const message =
+      err.code === "LIMIT_FILE_SIZE"
+        ? `That file is too large${err.field ? ` (${err.field})` : ""}. Please upload a smaller one.`
+        : err.code === "LIMIT_UNEXPECTED_FILE"
+          ? `Unexpected file field: ${err.field ?? "unknown"}.`
+          : `Upload failed: ${err.message}.`;
+    return res.status(400).json({ success: false, data: undefined, message });
   }
 
   // Postgres errors (from the `postgres` driver) carry the real diagnostic

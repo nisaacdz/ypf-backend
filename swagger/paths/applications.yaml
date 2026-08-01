@@ -245,6 +245,11 @@
                       type: string
                     commitmentStatement:
                       type: string
+                    willingToServe:
+                      type: boolean
+                      description: >-
+                        Absent on applications submitted before this answer was
+                        recorded — treat as unknown, not false.
                     referralSource:
                       type: string
                     declinedReason:

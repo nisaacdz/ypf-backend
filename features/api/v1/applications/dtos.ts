@@ -29,6 +29,9 @@ export type YPFMembershipApplicationDetail = {
   status: ApplicationStatus;
   trackingNumber: string;
   commitmentStatement?: string;
+  // Null on applications submitted before the answer was recorded — that's
+  // "unknown", not "no".
+  willingToServe?: boolean;
   referralSource?: string;
   declinedReason?: string;
   createdAt: Date;

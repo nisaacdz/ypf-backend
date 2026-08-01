@@ -169,6 +169,13 @@
       "when": 1780574043499,
       "tag": "0023_add_budget_and_capacity",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1785584801697,
+      "tag": "0024_membership_willing_to_serve",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,15 @@
-import { aliasedTable, eq, desc, count, and, ilike, or, isNull, gt } from "drizzle-orm";
+import {
+  aliasedTable,
+  eq,
+  desc,
+  count,
+  and,
+  ilike,
+  or,
+  isNull,
+  gt,
+  inArray,
+} from "drizzle-orm";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import logger from "@/configs/logger";
@@ -10,7 +21,7 @@ import {
   YPFVolunteerApplication,
   YPFVolunteerApplicationDetail,
 } from "@/features/api/v1/applications/dtos";
-import { ApplicationStatus, NationalIdType } from "@/shared/utils";
+import { ApplicationStatus, Gender, NationalIdType } from "@/shared/utils";
 import {
   generateSignedDocumentDownloadUrl,
   generateSignedDocumentPreviewUrl,
@@ -50,43 +61,210 @@ type CreateVolunteerApplication = {
   consents?: Consents;
 };
 
+type MembershipApplicant = {
+  firstName: string;
+  lastName: string;
+  preferredName?: string;
+  email: string;
+  phone: string;
+  whatsapp?: string;
+  dateOfBirth?: Date;
+  gender?: Gender;
+  occupation?: string;
+  country?: string;
+  region?: string;
+  city?: string;
+  campus?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  linkedinProfile?: string;
+  twitterHandle?: string;
+  skills?: string[];
+  previousVolunteerExperience?: string;
+  nationalIdType?: NationalIdType;
+  nationalIdDocumentId?: string;
+  profilePhotoId: string;
+  missionPillars?: string[];
+};
+
 type CreateMembershipApplication = {
-  constituent: {
-    firstName: string;
-    lastName: string;
-    middleName?: string;
-    email: string;
-    phone: string;
-    nationalIdType?: NationalIdType;
-    nationalIdDocumentId?: string;
-    profilePhotoId: string;
-    missionPillars?: string[];
-  };
+  constituent: MembershipApplicant;
   cvDocumentId?: string;
   willingToServe: boolean;
   commitmentStatement: string;
   preferredChapterId?: string;
   preferredCommitteeId?: string;
+  referralSource?: string;
   consents?: Consents;
 };
+
+/**
+ * Most membership applicants are already in the constituents table — they
+ * volunteered, ordered from the shop, were invited by an admin, or applied
+ * before and were turned down. Every other public form reuses that record;
+ * membership used to insert unconditionally, so the handler had to pre-empt
+ * the unique violation with a blanket "Email already exists" 400 that locked
+ * those people out of membership permanently. Refuse only when applying again
+ * genuinely makes no sense: they're already a member, or an application is
+ * still on an admin's desk.
+ */
+export async function assertCanApplyForMembership(applicant: {
+  email: string;
+}): Promise<void> {
+  const existing = await findConstituentByEmail(dbClient.db, applicant.email);
+  if (!existing) return;
+
+  const [activeMembership] = await dbClient.db
+    .select({ id: schema.Members.id })
+    .from(schema.Members)
+    .where(
+      and(
+        eq(schema.Members.constituentId, existing.id),
+        or(
+          isNull(schema.Members.endedAt),
+          gt(schema.Members.endedAt, new Date()),
+        ),
+      ),
+    )
+    .limit(1);
+
+  if (activeMembership) {
+    throw new ApiError(
+      "You are already a registered YPF Africa member. Sign in to the members' dashboard instead of applying again.",
+      409,
+    );
+  }
+
+  const [openApplication] = await dbClient.db
+    .select({ status: schema.Applications.status })
+    .from(schema.MembershipApplications)
+    .innerJoin(
+      schema.Applications,
+      eq(schema.MembershipApplications.applicationId, schema.Applications.id),
+    )
+    .where(
+      and(
+        eq(schema.Applications.constituentId, existing.id),
+        inArray(schema.Applications.status, ["PENDING", "ACCEPTED"]),
+      ),
+    )
+    .limit(1);
+
+  if (openApplication) {
+    throw new ApiError(
+      openApplication.status === "ACCEPTED"
+        ? "Your membership application has already been approved. Check your email for your onboarding link."
+        : "We already have a membership application under review for you. We'll be in touch within 48 hours.",
+      409,
+    );
+  }
+}
+
+type Executor = Pick<typeof dbClient.db, "select" | "insert" | "update">;
+
+/**
+ * Email is the only identifier that actually asserts "this is me". Phone and
+ * WhatsApp numbers get shared — one handset per household is normal here — so
+ * a number collision means "someone else already has that number", never
+ * "this is the same person".
+ */
+async function findConstituentByEmail(executor: Executor, email: string) {
+  const [existing] = await executor
+    .select({ id: schema.Constituents.id })
+    .from(schema.Constituents)
+    .where(eq(schema.Constituents.email, email))
+    .limit(1);
+
+  return existing ?? null;
+}
+
+/** Which of these numbers are already spoken for by a *different* row. */
+async function findTakenNumbers(
+  executor: Executor,
+  applicant: { phone: string; whatsapp?: string },
+  excludeConstituentId?: string,
+): Promise<Set<string>> {
+  const rows = await executor
+    .select({
+      id: schema.Constituents.id,
+      phone: schema.Constituents.phone,
+      whatsapp: schema.Constituents.whatsapp,
+    })
+    .from(schema.Constituents)
+    .where(
+      or(
+        eq(schema.Constituents.phone, applicant.phone),
+        applicant.whatsapp
+          ? eq(schema.Constituents.whatsapp, applicant.whatsapp)
+          : undefined,
+      ),
+    );
+
+  const taken = new Set<string>();
+  for (const row of rows) {
+    if (row.id === excludeConstituentId) continue;
+    if (row.phone) taken.add(row.phone);
+    if (row.whatsapp) taken.add(row.whatsapp);
+  }
+  return taken;
+}
+
+async function resolveApplicantConstituent(
+  tx: Executor,
+  applicant: MembershipApplicant,
+): Promise<string> {
+  const existing = await findConstituentByEmail(tx, applicant.email);
+  const takenNumbers = await findTakenNumbers(tx, applicant, existing?.id);
+
+  // `phone` and `whatsapp` are unique columns, so writing a number another
+  // constituent already holds fails the whole application. The shop checkout
+  // has always dropped the conflicting number and carried on — do the same
+  // here rather than turning a shared family line into a dead end.
+  const phone = takenNumbers.has(applicant.phone) ? undefined : applicant.phone;
+  const whatsapp =
+    applicant.whatsapp && takenNumbers.has(applicant.whatsapp)
+      ? undefined
+      : applicant.whatsapp;
+
+  if (!existing) {
+    const [created] = await tx
+      .insert(schema.Constituents)
+      .values({ ...applicant, phone, whatsapp })
+      .returning({ id: schema.Constituents.id });
+    return created.id;
+  }
+
+  // Same person, new details — refresh the profile with what they just told
+  // us. Drizzle skips undefined keys, so blank optional answers never wipe
+  // data we already had.
+  await tx
+    .update(schema.Constituents)
+    .set({
+      ...applicant,
+      phone,
+      whatsapp,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.Constituents.id, existing.id));
+
+  return existing.id;
+}
 
 export async function createMembershipApplication(
   data: CreateMembershipApplication,
 ) {
   const { constituent: constituentData, ...remApplicationData } = data;
   const result = await dbClient.db.transaction(async (tx) => {
-    const [newConstituent] = await tx
-      .insert(schema.Constituents)
-      .values(constituentData)
-      .returning({
-        id: schema.Constituents.id,
-      });
+    const constituentId = await resolveApplicantConstituent(
+      tx,
+      constituentData,
+    );
 
     // Create base application record
     const [baseApplication] = await tx
       .insert(schema.Applications)
       .values({
-        constituentId: newConstituent.id,
+        constituentId,
       })
       .returning({
         id: schema.Applications.id,
@@ -99,9 +277,11 @@ export async function createMembershipApplication(
       .values({
         applicationId: baseApplication.id,
         commitmentStatement: remApplicationData.commitmentStatement,
+        willingToServe: remApplicationData.willingToServe,
         preferredChapterId: remApplicationData.preferredChapterId,
         preferredCommitteeId: remApplicationData.preferredCommitteeId,
         cvDocumentId: remApplicationData.cvDocumentId,
+        referralSource: remApplicationData.referralSource,
         consents: remApplicationData.consents,
       })
       .returning({
@@ -283,6 +463,7 @@ export async function getMembershipApplicationById(
       trackingNumber: schema.Applications.trackingNumber,
       status: schema.Applications.status,
       commitmentStatement: schema.MembershipApplications.commitmentStatement,
+      willingToServe: schema.MembershipApplications.willingToServe,
       referralSource: schema.MembershipApplications.referralSource,
       declinedReason: schema.MembershipApplications.declinedReason,
       consents: schema.MembershipApplications.consents,
@@ -401,6 +582,7 @@ export async function getMembershipApplicationById(
     trackingNumber: application.trackingNumber,
     status: application.status,
     commitmentStatement: application.commitmentStatement ?? undefined,
+    willingToServe: application.willingToServe ?? undefined,
     referralSource: application.referralSource ?? undefined,
     declinedReason: application.declinedReason ?? undefined,
     createdAt: application.createdAt,

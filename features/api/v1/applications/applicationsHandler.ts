@@ -69,25 +69,12 @@ export async function createMembershipApplication({
     nationalId: Express.Multer.File | null;
   };
 }): Promise<ApiResponse<string>> {
-  const existingUser = await dbClient.db.query.Constituents.findFirst({
-    where: or(
-      eq(schema.Constituents.email, data.applicantData.email),
-      eq(schema.Constituents.phone, data.applicantData.phone),
-      data.applicantData.whatsapp
-        ? eq(schema.Constituents.whatsapp, data.applicantData.whatsapp)
-        : undefined,
-    ),
-    columns: { id: true, email: true, phone: true, whatsapp: true },
+  // Runs before the uploads so an ineligible applicant doesn't leave orphan
+  // blobs behind. Being an existing constituent is fine — only an active
+  // membership or an application already in review stops them here.
+  await applicationsService.assertCanApplyForMembership({
+    email: data.applicantData.email,
   });
-
-  if (existingUser) {
-    if (existingUser.email === data.applicantData.email)
-      throw new ApiError("Email already exists", 400);
-    if (existingUser.phone === data.applicantData.phone)
-      throw new ApiError("Phone already exists", 400);
-    if (existingUser.whatsapp === data.applicantData.whatsapp)
-      throw new ApiError("WhatsApp already exists", 400);
-  }
 
   const [passportPhoto, resume, nationalId] = await Promise.all([
     fileUtils

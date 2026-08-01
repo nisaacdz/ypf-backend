@@ -1,0 +1,15 @@
+-- "Are you willing to serve in a leadership or volunteer role?" is a required
+-- question on the public membership form, but there was nowhere to put the
+-- answer — it was validated, submitted, and dropped, so reviewers never saw it.
+--
+-- Nullable on purpose: applications submitted before this column existed were
+-- never recorded either way, and "we don't know" is not "no".
+--
+-- The auto-generated version of this migration also re-emitted
+-- `activities.projects.target_volunteers`, which migration 0023 already adds —
+-- the 0023 meta snapshot was stale, so drizzle-kit diffed against a schema
+-- missing that column. Re-running that ADD COLUMN would abort the migration on
+-- every database that has run 0023, so it's dropped here; the regenerated 0024
+-- snapshot captures the column, keeping future generates clean. IF NOT EXISTS
+-- for consistency with 0023 and safety on databases built via `drizzle-kit push`.
+ALTER TABLE "core"."membership_applications" ADD COLUMN IF NOT EXISTS "willing_to_serve" boolean;
