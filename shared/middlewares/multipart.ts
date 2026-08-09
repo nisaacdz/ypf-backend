@@ -110,9 +110,27 @@ export const documentsUpload = multer({
   },
 });
 
+/**
+ * Annual report PDFs run well past the 10 MB ceiling on `documentsUpload` —
+ * a print-quality report with photography is routinely 20–40 MB. Same disk
+ * storage, PDF only, higher limit.
+ */
+export const reportsUpload = multer({
+  storage: storage,
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: (req, file, cb: multer.FileFilterCallback) => {
+    if (file.mimetype === "application/pdf") {
+      cb(null, true);
+    } else {
+      cb(new UnsupportedFileTypeError(file.fieldname, file.mimetype, ["PDF"]));
+    }
+  },
+});
+
 const filesUpload = {
   mediaUpload,
   documentsUpload,
+  reportsUpload,
 };
 
 export default filesUpload;

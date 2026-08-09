@@ -35,6 +35,22 @@ const ALLOWED_TAGS = [
   "pre",
   "span",
   "div",
+  // Editorial content (content.posts): captioned images, data tables in
+  // research write-ups, and footnote markers.
+  "h5",
+  "h6",
+  "figure",
+  "figcaption",
+  "table",
+  "thead",
+  "tbody",
+  "tfoot",
+  "tr",
+  "th",
+  "td",
+  "caption",
+  "sup",
+  "sub",
 ];
 
 const ALLOWED_SCHEMES = ["http", "https", "mailto", "tel"];
@@ -45,10 +61,12 @@ export function sanitizeRichHtml(input: string): string {
     allowedTags: ALLOWED_TAGS,
     allowedAttributes: {
       a: ["href", "name", "target", "rel"],
-      img: ["src", "alt", "title", "width", "height"],
+      img: ["src", "alt", "title", "width", "height", "loading"],
       span: ["style"],
       div: ["style"],
       p: ["style"],
+      th: ["colspan", "rowspan", "scope"],
+      td: ["colspan", "rowspan"],
     },
     allowedStyles: {
       "*": {

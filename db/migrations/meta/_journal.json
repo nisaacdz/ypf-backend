@@ -176,6 +176,13 @@
       "when": 1785584801697,
       "tag": "0024_membership_willing_to_serve",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1786241218690,
+      "tag": "0025_publications_content",
+      "breakpoints": true
     }
   ]
 }

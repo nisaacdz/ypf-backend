@@ -121,6 +121,18 @@ export async function canManageProgramsRecords(req: Request) {
   return canManageCommitteeLive(req.User, committee.id);
 }
 
+/**
+ * Publishing rights for public editorial content (`content.posts`). Owned by
+ * the media/communications committee, with the usual system-admin fallback
+ * when that committee row doesn't exist yet.
+ */
+export async function canManageCommunications(req: Request) {
+  if (!req.User) return false;
+  const committee = await getCommitteeByAlias(MEDIA_ALIAS);
+  if (!committee) return isSystemAdmin(req.User);
+  return canManageCommitteeLive(req.User, committee.id);
+}
+
 export async function canManageFinance(req: Request) {
   if (!req.User) return false;
   const committee = await getCommitteeByAlias(FINANCE_ALIAS);

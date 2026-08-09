@@ -19,6 +19,8 @@ import {
   PaymentMethodEnum,
 } from "@/db/schema/finance";
 
+import { PostSectionEnum, PostStatusEnum } from "@/db/schema/content";
+
 export const transactionStatusMap: Record<string, TransactionStatus> = {
   success: "COMPLETED",
   failed: "FAILED",
@@ -46,6 +48,8 @@ export type ProjectType = (typeof ProjectTypeEnum.enumValues)[number];
 export type ProjectStatus = (typeof ProjectStatusEnum.enumValues)[number];
 export type EventType = (typeof EventTypeEnum.enumValues)[number];
 export type Gender = (typeof GenderEnum.enumValues)[number];
+export type PostSection = (typeof PostSectionEnum.enumValues)[number];
+export type PostStatus = (typeof PostStatusEnum.enumValues)[number];
 export type PartnershipType = (typeof PartnershipTypeEnum.enumValues)[number];
 export type TransactionStatus =
   (typeof TransactionStatusEnum.enumValues)[number];
