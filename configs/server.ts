@@ -80,7 +80,22 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
-app.use(rateLimit({ windowMs: 15 * 60 * 1000, maxRequests: 99 }));
+// Global abuse ceiling, per client IP. This used to be 99 / 15 min, which a
+// single UMS dashboard session (many parallel API calls per page) exhausts in
+// minutes — worse for users sharing a campus/office NAT IP. Sensitive routes
+// (auth, donations, contact, shop) keep their own much tighter limiters.
+// Payment-provider webhooks and health probes are exempt: they're
+// signature-verified / side-effect free, and throttling a webhook would drop
+// payment confirmations.
+const RATE_LIMIT_EXEMPT_PREFIXES = ["/api/v1/webhooks/", "/health"];
+app.use(
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    maxRequests: 1500,
+    skip: (req) =>
+      RATE_LIMIT_EXEMPT_PREFIXES.some((prefix) => req.path.startsWith(prefix)),
+  }),
+);
 
 // Serve static files and developer homepage
 app.use(express.static(path.join(process.cwd(), "public")));

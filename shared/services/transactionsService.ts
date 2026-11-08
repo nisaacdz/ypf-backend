@@ -43,13 +43,18 @@ export async function handlePaystackWebhook(
     (typeof schema.TransactionStatusEnum.enumValues)[number];
   type PaymentMethod = (typeof schema.PaymentMethodEnum.enumValues)[number];
 
+  // Do NOT copy `amount` / `currency` from the payload. Paystack reports
+  // amounts in the currency's minor unit (pesewas/kobo), while our column
+  // stores major units (cedis) — the value we sent to /transaction/initialize
+  // was `amount * 100`. Overwriting here used to inflate every webhook-settled
+  // transaction 100×. The amount recorded at initiation is authoritative; we
+  // only sanity-check it below.
   const result = await dbClient.db
     .update(schema.FinancialTransactions)
     .set({
       status: newStatus as TransactionStatus,
       paymentMethod: newPaymentMethod as PaymentMethod,
-      amount,
-      currency,
+      updatedAt: new Date(),
     })
     .where(
       and(
@@ -74,6 +79,24 @@ export async function handlePaystackWebhook(
     );
     wasUpdated = true;
     transactionId = result[0].id;
+
+    const paidMajor = Number(amount) / 100;
+    const expectedMajor = Number(result[0].amount);
+    if (
+      Number.isFinite(paidMajor) &&
+      (Math.abs(paidMajor - expectedMajor) > 0.005 ||
+        (currency && currency.toUpperCase() !== result[0].currency.toUpperCase()))
+    ) {
+      logger.error(
+        {
+          transactionId: result[0].id,
+          reference,
+          expected: `${expectedMajor.toFixed(2)} ${result[0].currency}`,
+          reported: `${paidMajor.toFixed(2)} ${currency}`,
+        },
+        "Paystack webhook amount/currency does not match the recorded transaction",
+      );
+    }
 
     // If transaction is completed, update order status if applicable
     if (newStatus === "COMPLETED") {
