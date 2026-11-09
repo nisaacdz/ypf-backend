@@ -135,6 +135,19 @@ export async function deleteProject(
   };
 }
 
+export async function deleteProjectMedium(
+  projectId: string,
+  mediumId: string,
+): Promise<ApiResponse<null>> {
+  await projectsService.deleteProjectMedium(projectId, mediumId);
+
+  return {
+    success: true,
+    message: "Project medium deleted successfully",
+    data: null,
+  };
+}
+
 export async function updateProjectMedium(
   projectId: string,
   mediumId: string,

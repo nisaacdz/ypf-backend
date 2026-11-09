@@ -369,6 +369,42 @@
           application/json:
             schema:
               $ref: "#/components/schemas/Error"
+  delete:
+    summary: Delete a project photo or video
+    description: >
+      Removes the medium and its stored file. If it was the cover photo, the
+      oldest remaining photo becomes the cover.
+    tags: [Projects]
+    security:
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: projectId
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Project ID
+      - in: path
+        name: mediumId
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Medium ID
+    responses:
+      200:
+        description: Project medium deleted successfully
+      401:
+        description: Unauthorized - authentication required
+      403:
+        description: Forbidden - insufficient permissions
+      404:
+        description: Project medium not found
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
 
 /api/v1/projects/{id}/events:
   get:

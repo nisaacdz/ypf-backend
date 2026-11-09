@@ -229,8 +229,9 @@ projectsRouter.post(
         options: req.Body,
       });
 
-      // Clear the detail cache
+      // Clear the detail cache (and the list, whose cover image may change)
       await redisClient.delCache(`/api/v1/projects/${req.Params.id}`);
+      await redisClient.delCache("/api/v1/projects");
 
       res.status(200).json(response);
     } catch (error) {
@@ -261,6 +262,36 @@ projectsRouter.patch(
 
       // Clear the detail cache
       await redisClient.delCache(`/api/v1/projects/${req.Params.projectId}`);
+      await redisClient.delCache("/api/v1/projects");
+
+      res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+projectsRouter.delete(
+  "/:projectId/media/:mediumId",
+  authenticate,
+  validateParams(z.object({ projectId: z.uuid(), mediumId: z.uuid() }), 404),
+  authorize(
+    anyOf(
+      Visitors.hasProfile("ADMIN"),
+      Visitors.hasRole(MEMBER.PRESIDENT),
+      canManageProgramsRecords,
+    ),
+  ),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await projectsHandler.deleteProjectMedium(
+        req.Params.projectId,
+        req.Params.mediumId,
+      );
+
+      // The detail page and the list's cover image both change
+      await redisClient.delCache(`/api/v1/projects/${req.Params.projectId}`);
+      await redisClient.delCache("/api/v1/projects");
 
       res.status(200).json(response);
     } catch (error) {

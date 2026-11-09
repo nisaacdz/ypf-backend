@@ -9,7 +9,7 @@ import {
 } from "@/db/schema/activities";
 import { Media, Chapters } from "@/db/schema/core";
 import * as mediaUtils from "@/shared/utils/files";
-import { eq, and, ilike, count, desc, isNull, isNotNull, sql } from "drizzle-orm";
+import { eq, and, ne, ilike, count, asc, desc, isNull, isNotNull, sql } from "drizzle-orm";
 import z from "zod";
 import {
   GetProjectsQuerySchema,
@@ -253,12 +253,11 @@ export async function fetchProjectById(
       })
       .from(ProjectMedia)
       .innerJoin(Media, eq(ProjectMedia.mediumId, Media.id))
-      .where(
-        and(
-          eq(ProjectMedia.projectId, projectId),
-          eq(ProjectMedia.isFeatured, true),
-        ),
-      ),
+      // Every photo for the project's gallery, cover photo first, then in
+      // upload order. (Previously only isFeatured rows were returned, so
+      // extra photos never reached the public gallery.)
+      .where(eq(ProjectMedia.projectId, projectId))
+      .orderBy(desc(ProjectMedia.isFeatured), asc(Media.uploadedAt)),
     dbClient.db
       .select({ n: count() })
       .from(ProjectEnrollments)
@@ -366,20 +365,90 @@ export async function updateProjectMedium(
   mediumId: string,
   data: { caption?: string; isFeatured?: boolean },
 ): Promise<void> {
-  const [updatedData] = await dbClient.db
-    .update(ProjectMedia)
-    .set(data)
-    .where(
-      and(
-        eq(ProjectMedia.projectId, projectId),
-        eq(ProjectMedia.mediumId, mediumId),
-      ),
-    )
-    .returning({ id: ProjectMedia.id });
+  const updatedData = await dbClient.db.transaction(async (tx) => {
+    // A project has exactly one cover photo: making this one the cover
+    // un-features the others, so the card and hero always agree.
+    if (data.isFeatured) {
+      await tx
+        .update(ProjectMedia)
+        .set({ isFeatured: false })
+        .where(
+          and(
+            eq(ProjectMedia.projectId, projectId),
+            ne(ProjectMedia.mediumId, mediumId),
+          ),
+        );
+    }
+    const [row] = await tx
+      .update(ProjectMedia)
+      .set(data)
+      .where(
+        and(
+          eq(ProjectMedia.projectId, projectId),
+          eq(ProjectMedia.mediumId, mediumId),
+        ),
+      )
+      .returning({ id: ProjectMedia.id });
+    return row;
+  });
 
   if (!updatedData) {
     throw new ApiError("Project medium not found", 404);
   }
+}
+
+/**
+ * Removes a photo/video from a project: the media row (which cascades the
+ * project link) and the stored file. If it was the cover, the oldest
+ * remaining photo becomes the cover.
+ */
+export async function deleteProjectMedium(
+  projectId: string,
+  mediumId: string,
+): Promise<void> {
+  const externalId = await dbClient.db.transaction(async (tx) => {
+    const [link] = await tx
+      .select({
+        isFeatured: ProjectMedia.isFeatured,
+        externalId: Media.externalId,
+      })
+      .from(ProjectMedia)
+      .innerJoin(Media, eq(ProjectMedia.mediumId, Media.id))
+      .where(
+        and(
+          eq(ProjectMedia.projectId, projectId),
+          eq(ProjectMedia.mediumId, mediumId),
+        ),
+      )
+      .limit(1);
+
+    if (!link) {
+      throw new ApiError("Project medium not found", 404);
+    }
+
+    await tx.delete(Media).where(eq(Media.id, mediumId));
+
+    if (link.isFeatured) {
+      const [next] = await tx
+        .select({ id: ProjectMedia.id })
+        .from(ProjectMedia)
+        .innerJoin(Media, eq(ProjectMedia.mediumId, Media.id))
+        .where(eq(ProjectMedia.projectId, projectId))
+        .orderBy(asc(Media.uploadedAt))
+        .limit(1);
+      if (next) {
+        await tx
+          .update(ProjectMedia)
+          .set({ isFeatured: true })
+          .where(eq(ProjectMedia.id, next.id));
+      }
+    }
+    return link.externalId;
+  });
+
+  // Best effort: the database is the source of truth; an orphaned file in
+  // storage is harmless and is logged by the util.
+  await mediaUtils.deleteMediumFile(externalId);
 }
 
 export async function fetchProjectEvents(

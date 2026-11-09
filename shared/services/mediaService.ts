@@ -2,7 +2,7 @@ import dbClient from "@/configs/db";
 import { imagekit } from "@/configs/fs/cdn";
 import schema from "@/db/schema";
 import { ApiError } from "@/shared/types";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import logger from "@/configs/logger";
 import { MediumType } from "../utils";
 
@@ -109,11 +109,33 @@ export async function uploadProjectMedium(
         );
       }
 
+      // Exactly one cover per project: a new cover replaces the old one,
+      // and a project's first photo becomes its cover automatically.
+      let isFeatured = data.isFeatured;
+      if (isFeatured) {
+        await tx
+          .update(schema.ProjectMedia)
+          .set({ isFeatured: false })
+          .where(eq(schema.ProjectMedia.projectId, projectId));
+      } else {
+        const [existingCover] = await tx
+          .select({ id: schema.ProjectMedia.id })
+          .from(schema.ProjectMedia)
+          .where(
+            and(
+              eq(schema.ProjectMedia.projectId, projectId),
+              eq(schema.ProjectMedia.isFeatured, true),
+            ),
+          )
+          .limit(1);
+        isFeatured = !existingCover;
+      }
+
       await tx.insert(schema.ProjectMedia).values({
         projectId: projectId,
         mediumId: newMedium.id,
         caption: data.caption,
-        isFeatured: data.isFeatured,
+        isFeatured,
       });
       return newMedium.id;
     });

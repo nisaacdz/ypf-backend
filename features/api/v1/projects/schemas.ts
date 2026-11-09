@@ -82,7 +82,12 @@ export const UploadProjectMediumOptionsSchema = z.object({
     .string()
     .max(255, { message: "Caption must not exceed 255 characters." })
     .optional(),
-  isFeatured: z.coerce.boolean().optional().default(false),
+  // Multipart sends strings: z.coerce.boolean() would turn "false" into
+  // true (any non-empty string is truthy), making every upload the cover.
+  isFeatured: z
+    .union([z.boolean(), z.enum(["true", "false"]).transform((v) => v === "true")])
+    .optional()
+    .default(false),
 });
 
 export const CreateProjectSchema = z.object({
@@ -93,12 +98,20 @@ export const CreateProjectSchema = z.object({
   type: z.enum(ProjectTypeEnum.enumValues, {
     message: "Invalid project type.",
   }),
-  category: z.string().optional(),
-  abstract: z.string().optional(),
+  category: z.string().trim().max(60).optional(),
+  // Short summary shown on project cards and the project page hero.
+  abstract: z
+    .string()
+    .trim()
+    .max(300, { message: "Short description must not exceed 300 characters." })
+    .optional(),
   description: z.string().optional(),
-  location: z.string().max(200).optional(),
-  objectives: z.array(z.string().min(1)).optional(),
-  impact: z.string().optional(),
+  location: z.string().trim().max(200).optional(),
+  objectives: z
+    .array(z.string().trim().min(1).max(300))
+    .max(12, { message: "A project can have at most 12 objectives." })
+    .optional(),
+  impact: z.string().trim().max(2000).optional(),
   scheduledStart: z.coerce.date({
     message: "Please enter a valid start date.",
   }),
@@ -124,12 +137,20 @@ export const UpdateProjectSchema = z.object({
       message: "Invalid project type.",
     })
     .optional(),
-  category: z.string().optional(),
-  abstract: z.string().optional(),
+  category: z.string().trim().max(60).optional(),
+  // Short summary shown on project cards and the project page hero.
+  abstract: z
+    .string()
+    .trim()
+    .max(300, { message: "Short description must not exceed 300 characters." })
+    .optional(),
   description: z.string().optional(),
-  location: z.string().max(200).optional(),
-  objectives: z.array(z.string().min(1)).optional(),
-  impact: z.string().optional(),
+  location: z.string().trim().max(200).optional(),
+  objectives: z
+    .array(z.string().trim().min(1).max(300))
+    .max(12, { message: "A project can have at most 12 objectives." })
+    .optional(),
+  impact: z.string().trim().max(2000).optional(),
   scheduledStart: z.coerce.date().optional(),
   scheduledEnd: z.coerce.date().optional(),
   status: z
@@ -138,7 +159,8 @@ export const UpdateProjectSchema = z.object({
     })
     .optional(),
   budget: z.coerce.number().nonnegative().optional(),
-  targetVolunteers: z.coerce.number().int().positive().optional(),
+  // null clears the target (no volunteer cap shown on the website).
+  targetVolunteers: z.coerce.number().int().positive().nullable().optional(),
 });
 
 export const UpdateProjectMediumSchema = z.object({
