@@ -21,6 +21,7 @@ import {
   CreateWorkspaceAttachmentSchema,
   CreateWorkspaceNoteSchema,
   FinanceLedgerQuerySchema,
+  FinanceDonationsQuerySchema,
   ReviewFinanceBudgetSchema,
   SubmitWorkspaceDocumentSchema,
   UpdateWorkspaceNoteSchema,
@@ -187,7 +188,7 @@ workspacesRouter.delete(
 workspacesRouter.get(
   "/finance/donations",
   authenticate,
-  validateQuery(FinanceLedgerQuerySchema),
+  validateQuery(FinanceDonationsQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const response = await workspacesHandler.getFinanceDonations({
@@ -195,6 +196,8 @@ workspacesRouter.get(
         page: req.Query.page,
         pageSize: req.Query.pageSize,
         month: req.Query.month,
+        for: req.Query.for,
+        projectId: req.Query.projectId,
       });
       res.status(200).json(response);
     } catch (error) {

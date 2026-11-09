@@ -222,6 +222,8 @@ export async function getFinanceDonations(input: {
   page: number;
   pageSize: number;
   month?: string;
+  for?: string;
+  projectId?: string;
 }): Promise<ApiResponse<workspaceService.PaginatedWorkspaceResult<workspaceService.FinanceDonation>>> {
   const data = await workspaceService.getFinanceDonations(input);
   return {

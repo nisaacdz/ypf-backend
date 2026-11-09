@@ -183,6 +183,13 @@
       "when": 1786241218690,
       "tag": "0025_publications_content",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1794185542442,
+      "tag": "0026_donation_purpose",
+      "breakpoints": true
     }
   ]
 }

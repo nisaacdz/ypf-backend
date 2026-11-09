@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DONATION_PURPOSES } from "@/shared/utils/donationPurposes";
 
 /**
  * Schema for creating a donation via Paystack
@@ -21,6 +22,12 @@ export const CreateDonationSchema = z
     note: z.string().max(500).optional(),
     projectId: z.uuid("Invalid project ID").optional(),
     eventId: z.uuid("Invalid event ID").optional(),
+    // A cause, when the gift isn't for a specific project
+    purpose: z.enum(DONATION_PURPOSES, { message: "Invalid donation purpose" }).optional(),
+  })
+  .refine((data) => !(data.projectId && data.purpose), {
+    message: "Choose either a project or a cause, not both",
+    path: ["purpose"],
   })
   .refine(
     (data) => {
@@ -44,4 +51,7 @@ export const GetDonationsQuerySchema = z.object({
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
   status: z.enum(["PENDING", "COMPLETED", "FAILED", "REFUNDED"]).optional(),
+  // What the gift was for: a project, a cause, or "GENERAL" (neither)
+  projectId: z.uuid().optional(),
+  purpose: z.enum([...DONATION_PURPOSES, "GENERAL"]).optional(),
 });

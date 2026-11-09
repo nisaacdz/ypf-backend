@@ -1,4 +1,5 @@
 import z from "zod";
+import { DONATION_PURPOSES } from "@/shared/utils/donationPurposes";
 import { AllowedDocumentsMimeTypes } from "@/shared/middlewares/multipart";
 
 export const WorkspaceAliasParamsSchema = z.object({
@@ -86,6 +87,13 @@ export const FinanceLedgerQuerySchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}$/, "Month must be in YYYY-MM format")
     .optional(),
+});
+
+export const FinanceDonationsQuerySchema = FinanceLedgerQuerySchema.extend({
+  // What the gifts were for: general fund, any project, or a cause.
+  for: z.enum(["GENERAL", "PROJECT", ...DONATION_PURPOSES]).optional(),
+  // Narrow to one project (implies for=PROJECT).
+  projectId: z.uuid().optional(),
 });
 
 export const CreateFinanceExpenditureSchema = z.object({

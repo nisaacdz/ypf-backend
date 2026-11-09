@@ -1,4 +1,4 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import variables from "@/configs/env";
@@ -14,11 +14,12 @@ import { YPFDonation } from "@/features/api/v1/donations/dtos";
 import { z } from "zod";
 import { GetDonationsQuerySchema } from "@/features/api/v1/donations/schemas";
 import { getWebsiteUrl } from "@/shared/utils/appUrls";
+import { donationForLabel } from "@/shared/utils/donationPurposes";
 
 export async function getDonations(
   query: z.infer<typeof GetDonationsQuerySchema>,
 ): Promise<Paginated<YPFDonation>> {
-  const { page = 1, pageSize = 20, startDate, endDate, status } = query;
+  const { page = 1, pageSize = 20, startDate, endDate, status, projectId, purpose } = query;
   const offset = (page - 1) * pageSize;
 
   const whereClauses = [];
@@ -36,6 +37,14 @@ export async function getDonations(
       lte(schema.FinancialTransactions.updatedAt, new Date(endDate)),
     );
   }
+  if (projectId) {
+    whereClauses.push(eq(schema.Donations.projectId, projectId));
+  }
+  if (purpose === "GENERAL") {
+    whereClauses.push(isNull(schema.Donations.projectId), isNull(schema.Donations.purpose));
+  } else if (purpose) {
+    whereClauses.push(eq(schema.Donations.purpose, purpose));
+  }
 
   const queryBuilder = dbClient.db
     .select({
@@ -49,6 +58,10 @@ export async function getDonations(
       constituentFirstName: schema.Constituents.firstName,
       constituentLastName: schema.Constituents.lastName,
       constituentEmail: schema.Constituents.email,
+      projectId: schema.Donations.projectId,
+      projectTitle: schema.Projects.title,
+      purpose: schema.Donations.purpose,
+      externalRef: schema.FinancialTransactions.externalRef,
     })
     .from(schema.Donations)
     .innerJoin(
@@ -59,6 +72,7 @@ export async function getDonations(
       schema.Constituents,
       eq(schema.Donations.constituentId, schema.Constituents.id),
     )
+    .leftJoin(schema.Projects, eq(schema.Donations.projectId, schema.Projects.id))
     .where(and(...whereClauses))
     .orderBy(desc(schema.FinancialTransactions.updatedAt))
     .limit(pageSize)
@@ -104,6 +118,11 @@ export async function getDonations(
       status: d.status,
       date: d.date,
       donor,
+      projectId: d.projectId ?? undefined,
+      projectTitle: d.projectTitle ?? undefined,
+      purpose: d.purpose ?? undefined,
+      forLabel: donationForLabel(d),
+      paymentReference: d.externalRef ?? undefined,
     };
   });
 
@@ -127,6 +146,7 @@ type CreateDonationInput = {
   note?: string;
   projectId?: string;
   eventId?: string;
+  purpose?: string;
 };
 
 type PaystackInitializeResponse = {
@@ -190,12 +210,34 @@ export async function startPaystackDonation(
     note,
     projectId,
     eventId,
+    purpose,
   }: CreateDonationInput,
   user: AuthenticatedUser | null,
 ): Promise<{
   donation: YPFDonation;
   paymentUrl: string;
 }> {
+  // A gift for a project must point at a project that's still running.
+  let projectTitle: string | null = null;
+  if (projectId) {
+    const [project] = await dbClient.db
+      .select({ title: schema.Projects.title, status: schema.Projects.status })
+      .from(schema.Projects)
+      .where(eq(schema.Projects.id, projectId))
+      .limit(1);
+    if (!project) {
+      throw new ApiError("That project could not be found.", 404);
+    }
+    if (project.status === "COMPLETED" || project.status === "CANCELLED") {
+      throw new ApiError(
+        "This project is no longer accepting donations. You can still give where it's needed most.",
+        400,
+      );
+    }
+    projectTitle = project.title;
+  }
+  const forLabel = donationForLabel({ projectTitle, purpose });
+
   const constituentId = !anonymous ? (user?.constituentId ?? null) : null;
   const guestName = !anonymous ? (donorInfo?.name ?? null) : null;
   const guestEmail = !anonymous ? (donorInfo?.email ?? null) : null;
@@ -232,6 +274,7 @@ export async function startPaystackDonation(
             note: note ?? null,
             projectId: projectId || null,
             eventId: eventId || null,
+            purpose: projectId ? null : (purpose ?? null),
           })
           .returning();
 
@@ -267,6 +310,15 @@ export async function startPaystackDonation(
           // so fall back to the org sender address — the donation still stays
           // anonymous in our DB; this only satisfies Paystack's receipt field.
           email: guestEmail ?? user?.email ?? variables.services.email.sender,
+          // Shown on the Paystack dashboard so finance can see what each
+          // payment was for without opening the UMS.
+          metadata: {
+            donation_for: forLabel,
+            ...(projectId ? { project_id: projectId } : {}),
+            custom_fields: [
+              { display_name: "Donation for", variable_name: "donation_for", value: forLabel },
+            ],
+          },
           ...paystackSplitFields(),
         }),
       },
@@ -319,6 +371,10 @@ export async function startPaystackDonation(
       status: newTransaction.status,
       date: newTransaction.createdAt,
       donor,
+      projectId: projectId || undefined,
+      projectTitle: projectTitle ?? undefined,
+      purpose: projectId ? undefined : purpose,
+      forLabel,
     },
     paymentUrl: paystackData.data.authorization_url,
   };
@@ -421,6 +477,7 @@ export async function verifyPaystackDonation(
           id: donation.id,
           amount: donation.transaction.amount,
           currency: donation.transaction.currency,
+          forLabel: await getDonationForLabel(donation.id),
         },
       });
     }
@@ -432,4 +489,15 @@ export async function verifyPaystackDonation(
     logger.error({ error }, "Error verifying donation");
     throw error;
   }
+}
+
+/** "Clean Water for Ekumfi" / "Education" / "Where it's needed most". */
+export async function getDonationForLabel(donationId: string): Promise<string> {
+  const [row] = await dbClient.db
+    .select({ projectTitle: schema.Projects.title, purpose: schema.Donations.purpose })
+    .from(schema.Donations)
+    .leftJoin(schema.Projects, eq(schema.Donations.projectId, schema.Projects.id))
+    .where(eq(schema.Donations.id, donationId))
+    .limit(1);
+  return donationForLabel(row ?? {});
 }

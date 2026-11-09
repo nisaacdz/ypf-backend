@@ -97,6 +97,9 @@ export const Donations = finance.table(
     guestEmail: text("guest_email"),
     guestPhone: text("guest_phone"),
     note: text("note"),
+    // What a gift is for when it isn't tied to a project: a cause code such
+    // as "EDUCATION" (see DONATION_PURPOSES). Null = where it's needed most.
+    purpose: text("purpose"),
   },
   (table) => [
     index("donations_constituent_id_idx").on(table.constituentId),

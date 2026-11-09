@@ -44,7 +44,15 @@
               projectId:
                 type: string
                 format: uuid
-                description: Associated project ID
+                description: >
+                  Project the gift supports. Must exist and not be COMPLETED or
+                  CANCELLED. Cannot be combined with `purpose`.
+              purpose:
+                type: string
+                enum: [EDUCATION, HEALTH, CHILD_WELFARE, COMMUNITY, EMERGENCY_RELIEF]
+                description: >
+                  Cause the gift supports when it isn't for a specific project.
+                  Omit both projectId and purpose for "where it's needed most".
               eventId:
                 type: string
                 format: uuid

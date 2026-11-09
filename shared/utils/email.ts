@@ -288,6 +288,16 @@ export async function sendOtpEmail(
  * @param currency - The currency code (e.g., GHS, USD).
  * @param donationId - The unique donation ID for reference.
  */
+/** Escape text for safe interpolation into email HTML. */
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export async function sendDonationAcknowledgementEmail(params: {
   email: string;
   name: string;
@@ -295,9 +305,15 @@ export async function sendDonationAcknowledgementEmail(params: {
     id: string;
     amount: string;
     currency: string;
+    /** What the gift supports, e.g. a project title or "Education". */
+    forLabel?: string;
   };
 }): Promise<void> {
   const subject = "Thank You for Your Donation!";
+  const forLabel = params.donation.forLabel;
+  const forHtml = forLabel
+    ? `<p style="margin: 8px 0 4px 0; font-size: 14px; color: ${colors.foreground};">Supporting: <strong>${escapeHtml(forLabel)}</strong></p>`
+    : "";
 
   const content = `
     <p>Dear ${params.name},</p>
@@ -305,6 +321,7 @@ export async function sendDonationAcknowledgementEmail(params: {
     <div style="background-color: ${colors.muted}; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid ${colors.border};">
       <p style="margin: 0 0 8px 0; font-size: 14px; color: ${colors.mutedForeground}; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Donation Details</p>
       <p style="margin: 0 0 4px 0; font-size: 24px; font-weight: 700; color: ${colors.foreground};">${params.donation.currency} ${params.donation.amount}</p>
+      ${forHtml}
       <p style="margin: 0; font-size: 12px; color: ${colors.mutedForeground}; font-family: monospace;">Ref: ${params.donation.id}</p>
     </div>
     <p>Your support helps us continue our mission of empowering youths across Africa.</p>
@@ -320,6 +337,7 @@ export async function sendDonationAcknowledgementEmail(params: {
     "",
     "Donation Details:",
     `Amount: ${params.donation.currency} ${params.donation.amount}`,
+    ...(forLabel ? [`Supporting: ${forLabel}`] : []),
     `Reference ID: ${params.donation.id}`,
     "",
     "With gratitude,",

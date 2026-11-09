@@ -1,4 +1,4 @@
-import { and, eq, not, desc } from "drizzle-orm";
+import { and, eq, not } from "drizzle-orm";
 import dbClient from "@/configs/db";
 import schema from "@/db/schema";
 import { ApiError } from "@/shared/types";
@@ -14,6 +14,7 @@ import {
   notifyOrderConfirmation,
 } from "@/shared/utils/notify";
 import { getPaymentProvider, TransactionStatus } from "./paymentProviders";
+import { getDonationForLabel } from "./donationsService";
 
 export type PaystackWebhookPayload = {
   event: "charge.success" | "charge.failed";
@@ -375,6 +376,7 @@ export async function sendTransactionSuccessEmail(
             id: donation.id,
             amount: transaction.amount,
             currency: transaction.currency,
+            forLabel: await getDonationForLabel(donation.id),
           },
         });
         logger.info(

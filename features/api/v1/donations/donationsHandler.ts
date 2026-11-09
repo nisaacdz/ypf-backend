@@ -1,4 +1,5 @@
 import { ApiError, ApiResponse, AuthenticatedUser } from "@/shared/types";
+import { donationForLabel } from "@/shared/utils/donationPurposes";
 import { Paginated } from "@/shared/dtos";
 import { CreateDonationSchema, GetDonationsQuerySchema } from "./schemas";
 import z from "zod";
@@ -50,6 +51,8 @@ export async function getDonationByRef(
     status: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
     amount: string;
     currency: string;
+    /** What the gift supports, for the thank-you page. */
+    forLabel: string;
   }>
 > {
   const selectByRef = () =>
@@ -58,12 +61,15 @@ export async function getDonationByRef(
         status: schema.FinancialTransactions.status,
         amount: schema.FinancialTransactions.amount,
         currency: schema.FinancialTransactions.currency,
+        projectTitle: schema.Projects.title,
+        purpose: schema.Donations.purpose,
       })
       .from(schema.FinancialTransactions)
       .innerJoin(
         schema.Donations,
         eq(schema.Donations.transactionId, schema.FinancialTransactions.id),
       )
+      .leftJoin(schema.Projects, eq(schema.Donations.projectId, schema.Projects.id))
       .where(eq(schema.FinancialTransactions.externalRef, ref))
       .limit(1);
 
@@ -96,6 +102,7 @@ export async function getDonationByRef(
       status: row.status,
       amount: row.amount,
       currency: row.currency,
+      forLabel: donationForLabel(row),
     },
   };
 }
@@ -116,18 +123,21 @@ export async function exportDonationsCsv(
         page,
         pageSize: PAGE_SIZE,
       });
-      for (const d of result.items as Array<Record<string, unknown>>) {
+      for (const d of result.items) {
+        // Map from the YPFDonation shape. (This used to read keys like
+        // donorName/createdAt that getDonations never returned, so the
+        // Donor, Email, Ref and When columns always exported blank.)
         yield {
           id: d.id,
           status: d.status ?? "",
           amount: d.amount ?? "",
           currency: d.currency ?? "",
-          donorName: d.donorName ?? d.fullName ?? "",
-          donorEmail: d.donorEmail ?? d.email ?? "",
+          donorName: d.donor?.name ?? "Anonymous",
+          donorEmail: d.donor?.email ?? "",
+          donationFor: d.forLabel,
           projectTitle: d.projectTitle ?? "",
-          eventName: d.eventName ?? "",
-          paymentReference: d.paymentReference ?? d.externalRef ?? "",
-          createdAt: d.createdAt ?? "",
+          paymentReference: d.paymentReference ?? "",
+          createdAt: d.date instanceof Date ? d.date.toISOString() : String(d.date ?? ""),
         };
       }
       if (result.items.length < PAGE_SIZE) break;
@@ -145,8 +155,8 @@ export async function exportDonationsCsv(
       { key: "currency", label: "Currency" },
       { key: "donorName", label: "Donor" },
       { key: "donorEmail", label: "Donor Email" },
+      { key: "donationFor", label: "Donation for" },
       { key: "projectTitle", label: "Project" },
-      { key: "eventName", label: "Event" },
       { key: "paymentReference", label: "Payment Ref" },
       { key: "createdAt", label: "When" },
     ],

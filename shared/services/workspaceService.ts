@@ -1,3 +1,4 @@
+import { donationForLabel } from "@/shared/utils/donationPurposes";
 import {
   and,
   count,
@@ -5,6 +6,7 @@ import {
   eq,
   gte,
   isNull,
+  isNotNull,
   lt,
   or,
   sql,
@@ -144,6 +146,11 @@ export type FinanceDonation = {
   donorEmail?: string | null;
   note?: string | null;
   createdAt: Date;
+  projectId?: string | null;
+  projectTitle?: string | null;
+  purpose?: string | null;
+  /** Project title, cause name, or "Where it's needed most". */
+  forLabel: string;
 };
 
 export type FinanceExpenditure = {
@@ -862,11 +869,16 @@ export async function getFinanceDonations({
   page,
   pageSize,
   month,
+  for: giftFor,
+  projectId,
 }: {
   user: AuthenticatedUser;
   page: number;
   pageSize: number;
   month?: string;
+  /** GENERAL | PROJECT | a cause code */
+  for?: string;
+  projectId?: string;
 }): Promise<PaginatedWorkspaceResult<FinanceDonation>> {
   await requireWorkspaceAccess(FINANCE_ALIAS, user);
   const offset = (page - 1) * pageSize;
@@ -876,6 +888,15 @@ export async function getFinanceDonations({
     gte(schema.FinancialTransactions.createdAt, start),
     lt(schema.FinancialTransactions.createdAt, end),
   ];
+  if (projectId) {
+    conditions.push(eq(schema.Donations.projectId, projectId));
+  } else if (giftFor === "PROJECT") {
+    conditions.push(isNotNull(schema.Donations.projectId));
+  } else if (giftFor === "GENERAL") {
+    conditions.push(isNull(schema.Donations.projectId), isNull(schema.Donations.purpose));
+  } else if (giftFor) {
+    conditions.push(eq(schema.Donations.purpose, giftFor));
+  }
 
   const [rows, [{ total }]] = await Promise.all([
     dbClient.db
@@ -891,6 +912,9 @@ export async function getFinanceDonations({
         firstName: schema.Constituents.firstName,
         lastName: schema.Constituents.lastName,
         email: schema.Constituents.email,
+        projectId: schema.Donations.projectId,
+        projectTitle: schema.Projects.title,
+        purpose: schema.Donations.purpose,
       })
       .from(schema.Donations)
       .innerJoin(
@@ -901,6 +925,7 @@ export async function getFinanceDonations({
         schema.Constituents,
         eq(schema.Donations.constituentId, schema.Constituents.id),
       )
+      .leftJoin(schema.Projects, eq(schema.Donations.projectId, schema.Projects.id))
       .where(and(...conditions))
       .orderBy(desc(schema.FinancialTransactions.createdAt))
       .limit(pageSize)
@@ -928,6 +953,10 @@ export async function getFinanceDonations({
       donorEmail: row.guestEmail ?? row.email,
       note: row.note,
       createdAt: row.createdAt,
+      projectId: row.projectId,
+      projectTitle: row.projectTitle,
+      purpose: row.purpose,
+      forLabel: donationForLabel(row),
     })),
     page,
     pageSize,
